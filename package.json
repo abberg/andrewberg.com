@@ -1,0 +1,16 @@
+{
+  "name": "andrewberg-com",
+  "version": "0.0.0",
+  "description": "Personal site",
+  "author": "Andrew Berg",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/abberg/andrewberg.com"
+  },
+  "dependencies": {},
+  "devDependencies": {},
+  "scripts": {
+    "build": "node scripts/copy.js"
+  }
+}
