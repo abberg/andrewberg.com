@@ -1,8 +1,4 @@
-var fs = require('fs');
+var fs = require('fs-extra');
 var path = require('path');
 
-// destination.txt will be created or overwritten by default.
-fs.copyFile(path.resolve(__dirname, '../src/index.html'), path.resolve(__dirname, '../public/index.html'), (err) => {
-    if (err) throw err;
-    console.log('index was copied');
-});
+fs.copySync(path.resolve(__dirname, '../src'), path.resolve(__dirname, '../public'));
