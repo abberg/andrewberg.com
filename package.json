@@ -9,12 +9,9 @@
     "url": "https://github.com/abberg/andrewberg.com"
   },
   "dependencies": {},
-  "devDependencies": {
-    "fs-extra": "^8.1.0",
-    "live-server": "^1.2.1"
-  },
+  "devDependencies": {},
   "scripts": {
-    "build": "node scripts/copy.js",
-    "start": "live-server ./src --port=7000"
+    "build": "",
+    "start": ""
   }
 }
