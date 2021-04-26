@@ -8,10 +8,11 @@
     "type": "git",
     "url": "https://github.com/abberg/andrewberg.com"
   },
-  "dependencies": {},
-  "devDependencies": {},
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
-    "build": "",
+    "build": "yarn workspace site build",
     "start": ""
   }
 }
