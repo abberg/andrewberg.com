@@ -3,11 +3,11 @@ class Test {
   // or `get data() {`
   data() {
     return {
-      permalink: "/index.html"
+      permalink: '/index.html',
     };
   }
 
-  render({name}) {
+  render({ collections }) {
     return `<!DOCTYPE html>
     <html lang="en">
       <head>
@@ -24,6 +24,21 @@ class Test {
           Andrew Berg
         </header>
         <main>
+          <nav>
+            <ul>
+              ${collections.pages
+                .map(
+                  (page) =>
+                    `<li>
+                      <a href="/${page}">
+                        <img src="/${page}/thumbnail.png" alt="thumbail">
+                        <span>${page}</span>
+                      </a>
+                    </li>`
+                )
+                .reduce((acc, cur) => acc + cur)}
+            </ul>
+          </nav>
         </main>
       </body>
     </html>
