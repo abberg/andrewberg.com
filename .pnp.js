@@ -27,6 +27,14 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
         "reference": "workspace:packages/model_001"
       },
       {
+        "name": "model_002",
+        "reference": "workspace:packages/model_002"
+      },
+      {
+        "name": "model_003",
+        "reference": "workspace:packages/model_003"
+      },
+      {
         "name": "site",
         "reference": "workspace:packages/site"
       }
@@ -36,6 +44,8 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
     "fallbackExclusionList": [
       ["andrewberg-com", ["workspace:."]],
       ["model_001", ["workspace:packages/model_001"]],
+      ["model_002", ["workspace:packages/model_002"]],
+      ["model_003", ["workspace:packages/model_003"]],
       ["site", ["workspace:packages/site"]]
     ],
     "fallbackPool": [
@@ -2115,6 +2125,15 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
           "linkType": "HARD",
         }]
       ]],
+      ["fractal-noise", [
+        ["npm:1.2.0", {
+          "packageLocation": "./.yarn/cache/fractal-noise-npm-1.2.0-507dc5ff21-91b4a9511e.zip/node_modules/fractal-noise/",
+          "packageDependencies": [
+            ["fractal-noise", "npm:1.2.0"]
+          ],
+          "linkType": "HARD",
+        }]
+      ]],
       ["fragment-cache", [
         ["npm:0.2.1", {
           "packageLocation": "./.yarn/cache/fragment-cache-npm-0.2.1-407fe74319-f88983f4bf.zip/node_modules/fragment-cache/",
@@ -2608,6 +2627,15 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
           "packageDependencies": [
             ["iconv-lite", "npm:0.6.2"],
             ["safer-buffer", "npm:2.1.2"]
+          ],
+          "linkType": "HARD",
+        }]
+      ]],
+      ["imagetracerjs", [
+        ["npm:1.2.6", {
+          "packageLocation": "./.yarn/cache/imagetracerjs-npm-1.2.6-7ca1e31063-87db42943d.zip/node_modules/imagetracerjs/",
+          "packageDependencies": [
+            ["imagetracerjs", "npm:1.2.6"]
           ],
           "linkType": "HARD",
         }]
@@ -3753,6 +3781,41 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
           "linkType": "SOFT",
         }]
       ]],
+      ["model_002", [
+        ["workspace:packages/model_002", {
+          "packageLocation": "./packages/model_002/",
+          "packageDependencies": [
+            ["model_002", "workspace:packages/model_002"],
+            ["@yarnpkg/esbuild-plugin-pnp", "virtual:4c82e052848dab51cfd06c97d76e857d58406415825371b372523df9cecb984070f89cdc4613b35ba20041c37303f226dea44e7f3586bfb121482b6970b0c531#npm:1.0.0-rc.2"],
+            ["chokidar-cli", "npm:2.1.0"],
+            ["esbuild", "npm:0.11.15"],
+            ["fast-mersenne-twister", "npm:1.0.3"],
+            ["live-server", "npm:1.2.1"],
+            ["npm-run-all", "npm:4.1.5"],
+            ["three", "npm:0.127.0"]
+          ],
+          "linkType": "SOFT",
+        }]
+      ]],
+      ["model_003", [
+        ["workspace:packages/model_003", {
+          "packageLocation": "./packages/model_003/",
+          "packageDependencies": [
+            ["model_003", "workspace:packages/model_003"],
+            ["@yarnpkg/esbuild-plugin-pnp", "virtual:4c82e052848dab51cfd06c97d76e857d58406415825371b372523df9cecb984070f89cdc4613b35ba20041c37303f226dea44e7f3586bfb121482b6970b0c531#npm:1.0.0-rc.2"],
+            ["chokidar-cli", "npm:2.1.0"],
+            ["esbuild", "npm:0.11.15"],
+            ["fast-mersenne-twister", "npm:1.0.3"],
+            ["fractal-noise", "npm:1.2.0"],
+            ["imagetracerjs", "npm:1.2.6"],
+            ["live-server", "npm:1.2.1"],
+            ["npm-run-all", "npm:4.1.5"],
+            ["open-simplex-noise", "npm:2.5.0"],
+            ["three", "npm:0.127.0"]
+          ],
+          "linkType": "SOFT",
+        }]
+      ]],
       ["moo", [
         ["npm:0.5.1", {
           "packageLocation": "./.yarn/cache/moo-npm-0.5.1-6281c30315-d637b67ae6.zip/node_modules/moo/",
@@ -4107,6 +4170,15 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
           "packageDependencies": [
             ["once", "npm:1.4.0"],
             ["wrappy", "npm:1.0.2"]
+          ],
+          "linkType": "HARD",
+        }]
+      ]],
+      ["open-simplex-noise", [
+        ["npm:2.5.0", {
+          "packageLocation": "./.yarn/cache/open-simplex-noise-npm-2.5.0-5a462414b4-7fecfda746.zip/node_modules/open-simplex-noise/",
+          "packageDependencies": [
+            ["open-simplex-noise", "npm:2.5.0"]
           ],
           "linkType": "HARD",
         }]

@@ -1811,6 +1811,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"fractal-noise@npm:^1.2.0":
+  version: 1.2.0
+  resolution: "fractal-noise@npm:1.2.0"
+  checksum: 91b4a9511ebc4b8ef32f379ac5bc3e1d611256b6b9b2489f45de64a8ca52aa2402f3400182a3412a1333b05923218e481df9b893c079742c17a9b7863c045d57
+  languageName: node
+  linkType: hard
+
 "fragment-cache@npm:^0.2.1":
   version: 0.2.1
   resolution: "fragment-cache@npm:0.2.1"
@@ -2278,6 +2285,13 @@ fsevents@~2.3.1:
   dependencies:
     safer-buffer: ">= 2.1.2 < 3.0.0"
   checksum: 0785670120f57b5912c6a4391d6a69914906746d259b59de884dc6d324a52a0abde38d5804f67370192fec6878d01e7306de525568abcea70eb41c2bceb9f547
+  languageName: node
+  linkType: hard
+
+"imagetracerjs@npm:^1.2.6":
+  version: 1.2.6
+  resolution: "imagetracerjs@npm:1.2.6"
+  checksum: 87db42943d0b628a71158a2ad5306822acc00f553e5bf4a9881eeaf22e4cc1ce894d1f8f5b94b83417188de20f29dbd82ee7bb211cf55ca403d42c5fedf874cc
   languageName: node
   linkType: hard
 
@@ -3320,6 +3334,37 @@ fsevents@~2.3.1:
   languageName: unknown
   linkType: soft
 
+"model_002@workspace:packages/model_002":
+  version: 0.0.0-use.local
+  resolution: "model_002@workspace:packages/model_002"
+  dependencies:
+    "@yarnpkg/esbuild-plugin-pnp": ^1.0.0-rc.2
+    chokidar-cli: ^2.1.0
+    esbuild: ^0.11.12
+    fast-mersenne-twister: ^1.0.3
+    live-server: ^1.2.1
+    npm-run-all: ^4.1.5
+    three: ^0.127.0
+  languageName: unknown
+  linkType: soft
+
+"model_003@workspace:packages/model_003":
+  version: 0.0.0-use.local
+  resolution: "model_003@workspace:packages/model_003"
+  dependencies:
+    "@yarnpkg/esbuild-plugin-pnp": ^1.0.0-rc.2
+    chokidar-cli: ^2.1.0
+    esbuild: ^0.11.12
+    fast-mersenne-twister: ^1.0.3
+    fractal-noise: ^1.2.0
+    imagetracerjs: ^1.2.6
+    live-server: ^1.2.1
+    npm-run-all: ^4.1.5
+    open-simplex-noise: ^2.5.0
+    three: ^0.127.0
+  languageName: unknown
+  linkType: soft
+
 "moo@npm:^0.5.1":
   version: 0.5.1
   resolution: "moo@npm:0.5.1"
@@ -3640,6 +3685,13 @@ fsevents@~2.3.1:
   dependencies:
     wrappy: 1
   checksum: 57afc246536cf6494437f982b26475f22bee860f8b77ce8eb1543f42a8bffe04b2c66ddfea9a16cb25ccb80943f8ee4fc639367ef97b7a6a4f2672eb573963f5
+  languageName: node
+  linkType: hard
+
+"open-simplex-noise@npm:^2.5.0":
+  version: 2.5.0
+  resolution: "open-simplex-noise@npm:2.5.0"
+  checksum: 7fecfda74662a824ba05f8e0ca8a0e5db3f637f12d778a4fb5e35faac505c7f2692361060a11a4fd0ede55f03fb49e852322255aebc1ed62c2b05acd09eac46e
   languageName: node
   linkType: hard
 

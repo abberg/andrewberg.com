@@ -1,7 +1,10 @@
 {
-  "name": "model_001",
+  "name": "model_003",
   "dependencies": {
     "fast-mersenne-twister": "^1.0.3",
+    "fractal-noise": "^1.2.0",
+    "imagetracerjs": "^1.2.6",
+    "open-simplex-noise": "^2.5.0",
     "three": "^0.127.0"
   },
   "devDependencies": {
