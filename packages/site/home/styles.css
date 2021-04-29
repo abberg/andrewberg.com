@@ -23,11 +23,12 @@ header {
 
 nav ul {
   display: grid;
-  gap: 8px;
-  grid-template-columns: repeat(3, 200px);
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 8px;
   list-style: none;
   margin-top: 0;
   margin-bottom: 0;
+  max-width: 1224px;
   padding-left: 0;
 }
 
@@ -45,8 +46,8 @@ nav a:visited {
 }
 
 nav a:hover {
-  box-shadow: 0 4px 2px -1px rgba(0, 0, 0, 0.3);
-  transform: translateY(-2px);
+  box-shadow: 4px 4px 0 0 rgba(0, 0, 0, 0.4);
+  transform: translateY(-4px);
 }
 
 nav a img {
