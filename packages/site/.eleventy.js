@@ -8,7 +8,10 @@ module.exports = function (eleventyConfig) {
   const directories = readdirSync(path.join(__dirname, '../'), {
     withFileTypes: true,
   })
-    .filter((dirent) => dirent.isDirectory() && dirent.name !== 'site')
+    .filter(
+      (dirent) =>
+        dirent.isDirectory() && dirent.name !== ('site' || 'model_base')
+    )
     .map((dirent) => dirent.name);
 
   directories.forEach((directoryName) => {

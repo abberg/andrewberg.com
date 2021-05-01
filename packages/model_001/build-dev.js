@@ -2,6 +2,6 @@ require('esbuild').build({
   entryPoints: ['./src/main.js'],
   bundle: true,
   outdir: 'dist',
-  sourcemap: true,
+  minify: true,
   plugins: [require('@yarnpkg/esbuild-plugin-pnp').pnpPlugin()],
 });
