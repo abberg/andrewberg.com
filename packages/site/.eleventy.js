@@ -10,7 +10,9 @@ module.exports = function (eleventyConfig) {
   })
     .filter(
       (dirent) =>
-        dirent.isDirectory() && dirent.name !== ('site' || 'model_base')
+        dirent.isDirectory() &&
+        dirent.name !== 'site' &&
+        dirent.name !== 'model_base'
     )
     .map((dirent) => dirent.name);
 
