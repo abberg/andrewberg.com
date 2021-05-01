@@ -3329,8 +3329,9 @@ fsevents@~2.3.1:
     esbuild: ^0.11.12
     fast-mersenne-twister: ^1.0.3
     live-server: ^1.2.1
+    model_base: "workspace:*"
     npm-run-all: ^4.1.5
-    three: ^0.127.0
+    three: ^0.128.0
   languageName: unknown
   linkType: soft
 
@@ -3362,6 +3363,14 @@ fsevents@~2.3.1:
     npm-run-all: ^4.1.5
     open-simplex-noise: ^2.5.0
     three: ^0.127.0
+  languageName: unknown
+  linkType: soft
+
+"model_base@workspace:*, model_base@workspace:packages/model_base":
+  version: 0.0.0-use.local
+  resolution: "model_base@workspace:packages/model_base"
+  dependencies:
+    three: ^0.128.0
   languageName: unknown
   linkType: soft
 
@@ -5171,6 +5180,13 @@ fsevents@~2.3.1:
   version: 0.127.0
   resolution: "three@npm:0.127.0"
   checksum: 7e1013918a5972e2e8fd98a4516381eeb07238b979a7041921b2a90095c74a02e64346e4693ed658b0208adc01df58dc7fbe43b1fedf7360e063719e6f22099a
+  languageName: node
+  linkType: hard
+
+"three@npm:^0.128.0":
+  version: 0.128.0
+  resolution: "three@npm:0.128.0"
+  checksum: a15d9cef8fc203e537d4f031d6c70cb2a93a3969524a052b533ebd6d556255fd0e0a3c161772847ee7985522fe866f60cb8beb8fe7962d960a1d45276208560d
   languageName: node
   linkType: hard
 
