@@ -14,7 +14,7 @@
   "scripts": {
     "build:packages": "yarn workspaces foreach --exclude site --exclude model_base run package",
     "build:site": "yarn workspace site build",
-    "build": "yarn run build:packages && build:site",
+    "build": "yarn run build:packages && yarn run build:site",
     "start": ""
   },
   "devDependencies": {
