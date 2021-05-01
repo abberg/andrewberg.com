@@ -1,17 +1,22 @@
-import * as THREE from 'three';
-import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
-import { SSAOPass } from 'three/examples/jsm/postprocessing/SSAOPass.js';
-import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
-import { FXAAShader } from 'three/examples/jsm/shaders/FXAAShader.js';
+import {
+  ExtrudeGeometry,
+  Mesh,
+  Box3,
+  Vector3,
+  Object3D,
+  BoxGeometry,
+  MeshPhongMaterial,
+  //CameraHelper,
+} from 'three';
 import { SVGLoader } from 'three/examples/jsm/loaders/SVGLoader.js';
 import { BufferGeometryUtils } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { MersenneTwister } from 'fast-mersenne-twister';
 import { makeNoise2D } from 'open-simplex-noise';
 import { makeRectangle } from 'fractal-noise';
 const ImageTracer = require('imagetracerjs');
+import { createModelBase } from 'model_base';
 
-const seed = 770; // Math.floor(Math.random() * 10000);
-console.log('seed =', seed);
+const seed = 770;
 const mersenne = MersenneTwister(seed);
 const noiseSeed = Math.floor(mersenne.random() * 10000);
 const noise2D = makeNoise2D(noiseSeed);
@@ -43,64 +48,25 @@ ctx.putImageData(imgdata, 0, 0);
 const svgstr = ImageTracer.imagedataToSVG(imgdata);
 ImageTracer.appendSVGString(svgstr, 'svg-container');
 
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(
-  75,
-  window.innerWidth / window.innerHeight,
-  1,
-  50
-);
-const renderer = new THREE.WebGLRenderer();
-renderer.setClearColor(0xdddddd);
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-document.body.appendChild(renderer.domElement);
-
-composer = new EffectComposer(renderer);
-
-const ssaoPass = new SSAOPass(
+const {
+  keyLight,
   scene,
-  camera,
-  window.innerWidth,
-  window.innerHeight
-);
-ssaoPass.kernelRadius = 0.22;
-ssaoPass.minDistance = 0.0007;
-ssaoPass.maxDistance = 0.015;
-composer.addPass(ssaoPass);
+  start,
+  baseMaterial,
+  shadowMaterial,
+} = createModelBase();
 
-const fxaaPass = new ShaderPass(FXAAShader);
-fxaaPass.material.uniforms['resolution'].value.x = 1 / window.innerWidth;
-fxaaPass.material.uniforms['resolution'].value.y = 1 / window.innerHeight;
-composer.addPass(fxaaPass);
-
-const keyLight = new THREE.DirectionalLight(0xffffff, 0.5);
-keyLight.castShadow = true;
 keyLight.position.set(-3, 10, 2);
-scene.add(keyLight);
-
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-scene.add(ambientLight);
-
-keyLight.shadow.mapSize.width = 128;
-keyLight.shadow.mapSize.height = 128;
-const size = 7;
+const shadowFrustumSize = 7;
 keyLight.shadow.camera.near = 1;
 keyLight.shadow.camera.far = 15;
-keyLight.shadow.camera.top = size;
-keyLight.shadow.camera.bottom = -size;
-keyLight.shadow.camera.left = -size;
-keyLight.shadow.camera.right = size;
+keyLight.shadow.camera.top = shadowFrustumSize;
+keyLight.shadow.camera.bottom = -shadowFrustumSize;
+keyLight.shadow.camera.left = -shadowFrustumSize;
+keyLight.shadow.camera.right = shadowFrustumSize;
 
-//var helper = new THREE.CameraHelper( keyLight.shadow.camera );
-//scene.add( helper )
-
-const cardboardMaterial = new THREE.MeshLambertMaterial({ color: 0xc19a6c });
-
-const shadowMaterial = new THREE.ShadowMaterial();
-shadowMaterial.transparent = true;
-shadowMaterial.opacity = 0.3;
+//var helper = new CameraHelper(keyLight.shadow.camera);
+//scene.add(helper);
 
 const loader = new SVGLoader();
 const svgData = loader.parse(svgstr);
@@ -108,7 +74,7 @@ const geometries = [];
 svgData.paths.forEach((path) => {
   const shapes = path.toShapes(true);
   shapes.forEach((shape) => {
-    const geometry = new THREE.ExtrudeGeometry(shape, {
+    const geometry = new ExtrudeGeometry(shape, {
       depth: 100 * path.color.r,
       bevelEnabled: true,
       bevelThickness: -0.25,
@@ -121,10 +87,10 @@ svgData.paths.forEach((path) => {
 });
 
 geometry = BufferGeometryUtils.mergeBufferGeometries(geometries);
-mesh = new THREE.Mesh(geometry, cardboardMaterial);
+mesh = new Mesh(geometry, baseMaterial);
 mesh.scale.set(1, -1, 1);
-const box = new THREE.Box3().setFromObject(mesh);
-const terrainSize = new THREE.Vector3();
+const box = new Box3().setFromObject(mesh);
+const terrainSize = new Vector3();
 box.getSize(terrainSize);
 const xOffset = terrainSize.x / -2;
 const yOffset = terrainSize.y / 2;
@@ -135,7 +101,7 @@ let shadowMesh = mesh.clone();
 shadowMesh.material = shadowMaterial;
 shadowMesh.receiveShadow = true;
 
-const container = new THREE.Object3D();
+const container = new Object3D();
 container.add(mesh);
 container.add(shadowMesh);
 container.rotation.x = -Math.PI / 2;
@@ -148,11 +114,11 @@ box.getSize(terrainSize);
 let prevY = terrainSize.y / 2;
 let height = 0.1;
 
-geometry = new THREE.BoxGeometry(4, height, 4);
-material = new THREE.MeshPhongMaterial();
+geometry = new BoxGeometry(4, height, 4);
+material = new MeshPhongMaterial();
 
 for (let i = 0; i < 5; i++) {
-  mesh = new THREE.Mesh(geometry, material);
+  mesh = new Mesh(geometry, material);
   mesh.position.set(
     mersenne.random() * 3 - 1.5,
     prevY,
@@ -167,52 +133,4 @@ for (let i = 0; i < 5; i++) {
   prevY += height * 2;
 }
 
-const clock = new THREE.Clock();
-const radius = 10;
-const yPos = 5;
-const cameraLookTarget = new THREE.Vector3(0, 1, 0);
-
-function update() {
-  const t = clock.getElapsedTime() * 0.2;
-  const xPos = Math.sin(t) * radius;
-  const zPos = Math.cos(t) * radius;
-  camera.position.set(xPos, yPos, zPos);
-  camera.lookAt(cameraLookTarget);
-}
-
-function render() {
-  //renderer.render(scene, camera);
-  composer.render();
-}
-
-function handleAnimationFrame() {
-  update();
-  render();
-  window.requestAnimationFrame(handleAnimationFrame);
-}
-
-function handleResize() {
-  const width = window.innerWidth;
-  const height = window.innerHeight;
-
-  camera.aspect = width / height;
-  camera.updateProjectionMatrix();
-
-  renderer.setSize(width, height);
-  composer.setSize(width, height);
-}
-
-function debounce(callback, wait) {
-  let timeoutId = null;
-  return (...args) => {
-    window.clearTimeout(timeoutId);
-    timeoutId = window.setTimeout(() => {
-      callback.apply(null, args);
-    }, wait);
-  };
-}
-
-window.addEventListener('resize', debounce(handleResize, 300), false);
-
-// kick it!
-handleAnimationFrame();
+start();

@@ -3344,8 +3344,9 @@ fsevents@~2.3.1:
     esbuild: ^0.11.12
     fast-mersenne-twister: ^1.0.3
     live-server: ^1.2.1
+    model_base: "workspace:*"
     npm-run-all: ^4.1.5
-    three: ^0.127.0
+    three: ^0.128.0
   languageName: unknown
   linkType: soft
 
@@ -3360,9 +3361,10 @@ fsevents@~2.3.1:
     fractal-noise: ^1.2.0
     imagetracerjs: ^1.2.6
     live-server: ^1.2.1
+    model_base: "workspace:*"
     npm-run-all: ^4.1.5
     open-simplex-noise: ^2.5.0
-    three: ^0.127.0
+    three: ^0.128.0
   languageName: unknown
   linkType: soft
 
@@ -5173,13 +5175,6 @@ fsevents@~2.3.1:
     chalk: ^1.1.3
     dlv: ^1.1.3
   checksum: c9432b141532109a08c8c04cb249f82735264123c3036e1a1bd0836000cd4be54a4484c5cc2d3ed123695de170f1dcf7998b4410feeadb3e36c3056e25aec5ef
-  languageName: node
-  linkType: hard
-
-"three@npm:^0.127.0":
-  version: 0.127.0
-  resolution: "three@npm:0.127.0"
-  checksum: 7e1013918a5972e2e8fd98a4516381eeb07238b979a7041921b2a90095c74a02e64346e4693ed658b0208adc01df58dc7fbe43b1fedf7360e063719e6f22099a
   languageName: node
   linkType: hard
 

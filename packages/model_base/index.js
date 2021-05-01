@@ -60,7 +60,7 @@ export function createModelBase() {
 
   const shadowMaterial = new ShadowMaterial();
   shadowMaterial.transparent = true;
-  shadowMaterial.opacity = 0.5;
+  shadowMaterial.opacity = 0.3;
 
   let radius = 9;
   const yPos = 6;
@@ -174,6 +174,10 @@ export function createModelBase() {
   return {
     scene: scene,
     camera: camera,
+    cameraLookTarget: cameraLookTarget,
+    setCameraRadius: (r) => {
+      radius = r;
+    },
     renderer: renderer,
     keyLight: keyLight,
     baseMaterial,

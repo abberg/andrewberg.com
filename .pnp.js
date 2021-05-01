@@ -3797,8 +3797,9 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
             ["esbuild", "npm:0.11.15"],
             ["fast-mersenne-twister", "npm:1.0.3"],
             ["live-server", "npm:1.2.1"],
+            ["model_base", "workspace:packages/model_base"],
             ["npm-run-all", "npm:4.1.5"],
-            ["three", "npm:0.127.0"]
+            ["three", "npm:0.128.0"]
           ],
           "linkType": "SOFT",
         }]
@@ -3815,9 +3816,10 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
             ["fractal-noise", "npm:1.2.0"],
             ["imagetracerjs", "npm:1.2.6"],
             ["live-server", "npm:1.2.1"],
+            ["model_base", "workspace:packages/model_base"],
             ["npm-run-all", "npm:4.1.5"],
             ["open-simplex-noise", "npm:2.5.0"],
-            ["three", "npm:0.127.0"]
+            ["three", "npm:0.128.0"]
           ],
           "linkType": "SOFT",
         }]
@@ -5848,13 +5850,6 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
         }]
       ]],
       ["three", [
-        ["npm:0.127.0", {
-          "packageLocation": "./.yarn/cache/three-npm-0.127.0-cc7d9df680-7e1013918a.zip/node_modules/three/",
-          "packageDependencies": [
-            ["three", "npm:0.127.0"]
-          ],
-          "linkType": "HARD",
-        }],
         ["npm:0.128.0", {
           "packageLocation": "./.yarn/cache/three-npm-0.128.0-e3770cfa25-a15d9cef8f.zip/node_modules/three/",
           "packageDependencies": [
