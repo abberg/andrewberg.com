@@ -13,7 +13,7 @@
     "npm-run-all": "^4.1.5"
   },
   "scripts": {
-    "build:production": "node build-production.js",
+    "package": "node build-production.js",
     "build:dev": "node build-dev.js",
     "watch": "chokidar \"./src/main.js\" -c \"yarn run build:dev\"",
     "serve": "live-server dist/",

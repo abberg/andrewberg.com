@@ -12,7 +12,7 @@
     "packages/*"
   ],
   "scripts": {
-    "build:packages": "yarn workspaces foreach run build:production -p --exclude ['site', 'model_base']",
+    "build:packages": "yarn workspaces foreach --exclude site --exclude model_base run package",
     "build:site": "yarn workspace site build",
     "build": "yarn run build:packages && build:site",
     "start": ""
