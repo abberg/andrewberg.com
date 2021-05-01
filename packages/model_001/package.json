@@ -2,7 +2,8 @@
   "name": "model_001",
   "dependencies": {
     "fast-mersenne-twister": "^1.0.3",
-    "three": "^0.127.0"
+    "model_base": "workspace:*",
+    "three": "^0.128.0"
   },
   "devDependencies": {
     "@yarnpkg/esbuild-plugin-pnp": "^1.0.0-rc.2",
@@ -12,8 +13,9 @@
     "npm-run-all": "^4.1.5"
   },
   "scripts": {
-    "build": "node build.js",
-    "watch": "chokidar \"./src/main.js\" -c \"yarn run build\"",
+    "build:production": "node build-production.js",
+    "build:dev": "node build-dev.js",
+    "watch": "chokidar \"./src/main.js\" -c \"yarn run build:dev\"",
     "serve": "live-server dist/",
     "start": "npm-run-all --parallel serve watch"
   }
