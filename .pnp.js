@@ -35,6 +35,10 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
         "reference": "workspace:packages/model_003"
       },
       {
+        "name": "model_004",
+        "reference": "workspace:packages/model_004"
+      },
+      {
         "name": "model_base",
         "reference": "workspace:packages/model_base"
       },
@@ -50,6 +54,7 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
       ["model_001", ["workspace:packages/model_001"]],
       ["model_002", ["workspace:packages/model_002"]],
       ["model_003", ["workspace:packages/model_003"]],
+      ["model_004", ["workspace:packages/model_004"]],
       ["model_base", ["workspace:packages/model_base"]],
       ["site", ["workspace:packages/site"]]
     ],
@@ -143,6 +148,188 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
             ["@babel/types", "npm:7.13.17"],
             ["@babel/helper-validator-identifier", "npm:7.12.11"],
             ["to-fast-properties", "npm:2.0.0"]
+          ],
+          "linkType": "HARD",
+        }]
+      ]],
+      ["@jscad/amf-deserializer", [
+        ["npm:2.0.2", {
+          "packageLocation": "./.yarn/cache/@jscad-amf-deserializer-npm-2.0.2-deac342ce3-6ddc76f40a.zip/node_modules/@jscad/amf-deserializer/",
+          "packageDependencies": [
+            ["@jscad/amf-deserializer", "npm:2.0.2"],
+            ["@jscad/modeling", "npm:2.2.0"],
+            ["sax", "npm:1.2.4"]
+          ],
+          "linkType": "HARD",
+        }]
+      ]],
+      ["@jscad/amf-serializer", [
+        ["npm:2.0.3", {
+          "packageLocation": "./.yarn/cache/@jscad-amf-serializer-npm-2.0.3-7942aeb3c5-8721b5ef87.zip/node_modules/@jscad/amf-serializer/",
+          "packageDependencies": [
+            ["@jscad/amf-serializer", "npm:2.0.3"],
+            ["@jscad/array-utils", "npm:2.1.0"],
+            ["@jscad/modeling", "npm:2.2.0"],
+            ["onml", "npm:1.2.0"]
+          ],
+          "linkType": "HARD",
+        }]
+      ]],
+      ["@jscad/array-utils", [
+        ["npm:2.1.0", {
+          "packageLocation": "./.yarn/cache/@jscad-array-utils-npm-2.1.0-ef641d7e07-69247b5ed4.zip/node_modules/@jscad/array-utils/",
+          "packageDependencies": [
+            ["@jscad/array-utils", "npm:2.1.0"]
+          ],
+          "linkType": "HARD",
+        }]
+      ]],
+      ["@jscad/dxf-deserializer", [
+        ["npm:2.2.0", {
+          "packageLocation": "./.yarn/cache/@jscad-dxf-deserializer-npm-2.2.0-6fec4210af-ab355cbaec.zip/node_modules/@jscad/dxf-deserializer/",
+          "packageDependencies": [
+            ["@jscad/dxf-deserializer", "npm:2.2.0"],
+            ["@jscad/modeling", "npm:2.2.0"]
+          ],
+          "linkType": "HARD",
+        }]
+      ]],
+      ["@jscad/dxf-serializer", [
+        ["npm:2.0.3", {
+          "packageLocation": "./.yarn/cache/@jscad-dxf-serializer-npm-2.0.3-1f90688c26-8fbf3e550c.zip/node_modules/@jscad/dxf-serializer/",
+          "packageDependencies": [
+            ["@jscad/dxf-serializer", "npm:2.0.3"],
+            ["@jscad/array-utils", "npm:2.1.0"],
+            ["@jscad/modeling", "npm:2.2.0"]
+          ],
+          "linkType": "HARD",
+        }]
+      ]],
+      ["@jscad/io", [
+        ["npm:2.0.3", {
+          "packageLocation": "./.yarn/cache/@jscad-io-npm-2.0.3-b6e7fc6217-6c5f0e966b.zip/node_modules/@jscad/io/",
+          "packageDependencies": [
+            ["@jscad/io", "npm:2.0.3"],
+            ["@jscad/amf-deserializer", "npm:2.0.2"],
+            ["@jscad/amf-serializer", "npm:2.0.3"],
+            ["@jscad/array-utils", "npm:2.1.0"],
+            ["@jscad/dxf-deserializer", "npm:2.2.0"],
+            ["@jscad/dxf-serializer", "npm:2.0.3"],
+            ["@jscad/io-utils", "npm:2.0.2"],
+            ["@jscad/json-deserializer", "npm:2.0.3"],
+            ["@jscad/json-serializer", "npm:2.0.2"],
+            ["@jscad/modeling", "npm:2.2.0"],
+            ["@jscad/obj-deserializer", "npm:2.0.2"],
+            ["@jscad/stl-deserializer", "npm:2.0.2"],
+            ["@jscad/stl-serializer", "npm:2.0.3"],
+            ["@jscad/svg-deserializer", "npm:2.2.1"],
+            ["@jscad/svg-serializer", "npm:2.2.0"],
+            ["@jscad/x3d-serializer", "npm:2.2.1"]
+          ],
+          "linkType": "HARD",
+        }]
+      ]],
+      ["@jscad/io-utils", [
+        ["npm:2.0.2", {
+          "packageLocation": "./.yarn/cache/@jscad-io-utils-npm-2.0.2-2fd26ca6cf-3254753ea8.zip/node_modules/@jscad/io-utils/",
+          "packageDependencies": [
+            ["@jscad/io-utils", "npm:2.0.2"]
+          ],
+          "linkType": "HARD",
+        }]
+      ]],
+      ["@jscad/json-deserializer", [
+        ["npm:2.0.3", {
+          "packageLocation": "./.yarn/cache/@jscad-json-deserializer-npm-2.0.3-0a9c0eb620-d5757b9796.zip/node_modules/@jscad/json-deserializer/",
+          "packageDependencies": [
+            ["@jscad/json-deserializer", "npm:2.0.3"],
+            ["@jscad/array-utils", "npm:2.1.0"]
+          ],
+          "linkType": "HARD",
+        }]
+      ]],
+      ["@jscad/json-serializer", [
+        ["npm:2.0.2", {
+          "packageLocation": "./.yarn/cache/@jscad-json-serializer-npm-2.0.2-07a8d762f9-dfef09e881.zip/node_modules/@jscad/json-serializer/",
+          "packageDependencies": [
+            ["@jscad/json-serializer", "npm:2.0.2"],
+            ["@jscad/modeling", "npm:2.2.0"]
+          ],
+          "linkType": "HARD",
+        }]
+      ]],
+      ["@jscad/modeling", [
+        ["npm:2.2.0", {
+          "packageLocation": "./.yarn/cache/@jscad-modeling-npm-2.2.0-044cf41835-ce336fb059.zip/node_modules/@jscad/modeling/",
+          "packageDependencies": [
+            ["@jscad/modeling", "npm:2.2.0"]
+          ],
+          "linkType": "HARD",
+        }]
+      ]],
+      ["@jscad/obj-deserializer", [
+        ["npm:2.0.2", {
+          "packageLocation": "./.yarn/cache/@jscad-obj-deserializer-npm-2.0.2-53b9bf1229-4cd0216928.zip/node_modules/@jscad/obj-deserializer/",
+          "packageDependencies": [
+            ["@jscad/obj-deserializer", "npm:2.0.2"],
+            ["@jscad/modeling", "npm:2.2.0"]
+          ],
+          "linkType": "HARD",
+        }]
+      ]],
+      ["@jscad/stl-deserializer", [
+        ["npm:2.0.2", {
+          "packageLocation": "./.yarn/cache/@jscad-stl-deserializer-npm-2.0.2-3a57512b32-81dba80229.zip/node_modules/@jscad/stl-deserializer/",
+          "packageDependencies": [
+            ["@jscad/stl-deserializer", "npm:2.0.2"],
+            ["@jscad/io-utils", "npm:2.0.2"],
+            ["@jscad/modeling", "npm:2.2.0"]
+          ],
+          "linkType": "HARD",
+        }]
+      ]],
+      ["@jscad/stl-serializer", [
+        ["npm:2.0.3", {
+          "packageLocation": "./.yarn/cache/@jscad-stl-serializer-npm-2.0.3-bfbefafbb5-ad458d7933.zip/node_modules/@jscad/stl-serializer/",
+          "packageDependencies": [
+            ["@jscad/stl-serializer", "npm:2.0.3"],
+            ["@jscad/array-utils", "npm:2.1.0"],
+            ["@jscad/modeling", "npm:2.2.0"]
+          ],
+          "linkType": "HARD",
+        }]
+      ]],
+      ["@jscad/svg-deserializer", [
+        ["npm:2.2.1", {
+          "packageLocation": "./.yarn/cache/@jscad-svg-deserializer-npm-2.2.1-dd91b74560-7365e54efc.zip/node_modules/@jscad/svg-deserializer/",
+          "packageDependencies": [
+            ["@jscad/svg-deserializer", "npm:2.2.1"],
+            ["@jscad/array-utils", "npm:2.1.0"],
+            ["@jscad/modeling", "npm:2.2.0"],
+            ["sax", "npm:1.2.4"]
+          ],
+          "linkType": "HARD",
+        }]
+      ]],
+      ["@jscad/svg-serializer", [
+        ["npm:2.2.0", {
+          "packageLocation": "./.yarn/cache/@jscad-svg-serializer-npm-2.2.0-a92c7f0ae0-d435c8e309.zip/node_modules/@jscad/svg-serializer/",
+          "packageDependencies": [
+            ["@jscad/svg-serializer", "npm:2.2.0"],
+            ["@jscad/modeling", "npm:2.2.0"],
+            ["onml", "npm:1.2.0"]
+          ],
+          "linkType": "HARD",
+        }]
+      ]],
+      ["@jscad/x3d-serializer", [
+        ["npm:2.2.1", {
+          "packageLocation": "./.yarn/cache/@jscad-x3d-serializer-npm-2.2.1-b19b76d7f4-9102298555.zip/node_modules/@jscad/x3d-serializer/",
+          "packageDependencies": [
+            ["@jscad/x3d-serializer", "npm:2.2.1"],
+            ["@jscad/array-utils", "npm:2.1.0"],
+            ["@jscad/modeling", "npm:2.2.0"],
+            ["onml", "npm:1.2.0"]
           ],
           "linkType": "HARD",
         }]
@@ -3824,6 +4011,28 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
           "linkType": "SOFT",
         }]
       ]],
+      ["model_004", [
+        ["workspace:packages/model_004", {
+          "packageLocation": "./packages/model_004/",
+          "packageDependencies": [
+            ["model_004", "workspace:packages/model_004"],
+            ["@jscad/io", "npm:2.0.3"],
+            ["@jscad/modeling", "npm:2.2.0"],
+            ["@yarnpkg/esbuild-plugin-pnp", "virtual:4c82e052848dab51cfd06c97d76e857d58406415825371b372523df9cecb984070f89cdc4613b35ba20041c37303f226dea44e7f3586bfb121482b6970b0c531#npm:1.0.0-rc.2"],
+            ["chokidar-cli", "npm:2.1.0"],
+            ["esbuild", "npm:0.11.15"],
+            ["fast-mersenne-twister", "npm:1.0.3"],
+            ["fractal-noise", "npm:1.2.0"],
+            ["imagetracerjs", "npm:1.2.6"],
+            ["live-server", "npm:1.2.1"],
+            ["model_base", "workspace:packages/model_base"],
+            ["npm-run-all", "npm:4.1.5"],
+            ["open-simplex-noise", "npm:2.5.0"],
+            ["three", "npm:0.128.0"]
+          ],
+          "linkType": "SOFT",
+        }]
+      ]],
       ["model_base", [
         ["workspace:packages/model_base", {
           "packageLocation": "./packages/model_base/",
@@ -4188,6 +4397,16 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
           "packageDependencies": [
             ["once", "npm:1.4.0"],
             ["wrappy", "npm:1.0.2"]
+          ],
+          "linkType": "HARD",
+        }]
+      ]],
+      ["onml", [
+        ["npm:1.2.0", {
+          "packageLocation": "./.yarn/cache/onml-npm-1.2.0-5dee93ddd5-653dc3c2a9.zip/node_modules/onml/",
+          "packageDependencies": [
+            ["onml", "npm:1.2.0"],
+            ["sax", "npm:1.2.4"]
           ],
           "linkType": "HARD",
         }]
@@ -5093,6 +5312,15 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
           "packageLocation": "./.yarn/cache/safer-buffer-npm-2.1.2-8d5c0b705e-549ba83f5b.zip/node_modules/safer-buffer/",
           "packageDependencies": [
             ["safer-buffer", "npm:2.1.2"]
+          ],
+          "linkType": "HARD",
+        }]
+      ]],
+      ["sax", [
+        ["npm:1.2.4", {
+          "packageLocation": "./.yarn/cache/sax-npm-1.2.4-178f05f12f-9d7668d691.zip/node_modules/sax/",
+          "packageDependencies": [
+            ["sax", "npm:1.2.4"]
           ],
           "linkType": "HARD",
         }]

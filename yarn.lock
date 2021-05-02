@@ -80,6 +80,169 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@jscad/amf-deserializer@npm:2.0.2":
+  version: 2.0.2
+  resolution: "@jscad/amf-deserializer@npm:2.0.2"
+  dependencies:
+    "@jscad/modeling": 2.2.0
+    sax: 1.2.4
+  checksum: 6ddc76f40a7d16de8d0719080b546706c22b0c4d98013d670ed6e8cebc84fb06d9fd63bed64615ebf82b01ab734660db597d23e24ed9bb5320d22794f591f291
+  languageName: node
+  linkType: hard
+
+"@jscad/amf-serializer@npm:2.0.3":
+  version: 2.0.3
+  resolution: "@jscad/amf-serializer@npm:2.0.3"
+  dependencies:
+    "@jscad/array-utils": 2.1.0
+    "@jscad/modeling": 2.2.0
+    onml: 1.2.0
+  checksum: 8721b5ef8792d2703cba4a287930af0c5e026618f8f1e8a7b9ade7c55bda92f29f1922cbdb1ba523742dd42c58d560add1dee75264dc78179b14d747ccee086e
+  languageName: node
+  linkType: hard
+
+"@jscad/array-utils@npm:2.1.0":
+  version: 2.1.0
+  resolution: "@jscad/array-utils@npm:2.1.0"
+  checksum: 69247b5ed4406444dfb34bc047c1073b5b62344c439ff43454ab8d886e31b75602ebbeb901905d9d6e3239616cfe6dbda9fcbdeec630ffd5e23832d0388ff5a0
+  languageName: node
+  linkType: hard
+
+"@jscad/dxf-deserializer@npm:2.2.0":
+  version: 2.2.0
+  resolution: "@jscad/dxf-deserializer@npm:2.2.0"
+  dependencies:
+    "@jscad/modeling": 2.2.0
+  checksum: ab355cbaec81eb071a0bc8d14c75e89ea18d293066ca5f1b5a4c48e22790930e17dfc01f5521ec9816e5cd0b987905489cb6475d28964789c6316fb1a9b4b716
+  languageName: node
+  linkType: hard
+
+"@jscad/dxf-serializer@npm:2.0.3":
+  version: 2.0.3
+  resolution: "@jscad/dxf-serializer@npm:2.0.3"
+  dependencies:
+    "@jscad/array-utils": 2.1.0
+    "@jscad/modeling": 2.2.0
+  checksum: 8fbf3e550c73ad508bbe18924ea1b3c88032a87441c19b6daba6c579817281c1a45739f78a5c05732dbd95efa73187ececc93e59be37540d70ffc22300ad1302
+  languageName: node
+  linkType: hard
+
+"@jscad/io-utils@npm:2.0.2":
+  version: 2.0.2
+  resolution: "@jscad/io-utils@npm:2.0.2"
+  checksum: 3254753ea8b2409273643119553fa5edd65f71271e15e547fd1c6349eabb4c7b2a31ba8d49c1e0ac658421c0d94e86dcd50f987dbd13bdcf1568aa37af11c2ec
+  languageName: node
+  linkType: hard
+
+"@jscad/io@npm:^2.0.3":
+  version: 2.0.3
+  resolution: "@jscad/io@npm:2.0.3"
+  dependencies:
+    "@jscad/amf-deserializer": 2.0.2
+    "@jscad/amf-serializer": 2.0.3
+    "@jscad/array-utils": 2.1.0
+    "@jscad/dxf-deserializer": 2.2.0
+    "@jscad/dxf-serializer": 2.0.3
+    "@jscad/io-utils": 2.0.2
+    "@jscad/json-deserializer": 2.0.3
+    "@jscad/json-serializer": 2.0.2
+    "@jscad/modeling": 2.2.0
+    "@jscad/obj-deserializer": 2.0.2
+    "@jscad/stl-deserializer": 2.0.2
+    "@jscad/stl-serializer": 2.0.3
+    "@jscad/svg-deserializer": 2.2.1
+    "@jscad/svg-serializer": 2.2.0
+    "@jscad/x3d-serializer": 2.2.1
+  checksum: 6c5f0e966b42b02dc2ea839e337de53e6b101cb816c99fbed02037386023321c618eab8faf231490b45f3d31664bb545afb8c2e28fb62e19656730586a4d0208
+  languageName: node
+  linkType: hard
+
+"@jscad/json-deserializer@npm:2.0.3":
+  version: 2.0.3
+  resolution: "@jscad/json-deserializer@npm:2.0.3"
+  dependencies:
+    "@jscad/array-utils": 2.1.0
+  checksum: d5757b9796dec52df4dde27f662fc89bb32fd3a4fe1a43d05ac93916b72065b82acddcfadfb29d60348cdc5965c60828df8f69cbc6b33910cc49594dac30b336
+  languageName: node
+  linkType: hard
+
+"@jscad/json-serializer@npm:2.0.2":
+  version: 2.0.2
+  resolution: "@jscad/json-serializer@npm:2.0.2"
+  dependencies:
+    "@jscad/modeling": 2.2.0
+  checksum: dfef09e881ec89ad214f85d4636ced3db35f30d479497f546e6db9c5bd6675df60e51af1a35dfd8e42695d97dad6b534662f3ab47caa343550eaff9022c30eba
+  languageName: node
+  linkType: hard
+
+"@jscad/modeling@npm:2.2.0, @jscad/modeling@npm:^2.2.0":
+  version: 2.2.0
+  resolution: "@jscad/modeling@npm:2.2.0"
+  checksum: ce336fb059a255309f9981550999a029b5eb83b39c6dc253cb91540682f5966b0324e7846b8cf6ed5cd5f3bf211e295384bf66b5d074353c8e522b82060dad16
+  languageName: node
+  linkType: hard
+
+"@jscad/obj-deserializer@npm:2.0.2":
+  version: 2.0.2
+  resolution: "@jscad/obj-deserializer@npm:2.0.2"
+  dependencies:
+    "@jscad/modeling": 2.2.0
+  checksum: 4cd02169280fbbe807623a860e755f3f075f57feee99b0b562e13b19bdf7da3af89657b871a4cf57571e3d2cf97fe4df1ffd4a1d4d6dc67ef1d038bcd7a472f8
+  languageName: node
+  linkType: hard
+
+"@jscad/stl-deserializer@npm:2.0.2":
+  version: 2.0.2
+  resolution: "@jscad/stl-deserializer@npm:2.0.2"
+  dependencies:
+    "@jscad/io-utils": 2.0.2
+    "@jscad/modeling": 2.2.0
+  checksum: 81dba802292a29332cc3c3481cff60665e9cb29f0abfedfa8857379bdb81c7fcf7a0d6d3704f17293c5cd8c419f8f46a5133ecf7167038cdb69f60914d587d51
+  languageName: node
+  linkType: hard
+
+"@jscad/stl-serializer@npm:2.0.3":
+  version: 2.0.3
+  resolution: "@jscad/stl-serializer@npm:2.0.3"
+  dependencies:
+    "@jscad/array-utils": 2.1.0
+    "@jscad/modeling": 2.2.0
+  checksum: ad458d7933cad868acc3721d5d5ad599b2e09c68168958bb392767c8dbceb864aae88d73331c9659e1571f45003df73b63bbe9a51e511756e1cef968c894688b
+  languageName: node
+  linkType: hard
+
+"@jscad/svg-deserializer@npm:2.2.1":
+  version: 2.2.1
+  resolution: "@jscad/svg-deserializer@npm:2.2.1"
+  dependencies:
+    "@jscad/array-utils": 2.1.0
+    "@jscad/modeling": 2.2.0
+    sax: 1.2.4
+  checksum: 7365e54efc7dd2e2f6e8b3442055da8c6bf39a5f2eb80086d90699e991769a5e1a445246e57f61a03d559c6fbf8e565a26c6a2fd8a53904f13156bd2c27eae5a
+  languageName: node
+  linkType: hard
+
+"@jscad/svg-serializer@npm:2.2.0":
+  version: 2.2.0
+  resolution: "@jscad/svg-serializer@npm:2.2.0"
+  dependencies:
+    "@jscad/modeling": 2.2.0
+    onml: 1.2.0
+  checksum: d435c8e309442b1448f16031fd586174b846ad307dc9e726a75fc7120cfa4dc4a63076f351f3594b685e7aa60ce477fb0f054e66c64fc4f86d522454d10a83b8
+  languageName: node
+  linkType: hard
+
+"@jscad/x3d-serializer@npm:2.2.1":
+  version: 2.2.1
+  resolution: "@jscad/x3d-serializer@npm:2.2.1"
+  dependencies:
+    "@jscad/array-utils": 2.1.0
+    "@jscad/modeling": 2.2.0
+    onml: 1.2.0
+  checksum: 9102298555b110229e3e0f9603e7df54df0595702ad4295260ef7ee203377c3b98e0f170cac482d7ee3306c53a2123ec65f0de26804a94131df34be7dc4db142
+  languageName: node
+  linkType: hard
+
 "@nodelib/fs.scandir@npm:2.1.4":
   version: 2.1.4
   resolution: "@nodelib/fs.scandir@npm:2.1.4"
@@ -3368,6 +3531,26 @@ fsevents@~2.3.1:
   languageName: unknown
   linkType: soft
 
+"model_004@workspace:packages/model_004":
+  version: 0.0.0-use.local
+  resolution: "model_004@workspace:packages/model_004"
+  dependencies:
+    "@jscad/io": ^2.0.3
+    "@jscad/modeling": ^2.2.0
+    "@yarnpkg/esbuild-plugin-pnp": ^1.0.0-rc.2
+    chokidar-cli: ^2.1.0
+    esbuild: ^0.11.12
+    fast-mersenne-twister: ^1.0.3
+    fractal-noise: ^1.2.0
+    imagetracerjs: ^1.2.6
+    live-server: ^1.2.1
+    model_base: "workspace:*"
+    npm-run-all: ^4.1.5
+    open-simplex-noise: ^2.5.0
+    three: ^0.128.0
+  languageName: unknown
+  linkType: soft
+
 "model_base@workspace:*, model_base@workspace:packages/model_base":
   version: 0.0.0-use.local
   resolution: "model_base@workspace:packages/model_base"
@@ -3696,6 +3879,15 @@ fsevents@~2.3.1:
   dependencies:
     wrappy: 1
   checksum: 57afc246536cf6494437f982b26475f22bee860f8b77ce8eb1543f42a8bffe04b2c66ddfea9a16cb25ccb80943f8ee4fc639367ef97b7a6a4f2672eb573963f5
+  languageName: node
+  linkType: hard
+
+"onml@npm:1.2.0":
+  version: 1.2.0
+  resolution: "onml@npm:1.2.0"
+  dependencies:
+    sax: ^1.2.1
+  checksum: 653dc3c2a93ab39f3f1b336b0a5851a2dc4f6a43a247e91ba653cb305de46373075fdef68c54dd4b7e5a0053db8934c26f25b833dce650660fc576a9a126e2c7
   languageName: node
   linkType: hard
 
@@ -4485,6 +4677,13 @@ fsevents@~2.3.1:
   version: 2.1.2
   resolution: "safer-buffer@npm:2.1.2"
   checksum: 549ba83f5b314b59898efe3422120ce1ca7987a6eae5925a5fa5db930dc414d4a9dde0a5594f89638cd6ea60b6840ea961872908933ac2428d1726489db46fa5
+  languageName: node
+  linkType: hard
+
+"sax@npm:1.2.4, sax@npm:^1.2.1":
+  version: 1.2.4
+  resolution: "sax@npm:1.2.4"
+  checksum: 9d7668d69105e89e2c1a4b2fdc12c72e1a2f78b825f7b4a8a2ea5cdfebf70920bd17715bed55264c3b3959616a0695f8ad2d098bf6944fbd0953ee9c695dceef
   languageName: node
   linkType: hard
 

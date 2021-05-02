@@ -1,0 +1,27 @@
+{
+  "name": "model_004",
+  "dependencies": {
+    "@jscad/io": "^2.0.3",
+    "@jscad/modeling": "^2.2.0",
+    "fast-mersenne-twister": "^1.0.3",
+    "fractal-noise": "^1.2.0",
+    "imagetracerjs": "^1.2.6",
+    "model_base": "workspace:*",
+    "open-simplex-noise": "^2.5.0",
+    "three": "^0.128.0"
+  },
+  "devDependencies": {
+    "@yarnpkg/esbuild-plugin-pnp": "^1.0.0-rc.2",
+    "chokidar-cli": "^2.1.0",
+    "esbuild": "^0.11.12",
+    "live-server": "^1.2.1",
+    "npm-run-all": "^4.1.5"
+  },
+  "scripts": {
+    "package": "node build-production.js",
+    "build:dev": "node build-dev.js",
+    "watch": "chokidar \"./src/main.js\" -c \"yarn run build:dev\"",
+    "serve": "live-server dist/",
+    "start": "npm-run-all --parallel serve watch"
+  }
+}
