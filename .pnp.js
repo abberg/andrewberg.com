@@ -39,6 +39,10 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
         "reference": "workspace:packages/model_004"
       },
       {
+        "name": "model_005",
+        "reference": "workspace:packages/model_005"
+      },
+      {
         "name": "model_base",
         "reference": "workspace:packages/model_base"
       },
@@ -55,6 +59,7 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
       ["model_002", ["workspace:packages/model_002"]],
       ["model_003", ["workspace:packages/model_003"]],
       ["model_004", ["workspace:packages/model_004"]],
+      ["model_005", ["workspace:packages/model_005"]],
       ["model_base", ["workspace:packages/model_base"]],
       ["site", ["workspace:packages/site"]]
     ],
@@ -4016,6 +4021,28 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
           "packageLocation": "./packages/model_004/",
           "packageDependencies": [
             ["model_004", "workspace:packages/model_004"],
+            ["@jscad/io", "npm:2.0.3"],
+            ["@jscad/modeling", "npm:2.2.0"],
+            ["@yarnpkg/esbuild-plugin-pnp", "virtual:4c82e052848dab51cfd06c97d76e857d58406415825371b372523df9cecb984070f89cdc4613b35ba20041c37303f226dea44e7f3586bfb121482b6970b0c531#npm:1.0.0-rc.2"],
+            ["chokidar-cli", "npm:2.1.0"],
+            ["esbuild", "npm:0.11.15"],
+            ["fast-mersenne-twister", "npm:1.0.3"],
+            ["fractal-noise", "npm:1.2.0"],
+            ["imagetracerjs", "npm:1.2.6"],
+            ["live-server", "npm:1.2.1"],
+            ["model_base", "workspace:packages/model_base"],
+            ["npm-run-all", "npm:4.1.5"],
+            ["open-simplex-noise", "npm:2.5.0"],
+            ["three", "npm:0.128.0"]
+          ],
+          "linkType": "SOFT",
+        }]
+      ]],
+      ["model_005", [
+        ["workspace:packages/model_005", {
+          "packageLocation": "./packages/model_005/",
+          "packageDependencies": [
+            ["model_005", "workspace:packages/model_005"],
             ["@jscad/io", "npm:2.0.3"],
             ["@jscad/modeling", "npm:2.2.0"],
             ["@yarnpkg/esbuild-plugin-pnp", "virtual:4c82e052848dab51cfd06c97d76e857d58406415825371b372523df9cecb984070f89cdc4613b35ba20041c37303f226dea44e7f3586bfb121482b6970b0c531#npm:1.0.0-rc.2"],
