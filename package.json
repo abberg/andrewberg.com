@@ -7,17 +7,5 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/abberg/andrewberg.com"
-  },
-  "workspaces": [
-    "packages/*"
-  ],
-  "scripts": {
-    "build:packages": "yarn workspaces foreach --exclude site --exclude model_base run package",
-    "build:site": "yarn workspace site build",
-    "build": "yarn run build:packages && yarn run build:site",
-    "start": ""
-  },
-  "devDependencies": {
-    "prettier": "2.2.1"
   }
 }
