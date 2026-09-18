@@ -8,6 +8,6 @@
     "dev": "node build.mjs --dev"
   },
   "dependencies": {
-    "three": "0.71.0"
+    "three": "0.137.0"
   }
 }
