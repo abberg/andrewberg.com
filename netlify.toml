@@ -1,6 +1,6 @@
 [build]
   publish = "apps/site/dist"
-  command = "npx playwright install chromium --only-shell --with-deps && npm run build"
+  command = "npm run browsers:install && npm run build"
 
 [build.environment]
   NODE_VERSION = "24"

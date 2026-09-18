@@ -25,7 +25,7 @@ The build discovers packages containing `experiment.json`, runs their build scri
 
 `npm run thumbnails` recaptures the already prepared experiments. `npm run prepare:site` rebuilds all experiments, thumbnails, and gallery data. Run it after editing packages if Astro is already running. Generated outputs are ignored by Git.
 
-Netlify is configured to install Chromium with its system dependencies and run the complete build. On other Linux CI systems, run `npx playwright install chromium --only-shell --with-deps` before building. Browser downloads require network access on first setup.
+Netlify downloads Chromium with `npm run browsers:install` and runs the complete build. This does not request root access or install OS packages: Netlify must provide the required system libraries. Use `--with-deps` only on Linux CI systems where installing system packages is permitted. Browser downloads require network access on first setup.
 
 ## Structure
 
