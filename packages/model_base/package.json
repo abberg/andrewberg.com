@@ -1,0 +1,9 @@
+{
+  "name": "model_base",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.js",
+  "dependencies": {
+    "three": "0.128.0"
+  }
+}

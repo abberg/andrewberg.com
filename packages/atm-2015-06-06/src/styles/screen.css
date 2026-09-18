@@ -1,0 +1,16 @@
+html{
+	height: 100%;
+}
+
+body{
+	background-color: #000;
+	display: flex;
+	font-family: 'Ubuntu Mono';
+	height: 100%;
+	margin: 0;
+}
+
+canvas{
+	display: block;
+	margin: auto;
+}

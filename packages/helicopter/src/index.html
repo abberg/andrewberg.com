@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" href="data:,">
+    <title>Andrew Bjorn Berg</title>
+    <style>
+      html, body { width: 100%; height: 100%; }
+      body {
+        margin: 0;
+        background: #000;
+        display: flex;
+        align-items: center;
+        overflow: hidden;
+      }
+      .fixed-canvas { display: block; flex: none; }
+    </style>
+  </head>
+  <body>
+    <script src="./vendor/three.min.js"></script>
+    <script src="GLTFLoader.js"></script>
+    <script src="EffectComposer.js"></script>
+    <script src="RenderPass.js"></script>
+    <script src="ShaderPass.js"></script>
+    <script src="CopyShader.js"></script>
+    <script src="FXAAShader.js"></script>
+
+    <script src="main.js"></script>
+  </body>
+</html>

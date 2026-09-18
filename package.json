@@ -7,5 +7,25 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/abberg/andrewberg.com"
+  },
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "npm run prepare:site && npm run dev --workspace=@andrew/site",
+    "build": "npm run prepare:site && npm run build --workspace=@andrew/site",
+    "prepare:site": "node scripts/prepare-site.mjs",
+    "thumbnails": "node scripts/thumbnails.mjs",
+    "preview": "npm run preview --workspace=@andrew/site",
+    "browsers:install": "playwright install chromium --only-shell"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "playwright": "1.63.0"
   }
 }

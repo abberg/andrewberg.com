@@ -1,0 +1,13 @@
+{
+  "name": "atm-2015-06-06",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "dev": "node build.mjs --dev"
+  },
+  "dependencies": {
+    "three": "0.71.0"
+  }
+}

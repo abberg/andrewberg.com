@@ -1,0 +1,10 @@
+{
+  "title": "Untitled 001",
+  "description": "An interactive scene with animated mecha, smoke, and sound.",
+  "category": "Vignettes",
+  "order": 7,
+  "thumbnail": {
+    "path": "?thumbnail=1",
+    "readySelector": "html[data-thumbnail-ready=\"true\"]"
+  }
+}

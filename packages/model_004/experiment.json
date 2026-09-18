@@ -1,0 +1,10 @@
+{
+  "title": "House on a hill",
+  "description": "A small architectural scene on a generated landscape.",
+  "category": "3D study",
+  "order": 4,
+  "thumbnail": {
+    "path": "?thumbnail=1",
+    "readySelector": "html[data-thumbnail-ready=\"true\"]"
+  }
+}

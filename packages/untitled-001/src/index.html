@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+
+		<title>Untitled 001 — Andrew Berg</title>
+    <link rel="icon" href="data:,">
+		<meta name="description" content="001">
+		<meta name="author" content="Andrew Berg">
+
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+
+		<link rel="stylesheet" media="screen" href="resources/css/style.css" >
+
+	</head>
+	<body>
+    <div id="drag-prompt">Drag to scroll</div>
+    <footer class="footer">
+      <section class="info">
+        <h1 class="h1">Info</h1>
+        <p>Drag to move camera and fade sound.</p>
+        <h2 class="h2">Credits</h2>
+        <ul class="credits clearfix">
+          <li>
+            <dl>
+              <dt>3D Engine</dt>
+              <dd><a href="http://mrdoob.github.com/three.js/">Three.js</a></dd>
+            </dl>
+          </li>
+          <li>
+            <dl>
+              <dt>Particle Engine</dt>
+              <dd><a href="http://github.com/zz85/sparks.js/">Sparks.js</a></dd>
+            </dl>
+          </li>
+          <li>
+            <dl>
+              <dt>Tween Engine</dt>
+              <dd><a href="http://github.com/sole/tween.js/">Tween.js</a></dd>
+            </dl>
+          </li>
+          <li>
+            <dl>
+              <dt>Audio Library</dt>
+              <dd><a href="http://buzz.jaysalvat.com/">Buzz.js</a></dd>
+            </dl>
+          </li>
+          <li>
+            <dl>
+              <dt>Atmosphere</dt>
+              <dd><a href="http://www.freesound.org/people/felix.blume/sounds/135193/">Wind blowing in the bush on the top of Kitt Peak mountain</a></dd>
+              <dd>Felix Blume<dd>
+            </dl>
+          </li>
+          <li>
+            <dl>
+              <dt>Soundtrack</dt>
+              <dd><a href="http://soundcloud.com/frenic/04-new-world">New World</a></dd>
+              <dd><a href="http://www.djfrenic.com/">Frenic</a></dd>
+            </dl>
+          </li>
+          <li>
+            <dl>
+              <dt>Animated Model (MD2, Quake2 mod)</dt>
+              <dd><a href="http://tastyspleen.net/~quake2/baseq2/players/priss2/">Priss Hardsuit from BubbleGum Crisis</a></dd>
+              <dd>Bryce Nakagawa from original design by Kenichi Sonoda</dd>
+            </dl>
+          </li>
+          <li>
+            <dl>
+              <dt>Crashed Mech</dt>
+              <dd><a href="http://sketchup.google.com/3dwarehouse/details?mid=2f11015564d155d8e4ca3db5e60d9b87">VTM-01NT Auberon Gundam</a></dd>
+              <dd><a href="http://illsteir.deviantart.com/">Geofrey Bartolome</a></dd>
+            </dl>
+          </li>
+        </ul>
+      </section>
+    </footer>
+    <script src="resources/js/Detector.js"></script>
+    <script src="resources/js/three.min.js"></script>
+
+    <script src="resources/js/EffectComposer.js"></script>
+    <script src="resources/js/RenderPass.js"></script>
+    <script src="resources/js/MaskPass.js"></script>
+    <script src="resources/js/ShaderPass.js"></script>
+
+    <script src="resources/shaders/CopyShader.js"></script>
+    <script src="resources/shaders/FXAAShader.js"></script>
+
+    <script src="resources/js/Tween.js"></script>
+    <script src="resources/js/Sparks.js"></script>
+
+    <script src="resources/js/buzz.js"></script>
+
+    <script src="resources/js/script.js"></script>
+
+
+
+	</body>
+<!-- 
+
+            .      . ...... NNMMMMMMMMMMNN......... ......... .. ....
+                   .....MMMMMMMMMMMMMMMMMMMMMNI................... ..
+                   ..MMMMMMMMDNMMMMMMMMMMMMMMMMM$....................
+                   MMMMMM8888O$$$$$$OOONMMMMMMMMMM~..................
+                 NMMMMM8????I$$7???7$$$$$ZOOOOOOMMMM:................
+               +MMMMM88I??????????=??I$$$$$OOOOOO8MMMN ..............
+              ~MMMMM8$???+========?=????$$$$OOOO$O8MMMM..............
+             ,MMMMM8??~..,:=~~.~====?????I$$$$$$$$ZOMMMM.............
+            =MMMMM8?..............==?????==++??II???OMMMM............
+           .MMMMMMI..................:?===,....,===+?OMMM~...........
+           MMMMMMZ:..................................?DMMM...........
+           MMMMMD~...................................~ZMMMM..........
+           MMMMMZ,...................................~IMMMM..........
+          $MMMMN$,...................................~IMMMM..........
+ ..  ... .MMMMM87,...................................~?DMMM..........
+.......  .MMMMM87,...................................~?8MMM .........
+.......  .MMMMM8I....................................~?8MMM .........
+..........ZMMMM8I....................................~?8MMM..........
+..........?MMMMO+....................................~?8MMM..........
+........  ,MMMM$,....................................~+8MM=..........
+.........=+MMMMI.....................................~=DMM=..........
+..........==MMM=.....................................~=NMN?..........
+ ......  .==DM8~....:=+,..........................:,~~=NMI...........
+ ....... ...IMO:~~~~I77$88OZI,............,~?$8877777~+MZ?...........
+ .   . . ...?N$..~~II$NNNNNN8OIII.......~?7NNN8888?????M$............
+ .   . . . .~N$...~II8ZOZZZZZZZZ?.....~?778OOOOO7$?=~=?M7............
+........... ,7Z...,~~~~~~:~~7$II=.....~+?77???77?7=~~~?M ............
+.......  .  :88~........~~~~+~~:......~~????????=~~~,~7M.............
+ .......... =+8~.........~~~~~........~~~~~~~~~~~,..:~O .............
+............. 8~...........................,~~......~+M .............
+..............N$~...................................~7D .............
+..............+N~..................................~=N ..............
+...............ZI,....................,~..........,~?M...............
+........... ...:$=.....................~~.........~=N?...............
+ ...............Z$=....................~~~.......~~7Z ...............
+.................Z7~,..................~~~......~~IZ.................
+................ NZ7+~.................~~~~...,~~IO:.................
+................. NN$?+~~~:~~~~~,....,~~~~====++IZI..................
+........ .. ...... NNZ7777777I=~~~~:,:OO88OOZ+77NZ ..................
+............... ...INNNNNDNNNNNOOOO8NNNNNNNNNNNNN....................
+....................NNNNNNNNNOOZZOODNNNNNNNNNNNN ....................
+.................... NNNNNNO$ZZZZZZ8OOOOOONNNNND.....................
+......................NNNNN$?=====???????IZNNNN......................
+......................:NNNN$7III777$$777$$$NNNZ......................
+ .......... ...........NNNNNNO$$NNNNNNNNNNNNNN ......................
+ .......................NNNNNNNNNNNNNNNNNNNNN........................
+........................ZNNNNNNNNNNNNNNNNNNN:........................
+.........................ZNNNNNNNNNNNNNNNNN+.........................
+....................... ...N8888NNNNNNNNNND..........................
+ ....... .. ... .  ............,?ONNNND8.............................
+ ..................................... ..............................
+        _        _                  _          _            
+       ...                               ....      ..         ...    
+   .x888888hx    :   x8h.     x8.      +^""888h. ~"888h    u*""888b. 
+  d88888888888hxx  :88888> .x8888x.   8X.  ?8888X  8888f  J88N. 8888r
+ 8" ... `"*8888%`   `8888   `8888f   '888x  8888X  8888~  '888 .8888>    
+!  "   ` .xnxx.      8888    8888'   '88888 8888X   "88x:  '"  8888%     
+X X   .H8888888%:    8888    8888     `8888 8888X  X88x.      88*"       
+X 'hn8888888*"   >   8888    8888       `*` 8888X '88888X    48  4       
+X: `*88888%`     !   8888    8888      ~`...8888X  "88888    'h.u*       
+'8h.. ``     ..x8>   8888    8888       x8888888X.   `%8"      .         
+ `88888888888888f  -n88888x>"88888x-   '%"*8888888h.   "      d8b.       
+  '%8888888888*"     `%888"  4888!`    ~    888888888!`      "888%       
+     ^"****""`         `"      ""           X888^"""           %         
+                                            `88f                         
+                                             88                          
+                                             ""                             
+-->
+</html>		

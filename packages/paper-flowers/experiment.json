@@ -1,0 +1,10 @@
+{
+  "title": "Paper Flowers",
+  "description": "Generative paper flowers with textured petals.",
+  "category": "Florals",
+  "order": 18,
+  "thumbnail": {
+    "path": "?thumbnail=1",
+    "readySelector": "html[data-thumbnail-ready=\"true\"]"
+  }
+}

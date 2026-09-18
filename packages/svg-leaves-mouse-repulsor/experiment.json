@@ -1,0 +1,10 @@
+{
+  "title": "SVG Leaves + Mouse Repulsor",
+  "description": "Leaves scatter and shrink around the pointer.",
+  "category": "Mouse Trailers",
+  "order": 20,
+  "thumbnail": {
+    "path": "?thumbnail=1",
+    "readySelector": "html[data-thumbnail-ready=\"true\"]"
+  }
+}

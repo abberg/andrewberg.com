@@ -1,0 +1,13 @@
+{
+  "name": "succulent-wall",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "dev": "node build.mjs --dev"
+  },
+  "dependencies": {
+    "paper": "0.11.8"
+  }
+}

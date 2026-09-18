@@ -1,0 +1,10 @@
+{
+  "title": "Untitled 003",
+  "description": "An interactive robot showdown with missiles, smoke, and sound.",
+  "category": "Vignettes",
+  "order": 9,
+  "thumbnail": {
+    "path": "?thumbnail=1",
+    "readySelector": "html[data-thumbnail-ready=\"true\"]"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "model_003",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "node ../../scripts/build-experiment.mjs",
+    "dev": "node ../../scripts/build-experiment.mjs --dev"
+  },
+  "dependencies": {
+    "fast-mersenne-twister": "^1.0.3",
+    "fractal-noise": "^1.2.0",
+    "imagetracerjs": "^1.2.6",
+    "model_base": "*",
+    "open-simplex-noise": "^2.5.0",
+    "three": "0.128.0"
+  }
+}

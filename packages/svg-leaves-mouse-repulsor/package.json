@@ -1,0 +1,14 @@
+{
+  "name": "svg-leaves-mouse-repulsor",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "dev": "node build.mjs --dev"
+  },
+  "dependencies": {
+    "gl-matrix": "2.4.0",
+    "simplex-noise": "2.4.0"
+  }
+}

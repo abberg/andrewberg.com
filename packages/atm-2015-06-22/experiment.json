@@ -1,0 +1,10 @@
+{
+  "title": "A Thousand More \u2014 June 22, 2015",
+  "description": "A growing random walk of colored blocks.",
+  "category": "A Thousand More",
+  "order": 16,
+  "thumbnail": {
+    "path": "?thumbnail=1",
+    "readySelector": "html[data-thumbnail-ready=\"true\"]"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "name": "model_005",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "node ../../scripts/build-experiment.mjs",
+    "dev": "node ../../scripts/build-experiment.mjs --dev"
+  },
+  "dependencies": {
+    "@jscad/modeling": "^2.2.0",
+    "model_base": "*",
+    "three": "0.128.0"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "name": "voronoi-particles",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "dev": "node build.mjs --dev"
+  },
+  "dependencies": {
+    "d3": "4.9.1",
+    "poisson-disc-sampler": "1.1.0",
+    "victor": "1.1.0"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "title": "Contours",
+  "description": "Layered terrain and floating planes, shaped by procedural noise.",
+  "category": "3D study",
+  "order": 3,
+  "thumbnail": {
+    "path": "?thumbnail=1",
+    "readySelector": "html[data-thumbnail-ready=\"true\"]"
+  }
+}

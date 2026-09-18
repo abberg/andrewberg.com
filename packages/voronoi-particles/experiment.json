@@ -1,0 +1,10 @@
+{
+  "title": "Voronoi Particles",
+  "description": "A glowing trail of animated Voronoi cells.",
+  "category": "Mouse Trailers",
+  "order": 21,
+  "thumbnail": {
+    "path": "?thumbnail=1",
+    "readySelector": "html[data-thumbnail-ready=\"true\"]"
+  }
+}

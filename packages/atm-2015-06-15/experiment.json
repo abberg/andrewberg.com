@@ -1,0 +1,10 @@
+{
+  "title": "A Thousand More \u2014 June 15, 2015",
+  "description": "A field of softly lit rising spheres.",
+  "category": "A Thousand More",
+  "order": 15,
+  "thumbnail": {
+    "path": "?thumbnail=1",
+    "readySelector": "html[data-thumbnail-ready=\"true\"]"
+  }
+}

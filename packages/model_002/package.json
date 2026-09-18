@@ -1,0 +1,14 @@
+{
+  "name": "model_002",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "node ../../scripts/build-experiment.mjs",
+    "dev": "node ../../scripts/build-experiment.mjs --dev"
+  },
+  "dependencies": {
+    "fast-mersenne-twister": "^1.0.3",
+    "model_base": "*",
+    "three": "0.128.0"
+  }
+}

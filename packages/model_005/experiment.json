@@ -1,0 +1,10 @@
+{
+  "title": "Stacked forms",
+  "description": "A study of overlapping slabs and solid geometry.",
+  "category": "3D study",
+  "order": 5,
+  "thumbnail": {
+    "path": "?thumbnail=1",
+    "readySelector": "html[data-thumbnail-ready=\"true\"]"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "title": "Untitled 002",
+  "description": "Audio reactive geometry with procedural branching forms.",
+  "category": "Vignettes",
+  "order": 8,
+  "thumbnail": {
+    "path": "?thumbnail=1",
+    "readySelector": "html[data-thumbnail-ready=\"true\"]"
+  }
+}

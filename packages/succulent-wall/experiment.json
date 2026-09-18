@@ -1,0 +1,10 @@
+{
+  "title": "Succulent Wall",
+  "description": "A generative wall of layered succulent rosettes.",
+  "category": "Florals",
+  "order": 19,
+  "thumbnail": {
+    "path": "?thumbnail=1",
+    "readySelector": "html[data-thumbnail-ready=\"true\"]"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "title": "Small city",
+  "description": "A miniature grid of buildings and open streets.",
+  "category": "3D study",
+  "order": 2,
+  "thumbnail": {
+    "path": "?thumbnail=1",
+    "readySelector": "html[data-thumbnail-ready=\"true\"]"
+  }
+}

@@ -1,0 +1,79 @@
+---
+import experiments from '../data/experiments.json';
+const architecturalModels = experiments.slice(0, 4);
+const aThousandMore = experiments.filter(item => item.category === 'A Thousand More');
+const florals = experiments.filter(item => item.category === 'Florals');
+const mouseTrailers = experiments.filter(item => item.category === 'Mouse Trailers');
+const vignettes = experiments.filter(item => item.category === 'Vignettes');
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Architectural models, A Thousand More, florals, mouse trailers, and vignettes by Andrew Berg." />
+    <title>Andrew Berg</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  </head>
+  <body>
+    <header><h1>Andrew Berg</h1></header>
+    <main>
+      <h2 id="models-heading">Architectural Models</h2>
+      <section class="gallery" aria-labelledby="models-heading">
+        {architecturalModels.map((item, index) => (
+          <a class="card" href={item.href} aria-label={`Open architectural model ${index + 1}`}>
+            <img src={item.image} alt="" width="960" height="720" loading={index < 2 ? 'eager' : 'lazy'} />
+          </a>
+        ))}
+      </section>
+      <h2 id="thousand-more-heading">A Thousand More</h2>
+      <section class="gallery" aria-labelledby="thousand-more-heading">
+        {aThousandMore.map(item => (
+          <a class="card" href={item.href} aria-label={`Open ${item.title}`}>
+            <img src={item.image} alt="" width="960" height="720" loading="lazy" />
+          </a>
+        ))}
+      </section>
+      <h2 id="florals-heading">Florals</h2>
+      <section class="gallery" aria-labelledby="florals-heading">
+        {florals.map(item => (
+          <a class="card" href={item.href} aria-label={`Open ${item.title}`}>
+            <img src={item.image} alt="" width="960" height="720" loading="lazy" />
+          </a>
+        ))}
+      </section>
+      <h2 id="mouse-trailers-heading">Mouse Trailers</h2>
+      <section class="gallery" aria-labelledby="mouse-trailers-heading">
+        {mouseTrailers.map(item => (
+          <a class="card" href={item.href} aria-label={`Open ${item.title}`}>
+            <img src={item.image} alt="" width="960" height="720" loading="lazy" />
+          </a>
+        ))}
+      </section>
+      <h2 id="vignettes-heading">Vignettes</h2>
+      <section class="gallery" aria-labelledby="vignettes-heading">
+        {vignettes.map(item => (
+          <a class="card" href={item.href} aria-label={`Open ${item.title}`}>
+            <img src={item.image} alt="" width="960" height="720" loading="lazy" />
+          </a>
+        ))}
+      </section>
+    </main>
+  </body>
+</html>
+<style is:global>
+  * { box-sizing: border-box; }
+  :root { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #ededeb; background: #111311; font-synthesis: none; }
+  body { margin: 0; }
+  header, main { width: min(1200px, calc(100% - 96px)); margin-inline: auto; }
+  header { padding-block: 34px; }
+  h1 { margin: 0; font-weight: 650; font-size: 19px; letter-spacing: -.5px; }
+  main { padding-bottom: 48px; }
+  h2 { margin: 0 0 28px; font-size: 14px; font-weight: 500; }
+  .gallery + h2 { margin-top: 48px; }
+  .gallery { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; }
+  .card { display: block; overflow: hidden; background: #ddd; aspect-ratio: 4 / 3; }
+  img { display: block; width: 100%; height: 100%; object-fit: cover; }
+  a:focus-visible { outline: 2px solid #c9ed9c; outline-offset: 7px; }
+  @media (max-width: 640px) { header, main { width: calc(100% - 40px); } .gallery { grid-template-columns: 1fr; } }
+</style>
