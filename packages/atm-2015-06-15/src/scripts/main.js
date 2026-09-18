@@ -9,7 +9,7 @@
     }
     var loop = ab.gameLoop(),
 		three = ab.threeBase({
-			preserveDrawingBuffer : ab.controlBar ? true : false
+			preserveDrawingBuffer : thumbnailMode || Boolean(ab.controlBar)
 		}),
 		sketch = ab.sketch(three);
 
@@ -30,7 +30,9 @@
 	var initialized = sketch.init();
     if (thumbnailMode) {
         Promise.resolve(initialized).then(function(){
-            for (var i = 0; i < 120; i++) { sketch.update(1000 / 60); sketch.draw(1); }
+            // Physics uses model positions, so settling does not need GPU renders.
+            for (var i = 0; i < 120; i++) sketch.update(1000 / 60);
+            sketch.draw(1);
             document.documentElement.dataset.thumbnailReady = 'true';
         });
     } else {

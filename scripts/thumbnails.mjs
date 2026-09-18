@@ -25,7 +25,7 @@ export async function generateThumbnails(items) {
         await page.evaluate(() => document.fonts.ready);
         await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
         if (errors.length) throw new Error(errors.join('\n'));
-        await page.screenshot({ path: resolve(sitePublic, 'thumbnails', `${item.id}.png`), animations: 'disabled' });
+        await page.screenshot({ path: resolve(sitePublic, 'thumbnails', `${item.id}.png`), animations: 'disabled', timeout: 120000 });
         console.log(`Thumbnail: ${item.id}`);
       } catch (error) { throw new Error(`Thumbnail failed for ${item.id}: ${error.message}`, { cause: error }); }
       finally { await page.close(); }

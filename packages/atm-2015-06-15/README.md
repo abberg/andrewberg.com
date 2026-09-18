@@ -5,3 +5,5 @@ Imported from `6-15-2015_22-34-31`, leaving the original folder untouched. A fie
 Three.js r71 is bundled locally. Thumbnail mode uses seeded randomness, fixed simulation steps, and waits for any required model loading. Original preview assets remain in the source.
 
 Bubbles use radius-aware soft separation and low-restitution collision impulses, with gentle lateral drift, upward buoyancy, and recycling below the viewport. No external physics engine is required.
+
+Thumbnail capture settles 120 physics steps on the CPU and renders only the final frame, preserving the drawing buffer for capture on software-rendered CI.
