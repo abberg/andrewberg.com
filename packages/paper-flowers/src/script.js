@@ -12,6 +12,7 @@ var simplex = new SimplexNoise('seed');
 var canvas = document.getElementById('canvas');
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
+paper.view.onFrame = null;
 paper.project.clear();
 paper.view.viewSize = new paper.Size(window.innerWidth, window.innerHeight);
 
@@ -23,14 +24,45 @@ while ((sample = sampler())) {
 }
 shuffleArray(samples);
 
+var flowers = [];
 for(var i = 0; i < Math.min(15, samples.length); i++){
   var flower = getFlower();
+  // Keep transforms on the group so rotation assignments stay absolute.
+  flower.applyMatrix = false;
   flower.position = new paper.Point(samples[i][0], samples[i][1]);
   flower.rotation = Math.random() * 360;
   var scale = 0.7 + Math.random() * 0.3;
   flower.scaling = new paper.Point(scale, scale);
+  flowers.push(flower);
 }
 
+if (!thumbnailMode && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  var flights = flowers.map(function(flower, index){
+    var target = flower.position.clone();
+    var rotation = flower.rotation;
+    var start = new paper.Point(-flower.bounds.width - 150 - Math.random() * 300,
+      target.y + 100 + Math.random() * 180);
+    flower.position = start;
+    return {flower: flower, target: target, start: start, rotation: rotation,
+      spin: 45 + Math.random() * 45, sway: 30 + Math.random() * 65,
+      delay: index * 0.045 + Math.random() * 0.35, duration: 3.2 + Math.random() * 0.8};
+  });
+  var elapsed = 0;
+  paper.view.onFrame = function(event){
+    elapsed += Math.min(event.delta, 0.05);
+    var finished = true;
+    flights.forEach(function(flight){
+      var t = Math.max(0, Math.min(1, (elapsed - flight.delay) / flight.duration));
+      if (t < 1) finished = false;
+      var ease = 1 - Math.pow(1 - t, 4);
+      var flutter = Math.sin(t * Math.PI * 3) * Math.sin(t * Math.PI) * (1 - t);
+      flight.flower.position = flight.start.add(flight.target.subtract(flight.start).multiply(ease))
+        .add(new paper.Point(0, flutter * flight.sway));
+      flight.flower.rotation = flight.rotation + flight.spin * (1 - (t * t * (3 - 2 * t))) + flutter * 2;
+    });
+    if (finished) paper.view.onFrame = null;
+  };
+}
 paper.view.draw();
 
 function getFlower(){
