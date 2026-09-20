@@ -1,7 +1,13 @@
 (function(){
   paper.setup(document.getElementById('canvas'));
   var thumbnailMode = new URLSearchParams(location.search).has('thumbnail');
+  var generation = 0;
+  var plantTimer;
   function render(){
+    const currentGeneration = ++generation;
+    clearTimeout(plantTimer);
+    paper.view.onFrame = null;
+    delete document.documentElement.dataset.thumbnailReady;
     var originalRandom = Math.random;
     if (thumbnailMode) {
       var seed = 12345;
@@ -69,19 +75,73 @@ for(let i = 0; i < columns; i++){
 shuffleArray(positions);
 
 const group = new paper.Group();
+const animated = !thumbnailMode && !matchMedia('(prefers-reduced-motion: reduce)').matches;
+const growing = [];
 let count = 0;
-for(let i = 0; i < columns; i++){
-  for(let j = 0; j < rows; j++){
-    const s = makeSucculent(variations[Math.floor(Math.random()*variations.length)]);
-    s.position = positions[count];
-    group.addChild(s);
-    count++;
+const offset = new paper.Point((width - cell * (columns - 1)) / 2,
+                               (height - cell * (rows - 1)) / 2);
+
+function addPlant(){
+  if (currentGeneration !== generation) return;
+  const plant = makeSucculent(variations[Math.floor(Math.random()*variations.length)]);
+  plant.position = positions[count].add(offset);
+  group.addChild(plant);
+  if (animated) {
+    const center = plant.position.clone();
+    const petals = plant.removeChildren();
+    // Cache three leaf layers: the center opens first, followed by the outer leaves.
+    // This keeps thousands of vector points and shadows out of the animation loop.
+    for (let layer = 0; layer < 3; layer++) {
+      const leaves = new paper.Group(petals.slice(
+        Math.floor(layer * petals.length / 3), Math.floor((layer + 1) * petals.length / 3)));
+      const padding = new paper.Path.Rectangle(leaves.bounds.expand(48));
+      padding.fillColor = null;
+      padding.strokeColor = null;
+      leaves.addChild(padding);
+      const cached = leaves.rasterize(72 * Math.min(devicePixelRatio || 1, 2));
+      leaves.remove();
+      plant.addChild(cached);
+      // Raster pivots use local coordinates, not canvas coordinates.
+      cached.pivot = cached.globalToLocal(center);
+      cached.position = center;
+      const scale = cached.scaling.clone();
+      growing.push({item: cached, scale, start: performance.now() + (2 - layer) * 140});
+      cached.scaling = scale.multiply(0.015);
+    }
+  }
+  count++;
+  paper.view.update();
+  if (count < positions.length) {
+    // Yield after each plant, with a pause after every batch of three.
+    plantTimer = setTimeout(addPlant, animated && count % 3 === 0 ? 240 : 0);
+  } else if (!animated) {
+    document.documentElement.dataset.thumbnailReady = 'true';
   }
 }
 
-group.position = new paper.Point(width/2, height/2);
-
-paper.view.draw();
+if (animated) paper.view.onFrame = function(){
+  const now = performance.now();
+  for (let i = growing.length - 1; i >= 0; i--) {
+    const growth = growing[i];
+    const t = Math.max(0, Math.min(1, (now - growth.start) / 1500));
+    const ease = 1 - Math.pow(1 - t, 3);
+    growth.item.scaling = growth.scale.multiply(0.015 + 0.985 * ease);
+    if (t === 1) growing.splice(i, 1);
+  }
+  if (count === positions.length && !growing.length) {
+    paper.view.onFrame = null;
+    document.documentElement.dataset.thumbnailReady = 'true';
+  }
+};
+// Thumbnail generation stays synchronous so its seeded randomness is deterministic.
+if (thumbnailMode) {
+  while (count < positions.length) {
+    addPlant();
+    clearTimeout(plantTimer);
+  }
+} else {
+  plantTimer = setTimeout(addPlant, 0);
+}
 
 function makeSucculent(config){
   const group = new paper.Group();
@@ -93,6 +153,8 @@ function makeSucculent(config){
   const c =  1 + Math.floor(Math.random() * 5);
   const maxRadius = c * Math.sqrt(n);
 
+  const template = getSuperformulaPath(3, petalCurve, petalPoint, petalPoint, 1, 1);
+  template.remove();
   for(let i = 0; i < count; i++){
     const a = n * 137.5;
     const r = c * Math.sqrt(n);
@@ -100,6 +162,7 @@ function makeSucculent(config){
     const y = r * Math.cos(a);
 
     const petal = makePetal({
+      template: template,
       gradient: config.petalGradient,
       border: config.petalBorder,
       size: petalSize,
@@ -121,7 +184,7 @@ function makeSucculent(config){
 function makePetal(config){
   const petalSize = config.size;
   const group = new paper.Group();
-  const petal = getSuperformulaPath(3, config.curve, config.point, config.point, 1, 1);
+  const petal = config.template.clone();
   petal.rotation = 30;
   petal.scaling = new paper.Point(petalSize, petalSize);
   petal.position = new paper.Point(0, -(petalSize * 0.18));
@@ -196,7 +259,6 @@ function shuffleArray(array) {
     array[j] = temp;
   }
 }
-      document.documentElement.dataset.thumbnailReady = 'true';
     } finally { Math.random = originalRandom; }
   }
   var resizeTimer;
