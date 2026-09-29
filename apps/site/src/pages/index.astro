@@ -25,7 +25,7 @@ const vignettes = experiments.filter(item => item.category === 'Vignettes');
         <ul class="work">
           {work.map(item => (
             <li>
-              <h3>{item.name}</h3>
+              <h3>{item.url ? <a href={item.url}>{item.name}</a> : item.name}</h3>
               <p class="company">{item.company} <span class="years">{item.years}</span></p>
               <p>{item.summary}</p>
             </li>
@@ -90,6 +90,7 @@ const vignettes = experiments.filter(item => item.category === 'Vignettes');
   .work { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 28px; }
   .work li { padding-top: 16px; border-top: 1px solid #3a3d3a; }
   h3 { margin: 0; font-size: 17px; font-weight: 650; }
+  h3 a { color: inherit; text-decoration-color: #c9ed9c; text-underline-offset: 3px; }
   .work p { margin: 4px 0 0; font-size: 14px; line-height: 1.45; color: #b5b8b3; }
   .work .company { color: #c9ed9c; }
   .work .years { margin-left: 4px; color: #8b8e89; font-variant-numeric: tabular-nums; }
