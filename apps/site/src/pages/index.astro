@@ -26,7 +26,7 @@ const vignettes = experiments.filter(item => item.category === 'Vignettes');
           {work.map(item => (
             <li>
               <h3>{item.name}</h3>
-              <p class="company">{item.company}</p>
+              <p class="company">{item.company} <span class="years">{item.years}</span></p>
               <p>{item.summary}</p>
             </li>
           ))}
@@ -92,6 +92,7 @@ const vignettes = experiments.filter(item => item.category === 'Vignettes');
   h3 { margin: 0; font-size: 17px; font-weight: 650; }
   .work p { margin: 4px 0 0; font-size: 14px; line-height: 1.45; color: #b5b8b3; }
   .work .company { color: #c9ed9c; }
+  .work .years { margin-left: 4px; color: #8b8e89; font-variant-numeric: tabular-nums; }
   h2.group { margin-top: 72px; font-size: 17px; font-weight: 650; }
   .gallery { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; }
   .card { display: block; overflow: hidden; background: #ddd; aspect-ratio: 4 / 3; }
