@@ -3,5 +3,5 @@
   {"name": "Odyssey", "company": "Okta", "years": "2021–2022", "logo": "okta", "summary": "Design system for Okta's identity and access products."},
   {"name": "WPDS", "company": "The Washington Post", "years": "2022–2025", "url": "https://build.washingtonpost.com/", "logo": "washington-post", "summary": "The Washington Post Design System."},
   {"name": "Compass", "company": "Veson Nautical", "years": "2025", "logo": "veson", "summary": "Design system for Veson Nautical's maritime software."},
-  {"name": "Ascent", "company": "Klaviyo", "years": "2026–present", "summary": "Design system for Klaviyo's marketing platform."}
+  {"name": "Ascent", "company": "Klaviyo", "years": "2026–present", "logo": "klaviyo", "summary": "Design system for Klaviyo's marketing platform."}
 ]
