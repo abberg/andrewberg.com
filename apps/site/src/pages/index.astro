@@ -1,5 +1,8 @@
 ---
 import experiments from '../data/experiments.json';
+import work from '../data/work.json';
+const logos = import.meta.glob('../icons/*.svg', { query: '?raw', import: 'default', eager: true });
+const logo = name => logos[`../icons/${name}.svg`];
 const architecturalModels = experiments.slice(0, 4);
 const aThousandMore = experiments.filter(item => item.category === 'A Thousand More');
 const florals = experiments.filter(item => item.category === 'Florals');
@@ -11,13 +14,31 @@ const vignettes = experiments.filter(item => item.category === 'Vignettes');
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Architectural models, A Thousand More, florals, mouse trailers, and vignettes by Andrew Berg." />
+    <meta name="description" content="Andrew Berg has spent ten years building design systems for athenahealth, Okta, The Washington Post, Veson Nautical and Klaviyo, plus browser experiments." />
     <title>Andrew Berg</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   </head>
   <body>
     <header><h1>Andrew Berg</h1></header>
     <main>
+      <section class="intro" aria-labelledby="work-heading">
+        <p class="lede">I build design systems. For the past ten years I've worked on five of them.</p>
+        <h2 id="work-heading">Design Systems</h2>
+        <ul class="work">
+          {work.map(item => (
+            <li>
+              <h3>
+                {item.logo && <span class="logo" aria-hidden="true" set:html={logo(item.logo)} />}
+                {item.url ? <a href={item.url}>{item.name}</a> : item.name}
+              </h3>
+              <p class="company">{item.company} <span class="years">{item.years}</span></p>
+              <p class="role">{item.role}</p>
+              <p>{item.summary}</p>
+            </li>
+          ))}
+        </ul>
+      </section>
+      <h2 id="experiments-heading" class="group">Experiments</h2>
       <h2 id="models-heading">Architectural Models</h2>
       <section class="gallery" aria-labelledby="models-heading">
         {architecturalModels.map((item, index) => (
@@ -71,6 +92,19 @@ const vignettes = experiments.filter(item => item.category === 'Vignettes');
   main { padding-bottom: 48px; }
   h2 { margin: 0 0 28px; font-size: 14px; font-weight: 500; }
   .gallery + h2 { margin-top: 48px; }
+  .lede { margin: 0 0 48px; max-width: 32ch; font-size: clamp(24px, 4vw, 36px); line-height: 1.2; letter-spacing: -.5px; }
+  .work { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 28px; }
+  .work li { padding-top: 16px; border-top: 1px solid #3a3d3a; }
+  h3 { margin: 0; font-size: 17px; font-weight: 650; }
+  h3 { display: flex; align-items: center; gap: 6px; }
+  .logo { flex: none; width: 22px; height: 22px; margin-block: -2px; }
+  .logo svg { display: block; width: 100%; height: 100%; }
+  h3 a { color: inherit; text-decoration-color: #c9ed9c; text-underline-offset: 3px; }
+  .work p { margin: 4px 0 0; font-size: 14px; line-height: 1.45; color: #b5b8b3; }
+  .work .company { color: #c9ed9c; }
+  .work .role { color: #ededeb; }
+  .work .years { margin-left: 4px; color: #8b8e89; font-variant-numeric: tabular-nums; }
+  h2.group { margin-top: 72px; font-size: 17px; font-weight: 650; }
   .gallery { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; }
   .card { display: block; overflow: hidden; background: #ddd; aspect-ratio: 4 / 3; }
   img { display: block; width: 100%; height: 100%; object-fit: cover; }
