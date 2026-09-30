@@ -33,8 +33,8 @@ function heroStyle(cards) {
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Andrew Berg has spent ten years building design systems for athenahealth, Okta, The Washington Post, Veson Nautical and Klaviyo, plus browser experiments." />
-    <title>Andrew Berg</title>
+    <meta name="description" content="Andrew Berg is a design systems engineer building accessible React and TypeScript components, reusable libraries, and tools for product teams." />
+    <title>Andrew Berg — Design Systems Engineer</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -62,7 +62,7 @@ function heroStyle(cards) {
         <section class="intro">
           <div class="mono eyebrow">Intro</div>
           <h1>Ten years, five design systems.</h1>
-          <p>Design technologist and front end engineer. I build design systems, components, and tools that help teams make better products.</p>
+          <p>I’m a design systems engineer working in React and TypeScript. I work closely with designers to build accessible components, reusable libraries, and the tools and documentation that help product teams use them.</p>
         </section>
 
         <section id="systems" class="timeline" aria-label="Design systems">
@@ -100,6 +100,7 @@ function heroStyle(cards) {
             <h2 id="experiments-heading"><span class="mono phone-only">Before that — </span>Browser experiments</h2>
             <div class="mono count">{experiments.length} sketches</div>
           </div>
+          <p class="experiments-intro">My background is in painting and creative technology. These earlier browser experiments explore form, motion, and interaction.</p>
           <div class="tiles">
             {experiments.map((item, index) => (
               <a class="tile" href={item.href} aria-label={`Experiment ${pad(index + 1)}: ${item.title}`}>
@@ -189,6 +190,7 @@ function heroStyle(cards) {
   .experiments-header { display: grid; grid-template-columns: 192px minmax(0, 1fr) 300px; gap: 32px; align-items: end; padding-bottom: 32px; }
   .experiments-header h2 { margin: 0; font-size: 34px; font-weight: 500; letter-spacing: -.025em; line-height: 1.05; }
   .count { text-align: right; }
+  .experiments-intro { margin: 0 0 32px; max-width: 60ch; font-size: 17px; line-height: 1.5; color: var(--mute); }
   .tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px 20px; }
   .tile { display: flex; flex-direction: column; gap: 10px; text-decoration: none; }
   .tile img { display: block; width: 100%; height: auto; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 10px; background: var(--edge); }
@@ -238,6 +240,7 @@ function heroStyle(cards) {
     .experiments-header { display: block; padding-bottom: 14px; }
     .experiments-header .eyebrow, .count { display: none; }
     .experiments-header h2 { font-family: var(--mono); font-size: 12px; font-weight: 400; letter-spacing: .02em; line-height: 1.5; text-transform: uppercase; color: var(--mute); }
+    .experiments-intro { margin-bottom: 20px; font-size: 15px; }
     .tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px 12px; }
     .tile { gap: 8px; }
     .tile img { border-radius: 8px; }
