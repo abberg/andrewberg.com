@@ -7,13 +7,7 @@ const logo = name => logos[`../icons/${name}.svg`];
 const systems = [...work].reverse();
 const pad = n => String(n).padStart(2, '0');
 
-// TODO: Resume, Email and LinkedIn targets are not decided yet.
-const links = {
-  resume: '#',
-  email: '#',
-  github: 'https://github.com/abberg',
-  linkedin: '#',
-};
+const linkedin = 'https://www.linkedin.com/in/andrewbberg';
 
 // Hero geometry. The card grid is tilted with rotateX(56deg) rotateZ(-36deg) and scaled, with no perspective.
 // Each wrapper is exactly as tall as the tilted shape so heroes never overlap their neighbours.
@@ -53,16 +47,14 @@ function heroStyle(cards) {
         <nav class="nav mono" aria-label="Main">
           <a href="#systems" class="current">Design systems</a>
           <a href="#experiments">Experiments</a>
-          <a href={links.resume}>Resume</a>
-          <a href={links.email}>Email</a>
+          <a href={linkedin}>LinkedIn</a>
         </nav>
         <details class="menu mono">
           <summary>Menu</summary>
           <nav aria-label="Main">
             <a href="#systems">Design systems</a>
             <a href="#experiments">Experiments</a>
-            <a href={links.resume}>Resume</a>
-            <a href={links.email}>Email</a>
+            <a href={linkedin}>LinkedIn</a>
           </nav>
         </details>
       </header>
@@ -120,7 +112,7 @@ function heroStyle(cards) {
       </main>
       <footer class="site-footer mono">
         <span>Andrew Berg · Boston</span>
-        <span><a href={links.github}>GitHub</a> · <a href={links.linkedin}>LinkedIn</a> · <a href={links.email}>Email</a></span>
+        <a href={linkedin}>LinkedIn</a>
       </footer>
     </div>
   </body>
