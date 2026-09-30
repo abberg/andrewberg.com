@@ -1,113 +1,249 @@
 ---
 import experiments from '../data/experiments.json';
 import work from '../data/work.json';
+import heroCards from '../data/hero-cards.json';
 const logos = import.meta.glob('../icons/*.svg', { query: '?raw', import: 'default', eager: true });
 const logo = name => logos[`../icons/${name}.svg`];
-const architecturalModels = experiments.slice(0, 4);
-const aThousandMore = experiments.filter(item => item.category === 'A Thousand More');
-const florals = experiments.filter(item => item.category === 'Florals');
-const mouseTrailers = experiments.filter(item => item.category === 'Mouse Trailers');
-const vignettes = experiments.filter(item => item.category === 'Vignettes');
+const systems = [...work].reverse();
+const pad = n => String(n).padStart(2, '0');
+
+const linkedin = 'https://www.linkedin.com/in/andrewbberg';
+
+// Hero geometry. The card grid is tilted with rotateX(56deg) rotateZ(-36deg) and scaled, with no perspective.
+// Each wrapper is exactly as tall as the tilted shape so heroes never overlap their neighbours.
+const COL = 200, ROW = 150, GAP = 16, TILT = .86, PHONE = .6;
+const cz = Math.cos(36 * Math.PI / 180), sz = Math.sin(36 * Math.PI / 180), cx = Math.cos(56 * Math.PI / 180);
+function stage(cards, cols, scale) {
+  const w = COL * cols + GAP * (cols - 1);
+  const rows = Math.ceil(cards.reduce((sum, card) => sum + Math.min(card.col, cols) * card.row, 0) / cols);
+  const h = ROW * rows + GAP * (rows - 1);
+  const boxW = (w * cz + h * sz) * TILT * scale;
+  const boxH = (w * sz + h * cz) * cx * TILT * scale;
+  return { w, h, boxW, boxH, top: boxH / 2 - h / 2, left: boxW / 2 - w / 2 };
+}
+function heroStyle(cards) {
+  const d = stage(cards, 4, 1);
+  const p = stage(cards.slice(0, 6), 3, PHONE);
+  const v = n => `${Math.round(n * 10) / 10}px`;
+  return `--w:${v(d.w)};--h:${v(d.boxH)};--top:${v(d.top)};--left:${v(d.left)};--pw:${v(p.w)};--ph:${v(p.boxH)};--ptop:${v(p.top)};--pleft:${v(p.left)}`;
+}
 ---
 <!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Andrew Berg has spent ten years building design systems for athenahealth, Okta, The Washington Post, Veson Nautical and Klaviyo, plus browser experiments." />
-    <title>Andrew Berg</title>
+    <meta name="description" content="Andrew Berg is a design systems engineer building accessible React and TypeScript components, reusable libraries, and tools for product teams." />
+    <title>Andrew Berg — Design Systems Engineer</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Bodoni+Moda:opsz,wght@6..96,700&family=Libre+Franklin:wght@400;700&family=Source+Sans+3:wght@300;400;600;700&family=Public+Sans:wght@400;600&family=Inconsolata:wght@400&family=Inter:wght@400;500;600;700&display=swap" />
   </head>
   <body>
-    <header><h1>Andrew Berg</h1></header>
-    <main>
-      <section class="intro" aria-labelledby="work-heading">
-        <p class="lede">I build design systems. For the past ten years I've worked on five of them.</p>
-        <h2 id="work-heading">Design Systems</h2>
-        <ul class="work">
-          {work.map(item => (
-            <li>
-              <h3>
-                {item.logo && <span class="logo" aria-hidden="true" set:html={logo(item.logo)} />}
-                {item.url ? <a href={item.url}>{item.name}</a> : item.name}
-              </h3>
-              <p class="company">{item.company} <span class="years">{item.years}</span></p>
-              <p class="role">{item.role}</p>
-              <p>{item.summary}</p>
-            </li>
+    <div class="page">
+      <header class="site-header">
+        <a class="wordmark" href="/">Andrew Berg</a>
+        <nav class="nav mono" aria-label="Main">
+          <a href="#systems" class="current">Design systems</a>
+          <a href="#experiments">Experiments</a>
+          <a href={linkedin}>LinkedIn</a>
+        </nav>
+        <details class="menu mono">
+          <summary>Menu</summary>
+          <nav aria-label="Main">
+            <a href="#systems">Design systems</a>
+            <a href="#experiments">Experiments</a>
+            <a href={linkedin}>LinkedIn</a>
+          </nav>
+        </details>
+      </header>
+      <main>
+        <section class="intro">
+          <div class="mono eyebrow">Intro</div>
+          <h1>Ten years, five design systems.</h1>
+          <p>I’m a design systems engineer working in React and TypeScript. I work closely with designers to build accessible components, reusable libraries, and the tools and documentation that help product teams use them.</p>
+        </section>
+
+        <section id="systems" class="timeline" aria-label="Design systems">
+          {systems.map((item, index) => (
+            <article class:list={['entry', { last: index === systems.length - 1 }]}>
+              <div class="spine" aria-hidden="true"><span class="dot"></span><span class="line"></span></div>
+              <div class="body">
+                <div class="heading">
+                  <h2>
+                    <span class="logo" aria-hidden="true" set:html={logo(item.logo)} />
+                    {item.url ? <a href={item.url}>{item.name}</a> : <span>{item.name}</span>}
+                  </h2>
+                  <p class="meta">{item.company} <span class="role">· {item.role}</span> <span class="mono years">{item.years}</span></p>
+                </div>
+                <div class="hero" aria-hidden="true" style={heroStyle(heroCards[item.logo])}>
+                  <div class="stage">
+                    {heroCards[item.logo].map(card => (
+                      <div class="card" style={`grid-column:span ${card.col};grid-row:span ${card.row}`} set:html={card.html} />
+                    ))}
+                  </div>
+                </div>
+                <div class="blurb">
+                  <p><span class="phone-only">{item.role} · </span>{item.summary}</p>
+                  {item.url && <a class="mono" href={item.url}>{new URL(item.url).host} ↗</a>}
+                </div>
+              </div>
+            </article>
           ))}
-        </ul>
-      </section>
-      <h2 id="experiments-heading" class="group">Experiments</h2>
-      <h2 id="models-heading">Architectural Models</h2>
-      <section class="gallery" aria-labelledby="models-heading">
-        {architecturalModels.map((item, index) => (
-          <a class="card" href={item.href} aria-label={`Open architectural model ${index + 1}`}>
-            <img src={item.image} alt="" width="960" height="720" loading={index < 2 ? 'eager' : 'lazy'} />
-          </a>
-        ))}
-      </section>
-      <h2 id="thousand-more-heading">A Thousand More</h2>
-      <section class="gallery" aria-labelledby="thousand-more-heading">
-        {aThousandMore.map(item => (
-          <a class="card" href={item.href} aria-label={`Open ${item.title}`}>
-            <img src={item.image} alt="" width="960" height="720" loading="lazy" />
-          </a>
-        ))}
-      </section>
-      <h2 id="florals-heading">Florals</h2>
-      <section class="gallery" aria-labelledby="florals-heading">
-        {florals.map(item => (
-          <a class="card" href={item.href} aria-label={`Open ${item.title}`}>
-            <img src={item.image} alt="" width="960" height="720" loading="lazy" />
-          </a>
-        ))}
-      </section>
-      <h2 id="mouse-trailers-heading">Mouse Trailers</h2>
-      <section class="gallery" aria-labelledby="mouse-trailers-heading">
-        {mouseTrailers.map(item => (
-          <a class="card" href={item.href} aria-label={`Open ${item.title}`}>
-            <img src={item.image} alt="" width="960" height="720" loading="lazy" />
-          </a>
-        ))}
-      </section>
-      <h2 id="vignettes-heading">Vignettes</h2>
-      <section class="gallery" aria-labelledby="vignettes-heading">
-        {vignettes.map(item => (
-          <a class="card" href={item.href} aria-label={`Open ${item.title}`}>
-            <img src={item.image} alt="" width="960" height="720" loading="lazy" />
-          </a>
-        ))}
-      </section>
-    </main>
+          <div class="end" aria-hidden="true"><span></span></div>
+        </section>
+
+        <section id="experiments" class="experiments" aria-labelledby="experiments-heading">
+          <div class="experiments-header">
+            <div class="mono eyebrow">Before that</div>
+            <h2 id="experiments-heading"><span class="mono phone-only">Before that — </span>Browser experiments</h2>
+            <div class="mono count">{experiments.length} sketches</div>
+          </div>
+          <p class="experiments-intro">My background is in painting and creative technology. These earlier browser experiments explore form, motion, and interaction.</p>
+          <div class="tiles">
+            {experiments.map((item, index) => (
+              <a class="tile" href={item.href} aria-label={`Experiment ${pad(index + 1)}: ${item.title}`}>
+                <img src={item.image} alt="" width="960" height="720" loading={index < 4 ? 'eager' : 'lazy'} />
+                <span class="mono">{pad(index + 1)}</span>
+              </a>
+            ))}
+          </div>
+        </section>
+      </main>
+      <footer class="site-footer mono">
+        <span>Andrew Berg · Boston</span>
+        <a href={linkedin}>LinkedIn</a>
+      </footer>
+    </div>
   </body>
 </html>
 <style is:global>
+  :root {
+    --bg: #F5F5F1; --ink: #16181A; --mute: #5E635E; --dim: #8A8F8A; --rule: #DAD9D3;
+    --accent: #3F7A26; --lime: #C9ED9C; --card: #FFFFFF; --edge: #E4E4DE;
+    --sans: 'Schibsted Grotesk', system-ui, sans-serif;
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    color-scheme: light;
+    font-family: var(--sans); color: var(--ink); background: var(--bg);
+    -webkit-font-smoothing: antialiased; font-synthesis: none;
+  }
   * { box-sizing: border-box; }
-  :root { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #ededeb; background: #111311; font-synthesis: none; }
   body { margin: 0; }
-  header, main { width: min(1200px, calc(100% - 96px)); margin-inline: auto; }
-  header { padding-block: 34px; }
-  h1 { margin: 0; font-weight: 650; font-size: 19px; letter-spacing: -.5px; }
-  main { padding-bottom: 48px; }
-  h2 { margin: 0 0 28px; font-size: 14px; font-weight: 500; }
-  .gallery + h2 { margin-top: 48px; }
-  .lede { margin: 0 0 48px; max-width: 32ch; font-size: clamp(24px, 4vw, 36px); line-height: 1.2; letter-spacing: -.5px; }
-  .work { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 28px; }
-  .work li { padding-top: 16px; border-top: 1px solid #3a3d3a; }
-  h3 { margin: 0; font-size: 17px; font-weight: 650; }
-  h3 { display: flex; align-items: center; gap: 6px; }
-  .logo { flex: none; width: 22px; height: 22px; margin-block: -2px; }
+  a { color: var(--ink); }
+  a:hover { color: var(--accent); }
+  a:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 2px; }
+  .mono { font-family: var(--mono); font-size: 12px; letter-spacing: .02em; text-transform: uppercase; color: var(--mute); font-variant-numeric: tabular-nums; }
+  .mono a, a.mono { color: inherit; text-decoration: none; }
+  .phone-only { display: none; }
+
+  .page { max-width: 1280px; margin-inline: auto; padding: 0 64px 64px; overflow-x: clip; }
+
+  .site-header { display: flex; justify-content: space-between; align-items: center; height: 72px; border-bottom: 1px solid var(--rule); }
+  .wordmark { font-size: 15px; font-weight: 600; letter-spacing: -.01em; text-decoration: none; }
+  .nav { display: flex; gap: 28px; }
+  .nav a:hover, .menu a:hover { color: var(--accent); }
+  .nav .current { color: var(--ink); }
+  .menu { display: none; position: relative; }
+  .menu summary { cursor: pointer; list-style: none; }
+  .menu summary::-webkit-details-marker { display: none; }
+  .menu nav { position: absolute; right: 0; top: calc(100% + 12px); z-index: 2; display: flex; flex-direction: column; gap: 14px; padding: 16px 20px; background: var(--card); border-radius: 10px; box-shadow: inset 0 0 0 1px var(--edge); white-space: nowrap; }
+
+  .intro { display: grid; grid-template-columns: 192px minmax(0, 1fr) 300px; gap: 32px; padding: 96px 0; }
+  .intro .eyebrow { padding-top: 12px; }
+  h1 { margin: 0; font-size: 60px; line-height: 1.02; letter-spacing: -.035em; font-weight: 500; max-width: 15ch; }
+  .intro p { margin: 0; padding-top: 12px; font-size: 16px; line-height: 1.5; color: var(--mute); }
+
+  .timeline { display: flex; flex-direction: column; }
+  .entry { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 0 32px; align-items: start; }
+  .spine { display: flex; flex-direction: column; align-items: center; align-self: stretch; padding-top: 14px; }
+  .dot { flex: none; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px var(--bg), 0 0 0 5px var(--rule); }
+  .line { flex: 1; width: 1px; margin-top: 8px; background: var(--rule); }
+  .last .line { background: transparent; }
+  .body { display: flex; flex-direction: column; padding-bottom: 96px; min-width: 0; }
+  .last .body { padding-bottom: 0; }
+  .heading, .blurb { position: relative; z-index: 1; }
+  .heading h2 { display: flex; align-items: center; gap: 12px; margin: 0; font-size: 40px; font-weight: 500; letter-spacing: -.03em; line-height: 1; }
+  .heading h2 a { text-decoration: underline; text-decoration-color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 6px; }
+  .logo { flex: none; width: 28px; height: 28px; }
   .logo svg { display: block; width: 100%; height: 100%; }
-  h3 a { color: inherit; text-decoration-color: #c9ed9c; text-underline-offset: 3px; }
-  .work p { margin: 4px 0 0; font-size: 14px; line-height: 1.45; color: #b5b8b3; }
-  .work .company { color: #c9ed9c; }
-  .work .role { color: #ededeb; }
-  .work .years { margin-left: 4px; color: #8b8e89; font-variant-numeric: tabular-nums; }
-  h2.group { margin-top: 72px; font-size: 17px; font-weight: 650; }
-  .gallery { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; }
-  .card { display: block; overflow: hidden; background: #ddd; aspect-ratio: 4 / 3; }
-  img { display: block; width: 100%; height: 100%; object-fit: cover; }
-  a:focus-visible { outline: 2px solid #c9ed9c; outline-offset: 7px; }
-  @media (max-width: 640px) { header, main { width: calc(100% - 40px); } .gallery { grid-template-columns: 1fr; } }
+  .meta { margin: 0; padding-top: 12px; font-size: 17px; }
+  .meta .role { color: var(--mute); }
+  .meta .years { margin-left: 8px; }
+  .blurb { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 48px; align-items: start; margin-top: 24px; }
+  .blurb p { margin: 0; max-width: 60ch; font-size: 17px; line-height: 1.5; color: var(--mute); }
+  .blurb a { justify-self: end; padding-top: 4px; color: var(--accent); }
+  .blurb a:hover { color: var(--ink); }
+  .end { display: grid; grid-template-columns: 40px; padding-top: 40px; justify-items: center; }
+  .end span { width: 12px; height: 12px; border-radius: 50%; box-shadow: inset 0 0 0 1px var(--rule); }
+
+  /* Hero: one flat isometric plane of cards, behind the text, top edge level with the heading. */
+  .hero { position: relative; z-index: 0; height: var(--h); margin-top: -74px; pointer-events: none; user-select: none; }
+  .stage {
+    position: absolute; top: var(--top); left: 50%; width: var(--w); margin-left: calc(var(--w) / -2);
+    display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-auto-rows: 150px; grid-auto-flow: dense; gap: 16px;
+    transform: rotateX(56deg) rotateZ(-36deg) scale(.86);
+  }
+  .card { display: flex; flex-direction: column; gap: 8px; padding: 16px; overflow: hidden; border-radius: 10px; background: var(--card); box-shadow: inset 0 0 0 1px var(--edge); }
+
+  .experiments { padding-top: 140px; }
+  .experiments-header { display: grid; grid-template-columns: 192px minmax(0, 1fr) 300px; gap: 32px; align-items: end; padding-bottom: 32px; }
+  .experiments-header h2 { margin: 0; font-size: 34px; font-weight: 500; letter-spacing: -.025em; line-height: 1.05; }
+  .count { text-align: right; }
+  .experiments-intro { margin: 0 0 32px; max-width: 60ch; font-size: 17px; line-height: 1.5; color: var(--mute); }
+  .tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px 20px; }
+  .tile { display: flex; flex-direction: column; gap: 10px; text-decoration: none; }
+  .tile img { display: block; width: 100%; height: auto; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 10px; background: var(--edge); }
+  .tile:hover .mono { color: var(--accent); }
+
+  .site-footer { display: flex; justify-content: space-between; gap: 16px; margin-top: 96px; padding-top: 24px; border-top: 1px solid var(--rule); }
+
+  @media (max-width: 1100px) {
+    .intro, .experiments-header { grid-template-columns: minmax(0, 1fr) 260px; }
+    .intro .eyebrow, .experiments-header .eyebrow { display: none; }
+    /* Narrower screens left-justify the hero so it never crosses the spine; only its right side is cropped. */
+    .stage { left: var(--left); margin-left: 0; }
+  }
+
+  @media (max-width: 720px) {
+    .nav, .meta .role { display: none; }
+    .phone-only { display: inline; }
+    .page { padding: 0 20px 32px; }
+    .site-header { height: 60px; }
+    .menu { display: block; }
+    .intro { display: flex; flex-direction: column; gap: 20px; padding: 44px 0 40px; }
+    .intro .eyebrow { display: block; padding-top: 0; }
+    h1 { font-size: 38px; line-height: 1.04; letter-spacing: -.03em; }
+    .intro p { padding-top: 0; font-size: 15px; }
+
+    .entry { grid-template-columns: 20px minmax(0, 1fr); gap: 0 16px; }
+    .spine { padding-top: 9px; }
+    .dot { width: 10px; height: 10px; box-shadow: none; }
+    .body { padding-bottom: 48px; }
+    .heading { display: flex; flex-direction: column; gap: 10px; padding-bottom: 10px; }
+    .heading h2 { gap: 8px; font-size: 28px; }
+    .logo { width: 20px; height: 20px; }
+    .meta { padding-top: 0; font-size: 14px; }
+    .meta .years { margin-left: 6px; }
+    .end { grid-template-columns: 20px; }
+
+    /* Phone heroes show the first six cards on three columns, left-justified so only the right side is cropped. */
+    .hero { height: var(--ph); margin-top: -66px; margin-right: -20px; overflow: hidden; }
+    .stage { top: var(--ptop); left: var(--pleft); width: var(--pw); margin-left: 0; grid-template-columns: repeat(3, minmax(0, 1fr)); transform: rotateX(56deg) rotateZ(-36deg) scale(.516); }
+    .card:nth-child(n + 7) { display: none; }
+
+    .blurb { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+    .blurb p { font-size: 13px; line-height: 1.45; }
+    .blurb a { justify-self: auto; padding-top: 0; }
+
+    .experiments { padding-top: 44px; }
+    .experiments-header { display: block; padding-bottom: 14px; }
+    .experiments-header .eyebrow, .count { display: none; }
+    .experiments-header h2 { font-family: var(--mono); font-size: 12px; font-weight: 400; letter-spacing: .02em; line-height: 1.5; text-transform: uppercase; color: var(--mute); }
+    .experiments-intro { margin-bottom: 20px; font-size: 15px; }
+    .tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px 12px; }
+    .tile { gap: 8px; }
+    .tile img { border-radius: 8px; }
+    .site-footer { flex-direction: column; margin-top: 56px; }
+  }
 </style>
