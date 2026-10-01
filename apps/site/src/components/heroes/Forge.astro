@@ -1,0 +1,142 @@
+---
+import HeroCard from './parts/HeroCard.astro';
+import Note from './parts/Note.astro';
+import Row from './parts/Row.astro';
+import TypeSample from './parts/TypeSample.astro';
+import TypeRow from './parts/TypeRow.astro';
+import Swatches from './parts/Swatches.astro';
+import Ramp from './parts/Ramp.astro';
+import Chips from './parts/Chips.astro';
+import Bars from './parts/Bars.astro';
+import Button from './parts/Button.astro';
+import Control from './parts/Control.astro';
+import Field from './parts/Field.astro';
+import ComponentList from './parts/ComponentList.astro';
+import OutlineIcons from './parts/OutlineIcons.astro';
+
+// Forge, athenahealth. Source Sans Pro with the $color-* Sass variables.
+const tags = [
+  ['Scheduled', 'var(--gray-88)', 'var(--gray-20)'], ['New', 'var(--color-interaction-default)', '#FFFFFF'],
+  ['Critical', 'var(--color-alert-critical)', '#FFFFFF'], ['Attention', 'var(--color-alert-attention)', 'var(--gray-20)'],
+  ['Positive', 'var(--color-alert-success)', '#FFFFFF'],
+];
+const grays = ['#000000', '#333333', '#5F5F5F', '#808080', '#B3B3B3', '#D9D9D9', '#E1E1E1', '#FFFFFF'];
+const sequential = ['#7A9A01', '#9CB441', '#BCCC80', '#DEE6BF', '#F1F4E5', '#1C89A1', '#55A7B9', '#8DC4D0', '#C6E1E7', '#E8F3F5'];
+const components = [
+  'Accordion', 'Avatar', 'Badge', 'Banner', 'Button', 'Card', 'Checkbox', 'CheckboxButton', 'ComboButton', 'DateInput', 'Form', 'FormField',
+  'Grid', 'Heading', 'Icon', 'Indicator', 'InlineAlert', 'Input', 'Lightbox', 'List', 'Loader', 'Menu', 'Modal', 'MultiField', 'Multiselect',
+  'Paginator', 'Popover', 'ProgressIndicator', 'RadioButton', 'RadioGroup', 'ReadOnlyInput', 'RemovableTag', 'Root', 'Select', 'SelectionList',
+  'ShowHide', 'Signpost', 'SingleSelect', 'StatusTag', 'Stepper', 'Table', 'Tabs', 'Textarea', 'Toast', 'ToggleSwitch', 'Tooltip', 'Tree', 'Typeahead',
+];
+---
+<div class="forge">
+  <HeroCard label="Typography · Source Sans Pro" col={2} row={2}>
+    <TypeSample>
+      <Note>Light · Regular · Semibold · Bold</Note>
+      <Note>fallback Arial, sans-serif</Note>
+    </TypeSample>
+    <TypeRow size={24} weight={600} spec="34px">Page Heading</TypeRow>
+    <TypeRow size={17} weight={600} spec="24px">Section Heading</TypeRow>
+    <TypeRow size={12} weight={600} spec="18px">Sub-section Heading</TypeRow>
+    <TypeRow size={11} spec="16px">Body</TypeRow>
+    <TypeRow size={10} spec="14px">Small text</TypeRow>
+    <TypeRow size={8} spec="12px">Tiny text</TypeRow>
+  </HeroCard>
+
+  <HeroCard label="$color-interaction · $color-brand" col={2}>
+    <Swatches gap={6} items={[
+      ['var(--color-interaction-default)', 'default'], ['var(--color-interaction-select)', 'select'],
+      ['var(--color-interaction-hover-dark)', 'hover-dark'], ['var(--color-interaction-hover)', 'hover'],
+    ]} />
+    <Swatches gap={6} items={[
+      ['var(--color-brand)', 'brand'], ['var(--color-brand-dark)', 'dark'], ['var(--color-brand-light)', 'light'], ['var(--gray-70)', 'disabled'],
+    ]} />
+  </HeroCard>
+
+  <HeroCard label="Button">
+    <Row wrap>
+      <Button bg="var(--color-interaction-default)" fg="#FFFFFF">Save to Chart</Button>
+      <Button bg="#FFFFFF" fg="var(--color-interaction-default)" edge="var(--color-interaction-default)">Secondary</Button>
+      <Button bg="transparent" fg="var(--color-interaction-default)">Tertiary</Button>
+    </Row>
+    <Row align="center">
+      <Button bg="var(--color-interaction-default)" fg="#FFFFFF" small>Add Medication</Button>
+      <Note>tiny · small · medium · large</Note>
+    </Row>
+  </HeroCard>
+
+  <HeroCard label="StatusTag">
+    <Row gap={5} wrap>
+      {tags.map(([label, bg, fg]) => <span class="tag" style={{ background: bg, color: fg }}>{label}</span>)}
+    </Row>
+    <Note>gray · new · critical · attention · positive</Note>
+  </HeroCard>
+
+  <HeroCard label="$color-secondary · data" col={2}>
+    <Swatches items={[
+      ['#7A9A01', 'green'], ['#F3C869', 'yellow'], ['#ED8664', 'orange'], ['#1C89A1', 'teal'], ['#31B0AC', 'blue'], ['#5B3977', 'purple'], ['#A50050', 'ruby'],
+    ]} />
+    <Ramp colors={sequential} gap={3} />
+    <Note>sequential 100 · 75 · 50 · 25 · 10</Note>
+  </HeroCard>
+
+  <HeroCard label="$color-alert">
+    <Swatches cols={2} gap={6} items={[
+      ['var(--color-alert-success)', 'success'], ['var(--color-brand-light)', 'info'],
+      ['var(--color-alert-attention)', 'attention'], ['var(--color-alert-critical)', 'critical'],
+    ]} />
+  </HeroCard>
+
+  <HeroCard label="Grayscale">
+    <Chips cols={4} gap={4} aspect="4/3" radius={3} edge="rgba(0,0,0,.08)" colors={grays} />
+    <Note>$gray-0 · 20 · 37 · 50 · 70 · 85 · 88 · 100</Note>
+  </HeroCard>
+
+  <HeroCard label="FormField">
+    <Field label="Patient name" value="Berg, Andrew" hint="Last, First" />
+    <Row gap={10} align="center">
+      <Control type="checkbox" label="Checkbox" color="var(--color-interaction-default)" />
+      <Control type="toggle" label="ToggleSwitch" color="var(--color-interaction-default)" width={30} height={16} />
+    </Row>
+  </HeroCard>
+
+  <HeroCard label="ForgeIcons">
+    <OutlineIcons color="var(--gray-20)" />
+    <Note>AddAppointment · Allergies · Calendar · Chart · Attention · Close</Note>
+  </HeroCard>
+
+  <HeroCard label="Spacing">
+    <Bars color="var(--color-interaction-default)" items={[[6, 'XS 4px'], [12, 'S 8px'], [25, 'M 16px'], [38, 'L 24px'], [64, 'XL 40px'], [102, 'XXL 64px']]} />
+  </HeroCard>
+
+  <HeroCard label="Grid · 12 col">
+    <div class="columns">{Array.from({ length: 12 }, () => <span></span>)}</div>
+    <Note>gutter 30px · edge 15px</Note>
+    <Note>small &lt;640 · medium 640–1024 · large &gt;1024</Note>
+  </HeroCard>
+
+  <HeroCard label="49 components · @athena/forge · React" col={2}>
+    <ComponentList items={components} />
+  </HeroCard>
+</div>
+
+<style>
+  .forge {
+    display: contents;
+    --font-family: 'Source Sans 3', 'Source Sans Pro', Arial, sans-serif;
+    --gray-20: #333333; --gray-37: #5F5F5F; --gray-70: #B3B3B3; --gray-88: #E1E1E1;
+    --color-interaction-default: #0466B4; --color-interaction-select: #043961; --color-interaction-hover-dark: #005496; --color-interaction-hover: #D9EBFA;
+    --color-brand: #614476; --color-brand-dark: #43364D; --color-brand-light: #7E589B;
+    --color-alert-success: #118647; --color-alert-attention: #FFAB00; --color-alert-critical: #CA0D0D;
+
+    --hero-font: var(--font-family); --hero-ink: var(--gray-20); --hero-note: var(--gray-37);
+    --hero-display-weight: 600; --hero-type-leading: 1.1;
+    --hero-edge: rgba(0,0,0,.08); --hero-swatch-radius: 3px;
+    --button-pad: 10px; --button-radius: 3px; --button-weight: 600;
+    --field-gap: 2px; --field-radius: 3px; --field-edge: var(--gray-70);
+    --control-radius: 2px;
+  }
+  .tag { display: inline-flex; align-items: center; height: 16px; padding: 0 6px; border-radius: 2px; font-family: var(--font-family); font-weight: 600; font-size: 8px; letter-spacing: .06em; text-transform: uppercase; }
+  .columns { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 3px; flex: 1; min-height: 30px; }
+  .columns span { background: var(--color-interaction-hover); border-radius: 2px; }
+</style>

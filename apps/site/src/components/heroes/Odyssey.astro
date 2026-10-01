@@ -1,0 +1,145 @@
+---
+import HeroCard from './parts/HeroCard.astro';
+import Note from './parts/Note.astro';
+import Row from './parts/Row.astro';
+import TypeSample from './parts/TypeSample.astro';
+import TypeRow from './parts/TypeRow.astro';
+import Swatches from './parts/Swatches.astro';
+import Ramp from './parts/Ramp.astro';
+import Chips from './parts/Chips.astro';
+import Bars from './parts/Bars.astro';
+import Shapes from './parts/Shapes.astro';
+import Shadows from './parts/Shadows.astro';
+import Button from './parts/Button.astro';
+import Control from './parts/Control.astro';
+import Field from './parts/Field.astro';
+import Banner from './parts/Banner.astro';
+import ComponentList from './parts/ComponentList.astro';
+
+// Odyssey, Okta. Public Sans on a 14px base, with the ColorPalette ramps.
+const ramps = [
+  ['#f2f5ff', '#a7b5ec', '#788ee2', '#1662dd', '#00297a'],
+  ['#e5faf3', '#84d2b1', '#00b478', '#008055', '#00503c'],
+  ['#ffdfe2', '#f88c90', '#da372c', '#640019'],
+  ['#faf5dc', '#f9dc77', '#ffc61c', '#663800'],
+];
+const neutrals = ['#ffffff', '#f5f5f6', '#ebebed', '#d7d7dc', '#8c8c96', '#6e6e78', '#1d1d21'];
+const components = [
+  'Banner', 'Box', 'Button', 'Checkbox', 'Field', 'FieldGroup', 'Form', 'Heading', 'Icon', 'Infobox', 'Link', 'List', 'Modal',
+  'Radio', 'RadioGroup', 'ScreenReaderText', 'Select', 'Status', 'Table', 'Tabs', 'Tag', 'Text', 'TextArea', 'TextInput', 'Toast', 'Tooltip',
+];
+---
+<div class="odyssey">
+  <HeroCard label="Typography · Public Sans" col={2} row={2}>
+    <TypeSample>
+      <Note>FontWeightNormal 400 · Bold 600</Note>
+      <Note>FontSizeBase 87.5% · line length 32rem</Note>
+      <Note font="mono">mono · Inconsolata</Note>
+    </TypeSample>
+    <TypeRow size={25} weight={600} spec="2.571rem">Heading 1</TypeRow>
+    <TypeRow size={20} weight={600} spec="2rem">Heading 3</TypeRow>
+    <TypeRow size={12} weight={600} spec="1.286rem">Heading 5</TypeRow>
+    <TypeRow size={10} spec="1rem">Body</TypeRow>
+    <TypeRow size={8} spec=".857rem">Caption</TypeRow>
+  </HeroCard>
+
+  <HeroCard label="ColorPrimary" col={2}>
+    <Swatches items={[
+      ['var(--ColorPrimaryLight000)', 'Blue000'], ['var(--ColorPrimaryLight)', 'Light · 300'], ['#788ee2', 'Blue400'],
+      ['var(--ColorPrimaryBase)', 'Base · 500'], ['var(--ColorPrimaryDark)', 'Dark · 900'],
+    ]} />
+    <Swatches items={[
+      ['var(--ColorPrimaryBase)', 'ColorTextPrimary'], ['var(--ColorPrimaryBase)', 'FocusOutline 2px'], ['var(--ColorPrimaryDark)', 'BorderPrimaryDark'],
+    ]} />
+  </HeroCard>
+
+  <HeroCard label="Button">
+    <Row wrap>
+      <Button bg="var(--ColorPrimaryBase)" fg="#ffffff">Primary</Button>
+      <Button bg="#ffffff" fg="var(--ColorPrimaryBase)" edge="var(--ColorPrimaryBase)">Secondary</Button>
+      <Button bg="var(--ColorDangerBase)" fg="#ffffff">Danger</Button>
+    </Row>
+    <Row align="center">
+      <Button bg="transparent" fg="var(--ColorPrimaryBase)">Clear</Button>
+      <Button bg="var(--ColorPrimaryBase)" fg="#ffffff" small>Small</Button>
+      <Note>BorderRadiusBase 4px</Note>
+    </Row>
+  </HeroCard>
+
+  <HeroCard label="Banner · Infobox">
+    <Banner tint="var(--ColorPrimaryLight000)" accent="var(--ColorPrimaryBase)">info</Banner>
+    <Banner tint="var(--ColorSuccessLight)" accent="var(--ColorSuccessBase)">success</Banner>
+    <Banner tint="var(--ColorCautionLight)" accent="var(--ColorCautionBase)">caution</Banner>
+    <Banner tint="var(--ColorDangerLight)" accent="var(--ColorDangerBase)">danger</Banner>
+  </HeroCard>
+
+  <HeroCard label="ColorPalette · 000 → 900" col={2}>
+    {ramps.map(colors => <Ramp colors={colors} />)}
+    <Note>Blue · Green · Red · Yellow</Note>
+  </HeroCard>
+
+  <HeroCard label="ColorPaletteNeutral">
+    <Chips cols={6} gap={3} radius={3} edge="rgba(0,0,0,.06)" colors={neutrals} />
+    <Note>White · 000 · 100 · 200 · 500 · 600 · 900</Note>
+  </HeroCard>
+
+  <HeroCard label="Danger · Caution · Success">
+    <Swatches items={[['var(--ColorDangerBase)', 'Base'], ['var(--ColorCautionBase)', 'Base'], ['var(--ColorSuccessBase)', 'Base']]} />
+    <Swatches items={[['var(--ColorDangerLight)', 'Background Light'], ['var(--ColorCautionLight)', 'Background Light'], ['var(--ColorSuccessLight)', 'Background Light']]} />
+  </HeroCard>
+
+  <HeroCard label="Field · TextInput">
+    <Field label="Username" value="andrew@okta.com" />
+    <Row gap={7} align="center">
+      <Control type="checkbox" label="Checkbox" color="var(--ColorPrimaryBase)" />
+      <Control type="radio" label="Radio" color="var(--ColorPrimaryBase)" />
+      <Control type="toggle" label="Toggle" color="var(--ColorSuccessBase)" width={28} height={15} />
+    </Row>
+  </HeroCard>
+
+  <HeroCard label="Extended palette">
+    <Swatches cols={2} gap="8px 10px" height={26} items={[
+      ['#e97107', 'Orange500'], ['#65adb7', 'Turquoise400'], ['#2d8c9e', 'Turquoise500'], ['#8d6e97', 'Purple500'],
+    ]} />
+  </HeroCard>
+
+  <HeroCard label="SpaceScale · base 14px">
+    <Bars color="var(--ColorPrimaryBase)" gap={3} items={[
+      [7, 'SpaceScale0 · 4px'], [14, 'SpaceScale1 · 8px'], [21, 'SpaceScale2 · 12px'], [28, 'SpaceScale3 · 16px'],
+      [43, 'SpaceScale4 · 24px'], [57, 'SpaceScale5 · 32px'], [100, 'SpaceScale8 · 56px'],
+    ]} />
+  </HeroCard>
+
+  <HeroCard label="Radius · Shadow · Focus">
+    <Shapes size={26} fill="var(--ColorPrimaryLight000)" edge="var(--ColorPrimaryLight)" items={[
+      { radius: '4px', label: 'Base 4' }, { radius: '6px', label: 'Outer 6' }, { radius: '4px', focus: 'var(--ColorPrimaryBase)', label: 'Focus 2px' },
+    ]} />
+    <Shadows width={26} height={20} radius={4} pad={4} labelGap={3} items={[
+      ['0 1px 4px rgba(29,29,33,.08),0 5px 15px rgba(29,29,33,.05)', 'ShadowScale0'],
+      ['0 1px 4px rgba(29,29,33,.08),0 8px 30px rgba(29,29,33,.1)', 'ShadowScale1'],
+    ]} />
+  </HeroCard>
+
+  <HeroCard label="@okta/odyssey-react 0.14 · React + Sass" col={2}>
+    <ComponentList items={components} />
+  </HeroCard>
+</div>
+
+<style>
+  .odyssey {
+    display: contents;
+    --FontFamilyBase: 'Public Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --FontFamilyMono: 'Inconsolata', 'SFMono-Regular', Consolas, Menlo, monospace;
+    --ColorTextBody: #1d1d21; --ColorTextSub: #6e6e78; --ColorBorderInput: #8c8c96;
+    --ColorPrimaryLight000: #f2f5ff; --ColorPrimaryLight: #a7b5ec; --ColorPrimaryBase: #1662dd; --ColorPrimaryDark: #00297a;
+    --ColorSuccessBase: #00b478; --ColorSuccessLight: #e5faf3;
+    --ColorCautionBase: #ffc61c; --ColorCautionLight: #faf5dc;
+    --ColorDangerBase: #da372c; --ColorDangerLight: #ffdfe2;
+
+    --hero-font: var(--FontFamilyBase); --hero-mono: var(--FontFamilyMono);
+    --hero-ink: var(--ColorTextBody); --hero-note: var(--ColorTextSub);
+    --hero-display-weight: 600; --hero-edge: rgba(0,0,0,.06);
+    --button-pad: 8px; --button-radius: 4px; --button-weight: 600;
+    --field-radius: 4px; --field-edge: var(--ColorBorderInput);
+  }
+</style>

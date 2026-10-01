@@ -1,0 +1,10 @@
+---
+// A grid of unlabelled colour chips.
+const { colors, cols, gap, aspect = '1', radius = 4, edge } = Astro.props;
+---
+<div class="chips" style={{ gridTemplateColumns: `repeat(${cols},minmax(0,1fr))`, gap: `${gap}px` }}>
+  {colors.map(color => <span style={{ aspectRatio: aspect, borderRadius: `${radius}px`, background: color, boxShadow: edge && `inset 0 0 0 1px ${edge}` }}></span>)}
+</div>
+<style>
+  .chips { display: grid; }
+</style>

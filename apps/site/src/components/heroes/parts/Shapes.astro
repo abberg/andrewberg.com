@@ -1,0 +1,20 @@
+---
+import Note from './Note.astro';
+// Corner radius samples. A `focus` item shows the focus ring instead of a fill.
+const { items, size, fill, edge, gap = 6 } = Astro.props;
+const shape = ({ radius, focus }) => focus
+  ? { width: `${size}px`, height: `${size}px`, background: '#fff', borderRadius: radius, outline: `2px solid ${focus}`, outlineOffset: '2px', margin: '3px' }
+  : { width: `${size}px`, height: `${size}px`, background: fill, boxShadow: `inset 0 0 0 1px ${edge}`, borderRadius: radius };
+---
+<div class="shapes" style={{ gap: `${gap}px` }}>
+  {items.map(item => (
+    <span class="shape">
+      <span style={shape(item)}></span>
+      <Note>{item.label}</Note>
+    </span>
+  ))}
+</div>
+<style>
+  .shapes { display: flex; align-items: flex-end; flex-wrap: wrap; }
+  .shape { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+</style>

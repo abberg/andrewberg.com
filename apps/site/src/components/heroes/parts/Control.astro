@@ -1,0 +1,27 @@
+---
+import Note from './Note.astro';
+// A checkbox, radio or toggle in its checked state, with its name beside it.
+const { type, label, color, size = 13, width, height, gap = 5, check = false } = Astro.props;
+const knob = height - 4;
+---
+<span class="control" style={{ gap: `${gap}px` }}>
+  {type === 'checkbox' && (
+    <span class:list={['checkbox', { check }]} style={{ width: `${size}px`, height: `${size}px`, background: color }}>{check && <span class="tick"></span>}</span>
+  )}
+  {type === 'radio' && <span class="radio" style={{ width: `${size}px`, height: `${size}px`, boxShadow: `inset 0 0 0 4px ${color}` }}></span>}
+  {type === 'toggle' && (
+    <span class="toggle" style={{ width: `${width}px`, height: `${height}px`, background: color }}>
+      <span style={{ width: `${knob}px`, height: `${knob}px` }}></span>
+    </span>
+  )}
+  <Note>{label}</Note>
+</span>
+<style>
+  .control { display: flex; align-items: center; }
+  .checkbox { border-radius: var(--control-radius, 3px); }
+  .check { display: flex; align-items: center; justify-content: center; }
+  .tick { width: 7px; height: 4px; border-left: 2px solid #fff; border-bottom: 2px solid #fff; transform: rotate(-45deg); margin-top: -2px; }
+  .radio { border-radius: 50%; }
+  .toggle { border-radius: 9999px; position: relative; }
+  .toggle span { position: absolute; right: 2px; top: 2px; border-radius: 50%; background: #fff; }
+</style>

@@ -1,0 +1,8 @@
+---
+// The system's component inventory as a run of names.
+const { items, leading = 1.6, color = 'var(--hero-note)' } = Astro.props;
+---
+<div class="list" style={{ lineHeight: leading, color }}>{items.join(' · ')}</div>
+<style>
+  .list { font-family: var(--hero-font); font-size: 9px; }
+</style>

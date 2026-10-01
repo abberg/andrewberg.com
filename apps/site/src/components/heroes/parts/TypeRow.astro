@@ -1,0 +1,13 @@
+---
+import Note from './Note.astro';
+// One step of a type scale: the sample on the left, its spec on the right.
+const { size, weight = 400, tracking, spec } = Astro.props;
+---
+<div class="type-row">
+  <span class="text" style={{ fontWeight: weight, fontSize: `${size}px`, letterSpacing: tracking }}><slot /></span>
+  <Note>{spec}</Note>
+</div>
+<style>
+  .type-row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .text { font-family: var(--hero-font); line-height: var(--hero-type-leading, 1.15); color: var(--hero-ink); }
+</style>

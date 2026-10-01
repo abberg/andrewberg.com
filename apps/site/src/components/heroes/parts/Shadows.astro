@@ -1,0 +1,17 @@
+---
+import Note from './Note.astro';
+// Elevation samples: white tiles lifted by each shadow.
+const { items, width, height, radius, pad = 6, labelGap = 4 } = Astro.props;
+---
+<div class="shadows" style={{ paddingBottom: `${pad}px` }}>
+  {items.map(([shadow, label]) => (
+    <span class="shadow" style={{ gap: `${labelGap}px` }}>
+      <span style={{ width: `${width}px`, height: `${height}px`, borderRadius: `${radius}px`, background: '#fff', boxShadow: shadow }}></span>
+      <Note>{label}</Note>
+    </span>
+  ))}
+</div>
+<style>
+  .shadows { display: flex; gap: 8px; }
+  .shadow { display: flex; flex-direction: column; align-items: center; }
+</style>

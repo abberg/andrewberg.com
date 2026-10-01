@@ -1,0 +1,14 @@
+---
+// A button drawn with the system's --button-* tokens. `edge` outlines it; `small` is the compact size.
+const { bg, fg, edge, small } = Astro.props;
+---
+<span class:list={['button', { small }]} style={{ background: bg, color: fg, boxShadow: edge && `inset 0 0 0 1px ${edge}` }}><slot /></span>
+<style>
+  .button {
+    display: inline-flex; flex: none; align-items: center; gap: 4px; white-space: nowrap;
+    height: var(--button-height, 26px); padding: 0 var(--button-pad); border-radius: var(--button-radius);
+    box-shadow: var(--button-shadow, none);
+    font-family: var(--hero-font); font-weight: var(--button-weight); font-size: var(--button-size, 10px);
+  }
+  .small { height: 20px; font-size: 9px; }
+</style>
