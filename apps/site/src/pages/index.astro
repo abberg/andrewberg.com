@@ -1,6 +1,7 @@
 ---
 import experiments from '../data/experiments.json';
 import work from '../data/work.json';
+import videos from '../data/videos.json';
 import HeroStage from '../components/heroes/HeroStage.astro';
 import { heroes } from '../components/heroes';
 const logos = import.meta.glob('../icons/*.svg', { query: '?raw', import: 'default', eager: true });
@@ -85,6 +86,30 @@ const linkedin = 'https://www.linkedin.com/in/andrewbberg';
                 <img src={item.image} alt="" width="960" height="720" loading={index < 4 ? 'eager' : 'lazy'} />
                 <span class="mono">{pad(index + 1)}</span>
               </a>
+            ))}
+          </div>
+        </section>
+
+        <section id="videos" class="sketches videos" aria-labelledby="videos-heading">
+          <div class="sketches-header">
+            <div class="mono eyebrow">In C++</div>
+            <h2 id="videos-heading"><span class="mono phone-only">In C++ — </span>Recorded sketches</h2>
+            <div class="mono count">{videos.length} videos</div>
+          </div>
+          <p class="sketches-intro">Sketches in the same spirit, written in C++ and recorded to video.</p>
+          <div class="clips">
+            {videos.map(video => (
+              <figure class="clip">
+                <iframe
+                  src={`https://player.vimeo.com/video/${video.vimeo}?badge=0&autopause=0&dnt=1`}
+                  title={video.title}
+                  style={`aspect-ratio:${video.ratio}`}
+                  loading="lazy"
+                  allow="autoplay; fullscreen; picture-in-picture"
+                  referrerpolicy="strict-origin-when-cross-origin"
+                ></iframe>
+                <figcaption class="mono">{video.title}</figcaption>
+              </figure>
             ))}
           </div>
         </section>
@@ -174,6 +199,11 @@ const linkedin = 'https://www.linkedin.com/in/andrewbberg';
   .tile img { display: block; width: 100%; height: auto; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 10px; background: var(--edge); }
   .tile:hover .mono { color: var(--accent); }
 
+  .videos { padding-top: 96px; }
+  .clips { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px 20px; align-items: start; }
+  .clip { display: flex; flex-direction: column; gap: 10px; margin: 0; }
+  .clip iframe { display: block; width: 100%; height: auto; border: 0; border-radius: 10px; background: var(--edge); }
+
   .site-footer { display: flex; justify-content: space-between; gap: 16px; margin-top: 96px; padding-top: 24px; border-top: 1px solid var(--rule); }
 
   @media (max-width: 1100px) {
@@ -222,6 +252,10 @@ const linkedin = 'https://www.linkedin.com/in/andrewbberg';
     .tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px 12px; }
     .tile { gap: 8px; }
     .tile img { border-radius: 8px; }
+    .videos { padding-top: 44px; }
+    .clips { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+    .clip { gap: 8px; }
+    .clip iframe { border-radius: 8px; }
     .site-footer { flex-direction: column; margin-top: 56px; }
   }
 </style>
