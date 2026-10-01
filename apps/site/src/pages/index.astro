@@ -1,7 +1,6 @@
 ---
 import experiments from '../data/experiments.json';
 import work from '../data/work.json';
-import heroCards from '../data/hero-cards.json';
 import HeroStage from '../components/heroes/HeroStage.astro';
 import { heroes } from '../components/heroes';
 const logos = import.meta.glob('../icons/*.svg', { query: '?raw', import: 'default', eager: true });
@@ -62,13 +61,7 @@ const linkedin = 'https://www.linkedin.com/in/andrewbberg';
                   </h2>
                   <p class="meta">{item.company} <span class="role">· {item.role}</span></p>
                 </div>
-                {heroes[item.logo] ? (
-                  <HeroStage>{(() => { const Hero = heroes[item.logo]; return <Hero />; })()}</HeroStage>
-                ) : (
-                  <HeroStage>{heroCards[item.logo].map(card => (
-                    <div class="card" style={`grid-column:span ${card.col};grid-row:span ${card.row}`} set:html={card.html} />
-                  ))}</HeroStage>
-                )}
+                {(() => { const Hero = heroes[item.logo]; return <HeroStage><Hero /></HeroStage>; })()}
                 <div class="blurb">
                   <p><span class="phone-only">{item.role} · </span>{item.summary}</p>
                   {item.url && <a class="mono" href={item.url}>{new URL(item.url).host} ↗</a>}

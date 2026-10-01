@@ -2,9 +2,9 @@
 // Small caption in the system's own type. `font` switches to the system's sans or mono.
 const { font, ...attrs } = Astro.props;
 ---
-<span class:list={['note', font]} {...attrs}><slot /></span>
+<span class:list={['note', font && `as-${font}`]} {...attrs}><slot /></span>
 <style>
   .note { font-family: var(--hero-note-font, var(--hero-font)); font-size: 8px; color: var(--hero-note); }
-  .sans { font-family: var(--hero-font); }
-  .mono { font-family: var(--hero-mono); }
+  .as-sans { font-family: var(--hero-font); }
+  .as-mono { font-family: var(--hero-mono); }
 </style>

@@ -1,0 +1,128 @@
+---
+import HeroCard from './parts/HeroCard.astro';
+import Note from './parts/Note.astro';
+import Row from './parts/Row.astro';
+import TypeSample from './parts/TypeSample.astro';
+import Swatches from './parts/Swatches.astro';
+import Chips from './parts/Chips.astro';
+import Bars from './parts/Bars.astro';
+import Shapes from './parts/Shapes.astro';
+import Shadows from './parts/Shadows.astro';
+import Button from './parts/Button.astro';
+import Control from './parts/Control.astro';
+import Field from './parts/Field.astro';
+import Banner from './parts/Banner.astro';
+import ComponentList from './parts/ComponentList.astro';
+import OutlineIcons from './parts/OutlineIcons.astro';
+
+// WPDS, The Washington Post. Postoni headlines, Georgia body, Franklin for everything else.
+const sizes = ['075', '087', '100', '112', '125', '150', '175', '200', '225', '250', '300', '350', '400', '450', '500'];
+const grays = ['#000000', '#111111', '#2A2A2A', '#494949', '#595959', '#737373', '#AAAAAA', '#D4D4D4', '#E9E9E9', '#F0F0F0', '#F7F7F7', '#FFFFFF'];
+const blues = ['#0A3258', '#0F4B84', '#1366B3', '#166DFC', '#5784C5', '#84A4D6', '#ACC5E7', '#D3E7FA', '#E7F0FE'];
+const components = [
+  'Accordion', 'Action Menu', 'Alert Banner', 'App bar', 'Avatar', 'Box', 'Button', 'Card', 'Carousel', 'Checkbox', 'Container',
+  'Dialog', 'Divider', 'Drawer', 'Icon', 'Input Password', 'Input Search', 'Input Text', 'Input Text Area', 'Navigation Menu',
+  'Pagination Dots', 'Popover', 'Radio Group', 'Select', 'Switch', 'Tabs', 'Tooltip', 'Visually Hidden',
+];
+---
+<div class="wpds">
+  <HeroCard label="Typography" col={2} row={2}>
+    <TypeSample>
+      <Note>headline · Postoni</Note>
+      <Note>magazine · PostoniDisplayMag</Note>
+    </TypeSample>
+    <div class="headline">Democracy Dies in Darkness</div>
+    <div class="body-copy">body · georgia. The quick brown fox jumps over the lazy dog.</div>
+    <div class="meta-copy">meta · Franklin · light 300 · regular 400 · bold 700 · ultra 800</div>
+    <Row wrap>{sizes.map(size => <Note>{size}</Note>)}</Row>
+  </HeroCard>
+
+  <HeroCard label="Color · light" col={2}>
+    <Chips cols={12} gap={4} edge="var(--gray-80)" colors={grays} />
+    <Swatches cols={5} gap={6} items={[
+      ['var(--cta)', '$cta'], ['var(--error)', '$error'], ['var(--success)', '$success'], ['var(--warning)', '$warning'], ['var(--signal)', '$signal'],
+    ]} />
+  </HeroCard>
+
+  <HeroCard label="Button">
+    <Row wrap>
+      <Button bg="var(--primary)" fg="var(--onPrimary)">primary</Button>
+      <Button bg="var(--onPrimary)" fg="var(--primary)" edge="var(--primary)">secondary</Button>
+      <Button bg="var(--cta)" fg="var(--onPrimary)">cta</Button>
+    </Row>
+    <Row wrap>
+      <Button bg="var(--onPrimary)" fg="var(--cta)" edge="var(--cta)">isOutline</Button>
+      <Button bg="var(--primary)" fg="var(--onPrimary)" small>compact</Button>
+    </Row>
+    <Control type="toggle" label="Switch" color="var(--primary)" width={34} height={18} gap={8} />
+  </HeroCard>
+
+  <HeroCard label="Alert Banner" row={2}>
+    <Banner dot tint="#E7F0FE" accent="var(--signal)">information</Banner>
+    <Banner dot tint="#EEF9EA" accent="var(--success)">success</Banner>
+    <Banner dot tint="#FFEFE0" accent="var(--warning)">warning</Banner>
+    <Banner dot tint="#FDE7E7" accent="var(--error)">error</Banner>
+  </HeroCard>
+
+  <HeroCard label="Blue · 40 → 600" col={2}>
+    <Chips cols={9} gap={3} radius={3} colors={blues} />
+    <Note>blue40 · blue100 = $cta · blue600</Note>
+  </HeroCard>
+
+  <HeroCard label="Forms">
+    <Field label="Input Text" value="Email address" />
+    <Field label="Input Search" value="Search The Post" />
+    <Row gap={12}>
+      <Control type="checkbox" check label="Checkbox" color="var(--primary)" size={14} gap={6} />
+      <Control type="radio" label="Radio Group" color="var(--primary)" size={14} gap={6} />
+    </Row>
+  </HeroCard>
+
+  <HeroCard label="Icons · 200+">
+    <OutlineIcons color="var(--primary)" />
+    <Note>add · bookmark · chevron-down · close · share · trash</Note>
+  </HeroCard>
+
+  <HeroCard label="Space">
+    <Bars color="var(--cta)" gap={5} items={[[8, '025'], [17, '050'], [26, '075'], [35, '100'], [52, '150'], [70, '200']]} />
+  </HeroCard>
+
+  <HeroCard label="Radius">
+    <Shapes size={26} fill="var(--gray-90)" edge="var(--gray-70)" items={[
+      { radius: '2px', label: '012' }, { radius: '4px', label: '025' }, { radius: '8px', label: '050' },
+      { radius: '12px', label: '075' }, { radius: '16px', label: '100' }, { radius: '9999px', label: 'round' },
+    ]} />
+  </HeroCard>
+
+  <HeroCard label="Shadow">
+    <Shadows width={28} height={28} radius={4} items={[
+      ['0 1px 2px rgba(0,0,0,.15)', '100'], ['0 2px 4px rgba(0,0,0,.15)', '200'], ['0 4px 8px rgba(0,0,0,.15)', '300'], ['0 8px 16px rgba(0,0,0,.15)', '400'],
+    ]} />
+  </HeroCard>
+
+  <HeroCard label="28 components" col={2}>
+    <ComponentList items={components} leading={1.7} color="var(--gray-40)" />
+  </HeroCard>
+</div>
+
+<style>
+  .wpds {
+    display: contents;
+    --font-headline: 'Bodoni Moda', Postoni, garamond, serif;
+    --font-body: georgia, 'Times New Roman', serif;
+    --font-meta: 'Libre Franklin', Franklin, arial, sans-serif;
+    --primary: #111111; --onPrimary: #FFFFFF; --cta: #166DFC;
+    --error: #D35F4F; --success: #499327; --warning: #E6823D; --signal: #5784C5;
+    --gray-40: #595959; --gray-60: #737373; --gray-70: #D4D4D4; --gray-80: #E9E9E9; --gray-90: #F0F0F0;
+
+    --hero-font: var(--font-meta); --hero-display-font: var(--font-headline); --hero-display-weight: 700;
+    --hero-ink: var(--primary); --hero-note: var(--gray-60);
+    --button-pad: 8px; --button-radius: 4px; --button-weight: 700; --button-size: 9px;
+    --field-gap: 2px; --field-height: 22px; --field-radius: 4px; --field-edge: var(--gray-70);
+    --field-label-size: 8px; --field-label-weight: 400; --field-label-color: var(--gray-60);
+    --banner-pad: 5px 8px;
+  }
+  .headline { font-family: var(--font-headline); font-weight: 700; font-size: 16px; line-height: 1.15; color: var(--primary); }
+  .body-copy { font-family: var(--font-body); font-size: 11px; line-height: 1.5; color: var(--primary); }
+  .meta-copy { font-family: var(--font-meta); font-size: 10px; color: var(--gray-40); }
+</style>
