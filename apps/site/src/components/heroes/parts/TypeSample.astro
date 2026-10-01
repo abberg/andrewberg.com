@@ -1,0 +1,12 @@
+---
+// The big "Aa" with a short stack of notes beside it.
+---
+<div class="sample">
+  <span class="aa">Aa</span>
+  <span class="notes"><slot /></span>
+</div>
+<style>
+  .sample { display: flex; align-items: baseline; gap: 10px; }
+  .aa { font-family: var(--hero-display-font, var(--hero-font)); font-weight: var(--hero-display-weight); font-size: 52px; line-height: 1; letter-spacing: var(--hero-display-tracking, normal); color: var(--hero-ink); }
+  .notes { display: flex; flex-direction: column; }
+</style>

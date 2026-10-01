@@ -1,0 +1,9 @@
+---
+// Horizontal run of samples inside a card.
+const { gap = 6, wrap = false, align, pad, ...attrs } = Astro.props;
+const px = v => typeof v === 'number' ? `${v}px` : v;
+---
+<div class="row" style={{ gap: px(gap), flexWrap: wrap ? 'wrap' : undefined, alignItems: align, paddingBottom: px(pad) }} {...attrs}><slot /></div>
+<style>
+  .row { display: flex; }
+</style>

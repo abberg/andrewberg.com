@@ -1,0 +1,20 @@
+---
+import Note from './Note.astro';
+// An unlabelled colour ramp, optionally led by a fixed-width label.
+const { colors, height = 10, gap = 2, label, labelWidth, labelGap } = Astro.props;
+const strips = colors.map(color => ({ height: `${height}px`, background: color }));
+---
+{label ? (
+  <div class="labelled" style={{ gap: `${labelGap}px` }}>
+    <Note style={{ flex: 'none', width: `${labelWidth}px` }}>{label}</Note>
+    <span class="ramp fill" style={{ gap: `${gap}px` }}>{strips.map(style => <span style={style}></span>)}</span>
+  </div>
+) : (
+  <div class="ramp" style={{ gap: `${gap}px` }}>{strips.map(style => <span style={style}></span>)}</div>
+)}
+<style>
+  .labelled { display: flex; align-items: center; }
+  .ramp { display: flex; }
+  .fill { flex: 1; }
+  .ramp span { flex: 1; border-radius: 2px; }
+</style>

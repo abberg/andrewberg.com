@@ -1,0 +1,18 @@
+---
+import Note from './Note.astro';
+// A scale drawn as bars of increasing width, for spacing or breakpoints.
+const { items, color, gap = 4, height = 6 } = Astro.props;
+---
+<div class="bars" style={{ gap: `${gap}px` }}>
+  {items.map(([width, label]) => (
+    <span class="bar-row">
+      <span class="bar" style={{ height: `${height}px`, width: `${width}px`, background: color }}></span>
+      <Note>{label}</Note>
+    </span>
+  ))}
+</div>
+<style>
+  .bars { display: flex; flex-direction: column; }
+  .bar-row { display: flex; align-items: center; gap: 6px; }
+  .bar { border-radius: 2px; }
+</style>

@@ -1,0 +1,11 @@
+---
+// An alert banner: a tinted strip marked by a left bar, or by a dot with `dot`.
+const { tint, accent, dot = false } = Astro.props;
+---
+<span class="banner" style={{ background: tint, borderLeft: dot ? undefined : `3px solid ${accent}` }}>
+  {dot && <span class="marker" style={{ background: accent }}></span>}<slot />
+</span>
+<style>
+  .banner { display: flex; align-items: center; gap: 6px; padding: var(--banner-pad, 4px 8px); border-radius: 4px; color: var(--hero-ink); font-family: var(--hero-font); font-size: 9px; }
+  .marker { flex: none; width: 8px; height: 8px; border-radius: 50%; }
+</style>

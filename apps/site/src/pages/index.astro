@@ -2,6 +2,8 @@
 import experiments from '../data/experiments.json';
 import work from '../data/work.json';
 import heroCards from '../data/hero-cards.json';
+import HeroStage from '../components/heroes/HeroStage.astro';
+import { heroes } from '../components/heroes';
 const logos = import.meta.glob('../icons/*.svg', { query: '?raw', import: 'default', eager: true });
 const logo = name => logos[`../icons/${name}.svg`];
 const systems = [...work].reverse();
@@ -9,24 +11,6 @@ const pad = n => String(n).padStart(2, '0');
 
 const linkedin = 'https://www.linkedin.com/in/andrewbberg';
 
-// Hero geometry. The card grid is tilted with rotateX(56deg) rotateZ(-36deg) and scaled, with no perspective.
-// Each wrapper is exactly as tall as the tilted shape so heroes never overlap their neighbours.
-const COL = 200, ROW = 150, GAP = 16, TILT = .86, PHONE = .6;
-const cz = Math.cos(36 * Math.PI / 180), sz = Math.sin(36 * Math.PI / 180), cx = Math.cos(56 * Math.PI / 180);
-function stage(cards, cols, scale) {
-  const w = COL * cols + GAP * (cols - 1);
-  const rows = Math.ceil(cards.reduce((sum, card) => sum + Math.min(card.col, cols) * card.row, 0) / cols);
-  const h = ROW * rows + GAP * (rows - 1);
-  const boxW = (w * cz + h * sz) * TILT * scale;
-  const boxH = (w * sz + h * cz) * cx * TILT * scale;
-  return { w, h, boxW, boxH, top: boxH / 2 - h / 2, left: boxW / 2 - w / 2 };
-}
-function heroStyle(cards) {
-  const d = stage(cards, 4, 1);
-  const p = stage(cards.slice(0, 6), 3, PHONE);
-  const v = n => `${Math.round(n * 10) / 10}px`;
-  return `--w:${v(d.w)};--h:${v(d.boxH)};--top:${v(d.top)};--left:${v(d.left)};--pw:${v(p.w)};--ph:${v(p.boxH)};--ptop:${v(p.top)};--pleft:${v(p.left)}`;
-}
 ---
 <!doctype html>
 <html lang="en">
@@ -78,13 +62,13 @@ function heroStyle(cards) {
                   </h2>
                   <p class="meta">{item.company} <span class="role">· {item.role}</span></p>
                 </div>
-                <div class="hero" aria-hidden="true" style={heroStyle(heroCards[item.logo])}>
-                  <div class="stage">
-                    {heroCards[item.logo].map(card => (
-                      <div class="card" style={`grid-column:span ${card.col};grid-row:span ${card.row}`} set:html={card.html} />
-                    ))}
-                  </div>
-                </div>
+                {heroes[item.logo] ? (
+                  <HeroStage>{(() => { const Hero = heroes[item.logo]; return <Hero />; })()}</HeroStage>
+                ) : (
+                  <HeroStage>{heroCards[item.logo].map(card => (
+                    <div class="card" style={`grid-column:span ${card.col};grid-row:span ${card.row}`} set:html={card.html} />
+                  ))}</HeroStage>
+                )}
                 <div class="blurb">
                   <p><span class="phone-only">{item.role} · </span>{item.summary}</p>
                   {item.url && <a class="mono" href={item.url}>{new URL(item.url).host} ↗</a>}
