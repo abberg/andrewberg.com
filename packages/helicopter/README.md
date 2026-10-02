@@ -1,6 +1,6 @@
 # Helicopter
 
-Copied from `_archive/src`, including the model, texture, shaders, loaders, and original scene styling. The name overlay has been removed.
+Copied from `_archive/src` (removed since; see Git history), including the model, texture, shaders, loaders, and original scene styling. The name overlay has been removed.
 
 ```sh
 npm run dev --workspace=helicopter
