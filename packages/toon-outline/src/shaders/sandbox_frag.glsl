@@ -72,7 +72,7 @@ void main(){
 	   sf = step(0.5, sf);
 	}
 
-	vec3 color = df * vec3 ( 0.8, 0.83, 0.85 ) + sf * vec3( 1.0 );
+	vec3 color = df * vec3 ( 0.55, 0.36, 0.85 ) + sf * vec3( 1.0 );
 
     gl_FragColor = vec4(color, 1.0);
 
