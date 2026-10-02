@@ -7,6 +7,10 @@ var vehicleGroup = {
 		writable: true,
 		enumerable:	true
 	},
+	separationWeight:{
+		writable: true,
+		enumerable:	true
+	},
 	update:{
 		value: function(){
 
@@ -18,7 +22,7 @@ var vehicleGroup = {
 			for(; i < vl; i++){
 				currentVehicle = this.vehicles[i];
 				steeringForce = steeringBehaviors.seek(currentVehicle, this.target);
-				vec3.add(steeringForce, steeringBehaviors.separate(currentVehicle, this.vehicles));
+				vec3.add(steeringForce, vec3.scale(steeringBehaviors.separate(currentVehicle, this.vehicles), this.separationWeight));
 				vec3.add(currentVehicle.acceleration, steeringForce);
 				currentVehicle.rotation = steeringBehaviors.look(currentVehicle);
 				//currentVehicle.rotation = steeringBehaviors.face(currentVehicle, this.target);
@@ -45,5 +49,6 @@ var createVehicleGroup = function(){
 	var vg = Object.create(null, vehicleGroup);
 	vg.vehicles = [];
 	vg.target = vec3.create([0,0,0]);
+	vg.separationWeight = 2;
 	return vg;
 };

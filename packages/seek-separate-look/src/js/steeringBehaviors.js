@@ -56,7 +56,7 @@ var steeringBehaviors = {
 	separate: function(vehicle, group){
 		var that = steeringBehaviors.separate,
 			minDistance = 3,
-			maxDistance = 10,
+			maxDistance = 16,
 			cosMaxAngle = -1,
 			neighbors = 0,
 			gl = group.length,
