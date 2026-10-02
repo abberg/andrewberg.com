@@ -35,7 +35,7 @@
 			material,
 			plane,
 			light,
-			numVehicles = 20,
+			numVehicles = 50,
 			i = 0,
 			pos,
 			vel,
