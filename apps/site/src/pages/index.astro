@@ -1,5 +1,5 @@
 ---
-import experiments from '../data/experiments.json';
+import sketches from '../data/sketches.json';
 import work from '../data/work.json';
 import videos from '../data/videos.json';
 import HeroStage from '../components/heroes/HeroStage.astro';
@@ -77,11 +77,11 @@ const linkedin = 'https://www.linkedin.com/in/andrewbberg';
           <div class="sketches-header">
             <div class="mono eyebrow">Before that</div>
             <h2 id="sketches-heading"><span class="mono phone-only">Before that — </span>Browser sketches</h2>
-            <div class="mono count">{experiments.length} sketches</div>
+            <div class="mono count">{sketches.length} sketches</div>
           </div>
           <p class="sketches-intro">My background is in painting and creative technology. These earlier browser sketches explore form, motion, and interaction.</p>
           <div class="tiles">
-            {experiments.map((item, index) => (
+            {sketches.map((item, index) => (
               <a class="tile" href={item.href} aria-label={`Sketch ${pad(index + 1)}: ${item.title}`}>
                 <img src={item.image} alt="" width="960" height="720" loading={index < 4 ? 'eager' : 'lazy'} />
                 <span class="mono">{pad(index + 1)}</span>

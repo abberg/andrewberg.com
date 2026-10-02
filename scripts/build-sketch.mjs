@@ -12,6 +12,6 @@ if (dev) {
   const ctx = await context(options);
   await ctx.watch();
   const { port } = await ctx.serve({ servedir: 'dist', host: '127.0.0.1' });
-  console.log(`Experiment: http://127.0.0.1:${port}`);
+  console.log(`Sketch: http://127.0.0.1:${port}`);
   for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, async () => { await ctx.dispose(); process.exit(); });
 } else await build(options);

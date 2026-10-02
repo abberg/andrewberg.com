@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build": "node ../../scripts/build-experiment.mjs",
-    "dev": "node ../../scripts/build-experiment.mjs --dev"
+    "build": "node ../../scripts/build-sketch.mjs",
+    "dev": "node ../../scripts/build-sketch.mjs --dev"
   },
   "dependencies": {
     "@jscad/modeling": "^2.2.0",

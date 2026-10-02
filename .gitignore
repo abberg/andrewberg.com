@@ -2,8 +2,8 @@
 node_modules/
 **/dist/
 **/.astro/
-apps/site/public/experiments/
+apps/site/public/sketches/
 apps/site/public/thumbnails/
-apps/site/src/data/experiments.json
+apps/site/src/data/sketches.json
 output/
 .playwright-cli/
