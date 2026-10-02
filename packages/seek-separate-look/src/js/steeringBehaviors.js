@@ -208,12 +208,17 @@ var steeringBehaviors = {
 	// Points the nose (+Z) along the direction of travel with the back (+Y)
 	// toward world up, banked into turns: the up direction leans toward the
 	// centre of the turn by the vehicle's sideways acceleration times
-	// `bankStrength`, up to `maxBank` radians. Then eases the current
+	// `bankStrength`, up to `maxBank` radians. The nose leads the travel
+	// direction: it points along the velocity the vehicle would have `lead`
+	// frames from now if it kept seeking `target`, so it turns toward the
+	// target before it gets there. (Separation is left out of that guess so
+	// the nose doesn't flick every time a neighbour pushes.) Then eases the current
 	// orientation toward that by `smoothing` each frame so small changes in
 	// heading don't show up as a constant wiggle.
-	lookAhead: function(vehicle, smoothing, bankStrength, maxBank){
+	lookAhead: function(vehicle, target, smoothing, bankStrength, maxBank, lead){
 		var that = this.lookAhead,
 			speed,
+			aheadLength,
 			lean,
 			maxLean = Math.tan(maxBank);
 
@@ -225,6 +230,7 @@ var steeringBehaviors = {
 			that.target = quat4.create();
 			that.turn = vec3.create();
 			that.bankUp = vec3.create();
+			that.ahead = vec3.create();
 		}
 		if(vehicle.lastVelocity === undefined){
 			vehicle.lastVelocity = vec3.create(vehicle.velocity);
@@ -245,6 +251,14 @@ var steeringBehaviors = {
 		vec3.scale(that.turn, 0.1);
 		vec3.add(vehicle.turn, that.turn);
 		vec3.set(vehicle.velocity, vehicle.lastVelocity);
+
+		// point the nose along the anticipated velocity
+		vec3.scale(this.seek(vehicle, target), lead / vehicle.mass, that.ahead);
+		vec3.add(that.ahead, vehicle.velocity);
+		aheadLength = vec3.length(that.ahead);
+		if(aheadLength > 0.0001){
+			vec3.scale(that.ahead, 1 / aheadLength, that.forward);
+		}
 
 		vec3.scale(vehicle.turn, bankStrength, that.bankUp);
 		lean = vec3.length(that.bankUp);
