@@ -1,9 +1,7 @@
-// Simple surface style (TSurface): flat fill with a single shade step where
-// the model turns away from the light or falls in shadow, then fog.
-
-uniform vec3 uFill;
-uniform vec3 uShade;
-uniform float uShadeThreshold;
+// Surface information for the tones (TSurface): the model writes how much
+// light reaches it (0 in shadow) in red, 0 in green and 1 in blue, so the
+// sketch pass can tell it apart from the white paper and the ground, whose
+// shadow comes through as grey.
 
 varying vec3 vLightFront;
 
@@ -55,7 +53,7 @@ void main(){
 
 	}
 
-	gl_FragColor = vec4( light > uShadeThreshold ? uFill : uShade, 1.0 );
+	gl_FragColor = vec4( clamp( light, 0.0, 1.0 ), 0.0, 1.0, 1.0 );
 
 	// Fog
 	float depth = gl_FragCoord.z / gl_FragCoord.w;

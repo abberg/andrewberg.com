@@ -30,8 +30,8 @@
 		SHADER_FILES = [ 'sandbox_vert', 'surface_frag', 'normal_depth_vert', 'normal_depth_frag', 'quad_vert', 'edge_frag', 'sketch_frag' ],
 		assets = 0,
 
-		PAPER = 0xf3efe6,
-		INK = 0x2a2724,
+		PAPER = 0xfbfaf7,
+		INK = 0x111111,
 
 		plane,
 		groundNormalDepth,
@@ -44,6 +44,11 @@
 		boilTime = 0,
 
 		settings = {
+			dotSpacing: 4,
+			dotSize: 0.24,
+			highlight: 0.75,
+			hatchThreshold: 0.04,
+			hatchSpacing: 6,
 			wobble: 3.5,
 			noiseScale: 3,
 			boil: 8,
@@ -171,12 +176,7 @@
 				THREE.UniformsLib[ "common" ],
 				THREE.UniformsLib[ "fog" ],
 				THREE.UniformsLib[ "lights" ],
-				THREE.UniformsLib[ "shadowmap" ],
-				{
-					uFill: { type: "c", value: new THREE.Color( 0xfbf9f4 ) },
-					uShade: { type: "c", value: new THREE.Color( 0xc9c3b8 ) },
-					uShadeThreshold: { type: "f", value: 0.35 }
-				}
+				THREE.UniformsLib[ "shadowmap" ]
 			]),
 			vertexShader: shaders.sandbox_vert,
 			fragmentShader: shaders.surface_frag,
@@ -187,7 +187,7 @@
 		});
 
 		// paper-coloured ground that still takes the model's shadow
-		materials.groundSurface = new THREE.MeshBasicMaterial({ color: PAPER });
+		materials.groundSurface = new THREE.MeshBasicMaterial({ color: 0xffffff });
 
 		materials.normalDepth = new THREE.ShaderMaterial({
 			uniforms: { uFar: { type: "f", value: 400 }, uBackground: { type: "f", value: 0 } },
@@ -233,6 +233,12 @@
 				uNoiseShift: { type: "v2", value: new THREE.Vector2() },
 				uStrokes: { type: "f", value: settings.strokes },
 				uInk: { type: "c", value: new THREE.Color( INK ) },
+				uPaper: { type: "c", value: new THREE.Color( PAPER ) },
+				uDotSpacing: { type: "f", value: settings.dotSpacing },
+				uDotSize: { type: "f", value: settings.dotSize },
+				uHighlight: { type: "f", value: settings.highlight },
+				uHatchThreshold: { type: "f", value: settings.hatchThreshold },
+				uHatchSpacing: { type: "f", value: settings.hatchSpacing },
 				tNormalDepth: { type: "t", value: 3, texture: targets.normalDepth },
 				uView: { type: "f", value: 0 }
 			},
@@ -247,6 +253,11 @@
 
 	function createGui(){
 		var gui = new dat.GUI();
+		gui.add(settings, 'dotSpacing', 2, 12).step(0.5).onChange(function(v){ materials.sketch.uniforms.uDotSpacing.value = v; });
+		gui.add(settings, 'dotSize', 0.1, 0.5).step(0.01).onChange(function(v){ materials.sketch.uniforms.uDotSize.value = v; });
+		gui.add(settings, 'highlight', 0, 1).step(0.01).onChange(function(v){ materials.sketch.uniforms.uHighlight.value = v; });
+		gui.add(settings, 'hatchThreshold', 0, 1).step(0.01).onChange(function(v){ materials.sketch.uniforms.uHatchThreshold.value = v; });
+		gui.add(settings, 'hatchSpacing', 2, 12).step(0.5).onChange(function(v){ materials.sketch.uniforms.uHatchSpacing.value = v; });
 		gui.add(settings, 'wobble', 0, 12).step(0.1).onChange(function(v){ materials.sketch.uniforms.uWobble.value = v; });
 		gui.add(settings, 'noiseScale', 0.5, 12).step(0.1).onChange(function(v){ materials.sketch.uniforms.uNoiseScale.value = v; });
 		gui.add(settings, 'boil', 0, 24).step(1);
