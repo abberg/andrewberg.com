@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<title>Wander — Andrew Berg</title>
+		<link rel="icon" href="data:,">
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+
+
+		<script src="js/thumbnail.js"></script>
+		<script src="js/Detector.js"></script>
+		<script src="js/Three.js"></script>
+		<script src="js/RequestAnimationFrame.js"></script>
+		<script src="js/Vehicle.js"></script>
+		<script src="js/DebugView.js"></script>
+		<script src="js/dat.gui.min.js"></script>
+
+		<link  href="css/main.css" rel="stylesheet"/>
+	</head>
+	<body>
+
+		<div id="info">
+			<hgroup>
+				<h1>Wander</h1>
+				<h2>Steering Behavior</h2>
+			</hgroup>
+			<p>
+				From <a href="http://www.red3d.com/cwr/papers/1999/gdc99steer.html">Reynolds, C. W. (1999) Steering Behaviors For Autonomous Characters</a>
+			</p>
+		</div>
+
+		<script>
+
+			var camera,
+				scene,
+				renderer,
+				boid,
+				boidView,
+				target;
+
+			if( !init() )	animate();
+
+			function init() {
+
+				if( !Detector.webgl ){
+
+					Detector.addGetWebGLMessage();
+					return true;
+
+				}
+
+				scene = new THREE.Scene();
+
+				camera = new THREE.PerspectiveCamera( 50, window.innerWidth / window.innerHeight, 1, 1000 );
+				camera.position.set(50, 50, 50);
+				scene.add(camera);
+
+				var light = new THREE.PointLight();
+				light.position.set(0,500,0);
+				scene.add( light );
+
+				var geometry = new THREE.PlaneGeometry( 100, 100, 10, 10);
+				var material = new THREE.MeshBasicMaterial( { color: 0x444444, wireframe:true} );
+				var plane = new THREE.Mesh( geometry, material );
+				plane.rotation.set(1.57,0,0);
+				scene.add( plane );
+
+				boid = new Vehicle();
+
+				boidView = new DebugView();
+				boidView.setModel(boid);
+				scene.add(boidView);
+
+				renderer = new THREE.WebGLRenderer();
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				document.body.appendChild( renderer.domElement );
+
+				window.addEventListener('resize', function(){
+					camera.aspect = window.innerWidth / window.innerHeight;
+					camera.updateProjectionMatrix();
+					renderer.setSize( window.innerWidth, window.innerHeight );
+				});
+
+				var gui = new dat.GUI();
+				var f1 = gui.addFolder('Vehicle Props');
+				f1.add(boid, 'mass', 0, 50);
+				f1.add(boid, 'maxSpeed', 0, 3).step(0.01);
+				f1.add(boid, 'maxForce', 0, 1).step(0.001);
+
+				var f2 = gui.addFolder('Wander Props');
+				f2.add(boid, 'wanderDistance', 0, 100);
+				f2.add(boid, 'wanderStrength', 0, 100);
+				f2.add(boid, 'wanderAmplitude', 0, 2);
+				f2.add(boid, 'wanderFreqency', 1, 180).step(10);
+				f2.open()
+
+			}
+
+
+			function animate() {
+
+				requestAnimationFrame( animate );
+				update();
+				render();
+
+			}
+
+			function update(){
+
+				boid.update();
+
+			}
+
+			function render() {
+
+				boidView.modelUpdated();
+				var cp = boid.position.clone();
+				cp.addSelf(new THREE.Vector3(75, 75, 75));
+				camera.position = cp;
+				camera.lookAt(boidView.position);
+				renderer.render( scene, camera );
+
+			}
+
+
+		</script>
+
+
+	</body>
+
+</html>
