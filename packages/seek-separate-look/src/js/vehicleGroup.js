@@ -27,6 +27,10 @@ var vehicleGroup = {
 		writable: true,
 		enumerable:	true
 	},
+	leadTurnRate:{
+		writable: true,
+		enumerable:	true
+	},
 	update:{
 		value: function(){
 
@@ -40,7 +44,7 @@ var vehicleGroup = {
 				steeringForce = steeringBehaviors.seek(currentVehicle, this.target);
 				vec3.add(steeringForce, vec3.scale(steeringBehaviors.separate(currentVehicle, this.vehicles), this.separationWeight));
 				vec3.add(currentVehicle.acceleration, steeringForce);
-				steeringBehaviors.lookAhead(currentVehicle, this.target, this.lookSmoothing, this.bankStrength, this.maxBank, this.lookLead);
+				steeringBehaviors.lookAhead(currentVehicle, this.target, this.lookSmoothing, this.bankStrength, this.maxBank, this.lookLead, this.leadTurnRate);
 				//currentVehicle.rotation = steeringBehaviors.face(currentVehicle, this.target);
 				currentVehicle.update();
 			}
@@ -69,6 +73,8 @@ var createVehicleGroup = function(){
 	vg.lookSmoothing = 0.12;
 	vg.bankStrength = 25;
 	vg.maxBank = Math.PI / 3;
-	vg.lookLead = 10;
+	vg.lookLead = 15;
+	// full lead at 1.5 degrees of turn per frame
+	vg.leadTurnRate = 1.5 * Math.PI / 180;
 	return vg;
 };

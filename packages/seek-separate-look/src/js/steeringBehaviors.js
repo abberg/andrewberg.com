@@ -212,13 +212,17 @@ var steeringBehaviors = {
 	// direction: it points along the velocity the vehicle would have `lead`
 	// frames from now if it kept seeking `target`, so it turns toward the
 	// target before it gets there. (Separation is left out of that guess so
-	// the nose doesn't flick every time a neighbour pushes.) Then eases the current
+	// the nose doesn't flick every time a neighbour pushes.) The lead only
+	// applies while the vehicle is turning: it ramps from nothing when flying
+	// straight to full at `leadTurnRate` radians of turn per frame, so on long
+	// straight runs the nose stays on the line of travel. Then eases the current
 	// orientation toward that by `smoothing` each frame so small changes in
 	// heading don't show up as a constant wiggle.
-	lookAhead: function(vehicle, target, smoothing, bankStrength, maxBank, lead){
+	lookAhead: function(vehicle, target, smoothing, bankStrength, maxBank, lead, leadTurnRate){
 		var that = this.lookAhead,
 			speed,
 			aheadLength,
+			turning,
 			lean,
 			maxLean = Math.tan(maxBank);
 
@@ -252,8 +256,10 @@ var steeringBehaviors = {
 		vec3.add(vehicle.turn, that.turn);
 		vec3.set(vehicle.velocity, vehicle.lastVelocity);
 
-		// point the nose along the anticipated velocity
-		vec3.scale(this.seek(vehicle, target), lead / vehicle.mass, that.ahead);
+		// point the nose along the anticipated velocity, more so the harder
+		// the vehicle is turning
+		turning = Math.min(1, vec3.length(vehicle.turn) / speed / leadTurnRate);
+		vec3.scale(this.seek(vehicle, target), lead * turning / vehicle.mass, that.ahead);
 		vec3.add(that.ahead, vehicle.velocity);
 		aheadLength = vec3.length(that.ahead);
 		if(aheadLength > 0.0001){
