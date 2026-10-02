@@ -40,7 +40,7 @@
 			pos,
 			vel,
 			mF = 0.08,
-			maxV = 1.5,
+			maxV = 1.1,
 			m,
 			currentModel,
 			currentView;
