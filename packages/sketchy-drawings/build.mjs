@@ -12,7 +12,7 @@ await rm(output, { recursive: true, force: true });
 await build();
 if (process.argv.includes('--dev')) {
   const server = await serve(directory + 'dist');
-  console.log(`Shader Sandbox: ${server.url}`);
+  console.log(`Sketchy Drawings: ${server.url}`);
   let queue = Promise.resolve();
   const watcher = watch(source, { recursive: true }, () => {
     queue = queue.then(build).catch(console.error);

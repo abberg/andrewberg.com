@@ -3,9 +3,9 @@ html{
 }
 
 body{
-	background: #333;
+	background: #f3efe6;
 
-	color: #ccc;
+	color: #2a2724;
 	font-family: sans-serif;
 	height: 100%;
 	margin: 0;
@@ -32,7 +32,7 @@ p{
 }
 
 a:link, a:visited{
-	color: #b30;
+	color: #8a3b1c;
 }
 
 a:hover{
@@ -40,7 +40,7 @@ a:hover{
 }
 
 footer{
-	color: #999;
+	color: #7a746a;
 	font-size: 11px;
 	position: fixed;
 		bottom:0;

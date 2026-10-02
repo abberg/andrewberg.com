@@ -1,0 +1,10 @@
+{
+  "title": "Sketchy Drawings",
+  "description": "An animated Evangelion Unit-01 drawn as a wobbly pencil sketch, after Nienhaus and Döllner’s hardware-accelerated sketchy drawings.",
+  "category": "NPR Rendering",
+  "order": 32,
+  "thumbnail": {
+    "path": "?thumbnail=1",
+    "readySelector": "html[data-thumbnail-ready=\"true\"]"
+  }
+}
