@@ -44,18 +44,18 @@
 		boilTime = 0,
 
 		settings = {
-			dotSpacing: 4,
-			dotSize: 0.24,
-			highlight: 0.75,
-			hatchThreshold: 0.04,
-			hatchSpacing: 6,
-			wobble: 3.5,
-			noiseScale: 3,
-			boil: 8,
+			dotSpacing: 5.5,
+			dotSize: 0.17,
+			highlight: 0.11,
+			hatchThreshold: 0,
+			hatchSpacing: 6.5,
+			wobble: 5.1,
+			noiseScale: 7,
+			boil: 12,
 			strokes: 2,
 			lineWidth: 1,
-			normalThreshold: 0.9,
-			depthThreshold: 0.25,
+			normalThreshold: 1.4,
+			depthThreshold: 0.53,
 			view: 0
 		};
 
