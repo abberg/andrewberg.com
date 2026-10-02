@@ -49,6 +49,6 @@ var createVehicleGroup = function(){
 	var vg = Object.create(null, vehicleGroup);
 	vg.vehicles = [];
 	vg.target = vec3.create([0,0,0]);
-	vg.separationWeight = 1.7;
+	vg.separationWeight = 1.5;
 	return vg;
 };
