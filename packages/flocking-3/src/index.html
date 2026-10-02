@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<title>Flocking 3 — Andrew Berg</title>
+		<link rel="icon" href="data:,">
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+
+
+		<script src="js/thumbnail.js"></script>
+		<script src="js/Detector.js"></script>
+		<script src="js/Three.js"></script>
+		<script src="js/RequestAnimationFrame.js"></script>
+		<script src="js/Signal.js"></script>
+		<script src="js/SimpleVehicle.js"></script>
+		<script src="js/SimpleVehicleView.js"></script>
+
+		<link  href="css/main.css" rel="stylesheet"/>
+	</head>
+	<body>
+
+		<section id="info">
+			<hgroup>
+				<h1>Flocking 3</h1>
+				<h2>Combined Steering Behaviors</h2>
+			</hgroup>
+			<p>
+				Separation, cohesion, and alignment. Ports<a href="http://libcinder.org/docs/v0.8.3/flocking_chapter1.html">Hodgin's</a> extension of <a href="http://www.red3d.com/cwr/boids/">Reynolds</a> and <a href="http://icouzin.princeton.edu/">Couzin</a>
+			</p>
+		</section>
+
+		<script>
+
+			var camera,
+				scene,
+				renderer,
+				boids,
+				target;
+
+			if( !init() )	animate();
+
+			function init() {
+
+				if( !Detector.webgl ){
+
+					Detector.addGetWebGLMessage();
+					return true;
+
+				}
+
+				scene = new THREE.Scene();
+
+				camera = new THREE.PerspectiveCamera( 50, window.innerWidth / window.innerHeight, 1, 1000 );
+				camera.position.set(0, 0, 150);
+				scene.add(camera);
+
+				var light = new THREE.PointLight();
+				light.position.set(50,50,50);
+				scene.add( light );
+
+				var geometry = new THREE.CubeGeometry( 100, 100, 100, 1, 1, 1);
+				var material = new THREE.MeshBasicMaterial( { color: 0x444444, wireframe:true} );
+				var cube = new THREE.Mesh( geometry, material );
+				scene.add( cube );
+
+				boids = [];
+				numBoids = 150;
+				for(var i = 0; i < numBoids; i++){
+					var pos = new THREE.Vector3(Math.random()*100-50, Math.random()*100-50, Math.random()*100-50);
+					var vel = new THREE.Vector3(Math.random(), Math.random(), Math.random());
+					var m = Math.random()*1.1;
+
+					var boid = createVehicle({position: pos, velocity:vel, mass:m});
+					boids.push(boid);
+
+					var boidView = createVehicleView();
+					boidView.scale = new THREE.Vector3(m, m, m);
+					boid.updated.connect(boidView.presentationModelUpdated, boidView);
+
+					scene.add(boidView.container);
+
+				}
+
+				renderer = new THREE.WebGLRenderer();
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				document.body.appendChild( renderer.domElement );
+
+				window.addEventListener('resize', function(){
+					camera.aspect = window.innerWidth / window.innerHeight;
+					camera.updateProjectionMatrix();
+					renderer.setSize( window.innerWidth, window.innerHeight );
+				});
+
+			}
+
+
+			function animate() {
+
+				requestAnimationFrame( animate );
+				update();
+				render();
+
+			}
+
+			function update(){
+				var bl = boids.length,
+					zoneRadius 		= 15,
+					lowerThreshold 	= 0.25,
+					higherThreshold = 0.5,
+					attractStrength = 0.01,
+					repelStrength 	= 0.01,
+					alignStrength 	= 0.009,
+					i,
+					boid1,
+					boid2,
+					direction = new THREE.Vector3(),
+					distanceSquared,
+					zoneRadiusSquared = zoneRadius * zoneRadius,
+					percent,
+					force,
+					thresholdDelta,
+					adjustedPercent,
+					twoPI = Math.PI * 2;
+
+
+				for(var i = 0; i < bl-1; i+=1){
+					boid1 = boids[i];
+					for(var j = i+1; j < bl; j+=1){
+						boid2 = boids[j];
+						direction.sub(boid1.position, boid2.position);
+						distanceSquared = boid1.position.distanceToSquared(boid2.position);
+						percent = distanceSquared / zoneRadiusSquared;
+						if(distanceSquared < zoneRadiusSquared){
+							//Seperation
+							if(percent < lowerThreshold){
+								force = ( lowerThreshold/percent - 1) * repelStrength;
+								direction.setLength(force);
+
+								boid1.acceleration.addSelf(direction);
+								boid2.acceleration.subSelf(direction);
+							}else if( percent < higherThreshold ){	// Alignment
+
+								thresholdDelta	= higherThreshold - lowerThreshold;
+								adjustedPercent	= ( percent - lowerThreshold )/thresholdDelta;
+								force			= ( 1 - ( Math.cos( adjustedPercent * twoPI ) * -0.5 + 0.5 ) ) * alignStrength;
+
+								boid1.acceleration.addSelf(boid2.velocity.clone().setLength(force));
+								boid2.acceleration.addSelf(boid1.velocity.clone().setLength(force));
+
+							}else {								// Cohesion
+								thresholdDelta	= 1 - higherThreshold;
+								adjustedPercent	= ( percent - higherThreshold )/thresholdDelta;
+								force			= ( 1 - ( Math.cos( adjustedPercent * twoPI ) * -0.5 + 0.5 ) ) * attractStrength;
+
+								direction.setLength(force);
+
+								boid1.acceleration.subSelf(direction);
+								boid2.acceleration.addSelf(direction);
+							}
+						}
+						/*
+						Vec3f dir = p1->mPos - p2->mPos;
+						float distSqrd = dir.lengthSquared();
+						float zoneRadiusSqrd = zoneRadius * zoneRadius;
+
+						if( distSqrd < zoneRadiusSqrd ){			// Neighbor is in the zone
+							float percent = distSqrd/zoneRadiusSqrd;
+
+							if( percent < lowerThresh ){			// Separation
+								float F = ( lowerThresh/percent - 1.0f ) * repelStrength;
+								dir = dir.normalized() * F;
+
+								p1->mAcc += dir;
+								p2->mAcc -= dir;
+							} else if( percent < higherThresh ){	// Alignment
+								float threshDelta		= higherThresh - lowerThresh;
+								float adjustedPercent	= ( percent - lowerThresh )/threshDelta;
+								float F					= ( 1.0 - ( cos( adjustedPercent * twoPI ) * -0.5f + 0.5f ) ) * alignStrength;
+
+								p1->mAcc += p2->mVelNormal * F;
+								p2->mAcc += p1->mVelNormal * F;
+
+							} else {								// Cohesion
+								float threshDelta		= 1.0f - higherThresh;
+								float adjustedPercent	= ( percent - higherThresh )/threshDelta;
+								float F					= ( 1.0 - ( cos( adjustedPercent * twoPI ) * -0.5f + 0.5f ) ) * attractStrength;
+
+								dir.normalize();
+								dir *= F;
+
+								p1->mAcc -= dir;
+								p2->mAcc += dir;
+							}
+						}
+						*/
+
+					}
+				}
+
+
+				for(var i = 0; i < bl ; i++){
+
+					boids[i].update();
+
+					if(boids[i].position.x > 50){
+						boids[i].position.x = -50;
+					}else if(boids[i].position.x < -50){
+						boids[i].position.x = 50;
+					}
+					if(boids[i].position.y > 50){
+						boids[i].position.y = -50;
+					}else if(boids[i].position.y < -50){
+						boids[i].position.y = 50;
+					}
+					if(boids[i].position.z > 50){
+						boids[i].position.z = -50;
+					}else if(boids[i].position.z < -50){
+						boids[i].position.z = 50;
+					}
+
+				}
+
+			}
+
+			var count = 0;
+
+			function render() {
+				renderer.render( scene, camera );
+			}
+
+
+		</script>
+
+
+	</body>
+
+</html>

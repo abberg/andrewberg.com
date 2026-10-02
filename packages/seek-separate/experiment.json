@@ -1,0 +1,10 @@
+{
+  "title": "Seek and Separate",
+  "description": "A swarm seeks a wandering red target while keeping its distance from itself.",
+  "category": "Steering Behaviors",
+  "order": 27,
+  "thumbnail": {
+    "path": "?thumbnail=1",
+    "readySelector": "html[data-thumbnail-ready=\"true\"]"
+  }
+}

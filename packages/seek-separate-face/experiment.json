@@ -1,0 +1,10 @@
+{
+  "title": "Seek and Separate, Face Target",
+  "description": "A seeking, separating swarm whose members turn to face the target.",
+  "category": "Steering Behaviors",
+  "order": 28,
+  "thumbnail": {
+    "path": "?thumbnail=1",
+    "readySelector": "html[data-thumbnail-ready=\"true\"]"
+  }
+}

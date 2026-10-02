@@ -1,0 +1,5 @@
+# Flocking 3
+
+Imported from `Archive/steering behaviors/flocking 3`, leaving the original folder untouched. The original bundled Three.js and helper scripts are kept as they were.
+
+Run `npm run dev --workspace=flocking-3` to start it independently. The social buttons, Open Graph image, and Google Analytics snippet were removed, and the canvas now follows window resizes. `js/thumbnail.js` drives thumbnail mode: it seeds `Math.random`, runs 240 frames on a virtual clock, then freezes the scene for capture. The original thumbnail image is kept as a source asset.

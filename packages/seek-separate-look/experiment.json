@@ -1,0 +1,10 @@
+{
+  "title": "Seek and Separate, Look Ahead",
+  "description": "A seeking, separating swarm whose members look in their direction of travel.",
+  "category": "Steering Behaviors",
+  "order": 29,
+  "thumbnail": {
+    "path": "?thumbnail=1",
+    "readySelector": "html[data-thumbnail-ready=\"true\"]"
+  }
+}
