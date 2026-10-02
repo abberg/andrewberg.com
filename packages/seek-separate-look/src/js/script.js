@@ -39,7 +39,8 @@
 			i = 0,
 			pos,
 			vel,
-			mF = 0.3,
+			mF = 0.08,
+			maxV = 1.5,
 			m,
 			currentModel,
 			currentView;
@@ -65,9 +66,9 @@
 
 		for(; i < numVehicles; i++){
 			pos = vec3.scale(randomVec3(), randomRange(0, 50));
-			vel = vec3.scale(randomVec3(), randomRange(0, 3));
+			vel = vec3.scale(randomVec3(), randomRange(0, maxV));
 			m = randomRange(1, 3);
-			currentModel = createVehicle({position:pos, velocity:vel, mass:m, max_force:mF});
+			currentModel = createVehicle({position:pos, velocity:vel, mass:m, max_force:mF, max_velocity:maxV});
 			flock.vehicles.push(currentModel);
 			
 			currentView = createVehicleView();
