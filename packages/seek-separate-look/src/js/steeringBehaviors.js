@@ -205,6 +205,85 @@ var steeringBehaviors = {
 		return this.align(vehicle, orientation);
 
 	},
+	// Points the nose (+Z) along the direction of travel while keeping the back
+	// (+Y) as close to world up as possible, so vehicles never roll onto their
+	// side, then eases the current orientation toward that by `smoothing` each
+	// frame so small changes in heading don't show up as a constant wiggle.
+	lookAhead: function(vehicle, smoothing){
+		var that = this.lookAhead,
+			speed;
+
+		if(that.forward === undefined){
+			that.forward = vec3.create();
+			that.side = vec3.create();
+			that.up = vec3.create();
+			that.worldUp = vec3.create([0, 1, 0]);
+			that.target = quat4.create();
+		}
+
+		speed = vec3.length(vehicle.velocity);
+		if(speed < 0.0001){
+			return vehicle.orientation;
+		}
+		vec3.scale(vehicle.velocity, 1 / speed, that.forward);
+
+		// side = up x forward; when heading straight up or down that is
+		// undefined, so keep whichever way the vehicle's back already faces
+		vec3.cross(that.worldUp, that.forward, that.side);
+		if(vec3.length(that.side) < 0.01){
+			quat4.multiplyVec3(vehicle.orientation, [0, 1, 0], that.up);
+			vec3.cross(that.up, that.forward, that.side);
+		}
+		vec3.normalize(that.side);
+		vec3.cross(that.forward, that.side, that.up);
+		this.quatFromAxes(that.side, that.up, that.forward, that.target);
+
+		// q and -q are the same rotation; pick the one nearer the current
+		// orientation so the slerp turns the short way round
+		if(vehicle.orientation[0] * that.target[0] + vehicle.orientation[1] * that.target[1] +
+			vehicle.orientation[2] * that.target[2] + vehicle.orientation[3] * that.target[3] < 0){
+			that.target[0] *= -1;
+			that.target[1] *= -1;
+			that.target[2] *= -1;
+			that.target[3] *= -1;
+		}
+
+		quat4.slerp(vehicle.orientation, that.target, smoothing);
+		quat4.normalize(vehicle.orientation);
+		return vehicle.orientation;
+	},
+	// quaternion for the rotation whose matrix has the columns x, y and z
+	quatFromAxes: function(x, y, z, dest){
+		var trace = x[0] + y[1] + z[2],
+			s;
+
+		if(trace > 0){
+			s = Math.sqrt(trace + 1) * 2;
+			dest[3] = 0.25 * s;
+			dest[0] = (y[2] - z[1]) / s;
+			dest[1] = (z[0] - x[2]) / s;
+			dest[2] = (x[1] - y[0]) / s;
+		}else if(x[0] > y[1] && x[0] > z[2]){
+			s = Math.sqrt(1 + x[0] - y[1] - z[2]) * 2;
+			dest[3] = (y[2] - z[1]) / s;
+			dest[0] = 0.25 * s;
+			dest[1] = (y[0] + x[1]) / s;
+			dest[2] = (z[0] + x[2]) / s;
+		}else if(y[1] > z[2]){
+			s = Math.sqrt(1 + y[1] - x[0] - z[2]) * 2;
+			dest[3] = (z[0] - x[2]) / s;
+			dest[0] = (y[0] + x[1]) / s;
+			dest[1] = 0.25 * s;
+			dest[2] = (z[1] + y[2]) / s;
+		}else{
+			s = Math.sqrt(1 + z[2] - x[0] - y[1]) * 2;
+			dest[3] = (x[1] - y[0]) / s;
+			dest[0] = (z[0] + x[2]) / s;
+			dest[1] = (z[1] + y[2]) / s;
+			dest[2] = 0.25 * s;
+		}
+		return dest;
+	},
 	look: function(vehicle){
 		var that = this.look,
 			orientation;

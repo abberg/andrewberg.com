@@ -115,8 +115,8 @@ var simpleVehicle = {
 			vec3.set(this.velocity, this.front);
 			vec3.normalize(this.front);
 			// reset accleration, rotation;
-			vec3.set(this.acceleration, [0,0,0]);
-			vec3.set(this.rotation, [0,0,0]);
+			vec3.set([0,0,0], this.acceleration);
+			vec3.set([0,0,0], this.rotation);
 		}
 	}
 
