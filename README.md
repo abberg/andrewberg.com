@@ -30,7 +30,7 @@ Netlify downloads Chromium with `npm run browsers:install` and runs the complete
 ## Structure
 
 - `apps/site`: Astro homepage and gallery.
-- `packages/model_001` through `model_005`: standalone Three.js experiments restored from the archive.
+- `packages/model_001` through `model_004`: standalone Three.js experiments restored from the archive.
 - `packages/model_base`: shared rendering and interaction code; excluded from the gallery because it has no experiment metadata.
 - `scripts`: package builds, discovery, static serving, and thumbnail capture.
 - `_archive`: untouched historical source, including the Eleventy gallery and helicopter scene.
