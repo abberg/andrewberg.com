@@ -1,6 +1,6 @@
 # Sketchy Drawings
 
-Real-time sketchy rendering after Nienhaus and Döllner, “Sketchy Drawings – A Hardware-Accelerated Approach for Real-Time Non-Photorealistic Rendering” (SIGGRAPH 2003 sketch). Built from `Archive/npr rendering/sandbox`, keeping its bundled Three.js (r49), Evangelion Unit-01 model and animation, and orbit camera; the original folder is untouched.
+Real-time sketchy rendering after Marc Nienhaus and Jürgen Döllner, [“Sketchy Drawings”](https://hpi.de/fileadmin/user_upload/fachgebiete/doellner/publications/2004/ND04a/afrigraph_sketchydrawing_final.pdf). Built from `Archive/npr rendering/sandbox`, keeping its bundled Three.js (r49), Evangelion Unit-01 model and animation, and orbit camera; the original folder is untouched.
 
 Each frame renders three textures and combines them on a full-screen quad:
 
