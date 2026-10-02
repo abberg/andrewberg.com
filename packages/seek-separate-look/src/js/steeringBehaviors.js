@@ -205,13 +205,17 @@ var steeringBehaviors = {
 		return this.align(vehicle, orientation);
 
 	},
-	// Points the nose (+Z) along the direction of travel while keeping the back
-	// (+Y) as close to world up as possible, so vehicles never roll onto their
-	// side, then eases the current orientation toward that by `smoothing` each
-	// frame so small changes in heading don't show up as a constant wiggle.
-	lookAhead: function(vehicle, smoothing){
+	// Points the nose (+Z) along the direction of travel with the back (+Y)
+	// toward world up, banked into turns: the up direction leans toward the
+	// centre of the turn by the vehicle's sideways acceleration times
+	// `bankStrength`, up to `maxBank` radians. Then eases the current
+	// orientation toward that by `smoothing` each frame so small changes in
+	// heading don't show up as a constant wiggle.
+	lookAhead: function(vehicle, smoothing, bankStrength, maxBank){
 		var that = this.lookAhead,
-			speed;
+			speed,
+			lean,
+			maxLean = Math.tan(maxBank);
 
 		if(that.forward === undefined){
 			that.forward = vec3.create();
@@ -219,6 +223,12 @@ var steeringBehaviors = {
 			that.up = vec3.create();
 			that.worldUp = vec3.create([0, 1, 0]);
 			that.target = quat4.create();
+			that.turn = vec3.create();
+			that.bankUp = vec3.create();
+		}
+		if(vehicle.lastVelocity === undefined){
+			vehicle.lastVelocity = vec3.create(vehicle.velocity);
+			vehicle.turn = vec3.create();
 		}
 
 		speed = vec3.length(vehicle.velocity);
@@ -227,9 +237,25 @@ var steeringBehaviors = {
 		}
 		vec3.scale(vehicle.velocity, 1 / speed, that.forward);
 
+		// sideways part of the change in velocity since last frame, smoothed so
+		// the bank follows the turn rather than every nudge from a neighbour
+		vec3.subtract(vehicle.velocity, vehicle.lastVelocity, that.turn);
+		vec3.subtract(that.turn, vecUtils.parallelComponent(that.turn, that.forward));
+		vec3.scale(vehicle.turn, 0.9);
+		vec3.scale(that.turn, 0.1);
+		vec3.add(vehicle.turn, that.turn);
+		vec3.set(vehicle.velocity, vehicle.lastVelocity);
+
+		vec3.scale(vehicle.turn, bankStrength, that.bankUp);
+		lean = vec3.length(that.bankUp);
+		if(lean > maxLean){
+			vec3.scale(that.bankUp, maxLean / lean);
+		}
+		vec3.add(that.bankUp, that.worldUp);
+
 		// side = up x forward; when heading straight up or down that is
 		// undefined, so keep whichever way the vehicle's back already faces
-		vec3.cross(that.worldUp, that.forward, that.side);
+		vec3.cross(that.bankUp, that.forward, that.side);
 		if(vec3.length(that.side) < 0.01){
 			quat4.multiplyVec3(vehicle.orientation, [0, 1, 0], that.up);
 			vec3.cross(that.up, that.forward, that.side);
