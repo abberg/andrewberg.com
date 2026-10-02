@@ -4,3 +4,8 @@
 
 [build.environment]
   NODE_VERSION = "24"
+
+[[redirects]]
+  from = "/experiments/*"
+  to = "/sketches/:splat"
+  status = 301

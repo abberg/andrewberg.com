@@ -1,0 +1,10 @@
+{
+  "title": "Toon Shader Sandbox",
+  "description": "An animated Evangelion Unit-01 model switching between Three.js toon, hatching, and dotted shaders.",
+  "category": "NPR Rendering",
+  "order": 29,
+  "thumbnail": {
+    "path": "?thumbnail=1",
+    "readySelector": "html[data-thumbnail-ready=\"true\"]"
+  }
+}

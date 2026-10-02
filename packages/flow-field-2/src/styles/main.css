@@ -1,0 +1,47 @@
+body {
+	font-family: sans-serif;
+	background-color: #555;
+	color: #999;
+	margin: 0px;
+	overflow: hidden;
+}
+
+canvas {
+	display: block;
+}
+
+h1, h2 {
+	margin: 0.12% 0;
+}
+
+h1 {
+	font-size: 18px;
+}
+
+h2 {
+	font-size: 14px;
+}
+
+p {
+	font-size: 11px;
+}
+
+a:link, a:visited {
+	color: #888;
+}
+
+a:hover {
+	color: #666;
+}
+
+#info {
+	position: absolute;
+	bottom: 0px;
+	z-index: 1;
+	text-align: center;
+	width: 100%;
+}
+
+.thumbnail #info {
+	display: none;
+}

@@ -5,16 +5,16 @@ import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 export const root = fileURLToPath(new URL('../', import.meta.url));
 export const sitePublic = resolve(root, 'apps/site/public');
-export async function experiments() {
+export async function sketches() {
   const entries = await readdir(resolve(root, 'packages'), { withFileTypes: true });
   const result = [];
   for (const entry of entries.filter(e => e.isDirectory())) {
     const directory = resolve(root, 'packages', entry.name);
     let raw;
-    try { raw = await readFile(resolve(directory, 'experiment.json'), 'utf8'); }
+    try { raw = await readFile(resolve(directory, 'sketch.json'), 'utf8'); }
     catch (error) { if (error.code === 'ENOENT') continue; throw error; }
     const metadata = JSON.parse(raw);
-    if (!/^[a-z0-9_-]+$/.test(entry.name) || !metadata.title || !metadata.description) throw new Error(`Invalid experiment metadata: ${entry.name}`);
+    if (!/^[a-z0-9_-]+$/.test(entry.name) || !metadata.title || !metadata.description) throw new Error(`Invalid sketch metadata: ${entry.name}`);
     result.push({ ...metadata, id: entry.name, directory });
   }
   return result.sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.id.localeCompare(b.id));

@@ -1,0 +1,64 @@
+// Surface information for the tones (TSurface): the model writes how much
+// light reaches it (0 in shadow) in red, 0 in green and 1 in blue, so the
+// sketch pass can tell it apart from the white paper and the ground, whose
+// shadow comes through as grey.
+
+varying vec3 vLightFront;
+
+uniform sampler2D shadowMap[ MAX_SHADOWS ];
+uniform vec2 shadowMapSize[ MAX_SHADOWS ];
+
+uniform float shadowDarkness[ MAX_SHADOWS ];
+uniform float shadowBias[ MAX_SHADOWS ];
+
+varying vec4 vShadowCoord[ MAX_SHADOWS ];
+
+float unpackDepth( const in vec4 rgba_depth ) {
+
+	const vec4 bit_shift = vec4( 1.0 / ( 256.0 * 256.0 * 256.0 ), 1.0 / ( 256.0 * 256.0 ), 1.0 / 256.0, 1.0 );
+	float depth = dot( rgba_depth, bit_shift );
+	return depth;
+
+}
+
+uniform vec3 fogColor;
+
+uniform float fogNear;
+uniform float fogFar;
+
+void main(){
+
+	float light = dot( vLightFront, vec3( 0.333 ) );
+
+	for( int i = 0; i < MAX_SHADOWS; i ++ ) {
+
+		vec3 shadowCoord = vShadowCoord[ i ].xyz / vShadowCoord[ i ].w;
+
+		bvec4 inFrustumVec = bvec4 ( shadowCoord.x >= 0.0, shadowCoord.x <= 1.0, shadowCoord.y >= 0.0, shadowCoord.y <= 1.0 );
+		bool inFrustum = all( inFrustumVec );
+
+		bvec2 frustumTestVec = bvec2( inFrustum, shadowCoord.z <= 1.0 );
+		bool frustumTest = all( frustumTestVec );
+
+		if ( frustumTest ) {
+
+			shadowCoord.z += shadowBias[ i ];
+
+			float fDepth = unpackDepth( texture2D( shadowMap[ i ], shadowCoord.xy ) );
+
+			if ( fDepth < shadowCoord.z )
+				light = 0.0;
+
+		}
+
+	}
+
+	gl_FragColor = vec4( clamp( light, 0.0, 1.0 ), 0.0, 1.0, 1.0 );
+
+	// Fog
+	float depth = gl_FragCoord.z / gl_FragCoord.w;
+	float fogFactor = smoothstep( fogNear, fogFar, depth );
+
+	gl_FragColor = mix( gl_FragColor, vec4( fogColor, gl_FragColor.w ), fogFactor );
+
+}

@@ -1,0 +1,10 @@
+{
+  "title": "Flocking",
+  "description": "A flock of 150 boids balancing separation, cohesion, and alignment, after Shiffman.",
+  "category": "Steering Behaviors",
+  "order": 22,
+  "thumbnail": {
+    "path": "?thumbnail=1",
+    "readySelector": "html[data-thumbnail-ready=\"true\"]"
+  }
+}

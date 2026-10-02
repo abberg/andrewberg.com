@@ -1,0 +1,10 @@
+{
+  "title": "Wander",
+  "description": "A single vehicle wandering under Reynolds’ wander steering behavior, with its steering vectors drawn.",
+  "category": "Steering Behaviors",
+  "order": 28,
+  "thumbnail": {
+    "path": "?thumbnail=1",
+    "readySelector": "html[data-thumbnail-ready=\"true\"]"
+  }
+}
