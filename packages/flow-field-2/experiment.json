@@ -1,0 +1,10 @@
+{
+  "title": "Flow Field 2",
+  "description": "Six hundred particles drifting through a cube on a 4D simplex noise flow field.",
+  "category": "Steering Behaviors",
+  "order": 23,
+  "thumbnail": {
+    "path": "?thumbnail=1",
+    "readySelector": "html[data-thumbnail-ready=\"true\"]"
+  }
+}
