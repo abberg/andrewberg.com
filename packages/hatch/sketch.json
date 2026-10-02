@@ -1,0 +1,10 @@
+{
+  "title": "Freudenberg Hatch Shader",
+  "description": "The Orange Book hatching shader applied to an animated Evangelion Unit-01, with live controls.",
+  "category": "NPR Rendering",
+  "order": 29,
+  "thumbnail": {
+    "path": "?thumbnail=1",
+    "readySelector": "html[data-thumbnail-ready=\"true\"]"
+  }
+}

@@ -1,6 +1,7 @@
 // Thumbnail mode: seeds Math.random, runs the sketch on a virtual clock for a
 // fixed number of frames as fast as possible, then freezes it and flags the page
-// as ready for the site's thumbnail capture.
+// as ready for the site's thumbnail capture. Pages that load assets first set
+// data-thumbnail-wait on <html> and call window.thumbnailStart() once ready.
 (function(){
 
 	if (!new URLSearchParams(location.search).has('thumbnail')) return;
@@ -43,6 +44,14 @@
 			document.documentElement.dataset.thumbnailReady = 'true';
 		}
 	}
-	window.addEventListener('load', function(){ setTimeout(tick, 0); });
+	var started = false;
+	window.thumbnailStart = function(){
+		if (started) return;
+		started = true;
+		setTimeout(tick, 0);
+	};
+	window.addEventListener('load', function(){
+		if (!document.documentElement.hasAttribute('data-thumbnail-wait')) window.thumbnailStart();
+	});
 
 }());

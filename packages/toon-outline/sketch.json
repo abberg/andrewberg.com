@@ -1,0 +1,10 @@
+{
+  "title": "Toon Shader with Sobel Outline",
+  "description": "A toon-shaded Evangelion Unit-01 with a Sobel edge filter drawing its outlines.",
+  "category": "NPR Rendering",
+  "order": 30,
+  "thumbnail": {
+    "path": "?thumbnail=1",
+    "readySelector": "html[data-thumbnail-ready=\"true\"]"
+  }
+}
