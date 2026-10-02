@@ -33,7 +33,6 @@ Netlify downloads Chromium with `npm run browsers:install` and runs the complete
 - `packages/model_001` through `model_004`: standalone Three.js sketches restored from the archive.
 - `packages/model_base`: shared rendering and interaction code; excluded from the gallery because it has no sketch metadata.
 - `scripts`: package builds, discovery, static serving, and thumbnail capture.
-- `public/index.html`: original placeholder retained for reference; deployment now uses Astro's output.
 
 The old sketches retain Three.js 0.128 while their build tooling has been replaced. They can be modernized independently.
 
