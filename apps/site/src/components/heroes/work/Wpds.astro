@@ -19,10 +19,10 @@ const sizes = ['075', '087', '100', '112', '125', '150', '175', '200', '225', '2
 const grays = ['#000000', '#111111', '#2A2A2A', '#494949', '#595959', '#737373', '#AAAAAA', '#D4D4D4', '#E9E9E9', '#F0F0F0', '#F7F7F7', '#FFFFFF'];
 const blues = ['#0A3258', '#0F4B84', '#1366B3', '#166DFC', '#5784C5', '#84A4D6', '#ACC5E7', '#D3E7FA', '#E7F0FE'];
 const stories = [
-  ['The glaciers that feed a continent are thinning fast', 'linear-gradient(160deg, #9fb7c9, #5d7d96)'],
-  ['A heat map of every U.S. county this summer', 'linear-gradient(160deg, #e3a86b, #b5543a)'],
-  ['Inside the race to rebuild a coral reef', 'linear-gradient(160deg, #6fb3b0, #2f6f78)'],
-  ['What rising seas mean for your street', 'linear-gradient(160deg, #a9b7a0, #5f7258)'],
+  ['The glaciers that feed a continent are thinning fast'],
+  ['A heat map of every U.S. county this summer'],
+  ['Inside the race to rebuild a coral reef'],
+  ['What rising seas mean for your street'],
 ];
 const nav = ['Alert Banner', 'Avatar', 'Box', 'Button', 'Card', 'Carousel', 'Checkbox', 'Dialog', 'Drawer', 'Input Search', 'Input Text', 'Popover', 'Select', 'Tabs'];
 const components = [
@@ -61,7 +61,7 @@ const components = [
   <HeroCard label="Carousel" col={2}>
     <div class="car">
       <span class="car-top"><span class="car-title">More from Climate</span><span class="car-nav"><span class="car-arrow"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></span><span class="car-arrow"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></span></span></span>
-      <span class="car-track">{stories.map(([headline, tone]) => <span class="car-item"><span class="car-img" style={`background:${tone}`}></span><span class="car-head">{headline}</span></span>)}</span>
+      <span class="car-track">{stories.map(([headline]) => <span class="car-item"><span class="car-img"></span><span class="car-head">{headline}</span></span>)}</span>
       <span class="car-dots"><span class="on"></span><span></span><span></span><span></span></span>
     </div>
   </HeroCard>
@@ -186,7 +186,7 @@ const components = [
   .car-arrow { display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; box-shadow: inset 0 0 0 1px var(--gray-70); color: var(--primary); }
   .car-track { display: flex; gap: 8px; margin-right: -40px; }
   .car-item { flex: none; display: flex; flex-direction: column; gap: 4px; width: 92px; }
-  .car-img { height: 38px; border-radius: 2px; }
+  .car-img { height: 38px; border-radius: 2px; background: var(--gray-80); }
   .car-head { font-family: var(--font-headline) !important; font-size: 8.5px; font-weight: 700; line-height: 1.2; color: var(--primary); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .car-dots { display: flex; justify-content: center; gap: 4px; }
   .car-dots span { width: 5px; height: 5px; border-radius: 50%; background: var(--gray-70); }
