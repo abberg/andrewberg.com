@@ -1,6 +1,7 @@
 ---
 import HeroCard from '../parts/HeroCard.astro';
 import Note from '../parts/Note.astro';
+import TypeSample from '../parts/TypeSample.astro';
 import Row from '../parts/Row.astro';
 import Swatches from '../parts/Swatches.astro';
 import Chips from '../parts/Chips.astro';
@@ -24,7 +25,6 @@ const stories = [
   ['Inside the race to rebuild a coral reef'],
   ['What rising seas mean for your street'],
 ];
-const nav = ['Alert Banner', 'Avatar', 'Box', 'Button', 'Card', 'Carousel', 'Checkbox', 'Dialog', 'Drawer', 'Input Search', 'Input Text', 'Popover', 'Select', 'Tabs'];
 const components = [
   'Accordion', 'Action Menu', 'Alert Banner', 'App bar', 'Avatar', 'Box', 'Button', 'Card', 'Carousel', 'Checkbox', 'Container',
   'Dialog', 'Divider', 'Drawer', 'Icon', 'Input Password', 'Input Search', 'Input Text', 'Input Text Area', 'Navigation Menu',
@@ -32,30 +32,15 @@ const components = [
 ];
 ---
 <div class="wpds">
-  <HeroCard label="Documentation" col={2} row={2}>
-    <div class="docs">
-      <div class="docs-nav">
-        <span class="docs-brand">WPDS</span>
-        <span class="docs-group">Foundations</span>
-        {['Color', 'Typography', 'Space'].map(name => <span>{name}</span>)}
-        <span class="docs-group">Components</span>
-        {nav.map(name => <span class:list={{ on: name === 'Button' }}>{name}</span>)}
-      </div>
-      <div class="docs-main">
-        <span class="docs-crumb">Components</span>
-        <span class="docs-title">Button</span>
-        <span class="docs-lede">Buttons let readers take an action, like subscribing or sharing a story.</span>
-        <div class="play">
-          <div class="play-stage"><span class="w-btn cta"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Subscribe</span></div>
-          <div class="play-controls">
-            <span class="ctl"><span>variant</span><span class="seg"><span>primary</span><span>secondary</span><span class="on">cta</span></span></span>
-            <span class="ctl"><span>density</span><span class="seg"><span class="on">default</span><span>compact</span></span></span>
-            <span class="ctl"><span>icon</span><span class="seg"><span class="on">left</span><span>right</span><span>center</span><span>none</span></span></span>
-            <span class="ctl"><span>isOutline</span><span class="tg"><span></span></span></span>
-          </div>
-        </div>
-      </div>
-    </div>
+  <HeroCard label="Typography" col={2} row={2}>
+    <TypeSample>
+      <Note>headline · Postoni</Note>
+      <Note>magazine · PostoniDisplayMag</Note>
+    </TypeSample>
+    <div class="headline">Democracy Dies in Darkness</div>
+    <div class="body-copy">body · georgia. The quick brown fox jumps over the lazy dog.</div>
+    <div class="meta-copy">meta · Franklin · light 300 · regular 400 · bold 700 · ultra 800</div>
+    <Row wrap>{sizes.map(size => <Note>{size}</Note>)}</Row>
   </HeroCard>
 
   <HeroCard label="Carousel" col={2}>
@@ -135,29 +120,8 @@ const components = [
   .body-copy { font-family: var(--font-body); font-size: 11px; line-height: 1.5; color: var(--primary); }
   .meta-copy { font-family: var(--font-meta); font-size: 10px; color: var(--gray-40); }
 
-  .docs { flex: 1; display: grid; grid-template-columns: 88px minmax(0, 1fr); min-height: 0; border: 1px solid var(--gray-80); border-radius: 6px; overflow: hidden; background: #fff; }
-  .docs span, .matrix span, .search span { font-family: var(--font-meta); }
-  .docs-nav { display: flex; flex-direction: column; gap: 2.5px; padding: 8px 8px; background: #F7F7F7; border-right: 1px solid var(--gray-80); overflow: hidden; }
-  .docs-nav span { font-size: 7.5px; color: var(--gray-40); white-space: nowrap; }
-  .docs-nav .docs-brand { font-family: var(--font-headline); font-size: 12px; font-weight: 700; color: var(--primary); margin-bottom: 4px; }
-  .docs-nav .docs-group { margin-top: 4px; font-size: 7px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--primary); }
-  .docs-nav .on { color: var(--primary); font-weight: 700; box-shadow: inset 2px 0 0 var(--primary); padding-left: 4px; margin-left: -4px; }
-  .docs-main { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; min-width: 0; }
-  .docs-crumb { font-size: 7.5px; color: var(--gray-60); }
-  .docs-title { font-family: var(--font-headline) !important; font-size: 22px; font-weight: 700; line-height: 1.05; color: var(--primary); }
-  .docs-lede { font-family: var(--font-body) !important; font-size: 8.5px; line-height: 1.45; color: var(--gray-40); margin-bottom: 4px; }
-  .play { flex: 1; display: flex; flex-direction: column; border: 1px solid var(--gray-80); border-radius: 6px; overflow: hidden; }
-  .play-stage { flex: 1; display: grid; place-items: center; min-height: 56px; background-color: #fff; background-image: radial-gradient(var(--gray-80) 1px, transparent 1px); background-size: 8px 8px; }
-  .play-controls { display: flex; flex-direction: column; gap: 4px; padding: 6px 8px; border-top: 1px solid var(--gray-80); background: #F7F7F7; }
-  .ctl { display: grid; grid-template-columns: 44px auto; align-items: center; justify-content: start; gap: 6px; }
-  .ctl > span:first-child { font-family: 'JetBrains Mono', ui-monospace, monospace !important; font-size: 7px; color: var(--gray-40); }
-  .seg { display: inline-flex; border: 1px solid var(--gray-70); border-radius: 4px; overflow: hidden; background: #fff; }
-  .seg span { font-size: 7px; padding: 1.5px 5px; color: var(--gray-40); border-left: 1px solid var(--gray-70); }
-  .seg span:first-child { border-left: 0; }
-  .seg .on { background: var(--primary); color: #fff; }
-  .tg { position: relative; width: 20px; height: 11px; border-radius: 9999px; background: var(--gray-70); }
-  .tg span { position: absolute; left: 2px; top: 2px; width: 7px; height: 7px; border-radius: 50%; background: #fff; }
 
+  .matrix span, .search span { font-family: var(--font-meta); }
   .w-btn { display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: 26px; padding: 0 10px; border-radius: 9999px; font-size: 9px; font-weight: 700; white-space: nowrap; }
   .w-btn.primary { background: var(--primary); color: #fff; }
   .w-btn.secondary { background: #fff; color: var(--primary); box-shadow: inset 0 0 0 1px var(--gray-70); }
