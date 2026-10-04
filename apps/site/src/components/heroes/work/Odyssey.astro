@@ -1,0 +1,166 @@
+---
+import HeroCard from '../parts/HeroCard.astro';
+import Note from '../parts/Note.astro';
+import Row from '../parts/Row.astro';
+import TypeSample from '../parts/TypeSample.astro';
+import TypeRow from '../parts/TypeRow.astro';
+import Swatches from '../parts/Swatches.astro';
+import Ramp from '../parts/Ramp.astro';
+import Chips from '../parts/Chips.astro';
+import Bars from '../parts/Bars.astro';
+import Shapes from '../parts/Shapes.astro';
+import Shadows from '../parts/Shadows.astro';
+import Button from '../parts/Button.astro';
+import Control from '../parts/Control.astro';
+import Field from '../parts/Field.astro';
+import Banner from '../parts/Banner.astro';
+import ComponentList from '../parts/ComponentList.astro';
+
+// Odyssey, Okta. Public Sans on a 14px base, with the ColorPalette ramps.
+const ramps = [
+  ['#f2f5ff', '#a7b5ec', '#788ee2', '#1662dd', '#00297a'],
+  ['#e5faf3', '#84d2b1', '#00b478', '#008055', '#00503c'],
+  ['#ffdfe2', '#f88c90', '#da372c', '#640019'],
+  ['#faf5dc', '#f9dc77', '#ffc61c', '#663800'],
+];
+const neutrals = ['#ffffff', '#f5f5f6', '#ebebed', '#d7d7dc', '#8c8c96', '#6e6e78', '#1d1d21'];
+const tests = ['links its label to the input', 'describes the error for screen readers', 'moves focus in DOM order', 'has no axe violations'];
+const components = [
+  'Banner', 'Box', 'Button', 'Checkbox', 'Field', 'FieldGroup', 'Form', 'Heading', 'Icon', 'Infobox', 'Link', 'List', 'Modal',
+  'Radio', 'RadioGroup', 'ScreenReaderText', 'Select', 'Status', 'Table', 'Tabs', 'Tag', 'Text', 'TextArea', 'TextInput', 'Toast', 'Tooltip',
+];
+---
+<div class="odyssey">
+  <HeroCard label="Keyboard focus order" col={2} row={2}>
+    <div class="fo">
+      <span class="fo-key">Tab</span>
+      <div class="fo-form">
+        <span class="fo-title">Sign In</span>
+        <span class="fo-item"><span class="fo-n">1</span><span class="fo-field"><span>Username</span><span class="fo-input focus">andrew@okta.com</span></span></span>
+        <span class="fo-item"><span class="fo-n">2</span><span class="fo-field"><span>Password</span><span class="fo-input">••••••••••</span></span></span>
+        <span class="fo-item"><span class="fo-n">3</span><span class="fo-check"><span class="fo-box"></span>Keep me signed in</span></span>
+        <span class="fo-item"><span class="fo-n">4</span><span class="fo-btn">Sign In</span></span>
+        <span class="fo-item"><span class="fo-n">5</span><span class="fo-link">Need help signing in?</span></span>
+      </div>
+    </div>
+  </HeroCard>
+
+  <HeroCard label="Screen reader" col={2}>
+    <div class="sr">
+      <span><b>Username</b>, required, edit text</span>
+      <span class="sr-err">Enter a valid email address</span>
+      <span><b>Keep me signed in</b>, checkbox, not checked</span>
+      <span><b>Sign In</b>, button</span>
+    </div>
+  </HeroCard>
+
+  <HeroCard label="Tests" col={2}>
+    <div class="tests">
+      <span class="tests-file"><span class="tests-pass">PASS</span>TextInput</span>
+      {tests.map(name => <span class="tests-row"><span class="tests-ok"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></span>{name}</span>)}
+    </div>
+  </HeroCard>
+
+  <HeroCard label="Contrast">
+    <span class="cr"><span class="cr-aa on-primary">Aa</span><span class="cr-meta"><b>5.5 : 1</b><em>AA</em></span></span>
+    <span class="cr"><span class="cr-aa on-body">Aa</span><span class="cr-meta"><b>16.8 : 1</b><em>AAA</em></span></span>
+  </HeroCard>
+
+  <HeroCard label="Error state">
+    <span class="er">
+      <span class="er-label">Username</span>
+      <span class="er-input">andrew@</span>
+      <span class="er-msg"><svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/><path d="M12 7v6M12 16.5v.5" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></svg>Enter a valid email address</span>
+    </span>
+  </HeroCard>
+  <HeroCard label="Color" col={2}>
+    <Swatches items={[
+      ['var(--ColorPrimaryLight000)', '000'], ['var(--ColorPrimaryLight)', '300'], ['#788ee2', '400'],
+      ['var(--ColorPrimaryBase)', '500'], ['var(--ColorPrimaryDark)', '900'],
+    ]} />
+    <Swatches items={[['var(--ColorTextBody)', 'Body'], ['var(--ColorTextSub)', 'Sub'], ['var(--ColorBorderInput)', 'Border'], ['var(--ColorSuccessBase)', 'Success'], ['var(--ColorDangerBase)', 'Danger']]} />
+  </HeroCard>
+
+  <HeroCard label="Button">
+    <Row wrap>
+      <Button bg="var(--ColorPrimaryBase)" fg="#ffffff">Primary</Button>
+      <Button bg="#ffffff" fg="var(--ColorPrimaryBase)" edge="var(--ColorPrimaryBase)">Secondary</Button>
+      <Button bg="var(--ColorDangerBase)" fg="#ffffff">Danger</Button>
+    </Row>
+    <Row align="center">
+      <Button bg="transparent" fg="var(--ColorPrimaryBase)">Clear</Button>
+      <Button bg="var(--ColorPrimaryBase)" fg="#ffffff" small>Small</Button>
+    </Row>
+  </HeroCard>
+
+  <HeroCard label="Banner">
+    <Banner tint="var(--ColorPrimaryLight000)" accent="var(--ColorPrimaryBase)">Your password expires in 3 days.</Banner>
+    <Banner tint="var(--ColorSuccessLight)" accent="var(--ColorSuccessBase)">MFA enrolled.</Banner>
+    <Banner tint="var(--ColorCautionLight)" accent="var(--ColorCautionBase)">Session ending soon.</Banner>
+    <Banner tint="var(--ColorDangerLight)" accent="var(--ColorDangerBase)">Sign-in failed.</Banner>
+  </HeroCard>
+
+  <HeroCard label="Palette" col={2}>
+    {ramps.map(colors => <Ramp colors={colors} />)}
+  </HeroCard>
+
+</div>
+
+<style>
+  .odyssey {
+    display: contents;
+    --FontFamilyBase: 'Public Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --FontFamilyMono: 'Inconsolata', 'SFMono-Regular', Consolas, Menlo, monospace;
+    --ColorTextBody: #1d1d21; --ColorTextSub: #6e6e78; --ColorBorderInput: #8c8c96;
+    --ColorPrimaryLight000: #f2f5ff; --ColorPrimaryLight: #a7b5ec; --ColorPrimaryBase: #1662dd; --ColorPrimaryDark: #00297a;
+    --ColorSuccessBase: #00b478; --ColorSuccessLight: #e5faf3;
+    --ColorCautionBase: #ffc61c; --ColorCautionLight: #faf5dc;
+    --ColorDangerBase: #da372c; --ColorDangerLight: #ffdfe2;
+
+    --hero-font: var(--FontFamilyBase); --hero-mono: var(--FontFamilyMono);
+    --hero-ink: var(--ColorTextBody); --hero-note: var(--ColorTextSub);
+    --hero-display-weight: 600; --hero-edge: rgba(0,0,0,.06);
+    --button-pad: 8px; --button-radius: 4px; --button-weight: 600;
+    --field-radius: 4px; --field-edge: var(--ColorBorderInput);
+  }
+
+  .fo { flex: 1; position: relative; display: flex; justify-content: center; min-height: 0; }
+  .fo span, .sr span, .tests span, .cr span, .er span { font-family: var(--FontFamilyBase); }
+  .fo-key { position: absolute; right: 0; top: 0; padding: 3px 8px; border-radius: 4px; background: #fff; box-shadow: inset 0 0 0 1px var(--ColorBorderInput), 0 2px 0 var(--ColorBorderInput); font-size: 9px; font-weight: 600; color: var(--ColorTextBody); }
+  .fo-form { display: flex; flex-direction: column; gap: 9px; width: 220px; padding: 12px 16px 12px 36px; border-radius: 6px; background: #fff; box-shadow: 0 1px 4px rgba(29,29,33,.08), 0 5px 15px rgba(29,29,33,.05), inset 0 0 0 1px rgba(0,0,0,.06); }
+  .fo-title { font-size: 15px; font-weight: 600; color: var(--ColorTextBody); }
+  .fo-item { position: relative; display: flex; }
+  .fo-n { position: absolute; left: -26px; top: 50%; transform: translateY(-50%); display: grid; place-items: center; width: 15px; height: 15px; border-radius: 50%; background: var(--ColorPrimaryDark); color: #fff; font-size: 8px; font-weight: 600; }
+  .fo-field { flex: 1; display: flex; flex-direction: column; gap: 3px; }
+  .fo-field > span:first-child { font-size: 8.5px; font-weight: 600; color: var(--ColorTextBody); }
+  .fo-input { display: flex; align-items: center; height: 22px; padding: 0 7px; border-radius: 4px; box-shadow: inset 0 0 0 1px var(--ColorBorderInput); font-size: 9px; color: var(--ColorTextBody); }
+  .fo-input.focus { box-shadow: inset 0 0 0 1px var(--ColorPrimaryBase), 0 0 0 2px #fff, 0 0 0 4px var(--ColorPrimaryBase); }
+  .fo-check { display: flex; align-items: center; gap: 6px; font-size: 9px; color: var(--ColorTextBody); }
+  .fo-box { width: 12px; height: 12px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--ColorBorderInput); }
+  .fo-btn { flex: 1; display: grid; place-items: center; height: 24px; border-radius: 4px; background: var(--ColorPrimaryBase); color: #fff; font-size: 9.5px; font-weight: 600; }
+  .fo-link { font-size: 8.5px; color: var(--ColorPrimaryBase); text-decoration: underline; }
+
+  .sr { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 4px; padding: 10px 12px; border-radius: 8px; background: rgba(29,29,33,.92); }
+  .sr span { font-size: 9.5px; color: rgba(255,255,255,.75); }
+  .sr b { font-weight: 600; color: #fff; }
+  .sr .sr-err { color: #f88c90; }
+
+  .tests { flex: 1; display: flex; flex-direction: column; gap: 3px; }
+  .tests-file { display: flex; align-items: center; gap: 6px; margin-bottom: 2px; font-size: 10px; font-weight: 600; color: var(--ColorTextBody); }
+  .tests-pass { padding: 1px 5px; border-radius: 3px; background: var(--ColorSuccessBase); color: #fff !important; font-size: 7.5px; letter-spacing: .04em; }
+  .tests-row { display: flex; align-items: center; gap: 6px; font-size: 9px; color: var(--ColorTextSub); }
+  .tests-ok { display: grid; place-items: center; width: 13px; height: 13px; border-radius: 50%; background: var(--ColorSuccessLight); color: #008055; }
+
+  .cr { display: flex; align-items: center; gap: 10px; }
+  .cr-aa { display: grid; place-items: center; width: 40px; height: 34px; border-radius: 4px; font-size: 17px; font-weight: 600; }
+  .on-primary { background: var(--ColorPrimaryBase); color: #fff; }
+  .on-body { background: #fff; color: var(--ColorTextBody); box-shadow: inset 0 0 0 1px rgba(0,0,0,.08); }
+  .cr-meta { display: flex; flex-direction: column; }
+  .cr-meta b { font-size: 11px; font-weight: 600; color: var(--ColorTextBody); }
+  .cr-meta em { font-style: normal; font-size: 8px; font-weight: 600; color: #008055; }
+
+  .er { display: flex; flex-direction: column; gap: 4px; }
+  .er-label { font-size: 9px; font-weight: 600; color: var(--ColorTextBody); }
+  .er-input { display: flex; align-items: center; height: 24px; padding: 0 8px; border-radius: 4px; box-shadow: inset 0 0 0 1px var(--ColorDangerBase); font-size: 9px; color: var(--ColorTextBody); }
+  .er-msg { display: flex; align-items: center; gap: 4px; font-size: 8.5px; color: var(--ColorDangerBase); }
+</style>

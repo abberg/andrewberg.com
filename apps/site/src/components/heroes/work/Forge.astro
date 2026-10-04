@@ -1,0 +1,192 @@
+---
+import HeroCard from '../parts/HeroCard.astro';
+import Note from '../parts/Note.astro';
+import Row from '../parts/Row.astro';
+import Swatches from '../parts/Swatches.astro';
+import Ramp from '../parts/Ramp.astro';
+import Chips from '../parts/Chips.astro';
+import Bars from '../parts/Bars.astro';
+import Button from '../parts/Button.astro';
+import Control from '../parts/Control.astro';
+import Field from '../parts/Field.astro';
+import ComponentList from '../parts/ComponentList.astro';
+import OutlineIcons from '../parts/OutlineIcons.astro';
+
+// Forge, athenahealth. Source Sans Pro with the $color-* Sass variables.
+const tags = [
+  ['Scheduled', 'var(--gray-88)', 'var(--gray-20)'], ['New', 'var(--color-interaction-default)', '#FFFFFF'],
+  ['Critical', 'var(--color-alert-critical)', '#FFFFFF'], ['Attention', 'var(--color-alert-attention)', 'var(--gray-20)'],
+  ['Positive', 'var(--color-alert-success)', '#FFFFFF'],
+];
+const grays = ['#000000', '#333333', '#5F5F5F', '#808080', '#B3B3B3', '#D9D9D9', '#E1E1E1', '#FFFFFF'];
+const sequential = ['#7A9A01', '#9CB441', '#BCCC80', '#DEE6BF', '#F1F4E5', '#1C89A1', '#55A7B9', '#8DC4D0', '#C6E1E7', '#E8F3F5'];
+const side = ['Banner', 'Button', 'Card', 'Checkbox', 'DateInput', 'FormField', 'Modal', 'Select', 'StatusTag', 'Table', 'Tabs', 'Toast', 'Tooltip'];
+const schedule = [
+  ['8:30', 'Alvarez, Maria', 'Dr. Chen', 'Checked in', 'var(--color-alert-success)', '#FFFFFF'],
+  ['9:00', 'Okafor, James', 'Dr. Chen', 'Arrived', 'var(--color-interaction-default)', '#FFFFFF'],
+  ['9:15', 'Nguyen, Linh', 'Dr. Patel', 'Scheduled', 'var(--gray-88)', 'var(--gray-20)'],
+];
+const criteria = ['Ecosystem', 'Hiring', 'Performance', 'Accessibility'];
+const frameworks = [['React', [3, 3, 3, 3]], ['Angular', [2, 2, 2, 2]], ['Vue', [2, 1, 3, 2]], ['Ember', [1, 1, 2, 2]]];
+const materials = ['Design kit', 'Icon library', 'Usage guidelines', 'Code examples'];
+const components = [
+  'Accordion', 'Avatar', 'Badge', 'Banner', 'Button', 'Card', 'Checkbox', 'CheckboxButton', 'ComboButton', 'DateInput', 'Form', 'FormField',
+  'Grid', 'Heading', 'Icon', 'Indicator', 'InlineAlert', 'Input', 'Lightbox', 'List', 'Loader', 'Menu', 'Modal', 'MultiField', 'Multiselect',
+  'Paginator', 'Popover', 'ProgressIndicator', 'RadioButton', 'RadioGroup', 'ReadOnlyInput', 'RemovableTag', 'Root', 'Select', 'SelectionList',
+  'ShowHide', 'Signpost', 'SingleSelect', 'StatusTag', 'Stepper', 'Table', 'Tabs', 'Textarea', 'Toast', 'ToggleSwitch', 'Tooltip', 'Tree', 'Typeahead',
+];
+---
+<div class="forge">
+  <HeroCard label="Documentation site" col={2} row={2}>
+    <div class="fd">
+      <div class="fd-top"><span class="fd-brand">Forge</span><span class="fd-nav"><span>Guidelines</span><span>Foundations</span><span class="on">Components</span><span>Resources</span></span><span class="fd-search">Search</span></div>
+      <div class="fd-body">
+        <div class="fd-side">{side.map(name => <span class:list={{ on: name === 'DateInput' }}>{name}</span>)}</div>
+        <div class="fd-main">
+          <span class="fd-title">DateInput</span>
+          <span class="fd-tabs"><span class="on">Demo</span><span>Props</span><span>Guidance</span></span>
+          <div class="fd-demo">
+            <span class="fd-field"><span>Appointment date</span><span class="fd-input">10/14/2020<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></span></span>
+            <span class="fd-cal"><span class="fd-month">October 2020</span><span class="fd-days"><span class="h">S</span><span class="h">M</span><span class="h">T</span><span class="h">W</span><span class="h">T</span><span class="h">F</span><span class="h">S</span><span class="d">1</span><span class="d">2</span><span class="d">3</span><span class="d">4</span><span class="d">5</span><span class="d">6</span><span class="d">7</span><span class="d">8</span><span class="d">9</span><span class="d">10</span><span class="d">11</span><span class="d">12</span><span class="d">13</span><span class="d sel">14</span><span class="d">15</span><span class="d">16</span><span class="d">17</span><span class="d">18</span><span class="d">19</span><span class="d">20</span><span class="d">21</span><span class="d">22</span><span class="d">23</span><span class="d">24</span><span class="d">25</span><span class="d">26</span><span class="d">27</span><span class="d">28</span></span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </HeroCard>
+
+  <HeroCard label="Patient schedule" col={2}>
+    <div class="ps">
+      <span class="ps-row ps-head"><span>Time</span><span>Patient</span><span>Provider</span><span>Status</span></span>
+      {schedule.map(([time, name, provider, status, bg, fg]) => (
+        <span class="ps-row"><span>{time}</span><span class="ps-name">{name}</span><span>{provider}</span><span class="tag" style={{ background: bg, color: fg }}>{status}</span></span>
+      ))}
+    </div>
+  </HeroCard>
+
+  <HeroCard label="Framework selection" col={2}>
+    <div class="fw">
+      <span class="fw-row fw-head"><span></span>{criteria.map(name => <span>{name}</span>)}</span>
+      {frameworks.map(([name, scores]) => (
+        <span class:list={['fw-row', { pick: name === 'React' }]}><span class="fw-name">{name}</span>{scores.map(score => <span class="fw-score">{Array.from({ length: 3 }, (_, i) => <i class:list={{ on: i < score }}></i>)}</span>)}</span>
+      ))}
+    </div>
+  </HeroCard>
+
+  <HeroCard label="Supporting materials">
+    <span class="sm">{materials.map(name => <span><i></i>{name}</span>)}</span>
+  </HeroCard>
+  <HeroCard label="Color" col={2}>
+    <Swatches gap={6} items={[
+      ['var(--color-interaction-default)', 'Interaction'], ['var(--color-interaction-select)', 'Selected'],
+      ['var(--color-interaction-hover-dark)', 'Hover'], ['var(--color-interaction-hover)', 'Highlight'],
+    ]} />
+    <Swatches gap={6} items={[
+      ['var(--color-brand)', 'Brand'], ['var(--color-alert-success)', 'Success'], ['var(--color-alert-attention)', 'Attention'], ['var(--color-alert-critical)', 'Critical'],
+    ]} />
+  </HeroCard>
+
+  <HeroCard label="Button">
+    <Row wrap>
+      <Button bg="var(--color-interaction-default)" fg="#FFFFFF">Save to Chart</Button>
+      <Button bg="#FFFFFF" fg="var(--color-interaction-default)" edge="var(--color-interaction-default)">Secondary</Button>
+      <Button bg="transparent" fg="var(--color-interaction-default)">Tertiary</Button>
+    </Row>
+    <Row align="center">
+      <Button bg="var(--color-interaction-default)" fg="#FFFFFF" small>Add Medication</Button>
+    </Row>
+  </HeroCard>
+
+  <HeroCard label="StatusTag">
+    <Row gap={5} wrap>
+      {tags.map(([label, bg, fg]) => <span class="tag" style={{ background: bg, color: fg }}>{label}</span>)}
+    </Row>
+  </HeroCard>
+
+  <HeroCard label="FormField">
+    <Field label="Patient name" value="Berg, Andrew" hint="Last, First" />
+    <Row gap={10} align="center">
+      <Control type="checkbox" label="Checkbox" color="var(--color-interaction-default)" />
+      <Control type="toggle" label="ToggleSwitch" color="var(--color-interaction-default)" width={30} height={16} />
+    </Row>
+  </HeroCard>
+
+  <HeroCard label="Icons">
+    <OutlineIcons color="var(--gray-20)" />
+  </HeroCard>
+
+  <HeroCard label="Grid">
+    <div class="columns">{Array.from({ length: 12 }, () => <span></span>)}</div>
+  </HeroCard>
+
+</div>
+
+<style>
+  .forge {
+    display: contents;
+    --font-family: 'Source Sans 3', 'Source Sans Pro', Arial, sans-serif;
+    --gray-20: #333333; --gray-37: #5F5F5F; --gray-70: #B3B3B3; --gray-88: #E1E1E1;
+    --color-interaction-default: #0466B4; --color-interaction-select: #043961; --color-interaction-hover-dark: #005496; --color-interaction-hover: #D9EBFA;
+    --color-brand: #614476; --color-brand-dark: #43364D; --color-brand-light: #7E589B;
+    --color-alert-success: #118647; --color-alert-attention: #FFAB00; --color-alert-critical: #CA0D0D;
+
+    --hero-font: var(--font-family); --hero-ink: var(--gray-20); --hero-note: var(--gray-37);
+    --hero-display-weight: 600; --hero-type-leading: 1.1;
+    --hero-edge: rgba(0,0,0,.08); --hero-swatch-radius: 3px;
+    --button-pad: 10px; --button-radius: 3px; --button-weight: 600;
+    --field-gap: 2px; --field-radius: 3px; --field-edge: var(--gray-70);
+    --control-radius: 2px;
+  }
+  .tag { display: inline-flex; align-items: center; height: 16px; padding: 0 6px; border-radius: 2px; font-family: var(--font-family); font-weight: 600; font-size: 8px; letter-spacing: .06em; text-transform: uppercase; }
+  .columns { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 3px; flex: 1; min-height: 30px; }
+  .columns span { background: var(--color-interaction-hover); border-radius: 2px; }
+
+  .fd { flex: 1; display: flex; flex-direction: column; min-height: 0; border-radius: 4px; overflow: hidden; background: #fff; box-shadow: inset 0 0 0 1px var(--gray-88); }
+  .fd span, .ps span, .fw span, .sm span { font-family: var(--font-family); }
+  .fd-top { display: flex; align-items: center; gap: 12px; padding: 7px 10px; background: var(--color-brand-dark); }
+  .fd-brand { font-size: 13px; font-weight: 700; color: #fff; }
+  .fd-nav { display: flex; gap: 9px; flex: 1; }
+  .fd-nav span { font-size: 8px; color: rgba(255,255,255,.7); }
+  .fd-nav .on { color: #fff; font-weight: 600; }
+  .fd-search { width: 56px; padding: 2px 6px; border-radius: 3px; background: rgba(255,255,255,.15); font-size: 7.5px; color: rgba(255,255,255,.7); }
+  .fd-body { flex: 1; display: grid; grid-template-columns: 74px minmax(0, 1fr); min-height: 0; }
+  .fd-side { display: flex; flex-direction: column; gap: 3px; padding: 8px; border-right: 1px solid var(--gray-88); overflow: hidden; }
+  .fd-side span { font-size: 8px; color: var(--gray-37); }
+  .fd-side .on { color: var(--color-interaction-default); font-weight: 600; }
+  .fd-main { display: flex; flex-direction: column; gap: 6px; padding: 9px 12px; min-width: 0; }
+  .fd-title { font-size: 17px; font-weight: 600; color: var(--gray-20); line-height: 1.1; }
+  .fd-tabs { display: flex; gap: 10px; border-bottom: 1px solid var(--gray-88); }
+  .fd-tabs span { padding-bottom: 3px; font-size: 8.5px; color: var(--gray-37); }
+  .fd-tabs .on { color: var(--color-interaction-default); font-weight: 600; box-shadow: inset 0 -2px 0 var(--color-interaction-default); }
+  .fd-demo { flex: 1; display: flex; gap: 10px; align-items: flex-start; padding: 10px; border-radius: 3px; background: #F7F7F7; }
+  .fd-field { display: flex; flex-direction: column; gap: 3px; }
+  .fd-field > span:first-child { font-size: 8.5px; font-weight: 600; color: var(--gray-20); }
+  .fd-input { display: flex; align-items: center; justify-content: space-between; gap: 6px; width: 86px; height: 20px; padding: 0 6px; border-radius: 3px; background: #fff; box-shadow: inset 0 0 0 1px var(--color-interaction-default); font-size: 8.5px; color: var(--gray-20); }
+  .fd-input svg { color: var(--color-interaction-default); }
+  .fd-cal { display: flex; flex-direction: column; gap: 4px; padding: 7px; border-radius: 3px; background: #fff; box-shadow: 0 2px 6px rgba(0,0,0,.12), inset 0 0 0 1px var(--gray-88); }
+  .fd-month { font-size: 8.5px; font-weight: 600; color: var(--gray-20); text-align: center; }
+  .fd-days { display: grid; grid-template-columns: repeat(7, 13px); gap: 2px; }
+  .fd-days span { display: grid; place-items: center; height: 12px; font-size: 6.5px; color: var(--gray-20); border-radius: 2px; }
+  .fd-days .h { font-weight: 600; color: var(--gray-37); }
+  .fd-days .sel { background: var(--color-interaction-default); color: #fff; font-weight: 600; }
+
+  .ps { display: flex; flex-direction: column; }
+  .ps-row { display: grid; grid-template-columns: 30px minmax(0, 1.3fr) .9fr 74px; align-items: center; gap: 6px; padding: 5px 4px; border-top: 1px solid var(--gray-88); font-size: 9px; color: var(--gray-37); }
+  .ps-head { border-top: 0; }
+  .ps-head span { font-size: 8px; font-weight: 600; color: var(--gray-20); }
+  .ps-name { color: var(--color-interaction-default); font-weight: 600; }
+  .ps .tag { justify-self: start; white-space: nowrap; }
+
+  .fw { display: flex; flex-direction: column; gap: 2px; }
+  .fw-row { display: grid; grid-template-columns: 56px repeat(4, minmax(0, 1fr)); align-items: center; gap: 4px; padding: 3px 6px; border-radius: 3px; font-size: 8px; color: var(--gray-37); }
+  .fw-head span { font-size: 7.5px; font-weight: 600; color: var(--gray-20); }
+  .fw-name { font-size: 9px; font-weight: 600; color: var(--gray-20); }
+  .fw-row.pick { background: var(--color-interaction-hover); }
+  .fw-row.pick .fw-name { color: var(--color-interaction-select); }
+  .fw-score { display: flex; gap: 2px; }
+  .fw-score i { width: 8px; height: 8px; border-radius: 50%; background: var(--gray-88); }
+  .fw-score i.on { background: var(--color-interaction-default); }
+
+  .sm { display: flex; flex-direction: column; gap: 7px; }
+  .sm span { display: flex; align-items: center; gap: 7px; font-size: 10px; color: var(--gray-20); }
+  .sm i { width: 14px; height: 14px; border-radius: 3px; background: var(--color-brand-light); opacity: .85; }
+</style>

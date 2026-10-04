@@ -4,6 +4,7 @@ import work from '../data/work.json';
 import videos from '../data/videos.json';
 import HeroStage from '../components/heroes/HeroStage.astro';
 import { heroes } from '../components/heroes';
+import { workHeroes } from '../components/heroes/work';
 const logos = import.meta.glob('../icons/*.svg', { query: '?raw', import: 'default', eager: true });
 const logo = name => logos[`../icons/${name}.svg`];
 const systems = [...work].reverse();
@@ -73,7 +74,7 @@ const linkedin = 'https://www.linkedin.com/in/andrewbberg';
                   </h2>
                   <p class="meta">{item.company} <span class="role">· {item.role}</span></p>
                 </div>
-                {(() => { const Hero = heroes[item.logo]; return <HeroStage><Hero /></HeroStage>; })()}
+                {(() => { const Hero = heroes[item.logo]; const Work = workHeroes[item.logo]; return <><div class="opt-a"><HeroStage><Hero /></HeroStage></div><div class="opt-b"><HeroStage><Work /></HeroStage></div></>; })()}
                 <div class="blurb">
                   <p><span class="phone-only">{item.role} · </span>{item.summary}</p>
                   {item.url && <a class="mono" href={item.url}>{new URL(item.url).host} ↗</a>}
@@ -133,6 +134,9 @@ const linkedin = 'https://www.linkedin.com/in/andrewbberg';
   </body>
 </html>
 <style is:global>
+  .opt-a, .opt-b { display: contents; }
+  :root:not([data-opt="a"]) .opt-a .hero, :root[data-opt="a"] .opt-b .hero { display: none; }
+
   :root {
     --bg: #F5F5F1; --ink: #16181A; --mute: #5E635E; --dim: #8A8F8A; --rule: #DAD9D3;
     --accent: #3F7A26; --lime: #C9ED9C; --card: #FFFFFF; --edge: #E4E4DE;
