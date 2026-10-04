@@ -75,10 +75,11 @@ const components = [
     </div>
   </HeroCard>
 
-  <HeroCard label="Button API" col={2}>
+  <HeroCard label="Button" col={2}>
     <div class="matrix">
-      <span class="w-btn primary"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Primary</span><span class="w-btn secondary">Secondary<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span><span class="w-btn cta">Subscribe</span><span class="w-btn icon primary"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span>
-      <span class="w-btn primary outline compact"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Primary</span><span class="w-btn secondary compact">Secondary<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span><span class="w-btn cta outline compact">Subscribe</span><span class="w-btn icon cta compact"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+      <span class="w-btn primary"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Follow</span><span class="w-btn primary outline">Follow</span><span class="w-btn primary compact"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Follow</span><span class="w-btn primary icon"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span><span class="w-btn primary icon compact"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span><span class="w-btn primary off">Follow</span>
+      <span class="w-btn secondary"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M12 3v12M7 8l5-5 5 5"/></svg>Share</span><span class="w-btn secondary outline">Share</span><span class="w-btn secondary compact"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M12 3v12M7 8l5-5 5 5"/></svg>Share</span><span class="w-btn secondary icon"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M12 3v12M7 8l5-5 5 5"/></svg></span><span class="w-btn secondary icon compact"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M12 3v12M7 8l5-5 5 5"/></svg></span><span class="w-btn secondary off">Share</span>
+      <span class="w-btn cta">Subscribe<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span><span class="w-btn cta outline">Subscribe</span><span class="w-btn cta compact">Subscribe<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span><span class="w-btn cta icon"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span><span class="w-btn cta icon compact"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span><span class="w-btn cta off">Subscribe</span>
     </div>
   </HeroCard>
 
@@ -131,17 +132,18 @@ const components = [
 
 
   .matrix span, .search span { font-family: var(--font-meta); }
-  .w-btn { display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: 26px; padding: 0 10px; border-radius: 9999px; font-size: 9px; font-weight: 700; white-space: nowrap; }
+  .w-btn { display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: 24px; padding: 0 10px; border-radius: 9999px; font-size: 9px; font-weight: 700; white-space: nowrap; }
   .w-btn.primary { background: var(--primary); color: #fff; }
   .w-btn.secondary { background: #fff; color: var(--primary); box-shadow: inset 0 0 0 1px var(--gray-70); }
   .w-btn.cta { background: var(--cta); color: #fff; }
   .w-btn.outline { background: #fff; box-shadow: inset 0 0 0 1px currentColor; }
-  .w-btn.primary.outline { color: var(--primary); }
+  .w-btn.primary.outline, .w-btn.secondary.outline { color: var(--primary); }
   .w-btn.cta.outline { color: var(--cta); }
+  .w-btn.off { background: var(--gray-80); color: var(--gray-60); box-shadow: none; }
   .w-btn.compact { height: 20px; padding: 0 8px; font-size: 8px; }
-  .w-btn.icon { width: 26px; padding: 0; }
+  .w-btn.icon { width: 24px; padding: 0; }
   .w-btn.icon.compact { width: 20px; }
-  .matrix { flex: 1; display: grid; grid-template-columns: repeat(3, auto) 26px; justify-content: space-between; align-items: center; justify-items: start; gap: 8px; }
+  .matrix { flex: 1; display: grid; grid-template-columns: repeat(6, auto); justify-content: space-between; align-content: center; align-items: center; justify-items: start; gap: 7px 6px; }
 
   .search { flex: 1; display: flex; flex-direction: column; gap: 3px; }
   .search-input { display: flex; align-items: center; gap: 6px; height: 24px; padding: 0 9px; border-radius: 4px; box-shadow: inset 0 0 0 1px var(--primary); font-size: 10px; color: var(--primary); }
