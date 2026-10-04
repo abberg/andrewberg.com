@@ -2,7 +2,6 @@
 import HeroCard from '../parts/HeroCard.astro';
 import Note from '../parts/Note.astro';
 import Row from '../parts/Row.astro';
-import Chips from '../parts/Chips.astro';
 import Bars from '../parts/Bars.astro';
 import Shapes from '../parts/Shapes.astro';
 import Shadows from '../parts/Shadows.astro';
@@ -16,6 +15,8 @@ import OutlineIcons from '../parts/OutlineIcons.astro';
 // WPDS, The Washington Post. Postoni headlines, Georgia body, Franklin for everything else.
 const sizes = ['075', '087', '100', '112', '125', '150', '175', '200', '225', '250', '275', '300', '350', '400', '450', '500'];
 const weights = [['light', 300], ['regular', 400], ['bold', 700], ['ultra', 800]];
+const hues = ['#EA0017', '#EB5C33', '#F3750E', '#E2A31F', '#E5A038', '#FFEC44', '#36A75C', '#03AFCA', '#166DFC', '#D138BF', '#FF4F83', '#737373'];
+const darkHues = ['#F02E41', '#DB5730', '#964C0F', '#664C06', '#694613', '#28250B', '#22703C', '#026A7A', '#166DFC', '#C635B5', '#AD3659', '#7F7F7F'];
 const darkGrays = ['#FFFFFF', '#F2F2F2', '#DEDEDE', '#B1B1B1', '#A1A1A1', '#7F7F7F', '#4F4F4F', '#333333', '#252525', '#202020', '#1A1A1A', '#141414'];
 const grays = ['#000000', '#111111', '#2A2A2A', '#494949', '#595959', '#737373', '#AAAAAA', '#D4D4D4', '#E9E9E9', '#F0F0F0', '#F7F7F7', '#FFFFFF'];
 const blues = ['#0A3258', '#0F4B84', '#1366B3', '#166DFC', '#5784C5', '#84A4D6', '#ACC5E7', '#D3E7FA', '#E7F0FE'];
@@ -84,10 +85,12 @@ const components = [
   </HeroCard>
 
   <HeroCard label="Color" col={2}>
-    <Note>Light</Note>
-    <Chips cols={12} gap={4} aspect="5/4" edge="var(--gray-80)" colors={grays} />
-    <Note>Dark</Note>
-    <Chips cols={12} gap={4} aspect="5/4" edge="rgba(255,255,255,.12)" colors={darkGrays} />
+    {[['light', grays, hues], ['dark', darkGrays, darkHues]].map(([theme, ramp, hueRow]) => (
+      <div class:list={['pal', theme]}>
+        <span class="pal-row">{ramp.map(color => <span style={`background:${color}`}></span>)}</span>
+        <span class="pal-row">{hueRow.map(color => <span style={`background:${color}`}></span>)}</span>
+      </div>
+    ))}
   </HeroCard>
 
   <HeroCard label="Input Search">
@@ -196,4 +199,12 @@ const components = [
   .ty-w > span:first-child { font-size: 22px; line-height: 1; color: var(--primary); }
   .ty-sizes { display: flex; align-items: baseline; gap: 2px; }
   .ty-sizes span { font-weight: 700; line-height: .8; color: var(--primary); }
+
+  .pal { display: flex; flex-direction: column; gap: 3px; padding: 5px; border-radius: 6px; }
+  .pal.light { background: #FFFFFF; box-shadow: inset 0 0 0 1px var(--gray-80); }
+  .pal.dark { background: #000000; }
+  .pal-row { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 3px; }
+  .pal-row span { height: 14px; border-radius: 3px; }
+  .pal.light .pal-row span { box-shadow: inset 0 0 0 1px rgba(0,0,0,.08); }
+  .pal.dark .pal-row span { box-shadow: inset 0 0 0 1px rgba(255,255,255,.1); }
 </style>
