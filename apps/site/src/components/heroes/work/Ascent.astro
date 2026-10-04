@@ -2,20 +2,19 @@
 import HeroCard from '../parts/HeroCard.astro';
 import Note from '../parts/Note.astro';
 import Row from '../parts/Row.astro';
+import TypeSample from '../parts/TypeSample.astro';
+import TypeRow from '../parts/TypeRow.astro';
 import Swatches from '../parts/Swatches.astro';
+import Ramp from '../parts/Ramp.astro';
+import Bars from '../parts/Bars.astro';
 import Shapes from '../parts/Shapes.astro';
 import Shadows from '../parts/Shadows.astro';
 import Button from '../parts/Button.astro';
 
 // Ascent, Klaviyo. Colours come from Klaviyo's own --color-* and --elevation-* variables, set once on the root below.
-const usage = [
-  ['Button', '2,418', 100], ['Text', '2,105', 87], ['Card', '1,307', 54], ['Select', '964', 40], ['Badge', '812', 34], ['Modal', '455', 19], ['Table', '390', 16],
+const status = [
+  ['positive', 'positive'], ['attention', 'attention'], ['negative', 'negative'], ['info', 'info'], ['intelligence', 'intelligence'],
 ];
-const props = [
-  ['variant', [['primary', 34, '#1D1E20'], ['secondary', 48, '#C4C9CF'], ['tertiary', 18, '#EAEDEF']]],
-  ['size', [['md', 71, '#155FEA'], ['sm', 22, '#397EE5'], ['lg', 7, '#C2D6FA']]],
-];
-const tokens = [['#1D1E20', '1.2k'], ['#155FEA', '640'], ['#F3F6F7', '410'], ['#C4C9CF', '388'], ['#25935C', '96']];
 const flows = [
   ['Abandoned Cart', 'Checkout Started'],
   ['Email Welcome Series', 'Added to Email List list'],
@@ -23,72 +22,28 @@ const flows = [
 ];
 ---
 <div class="ascent">
-  <HeroCard label="Usage explorer" col={2} row={2}>
-    <div class="ux">
-      <div class="ux-top">
-        <span class="ux-title">Ascent usage</span>
-        <span class="ux-tabs"><span class="on">Components</span><span>Props</span><span>Tokens</span></span>
-      </div>
-      <div class="ux-body">
-        <div class="ux-list">
-          <span class="ux-search"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>Search components</span>
-          {usage.map(([name, count, width], index) => (
-            <span class:list={['ux-item', { on: index === 0 }]}>
-              <span class="ux-name">{name}</span><span class="ux-count">{count}</span>
-              <span class="ux-bar"><span style={`width:${width}%`}></span></span>
-            </span>
-          ))}
-        </div>
-        <div class="ux-detail">
-          <span class="ux-head">Button</span>
-          <span class="ux-sub">2,418 instances · 612 files</span>
-          {props.map(([prop, parts]) => (
-            <span class="ux-prop">
-              <span class="ux-prop-name">{prop}</span>
-              <span class="ux-stack">{parts.map(([value, share, color]) => <span style={`flex:${share};background:${color}`}></span>)}</span>
-              <span class="ux-legend">{parts.map(([value, share, color]) => <span><i style={`background:${color}`}></i>{value} {share}%</span>)}</span>
-            </span>
-          ))}
-          <span class="ux-prop-name">Tokens</span>
-          <span class="ux-tokens">{tokens.map(([color, count]) => <span><i style={`background:${color}`}></i>{count}</span>)}</span>
-        </div>
-      </div>
-    </div>
+  <HeroCard label="Typography · system-ui" col={2} row={2}>
+    <TypeSample>
+      <Note>500 headings · 600 labels · 400 body</Note>
+      <Note>Composer 450 · 4px base</Note>
+    </TypeSample>
+    <TypeRow size={25} weight={500} spec="display 36 / 1.22">Welcome, Andrew</TypeRow>
+    <TypeRow size={23} weight={500} spec="32 / 1.25">heading-1</TypeRow>
+    <TypeRow size={17} weight={500} spec="24 / 1.33">heading-2</TypeRow>
+    <TypeRow size={14} weight={600} spec="20 / 1.4">heading-3</TypeRow>
+    <TypeRow size={11} spec="16 / 1.5">body-lg</TypeRow>
+    <TypeRow size={10} weight={600} spec="14 / 1.43">label</TypeRow>
+    <TypeRow size={8} spec="12 / 1.33">caption</TypeRow>
   </HeroCard>
 
-  <HeroCard label="Standalone package" col={2}>
-    <div class="pkg">
-      <span class="pkg-src">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg>
-        <span><b>Ascent</b><em>components · tokens · icons</em></span>
-      </span>
-      <span class="pkg-lines" aria-hidden="true"><span></span><span></span><span></span></span>
-      <span class="pkg-targets">
-        <span>Klaviyo app</span>
-        <span>Other applications</span>
-        <span class="ai"><svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.2 6.6L21 11l-6.8 2.4L12 20l-2.2-6.6L3 11l6.8-2.4z"/></svg>AI design tools</span>
-      </span>
-    </div>
-  </HeroCard>
-
-  <HeroCard label="AI design tools" col={2}>
-    <div class="ai-row">
-      <span class="ai-prompt"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.2 6.6L21 11l-6.8 2.4L12 20l-2.2-6.6L3 11l6.8-2.4z"/></svg>A card of top flows with a status badge and a view all button</span>
-      <span class="ai-out">
-        <span class="ai-out-head"><b>Top flows</b><span>View all</span></span>
-        <span class="ai-out-row"><span>Abandoned Cart</span><span class="ai-live">Live</span></span>
-        <span class="ai-out-row"><span>Welcome Series</span><span class="ai-live">Live</span></span>
-      </span>
-    </div>
-  </HeroCard>
-  <HeroCard label="Color" col={2}>
+  <HeroCard label="Core" col={2}>
     <Swatches height={32} items={[
-      ['var(--color-text-default)', 'Text'], ['var(--color-text-secondary)', 'Secondary'], ['var(--color-text-tertiary)', 'Tertiary'],
-      ['var(--color-primary)', 'Primary'], ['var(--color-focus)', 'Focus'],
+      ['var(--color-text-default)', 'text · inverse'], ['var(--color-text-secondary)', 'text-secondary'], ['var(--color-text-tertiary)', 'text-tertiary'],
+      ['var(--color-primary)', 'primary'], ['var(--color-focus)', 'focus'],
     ]} />
     <Swatches height={32} items={[
-      ['var(--color-background)', 'Background'], ['var(--color-surface-subtle)', 'Subtle'], ['var(--color-surface-muted)', 'Muted'],
-      ['var(--color-border)', 'Border'], ['var(--color-brand-poppy)', 'Poppy'],
+      ['var(--color-background)', 'background'], ['var(--color-surface-subtle)', 'surface-subtle'], ['var(--color-surface-muted)', 'surface-muted'],
+      ['var(--color-border)', 'border'], ['var(--color-brand-poppy)', 'brand-poppy'],
     ]} />
   </HeroCard>
 
@@ -99,6 +54,7 @@ const flows = [
     </Row>
     <Row wrap align="center">
       <Button bg="var(--color-background)" fg="var(--color-text-default)" edge="var(--color-border)">Placed Order <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-default)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></Button>
+      <Note>rounded md 8 · 8×12 · label-lg</Note>
     </Row>
   </HeroCard>
 
@@ -111,9 +67,20 @@ const flows = [
     <Row gap={5} wrap>
       <span class="badge suggestion">What should I set up first?</span>
     </Row>
+    <Note>suggestion chip · intelligence tint</Note>
   </HeroCard>
 
-  <HeroCard label="Dashboard card" col={2} row={2}>
+  <HeroCard label="Status · subtle / base / text" col={2}>
+    <div class="status">
+      {status.map(([name, label]) => (
+        <Ramp label={label} labelWidth={48} labelGap={4} height={18} gap={3}
+          colors={[`var(--color-${name}-subtle-base)`, `var(--color-${name}-base)`, `var(--color-${name}-text)`]} />
+      ))}
+    </div>
+    <Note>{'--color-{role}-{sentiment}-{emphasis}-{state}'}</Note>
+  </HeroCard>
+
+  <HeroCard label="Card · Table" col={2} row={2}>
     <div class="table-card">
       <span class="table-head">
         <span class="stack">
@@ -143,6 +110,11 @@ const flows = [
         ))}
       </div>
     </div>
+    <Note>16px corners · 1px border · no shadow</Note>
+  </HeroCard>
+
+  <HeroCard label="Spacing · 4px base">
+    <Bars color="var(--color-text-default)" items={[[6, '1 · 4px'], [12, '2 · 8px'], [19, '3 · 12px'], [25, '4 · 16px'], [38, '6 · 24px'], [64, '10 · 40px'], [76, '12 · 48px']]} />
   </HeroCard>
 
   <HeroCard label="Rounded">
@@ -150,13 +122,15 @@ const flows = [
       { radius: '2px', label: 'xs 2' }, { radius: '8px', label: 'md 8' }, { radius: '16px', label: 'lg 16' },
       { radius: '9999px', label: 'full' }, { radius: '50%', label: 'circle' },
     ]} />
+    <Note>md on buttons & inputs · lg on cards</Note>
   </HeroCard>
 
-  <HeroCard label="Elevation">
+  <HeroCard label="Elevation · rgb(55,63,71)">
     <Shadows width={26} height={22} radius={8} pad={8} items={[
       ['var(--elevation-shadow-200)', '200'], ['var(--elevation-shadow-300)', '300'],
       ['var(--elevation-shadow-400)', '400'], ['var(--elevation-shadow-600)', '600'],
     ]} />
+    <Note>kai-shadow-* indigo for Composer</Note>
   </HeroCard>
 
   <HeroCard label="Motion">
@@ -171,9 +145,10 @@ const flows = [
         <Note>slow 300ms</Note>
       </div>
     </Row>
+    <Note>cubic-bezier(.32,.72,0,1)</Note>
   </HeroCard>
 
-  <HeroCard label="Icons">
+  <HeroCard label="Icons · navigation">
     <div class="nav-icons">
       <span><svg viewBox="0 0 24 24" width="18" height="18"><path d="M14.05 13.146a.15.15 0 0 0-.15-.15h-3.8a.15.15 0 0 0-.15.15v6.802h4.1zm7.302 5.701a2.7 2.7 0 0 1-2.7 2.701H5.348a2.7 2.7 0 0 1-2.7-2.7v-8.553a2.7 2.7 0 0 1 .953-2.06l6.652-5.701.004-.004a2.7 2.7 0 0 1 3.298-.146l.188.146.004.004 6.652 5.701a2.7 2.7 0 0 1 .953 2.06zm-5.7 1.101h3a1.1 1.1 0 0 0 1.1-1.1v-8.553a1.1 1.1 0 0 0-.39-.841l-.004-.004-6.652-5.701a1.1 1.1 0 0 0-1.413-.001L4.642 9.45l-.004.004a1.1 1.1 0 0 0-.391.84v8.553a1.1 1.1 0 0 0 1.1 1.101H8.35v-6.802a1.75 1.75 0 0 1 1.75-1.75H13.9a1.75 1.75 0 0 1 1.751 1.75z"/></svg>Home</span>
       <span><svg viewBox="0 0 24 24" width="18" height="18"><path d="M2.747 5.575C2.1 3.201 4.595 1.195 6.776 2.336l13.68 7.167c2.015 1.056 2.015 3.94 0 4.994l-13.68 7.166C4.595 22.805 2.1 20.8 2.747 18.424L4.5 12zm3.285-1.82c-.942-.494-2.02.373-1.74 1.4L5.94 11.2h5.623a.8.8 0 1 1 0 1.6H5.94L4.29 18.844c-.28 1.027.799 1.894 1.741 1.4l13.682-7.166c.87-.456.87-1.702 0-2.159z"/></svg>Campaigns</span>
@@ -186,8 +161,13 @@ const flows = [
       <span><svg viewBox="0 0 24 24" width="18" height="18"><path fill-rule="evenodd" d="M16.35 2.806c.513 0 1.008.165 1.425.463.416.296.738.71.943 1.181l3.152 7.23a.8.8 0 0 1 .066.32v6.297c0 .735-.254 1.46-.732 2.009-.481.552-1.16.89-1.894.89H4.692c-.735 0-1.414-.338-1.895-.89a3.07 3.07 0 0 1-.732-2.01V12a.8.8 0 0 1 .067-.32l3.151-7.23c.205-.472.528-.885.944-1.181a2.46 2.46 0 0 1 1.424-.463zM3.665 18.296c0 .378.132.721.339.959.204.234.455.34.688.34H19.31c.233 0 .484-.106.688-.34.207-.238.338-.581.338-.958v-5.25h-4.278l-1.587 2.145a.8.8 0 0 1-.643.325h-3.654a.8.8 0 0 1-.644-.325l-1.587-2.145H3.665zm3.987-13.89a.86.86 0 0 0-.498.166c-.16.115-.305.29-.403.516l-.001.002-2.771 6.357h4.368l.093.005a.8.8 0 0 1 .55.32l1.586 2.144h2.849l1.587-2.145a.8.8 0 0 1 .643-.324h4.368L17.251 5.09l-.001-.002a1.23 1.23 0 0 0-.403-.516.86.86 0 0 0-.498-.167z" clip-rule="evenodd"/></svg>Service</span>
       <span><svg viewBox="0 0 24 24" width="18" height="18"><path d="M9.26 4.235a.17.17 0 0 0-.171-.17H4.235a.17.17 0 0 0-.17.17V9.09c0 .094.076.17.17.17H9.09c.094 0 .17-.076.17-.17zm1.6 4.854a1.77 1.77 0 0 1-1.771 1.77H4.235a1.77 1.77 0 0 1-1.77-1.77V4.235c0-.978.792-1.77 1.77-1.77H9.09c.978 0 1.77.792 1.77 1.77zM19.937 4.235a.17.17 0 0 0-.17-.17h-4.854a.17.17 0 0 0-.171.17V9.09c0 .094.076.17.17.17h4.854c.095 0 .171-.076.171-.17zm1.6 4.854a1.77 1.77 0 0 1-1.77 1.77h-4.854a1.77 1.77 0 0 1-1.77-1.77V4.235c0-.978.792-1.77 1.77-1.77h4.853c.978 0 1.77.792 1.77 1.77zM9.26 14.913a.17.17 0 0 0-.171-.17H4.235a.17.17 0 0 0-.17.17v4.854c0 .094.076.17.17.17H9.09c.094 0 .17-.076.17-.17zm1.6 4.854a1.77 1.77 0 0 1-1.771 1.77H4.235a1.77 1.77 0 0 1-1.77-1.77v-4.854c0-.978.792-1.77 1.77-1.77H9.09c.978 0 1.77.792 1.77 1.77zM16.5 20.796V18.1h-2.694a.8.8 0 0 1 0-1.6H16.5v-2.695a.8.8 0 0 1 1.601 0v2.695h2.694a.8.8 0 0 1 0 1.6h-2.694v2.695a.8.8 0 0 1-1.6 0"/></svg>Integrations</span>
     </div>
+    <Note>24px grid · filled · #5D5E60 in nav</Note>
   </HeroCard>
 
+  <HeroCard label="Token layer" col={2}>
+    <div class="code">--color-text-default: <span style="color:var(--color-text-default)">#1D1E20</span>;<br>--color-positive-subtle-base: <span style="color:var(--color-positive-base)">#DAFBE4</span>;<br>--elevation-shadow-300: …;<br>--atlas-*: layout tokens</div>
+    <Note>Klaviyo's own --color-* / --elevation-* / --atlas-* CSS variables · links #155FEA, underline on hover</Note>
+  </HeroCard>
 </div>
 
 <style>
@@ -243,53 +223,4 @@ const flows = [
   .nav-icons span { display: flex; flex-direction: column; align-items: center; gap: 3px; font-family: var(--font-family-base); font-size: 6px; line-height: 8px; color: var(--color-text-tertiary); white-space: nowrap; }
   .nav-icons svg { fill: var(--color-icon-nav); }
   .code { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 8px; line-height: 1.7; color: var(--color-text-secondary); background: var(--color-surface-subtle); border-radius: 8px; padding: 8px; }
-
-  .ux { flex: 1; display: flex; flex-direction: column; gap: 8px; min-height: 0; padding: 10px 12px; border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-background); font-family: var(--font-family-base); color: var(--color-text-default); }
-  .ux span, .pkg span, .ai-row span { font-family: var(--font-family-base); }
-  .ux-top { display: flex; justify-content: space-between; align-items: center; }
-  .ux-title { font-size: 12px; font-weight: 600; }
-  .ux-tabs { display: flex; gap: 2px; padding: 2px; border-radius: 8px; background: var(--color-surface-muted); }
-  .ux-tabs span { font-size: 8px; padding: 2px 7px; border-radius: 6px; color: var(--color-text-secondary); }
-  .ux-tabs .on { background: var(--color-background); color: var(--color-text-default); font-weight: 600; box-shadow: var(--elevation-shadow-200); }
-  .ux-body { flex: 1; display: grid; grid-template-columns: 136px minmax(0, 1fr); gap: 12px; min-height: 0; }
-  .ux-list { display: flex; flex-direction: column; gap: 3px; }
-  .ux-search { display: flex; align-items: center; gap: 4px; height: 18px; padding: 0 6px; margin-bottom: 3px; border: 1px solid var(--color-border); border-radius: 6px; font-size: 7.5px; color: var(--color-text-tertiary); }
-  .ux-item { display: grid; grid-template-columns: 1fr auto; gap: 2px 4px; padding: 3px 5px; border-radius: 6px; }
-  .ux-item.on { background: var(--color-surface-subtle); }
-  .ux-name { font-size: 8.5px; font-weight: 500; }
-  .ux-count { font-size: 8px; color: var(--color-text-secondary); font-variant-numeric: tabular-nums; }
-  .ux-bar { grid-column: 1 / -1; height: 3px; border-radius: 2px; background: var(--color-surface-muted); }
-  .ux-bar span { display: block; height: 100%; border-radius: 2px; background: var(--color-primary); }
-  .ux-detail { display: flex; flex-direction: column; gap: 5px; min-width: 0; padding-left: 12px; border-left: 1px solid var(--color-surface-muted); }
-  .ux-head { font-size: 15px; font-weight: 500; line-height: 1.1; }
-  .ux-sub { font-size: 8px; color: var(--color-text-secondary); margin-bottom: 4px; }
-  .ux-prop { display: flex; flex-direction: column; gap: 4px; margin-bottom: 4px; }
-  .ux-prop-name { font-size: 8px; font-weight: 600; }
-  .ux-stack { display: flex; gap: 2px; height: 10px; }
-  .ux-stack span { border-radius: 2px; }
-  .ux-legend, .ux-tokens { display: flex; flex-wrap: wrap; gap: 3px 8px; }
-  .ux-legend span, .ux-tokens span { display: inline-flex; align-items: center; gap: 3px; font-size: 7px; color: var(--color-text-secondary); }
-  .ux-legend i, .ux-tokens i { width: 7px; height: 7px; border-radius: 2px; box-shadow: inset 0 0 0 1px rgba(29,30,32,.1); }
-  .ux-tokens i { width: 12px; height: 12px; border-radius: 4px; }
-
-  .pkg { flex: 1; display: grid; grid-template-columns: auto 28px minmax(0, 1fr); align-items: center; }
-  .pkg-src { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 12px; background: var(--color-text-default); color: var(--color-background); }
-  .pkg-src > span { display: flex; flex-direction: column; }
-  .pkg-src b { font-size: 13px; font-weight: 600; line-height: 1.2; }
-  .pkg-src em { font-style: normal; font-size: 7.5px; opacity: .7; }
-  .pkg-lines { position: relative; align-self: stretch; display: flex; flex-direction: column; justify-content: space-around; }
-  .pkg-lines span { height: 1px; background: var(--color-border); }
-  .pkg-targets { display: flex; flex-direction: column; gap: 6px; }
-  .pkg-targets span { display: flex; align-items: center; gap: 4px; height: 22px; padding: 0 9px; border: 1px solid var(--color-border); border-radius: 8px; font-size: 9px; font-weight: 500; color: var(--color-text-default); }
-  .pkg-targets .ai { border-color: var(--color-intelligence-subtle-base); background: #F3F3FF; color: var(--color-intelligence-text); }
-
-  .ai-row { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) 150px; gap: 12px; align-items: center; }
-  .ai-prompt { display: flex; gap: 6px; padding: 9px 10px; border-radius: 12px; background: #F3F3FF; box-shadow: inset 0 0 0 1px var(--color-intelligence-subtle-base); font-size: 9.5px; line-height: 1.4; color: var(--color-text-default); }
-  .ai-prompt svg { flex: none; margin-top: 2px; color: var(--color-intelligence-base); }
-  .ai-out { display: flex; flex-direction: column; gap: 5px; padding: 8px 10px; border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-background); box-shadow: var(--elevation-shadow-300); }
-  .ai-out-head { display: flex; justify-content: space-between; align-items: center; }
-  .ai-out-head b { font-size: 9.5px; font-weight: 600; }
-  .ai-out-head span { font-size: 7px; padding: 2px 5px; border: 1px solid var(--color-border); border-radius: 6px; }
-  .ai-out-row { display: flex; justify-content: space-between; align-items: center; padding-top: 4px; border-top: 1px solid var(--color-surface-muted); font-size: 8px; color: var(--color-primary); }
-  .ai-live { font-size: 7px; padding: 1px 5px; border-radius: 9999px; color: var(--color-positive-base) !important; background: var(--color-positive-subtle-base); }
 </style>

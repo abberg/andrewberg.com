@@ -1,5 +1,7 @@
 ---
 import HeroCard from '../parts/HeroCard.astro';
+import TypeRow from '../parts/TypeRow.astro';
+import TypeSample from '../parts/TypeSample.astro';
 import Note from '../parts/Note.astro';
 import Row from '../parts/Row.astro';
 import Swatches from '../parts/Swatches.astro';
@@ -63,18 +65,19 @@ const components = [
     </div>
   </HeroCard>
 
-  <HeroCard label="Framework selection" col={2}>
-    <div class="fw">
-      <span class="fw-row fw-head"><span></span>{criteria.map(name => <span>{name}</span>)}</span>
-      {frameworks.map(([name, scores]) => (
-        <span class:list={['fw-row', { pick: name === 'React' }]}><span class="fw-name">{name}</span>{scores.map(score => <span class="fw-score">{Array.from({ length: 3 }, (_, i) => <i class:list={{ on: i < score }}></i>)}</span>)}</span>
-      ))}
-    </div>
+<HeroCard label="Typography" col={2} row={2}>
+    <TypeSample>
+      <Note>Light · Regular · Semibold · Bold</Note>
+      <Note>fallback Arial, sans-serif</Note>
+    </TypeSample>
+    <TypeRow size={24} weight={600} spec="34px">Page Heading</TypeRow>
+    <TypeRow size={17} weight={600} spec="24px">Section Heading</TypeRow>
+    <TypeRow size={12} weight={600} spec="18px">Sub-section Heading</TypeRow>
+    <TypeRow size={11} spec="16px">Body</TypeRow>
+    <TypeRow size={10} spec="14px">Small text</TypeRow>
+    <TypeRow size={8} spec="12px">Tiny text</TypeRow>
   </HeroCard>
 
-  <HeroCard label="Supporting materials">
-    <span class="sm">{materials.map(name => <span><i></i>{name}</span>)}</span>
-  </HeroCard>
   <HeroCard label="Color" col={2}>
     <Swatches gap={6} items={[
       ['var(--color-interaction-default)', 'Interaction'], ['var(--color-interaction-select)', 'Selected'],
@@ -112,10 +115,6 @@ const components = [
 
   <HeroCard label="Icons">
     <OutlineIcons color="var(--gray-20)" />
-  </HeroCard>
-
-  <HeroCard label="Grid">
-    <div class="columns">{Array.from({ length: 12 }, () => <span></span>)}</div>
   </HeroCard>
 
 </div>

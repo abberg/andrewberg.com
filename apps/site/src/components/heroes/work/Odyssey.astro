@@ -31,33 +31,16 @@ const components = [
 ];
 ---
 <div class="odyssey">
-  <HeroCard label="Keyboard focus order" col={2} row={2}>
+  <HeroCard label="Sign-in form" col={2} row={2}>
     <div class="fo">
-      <span class="fo-key">Tab</span>
       <div class="fo-form">
         <span class="fo-title">Sign In</span>
-        <span class="fo-item"><span class="fo-n">1</span><span class="fo-field"><span>Username</span><span class="fo-input focus">andrew@okta.com</span></span></span>
-        <span class="fo-item"><span class="fo-n">2</span><span class="fo-field"><span>Password</span><span class="fo-input">••••••••••</span></span></span>
-        <span class="fo-item"><span class="fo-n">3</span><span class="fo-check"><span class="fo-box"></span>Keep me signed in</span></span>
-        <span class="fo-item"><span class="fo-n">4</span><span class="fo-btn">Sign In</span></span>
-        <span class="fo-item"><span class="fo-n">5</span><span class="fo-link">Need help signing in?</span></span>
+        <span class="fo-item"><span class="fo-field"><span>Username</span><span class="fo-input focus">andrew@okta.com</span></span></span>
+        <span class="fo-item"><span class="fo-field"><span>Password</span><span class="fo-input">••••••••••</span></span></span>
+        <span class="fo-item"><span class="fo-check"><span class="fo-box"></span>Keep me signed in</span></span>
+        <span class="fo-item"><span class="fo-btn">Sign In</span></span>
+        <span class="fo-item"><span class="fo-link">Need help signing in?</span></span>
       </div>
-    </div>
-  </HeroCard>
-
-  <HeroCard label="Screen reader" col={2}>
-    <div class="sr">
-      <span><b>Username</b>, required, edit text</span>
-      <span class="sr-err">Enter a valid email address</span>
-      <span><b>Keep me signed in</b>, checkbox, not checked</span>
-      <span><b>Sign In</b>, button</span>
-    </div>
-  </HeroCard>
-
-  <HeroCard label="Tests" col={2}>
-    <div class="tests">
-      <span class="tests-file"><span class="tests-pass">PASS</span>TextInput</span>
-      {tests.map(name => <span class="tests-row"><span class="tests-ok"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></span>{name}</span>)}
     </div>
   </HeroCard>
 
@@ -73,6 +56,19 @@ const components = [
       <span class="er-msg"><svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/><path d="M12 7v6M12 16.5v.5" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></svg>Enter a valid email address</span>
     </span>
   </HeroCard>
+<HeroCard label="Typography" col={2} row={2}>
+    <TypeSample>
+      <Note>FontWeightNormal 400 · Bold 600</Note>
+      <Note>FontSizeBase 87.5% · line length 32rem</Note>
+      <Note font="mono">mono · Inconsolata</Note>
+    </TypeSample>
+    <TypeRow size={25} weight={600} spec="2.571rem">Heading 1</TypeRow>
+    <TypeRow size={20} weight={600} spec="2rem">Heading 3</TypeRow>
+    <TypeRow size={12} weight={600} spec="1.286rem">Heading 5</TypeRow>
+    <TypeRow size={10} spec="1rem">Body</TypeRow>
+    <TypeRow size={8} spec=".857rem">Caption</TypeRow>
+  </HeroCard>
+
   <HeroCard label="Color" col={2}>
     <Swatches items={[
       ['var(--ColorPrimaryLight000)', '000'], ['var(--ColorPrimaryLight)', '300'], ['#788ee2', '400'],
@@ -127,7 +123,7 @@ const components = [
   .fo { flex: 1; position: relative; display: flex; justify-content: center; min-height: 0; }
   .fo span, .sr span, .tests span, .cr span, .er span { font-family: var(--FontFamilyBase); }
   .fo-key { position: absolute; right: 0; top: 0; padding: 3px 8px; border-radius: 4px; background: #fff; box-shadow: inset 0 0 0 1px var(--ColorBorderInput), 0 2px 0 var(--ColorBorderInput); font-size: 9px; font-weight: 600; color: var(--ColorTextBody); }
-  .fo-form { display: flex; flex-direction: column; gap: 9px; width: 220px; padding: 12px 16px 12px 36px; border-radius: 6px; background: #fff; box-shadow: 0 1px 4px rgba(29,29,33,.08), 0 5px 15px rgba(29,29,33,.05), inset 0 0 0 1px rgba(0,0,0,.06); }
+  .fo-form { display: flex; flex-direction: column; gap: 9px; width: 250px; padding: 14px 18px; border-radius: 6px; background: #fff; box-shadow: 0 1px 4px rgba(29,29,33,.08), 0 5px 15px rgba(29,29,33,.05), inset 0 0 0 1px rgba(0,0,0,.06); }
   .fo-title { font-size: 15px; font-weight: 600; color: var(--ColorTextBody); }
   .fo-item { position: relative; display: flex; }
   .fo-n { position: absolute; left: -26px; top: 50%; transform: translateY(-50%); display: grid; place-items: center; width: 15px; height: 15px; border-radius: 50%; background: var(--ColorPrimaryDark); color: #fff; font-size: 8px; font-weight: 600; }
