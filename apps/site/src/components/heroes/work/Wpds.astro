@@ -35,9 +35,9 @@ const components = [
   <HeroCard label="Typography" col={2} row={2}>
     <div class="ty">
       <span class="ty-row"><Note>headline</Note><span class="ty-headline">Democracy Dies in Darkness</span></span>
-      <span class="ty-row"><Note>magazine</Note><span class="ty-magazine">The Seven Days That Shook the Capital</span></span>
+      <span class="ty-row"><Note>magazine</Note><span class="ty-magazine">The Week That Shook the Capital</span></span>
       <span class="ty-row"><Note>subhead</Note><span class="ty-subhead">What to know about early voting this year</span></span>
-      <span class="ty-row"><Note>body</Note><span class="ty-body">Polls close at 8 p.m. Eastern, and the first results usually arrive within the hour from counties that report quickly.</span></span>
+      <span class="ty-row"><Note>body</Note><span class="ty-body">Polls close at 8 p.m. Eastern, with first results within the hour.</span></span>
       <span class="ty-row"><Note>meta</Note><span class="ty-meta">By Andrew Berg · Updated Oct. 4 at 9:15 a.m.</span></span>
       <span class="ty-foot">
         <span class="ty-weights">{weights.map(([name, weight]) => <span class="ty-w"><span style={`font-weight:${weight}`}>Aa</span><Note>{`${name} ${weight}`}</Note></span>)}</span>
@@ -173,15 +173,15 @@ const components = [
   .dm-btn.solid { background: var(--ink); color: var(--bg); }
   .dm-btn.line { color: var(--ink); box-shadow: inset 0 0 0 1px var(--rule); }
 
-  .ty { flex: 1; display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+  .ty { flex: 1; display: flex; flex-direction: column; justify-content: space-between; gap: 8px; min-height: 0; }
   .ty span { font-family: var(--font-meta); }
   .ty-row { display: grid; grid-template-columns: 46px minmax(0, 1fr); align-items: baseline; gap: 8px; }
-  .ty .ty-headline { font-family: var(--font-headline); font-weight: 700; font-size: 27px; line-height: 1.1; color: var(--primary); }
-  .ty .ty-magazine { font-family: var(--font-magazine); font-variation-settings: 'opsz' 96; font-weight: 500; font-size: 25px; line-height: 1.1; color: var(--primary); }
+  .ty .ty-headline { font-family: var(--font-headline); font-weight: 700; font-size: 24px; line-height: 1.1; color: var(--primary); }
+  .ty .ty-magazine { font-family: var(--font-magazine); font-variation-settings: 'opsz' 96; font-weight: 500; font-size: 23px; line-height: 1.1; color: var(--primary); }
   .ty .ty-subhead { font-weight: 700; font-size: 14px; line-height: 1.25; color: var(--primary); }
   .ty .ty-body { font-family: var(--font-body); font-size: 11px; line-height: 1.6; color: var(--primary); }
   .ty .ty-meta { font-weight: 300; font-size: 10px; line-height: 1.25; color: var(--gray-40); }
-  .ty-foot { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; margin-top: auto; padding-top: 8px; border-top: 1px solid var(--gray-80); }
+  .ty-foot { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; padding-top: 10px; border-top: 1px solid var(--gray-80); }
   .ty-weights { display: flex; gap: 10px; }
   .ty-w { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; }
   .ty-w > span:first-child { font-size: 22px; line-height: 1; color: var(--primary); }
