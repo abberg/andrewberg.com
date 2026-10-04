@@ -2,7 +2,6 @@
 import HeroCard from '../parts/HeroCard.astro';
 import Note from '../parts/Note.astro';
 import Row from '../parts/Row.astro';
-import Swatches from '../parts/Swatches.astro';
 import Chips from '../parts/Chips.astro';
 import Bars from '../parts/Bars.astro';
 import Shapes from '../parts/Shapes.astro';
@@ -17,6 +16,7 @@ import OutlineIcons from '../parts/OutlineIcons.astro';
 // WPDS, The Washington Post. Postoni headlines, Georgia body, Franklin for everything else.
 const sizes = ['075', '087', '100', '112', '125', '150', '175', '200', '225', '250', '275', '300', '350', '400', '450', '500'];
 const weights = [['light', 300], ['regular', 400], ['bold', 700], ['ultra', 800]];
+const darkGrays = ['#FFFFFF', '#F2F2F2', '#DEDEDE', '#B1B1B1', '#A1A1A1', '#7F7F7F', '#4F4F4F', '#333333', '#252525', '#202020', '#1A1A1A', '#141414'];
 const grays = ['#000000', '#111111', '#2A2A2A', '#494949', '#595959', '#737373', '#AAAAAA', '#D4D4D4', '#E9E9E9', '#F0F0F0', '#F7F7F7', '#FFFFFF'];
 const blues = ['#0A3258', '#0F4B84', '#1366B3', '#166DFC', '#5784C5', '#84A4D6', '#ACC5E7', '#D3E7FA', '#E7F0FE'];
 const stories = [
@@ -84,10 +84,10 @@ const components = [
   </HeroCard>
 
   <HeroCard label="Color" col={2}>
-    <Chips cols={12} gap={4} edge="var(--gray-80)" colors={grays} />
-    <Swatches cols={5} gap={6} items={[
-      ['var(--cta)', 'CTA'], ['var(--error)', 'Error'], ['var(--success)', 'Success'], ['var(--warning)', 'Warning'], ['var(--signal)', 'Signal'],
-    ]} />
+    <Note>Light</Note>
+    <Chips cols={12} gap={4} aspect="5/4" edge="var(--gray-80)" colors={grays} />
+    <Note>Dark</Note>
+    <Chips cols={12} gap={4} aspect="5/4" edge="rgba(255,255,255,.12)" colors={darkGrays} />
   </HeroCard>
 
   <HeroCard label="Input Search">
