@@ -14,6 +14,10 @@ const tags = [
   ['Critical', 'var(--color-alert-critical)', '#FFFFFF'], ['Attention', 'var(--color-alert-attention)', 'var(--gray-20)'],
   ['Positive', 'var(--color-alert-success)', '#FFFFFF'],
 ];
+// Avatar backgrounds follow the first letter of the first name, from the categorical palette.
+const avatars = [
+  ['AB', '#7A9A01', 36], ['BC', '#1C89A1', 30], ['CD', '#5B3977', 30], ['DE', '#A50050', 24], ['EF', '#ED8664', 24],
+];
 const styles = [
   ['Page Heading', 34, 25, 600, 'Primary page title'],
   ['Section Heading', 24, 18, 600, 'Major section divisions'],
@@ -110,10 +114,13 @@ const schedule = [
     </Row>
   </HeroCard>
 
-  <HeroCard label="StatusTag">
+  <HeroCard label="StatusTag and Avatar">
     <Row gap={5} wrap>
       {tags.map(([label, bg, fg]) => <span class="tag" style={{ background: bg, color: fg }}>{label}</span>)}
     </Row>
+    <span class="av-row">
+      {avatars.map(([initials, bg, size]) => <span class="av" style={`background:${bg};width:${size}px;height:${size}px;font-size:${size * .4}px`}>{initials}</span>)}
+    </span>
   </HeroCard>
 
   <HeroCard label="FormField">
@@ -150,6 +157,8 @@ const schedule = [
   .tag { display: inline-flex; align-items: center; height: 16px; padding: 0 6px; border-radius: 2px; font-family: var(--font-family); font-weight: 600; font-size: 8px; letter-spacing: .06em; text-transform: uppercase; }
 
 
+  .av-row { display: flex; align-items: center; gap: 6px; margin-top: auto; }
+  .av { display: grid; place-items: center; border-radius: 50%; font-family: var(--font-family); font-weight: 600; color: #fff; }
   .ps { display: flex; flex-direction: column; }
   .ps span { font-family: var(--font-family); }
   .ps-row { display: grid; grid-template-columns: 30px minmax(0, 1.3fr) .9fr 74px; align-items: center; gap: 6px; padding: 5px 4px; border-top: 1px solid var(--gray-88); font-size: 9px; color: var(--gray-37); }
