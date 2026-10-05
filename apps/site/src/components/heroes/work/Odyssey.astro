@@ -5,18 +5,13 @@ import Button from '../parts/Button.astro';
 import Banner from '../parts/Banner.astro';
 
 // Odyssey, Okta, as of @okta/odyssey-design-tokens 0.14.0. Public Sans on a 14px base.
-const nav = [
-  ['Dashboard'], ['Directory', ['People', 'Groups', 'Profile editor', 'Directory integrations', 'Profile masters']],
-  ['Applications'], ['Security'], ['Workflow'], ['Reports'], ['Settings'],
-];
 const filters = [
   [null, 'Everyone', 121], ['Onboarding'], [null, 'Staged', 3], [null, 'Pending user action', 2],
   ['Active'], [null, 'Active', 99], [null, 'Password reset', 0], [null, 'Locked out', 4],
   ['Inactive'], [null, 'Suspended', 1], [null, 'Deactivated', 21],
 ];
-const people = ['Nicolas Backal', 'Zoe Monosson', 'Maggie Law', 'Taylor Laubach', 'Jessica Allen', 'Vince Voong', 'Alex Dahl'];
-const chevron = '<svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="m6 9 6 6 6-6"/></svg>';
-const search = '<svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>';
+const people = ['Nicolas Backal', 'Zoe Monosson', 'Maggie Law', 'Taylor Laubach', 'Jessica Allen', 'Vince Voong', 'Alex Dahl', 'Roger Yan'];
+const search = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>';
 // [name, rem, px, line height, rendered px, weight]
 const scale = [
   ['Heading 1', '2.571rem', 36, 1.25, 25, 600],
@@ -39,48 +34,23 @@ const statuses = [['Active', 'success'], ['Staged', 'neutral'], ['Password reset
 ---
 <div class="odyssey">
   <HeroCard label="Admin console" col={2} row={2}>
-    <div class="ad">
-      <div class="ad-top">
-        <span class="ad-search"><Fragment set:html={search} />Search</span>
-        <span class="ad-user"><span>andrew@ocorp.com</span><span class="ad-org">OCORP</span></span>
-      </div>
-      <div class="ad-body">
-        <div class="ad-nav">
-          {nav.map(([name, children]) => (
-            <span class="ad-sec">
-              <span class="ad-sec-name">{name}{name !== 'Dashboard' && <i class:list={{ up: children }} set:html={chevron} />}</span>
-              {children && children.map(child => <span class:list={['ad-sub', { on: child === 'People' }]}>{child}</span>)}
-            </span>
-          ))}
-        </div>
-        <div class="ad-main">
-          <span class="ad-title"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="7" r="5"/><path d="M2 23c0-6 4.5-9 10-9s10 3 10 9z"/></svg>People<span class="ad-help"><b>?</b>Help</span></span>
-          <span class="ad-actions">
-            <span class="ad-btn"><svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="7" r="5"/><path d="M0 23c0-6 4-9 9-9s9 3 9 9zM19 6h2v3h3v2h-3v3h-2v-3h-3V9h3z"/></svg>Add person</span>
-            <span class="ad-btn">Reset passwords</span>
-            <span class="ad-btn">Reset multifactor</span>
-            <span class="ad-btn">Actions<Fragment set:html={chevron} /></span>
-          </span>
-          <span class="ad-panel">
-            <span class="ad-bar"><span class="ad-find"><Fragment set:html={search} />Search</span></span>
-            <span class="ad-split">
-              <span class="ad-filters">
-                {filters.map(([group, name, count]) => group
-                  ? <span class="ad-group">{group}</span>
-                  : <span class:list={['ad-filter', { on: name === 'Everyone' }]}><span>{name}</span><span>{count}</span></span>)}
-              </span>
-              <span class="ad-table">
-                <span class="ad-row ad-head"><span>Person &amp; username</span><span>Status</span></span>
-                {people.map(name => {
-                  const user = `${name.toLowerCase().replace(' ', '.')}@okta.com`;
-                  return <span class="ad-row"><span class="ad-person"><span class="ad-name">{name}</span><span class="ad-email">{user}</span></span><span class="ad-status">Active</span></span>;
-                })}
-              </span>
-            </span>
-          </span>
-        </div>
-      </div>
-    </div>
+    <span class="ad-panel">
+      <span class="ad-bar"><span class="ad-find"><Fragment set:html={search} />Search</span></span>
+      <span class="ad-split">
+        <span class="ad-filters">
+          {filters.map(([group, name, count]) => group
+            ? <span class="ad-group">{group}</span>
+            : <span class:list={['ad-filter', { on: name === 'Everyone' }]}><span>{name}</span><span>{count}</span></span>)}
+        </span>
+        <span class="ad-table">
+          <span class="ad-row ad-head"><span>Person &amp; username</span><span>Primary email</span><span>Status</span></span>
+          {people.map(name => {
+            const user = `${name.toLowerCase().replace(' ', '.')}@okta.com`;
+            return <span class="ad-row"><span class="ad-person"><span class="ad-name">{name}</span><span class="ad-email">{user}</span></span><span class="ad-mail">{user}</span><span class="ad-status">Active</span></span>;
+          })}
+        </span>
+      </span>
+    </span>
   </HeroCard>
 
   <HeroCard label="Typography" col={2} row={2}>
@@ -112,6 +82,13 @@ const statuses = [['Active', 'success'], ['Staged', 'neutral'], ['Password reset
         <span class="of-field"><span class="of-label">Role</span><span class="of-input select">Super admin<svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="m6 9 6 6 6-6"/></svg></span></span>
       </span>
       <span class="of-col">
+        <span class="er">
+        <span class="er-label">Username</span>
+        <span class="er-input">andrew@</span>
+        <span class="er-msg"><svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/><path d="M12 7v6M12 16.5v.5" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></svg>Enter a valid email address</span>
+      </span>
+      </span>
+      <span class="of-col">
         <span class="of-label">Password</span>
         <span class="of-opt"><i class="radio on"></i>Set by user</span>
         <span class="of-opt"><i class="radio"></i>Set by admin</span>
@@ -129,19 +106,11 @@ const statuses = [['Active', 'success'], ['Staged', 'neutral'], ['Password reset
     </Row>
   </HeroCard>
 
-  <HeroCard label="Banner">
+  <HeroCard label="Banner" col={2}>
     <Banner tint="var(--ColorPrimaryLight000)" accent="var(--ColorPrimaryBase)">Your password expires in 3 days.</Banner>
     <Banner tint="var(--ColorSuccessLight)" accent="var(--ColorSuccessBase)">MFA enrolled.</Banner>
     <Banner tint="var(--ColorCautionLight)" accent="var(--ColorCautionBase)">Session ending soon.</Banner>
     <Banner tint="var(--ColorDangerLight)" accent="var(--ColorDangerBase)">Sign-in failed.</Banner>
-  </HeroCard>
-
-  <HeroCard label="Error state">
-    <span class="er">
-      <span class="er-label">Username</span>
-      <span class="er-input">andrew@</span>
-      <span class="er-msg"><svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/><path d="M12 7v6M12 16.5v.5" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></svg>Enter a valid email address</span>
-    </span>
   </HeroCard>
 
   <HeroCard label="Status">
@@ -168,41 +137,24 @@ const statuses = [['Active', 'success'], ['Staged', 'neutral'], ['Password reset
   }
 
 
-  .ad { flex: 1; display: flex; flex-direction: column; min-height: 0; overflow: hidden; border-radius: 6px; background: #fff; box-shadow: inset 0 0 0 1px var(--ColorBorderDisplay); }
-  .ad-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 5px 10px 5px 108px; border-bottom: 1px solid var(--ColorBorderDisplay); }
-  .ad-search { display: flex; align-items: center; gap: 4px; flex: 1; max-width: 170px; height: 16px; padding: 0 6px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--ColorBorderDisplay); font-size: 7px; color: var(--ColorTextSub); }
-  .ad-user { display: flex; flex-direction: column; font-size: 6.5px; line-height: 1.25; color: var(--ColorTextBody); }
-  .ad-org { color: var(--ColorTextSub); }
-  .ad-body { flex: 1; display: grid; grid-template-columns: 98px minmax(0, 1fr); min-height: 0; }
-  .ad-nav { display: flex; flex-direction: column; gap: 6px; padding: 9px 0; border-right: 1px solid var(--ColorBorderDisplay); }
-  .ad-sec { display: flex; flex-direction: column; gap: 1px; }
-  .ad-sec-name { display: flex; align-items: center; justify-content: space-between; padding: 0 8px 0 10px; font-size: 7.5px; font-weight: 600; color: var(--ColorTextBody); }
-  .ad-sec-name i { display: flex; }
-  .ad-sec-name i.up { transform: rotate(180deg); }
-  .ad-sub { padding: 2.5px 6px 2.5px 18px; font-size: 6.8px; color: var(--ColorTextBody); white-space: nowrap; }
-  .ad-sub.on { background: var(--ColorPrimaryLight000); }
-  .ad-main { display: flex; flex-direction: column; gap: 7px; padding: 9px 10px; min-width: 0; }
-  .ad-title { display: flex; align-items: center; gap: 5px; font-size: 14px; font-weight: 600; line-height: 1.1; color: var(--ColorTextBody); }
-  .ad-help { display: flex; align-items: center; gap: 3px; margin-left: auto; font-size: 7.5px; font-weight: 400; color: var(--ColorPrimaryBase); }
-  .ad-help b { display: grid; place-items: center; width: 8px; height: 8px; border-radius: 50%; background: var(--ColorPrimaryBase); color: #fff; font-size: 6px; }
-  .ad-actions { display: flex; gap: 3px; }
-  .ad-btn { display: flex; align-items: center; gap: 3px; height: 16px; padding: 0 5px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--ColorPrimaryBase); font-size: 6.8px; font-weight: 600; color: var(--ColorPrimaryBase); white-space: nowrap; }
-  .ad-panel { flex: 1; display: flex; flex-direction: column; min-height: 0; overflow: hidden; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--ColorBorderDisplay); }
-  .ad-bar { padding: 4px 6px; background: var(--ColorNeutralLighter); border-bottom: 1px solid var(--ColorBorderDisplay); }
-  .ad-find { display: flex; align-items: center; gap: 4px; width: 84px; height: 14px; padding: 0 5px; border-radius: 3px; background: #fff; box-shadow: inset 0 0 0 1px var(--ColorBorderDisplay); font-size: 6.5px; color: var(--ColorTextSub); }
-  .ad-split { flex: 1; display: grid; grid-template-columns: 82px minmax(0, 1fr); min-height: 0; }
-  .ad-filters { display: flex; flex-direction: column; padding: 3px 0; border-right: 1px solid var(--ColorBorderDisplay); }
-  .ad-filter { display: flex; justify-content: space-between; gap: 4px; padding: 2px 5px; font-size: 6.3px; color: var(--ColorTextBody); white-space: nowrap; }
+
+  .ad-panel { flex: 1; display: flex; flex-direction: column; min-height: 0; overflow: hidden; border-radius: 4px; background: #fff; box-shadow: inset 0 0 0 1px var(--ColorBorderDisplay); }
+  .ad-panel span { font-family: var(--FontFamilyBase); }
+  .ad-bar { padding: 7px 10px; background: var(--ColorNeutralLighter); border-bottom: 1px solid var(--ColorBorderDisplay); }
+  .ad-find { display: flex; align-items: center; gap: 6px; width: 130px; height: 22px; padding: 0 8px; border-radius: 4px; background: #fff; box-shadow: inset 0 0 0 1px var(--ColorBorderDisplay); font-size: 9px; color: var(--ColorTextSub); }
+  .ad-split { flex: 1; display: grid; grid-template-columns: 112px minmax(0, 1fr); min-height: 0; }
+  .ad-filters { display: flex; flex-direction: column; padding: 5px 0; border-right: 1px solid var(--ColorBorderDisplay); }
+  .ad-filter { display: flex; justify-content: space-between; gap: 6px; padding: 3px 8px; font-size: 8px; color: var(--ColorTextBody); white-space: nowrap; }
   .ad-filter.on { background: var(--ColorPrimaryLight000); }
-  .ad-group { padding: 4px 5px 1px; font-size: 6.5px; font-weight: 600; color: var(--ColorTextBody); }
+  .ad-group { padding: 7px 8px 2px; font-size: 8px; font-weight: 600; color: var(--ColorTextBody); }
   .ad-table { display: flex; flex-direction: column; min-width: 0; }
-  .ad-row { display: grid; grid-template-columns: minmax(0, 1fr) 28px; align-items: center; gap: 6px; padding: 2.5px 5px; border-top: 1px solid var(--ColorBorderDisplay); }
-  .ad-head { border-top: 0; padding-top: 4px; }
-  .ad-head span { font-size: 6.5px; font-weight: 600; color: var(--ColorTextBody); }
-  .ad-person { display: flex; flex-direction: column; min-width: 0; }
-  .ad-name { font-size: 7px; color: var(--ColorPrimaryBase); }
-  .ad-email { font-size: 5.8px; color: var(--ColorTextSub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .ad-status { font-size: 6.5px; color: var(--ColorTextBody); }
+  .ad-row { flex: 1; display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) 30px; align-items: center; gap: 8px; padding: 0 8px; border-top: 1px solid var(--ColorBorderDisplay); }
+  .ad-head { flex: none; height: 24px; border-top: 0; }
+  .ad-head span { font-size: 8px; font-weight: 600; color: var(--ColorTextBody); white-space: nowrap; }
+  .ad-person { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  .ad-name { font-size: 9px; color: var(--ColorPrimaryBase); }
+  .ad-email { font-size: 7px; color: var(--ColorTextSub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ad-mail, .ad-status { font-size: 8px; color: var(--ColorTextBody); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
   .st { display: flex; align-items: center; gap: 5px; font-size: 8px; color: var(--ColorTextBody); white-space: nowrap; }
   .st i { flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--ColorBorderUi); }
@@ -228,7 +180,7 @@ const statuses = [['Active', 'success'], ['Staged', 'neutral'], ['Password reset
   .oc-row { flex: 1; display: flex; gap: 3px; }
   .oc-row i { flex: 1; border-radius: 3px; box-shadow: inset 0 0 0 1px rgba(0,0,0,.06); }
 
-  .of { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .of { flex: 1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
   .of-col { display: flex; flex-direction: column; gap: 6px; }
   .of-field { display: flex; flex-direction: column; gap: 3px; }
   .of-label { font-size: 8.5px; font-weight: 600; color: var(--ColorTextBody); }
@@ -244,5 +196,5 @@ const statuses = [['Active', 'success'], ['Staged', 'neutral'], ['Password reset
   .er { display: flex; flex-direction: column; gap: 4px; }
   .er-label { font-size: 9px; font-weight: 600; color: var(--ColorTextBody); }
   .er-input { display: flex; align-items: center; height: 24px; padding: 0 8px; border-radius: 4px; box-shadow: inset 0 0 0 1px var(--ColorDangerBase); font-size: 9px; color: var(--ColorTextBody); }
-  .er-msg { display: flex; align-items: center; gap: 4px; font-size: 8.5px; color: var(--ColorDangerBase); }
+  .er-msg { display: flex; align-items: flex-start; line-height: 1.2; gap: 4px; font-size: 8.5px; color: var(--ColorDangerBase); }
 </style>
