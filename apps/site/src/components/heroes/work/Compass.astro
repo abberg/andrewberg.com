@@ -1,18 +1,21 @@
 ---
 import HeroCard from '../parts/HeroCard.astro';
-import TypeRow from '../parts/TypeRow.astro';
-import TypeSample from '../parts/TypeSample.astro';
-import Note from '../parts/Note.astro';
 import Row from '../parts/Row.astro';
 import Ramp from '../parts/Ramp.astro';
 import Bars from '../parts/Bars.astro';
 import Shapes from '../parts/Shapes.astro';
-import Shadows from '../parts/Shadows.astro';
 import Button from '../parts/Button.astro';
 import Control from '../parts/Control.astro';
 import Field from '../parts/Field.astro';
 
 // Compass, Veson Nautical. Tailwind's palette and scales, Inter, and Lucide icons.
+// [name, rem, px, line height px, rendered px, weight]
+const sizes = [
+  ['4xl', '2.25rem', 36, 40, 24, 700], ['3xl', '1.875rem', 30, 36, 20.5, 700], ['2xl', '1.5rem', 24, 32, 17, 600],
+  ['xl', '1.25rem', 20, 28, 14.5, 600], ['lg', '1.125rem', 18, 28, 13, 500], ['base', '1rem', 16, 24, 11.5, 400],
+  ['sm', '.875rem', 14, 20, 10, 400], ['xs', '.75rem', 12, 16, 8.5, 400],
+];
+const weights = [['Light', 300], ['Regular', 400], ['Medium', 500], ['Semibold', 600], ['Bold', 700]];
 const palette = {
   blue: ['#eff6ff', '#dbeafe', '#bfdbfe', '#93c5fd', '#60a5fa', '#3b82f6', '#2563eb', '#1d4ed8', '#1e40af', '#1e3a8a', '#172554'],
   emerald: ['#ecfdf5', '#d1fae5', '#a7f3d0', '#6ee7b7', '#34d399', '#10b981', '#059669', '#047857', '#065f46', '#064e3b', '#022c22'],
@@ -29,16 +32,21 @@ const slate = ['#f8fafc', '#f1f5f9', '#e2e8f0', '#cbd5e1', '#94a3b8', '#64748b',
 ---
 <div class="compass">
   <HeroCard label="Typography" col={2} row={2}>
-    <TypeSample>
-      <Note>Inter · 400 → 700</Note>
-      <Note>tight tracking on headings</Note>
-    </TypeSample>
-    <TypeRow size={25} weight={700} tracking="-.025em" spec="2.25rem / 2.5rem">4xl</TypeRow>
-    <TypeRow size={17} weight={600} tracking="-.025em" spec="1.5rem / 2rem">2xl</TypeRow>
-    <TypeRow size={12} weight={600} spec="1.125rem / 1.75rem">lg</TypeRow>
-    <TypeRow size={11} spec="1rem / 1.5rem">base</TypeRow>
-    <TypeRow size={10} spec=".875rem / 1.25rem">sm</TypeRow>
-    <TypeRow size={8} weight={500} tracking=".05em" spec=".75rem / 1rem">xs</TypeRow>
+    <div class="ct">
+      {sizes.map(([name, rem, px, lh, size, weight]) => (
+        <span class="ct-row">
+          <span class="ct-name" style={`font-size:${size}px;font-weight:${weight}`}>{name}</span>
+          <span class="ct-spec"><b>{rem}</b>{px}px / {lh}px</span>
+        </span>
+      ))}
+      <span class="ct-foot">
+        <span class="ct-set">{weights.map(([name, weight]) => <span class="ct-w"><span style={`font-weight:${weight}`}>Aa</span><em>{name}</em></span>)}</span>
+        <span class="ct-set">
+          <span class="ct-w"><span>Aa</span><em>Normal</em></span>
+          <span class="ct-w"><span style="font-style:italic">Aa</span><em>Italic</em></span>
+        </span>
+      </span>
+    </div>
   </HeroCard>
 
   <HeroCard label="Voyage card" row={2}>
@@ -94,6 +102,10 @@ const slate = ['#f8fafc', '#f1f5f9', '#e2e8f0', '#cbd5e1', '#94a3b8', '#64748b',
       <svg width="20" height="20" viewBox="0 0 24 24"><path d="M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5"/></svg>
       <svg width="20" height="20" viewBox="0 0 24 24"><path d="M12 2v2"/><path d="M12 9.189V13"/><path d="M19 12V6a2 2 0 00-2-2H7a2 2 0 00-2 2v6"/><path d="M19.38 19A11.6 11.6 0 0021 13l-8.188-3.639a2 2 0 00-1.624 0L3 13.001a11.6 11.6 0 002.81 7.76"/><path d="M2 20c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1s1.2 1 2.5 1c2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/></svg>
       <svg width="20" height="20" viewBox="0 0 24 24"><path d="M12 6v16"/><path d="m19 13 2-1a9 9 0 0 1-18 0l2 1"/><path d="M9 11h6"/><circle cx="12" cy="4" r="2"/></svg>
+      <svg width="20" height="20" viewBox="0 0 24 24"><path d="M8 2v3"/><path d="M16 2v3"/><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></svg>
+      <svg width="20" height="20" viewBox="0 0 24 24"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg>
+      <svg width="20" height="20" viewBox="0 0 24 24"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><polyline points="3.29 7 12 12 20.71 7"/><path d="m7.5 4.27 9 5.15"/></svg>
+      <svg width="20" height="20" viewBox="0 0 24 24"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>
     </div>
   </HeroCard>
 
@@ -112,11 +124,6 @@ const slate = ['#f8fafc', '#f1f5f9', '#e2e8f0', '#cbd5e1', '#94a3b8', '#64748b',
     <Bars color="var(--slate-400)" gap={3} height={5} items={[[45, 'sm 640px'], [54, 'md 768px'], [73, 'lg 1024px'], [91, 'xl 1280px'], [109, '2xl 1536px']]} />
   </HeroCard>
 
-  <HeroCard label="Shadow">
-    <Shadows width={28} height={24} radius={6} items={[
-      ['var(--shadow-sm)', 'sm'], ['var(--shadow-md)', 'md'], ['var(--shadow-lg)', 'lg'], ['var(--shadow-xl)', 'xl'],
-    ]} />
-  </HeroCard>
 
 </div>
 
@@ -183,7 +190,18 @@ const slate = ['#f8fafc', '#f1f5f9', '#e2e8f0', '#cbd5e1', '#94a3b8', '#64748b',
   .pill.scheduled { background: #f8f2c4; color: #a36600; }
   .pill.completed { background: #e9f4fd; color: #2670d6; }
   .pill.closed { background: #f7e5ec; color: #ba3263; }
-  .icons { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px 8px; justify-items: center; }
+  .ct { flex: 1; display: flex; flex-direction: column; justify-content: space-between; min-height: 0; }
+  .ct span { font-family: var(--font-sans); }
+  .ct-row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding-bottom: 2px; border-bottom: 1px solid var(--slate-200); }
+  .ct-name { line-height: 1.15; letter-spacing: -.02em; color: var(--slate-900); }
+  .ct-spec { display: flex; gap: 6px; font-size: 8px; color: var(--slate-500); white-space: nowrap; }
+  .ct-spec b { font-weight: 600; color: var(--slate-900); }
+  .ct-foot { display: flex; justify-content: space-between; align-items: flex-end; padding-top: 4px; }
+  .ct-set { display: flex; gap: 11px; }
+  .ct-w { display: flex; flex-direction: column; gap: 1px; }
+  .ct-w > span:first-child { font-size: 19px; line-height: 1; color: var(--slate-900); }
+  .ct-w em { font-style: normal; font-size: 7.5px; color: var(--slate-500); text-transform: none; letter-spacing: 0; }
+  .icons { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px 8px; justify-items: center; }
   .icons svg, .stack-card svg { fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   .icons svg { stroke: var(--slate-700); }
   .stack-card { display: flex; align-items: center; gap: 12px; padding: 16px; border-radius: 8px; background: #ffffff; box-shadow: inset 0 0 0 1px var(--slate-200), var(--shadow-sm); }
