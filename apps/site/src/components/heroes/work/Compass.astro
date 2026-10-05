@@ -1,6 +1,8 @@
 ---
 import HeroCard from '../parts/HeroCard.astro';
 import Row from '../parts/Row.astro';
+import TypeSample from '../parts/TypeSample.astro';
+import Note from '../parts/Note.astro';
 import Ramp from '../parts/Ramp.astro';
 import Bars from '../parts/Bars.astro';
 import Shapes from '../parts/Shapes.astro';
@@ -11,9 +13,8 @@ import Field from '../parts/Field.astro';
 // Compass, Veson Nautical. Tailwind's palette and scales, Inter, and Lucide icons.
 // [name, rem, px, line height px, rendered px, weight]
 const sizes = [
-  ['4xl', '2.25rem', 36, 40, 24, 700], ['3xl', '1.875rem', 30, 36, 20.5, 700], ['2xl', '1.5rem', 24, 32, 17, 600],
-  ['xl', '1.25rem', 20, 28, 14.5, 600], ['lg', '1.125rem', 18, 28, 13, 500], ['base', '1rem', 16, 24, 11.5, 400],
-  ['sm', '.875rem', 14, 20, 10, 400], ['xs', '.75rem', 12, 16, 8.5, 400],
+  ['4xl', '2.25rem', 36, 40, 21, 700], ['2xl', '1.5rem', 24, 32, 15, 600],
+  ['base', '1rem', 16, 24, 11, 400], ['xs', '.75rem', 12, 16, 8.5, 400],
 ];
 const weights = [['Light', 300], ['Regular', 400], ['Medium', 500], ['Semibold', 600], ['Bold', 700]];
 const palette = {
@@ -33,6 +34,10 @@ const slate = ['#f8fafc', '#f1f5f9', '#e2e8f0', '#cbd5e1', '#94a3b8', '#64748b',
 <div class="compass">
   <HeroCard label="Typography" col={2} row={2}>
     <div class="ct">
+      <TypeSample>
+        <Note>Inter · 300 → 700</Note>
+        <Note>tight tracking on headings</Note>
+      </TypeSample>
       {sizes.map(([name, rem, px, lh, size, weight]) => (
         <span class="ct-row">
           <span class="ct-name" style={`font-size:${size}px;font-weight:${weight}`}>{name}</span>
@@ -191,7 +196,7 @@ const slate = ['#f8fafc', '#f1f5f9', '#e2e8f0', '#cbd5e1', '#94a3b8', '#64748b',
   .pill.completed { background: #e9f4fd; color: #2670d6; }
   .pill.closed { background: #f7e5ec; color: #ba3263; }
   .ct { flex: 1; display: flex; flex-direction: column; justify-content: space-between; min-height: 0; }
-  .ct span { font-family: var(--font-sans); }
+  .ct-row span, .ct-foot span { font-family: var(--font-sans); }
   .ct-row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding-bottom: 2px; border-bottom: 1px solid var(--slate-200); }
   .ct-name { line-height: 1.15; letter-spacing: -.02em; color: var(--slate-900); }
   .ct-spec { display: flex; gap: 6px; font-size: 8px; color: var(--slate-500); white-space: nowrap; }
