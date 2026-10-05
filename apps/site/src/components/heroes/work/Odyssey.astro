@@ -1,80 +1,110 @@
 ---
 import HeroCard from '../parts/HeroCard.astro';
-import Note from '../parts/Note.astro';
 import Row from '../parts/Row.astro';
-import TypeSample from '../parts/TypeSample.astro';
-import TypeRow from '../parts/TypeRow.astro';
-import Swatches from '../parts/Swatches.astro';
-import Ramp from '../parts/Ramp.astro';
-import Chips from '../parts/Chips.astro';
-import Bars from '../parts/Bars.astro';
-import Shapes from '../parts/Shapes.astro';
-import Shadows from '../parts/Shadows.astro';
 import Button from '../parts/Button.astro';
-import Control from '../parts/Control.astro';
-import Field from '../parts/Field.astro';
 import Banner from '../parts/Banner.astro';
-import ComponentList from '../parts/ComponentList.astro';
 
-// Odyssey, Okta. Public Sans on a 14px base, with the ColorPalette ramps.
+// Odyssey, Okta, as of @okta/odyssey-design-tokens 0.14.0. Public Sans on a 14px base.
+const nav = [
+  ['Dashboard'], ['Directory', ['People', 'Groups', 'Devices', 'Profile Editor']], ['Customizations'], ['Applications'],
+  ['Security'], ['Workflow'], ['Reports'], ['Settings'],
+];
+const people = [
+  ['Maria Alvarez', 'maria.alvarez@acme.com', 'Active', 'success'],
+  ['James Okafor', 'james.okafor@acme.com', 'Active', 'success'],
+  ['Linh Nguyen', 'linh.nguyen@acme.com', 'Staged', 'neutral'],
+  ['Sam Patel', 'sam.patel@acme.com', 'Password reset', 'caution'],
+  ['Ruth Cole', 'ruth.cole@acme.com', 'Suspended', 'danger'],
+];
+// [name, rem, px, line height, rendered px, weight]
+const scale = [
+  ['Heading 1', '2.571rem', 36, 1.25, 25, 600],
+  ['Heading 2', '2.286rem', 32, 1.286, 22, 600],
+  ['Heading 3', '2rem', 28, 1.28, 19.5, 600],
+  ['Heading 4', '1.571rem', 22, 1.273, 15.5, 600],
+  ['Heading 5', '1.286rem', 18, 1.333, 12.5, 600],
+  ['Heading 6', '1.143rem', 16, 1.25, 11, 600],
+  ['Body', '1rem', 14, 1.429, 10, 400],
+  ['Caption', '.857rem', 12, 1.429, 8.5, 400],
+];
 const ramps = [
   ['#f2f5ff', '#a7b5ec', '#788ee2', '#1662dd', '#00297a'],
   ['#e5faf3', '#84d2b1', '#00b478', '#008055', '#00503c'],
-  ['#ffdfe2', '#f88c90', '#da372c', '#640019'],
-  ['#faf5dc', '#f9dc77', '#ffc61c', '#663800'],
+  ['#faf5dc', '#f9dc77', '#ffc61c', '#a76d00', '#663800'],
+  ['#ffdfe2', '#f88c90', '#da372c', '#a8001e', '#640019'],
+  ['#ffffff', '#f5f5f6', '#ebebed', '#d7d7dc', '#8c8c96', '#6e6e78', '#1d1d21'],
 ];
-const neutrals = ['#ffffff', '#f5f5f6', '#ebebed', '#d7d7dc', '#8c8c96', '#6e6e78', '#1d1d21'];
-const tests = ['links its label to the input', 'describes the error for screen readers', 'moves focus in DOM order', 'has no axe violations'];
-const components = [
-  'Banner', 'Box', 'Button', 'Checkbox', 'Field', 'FieldGroup', 'Form', 'Heading', 'Icon', 'Infobox', 'Link', 'List', 'Modal',
-  'Radio', 'RadioGroup', 'ScreenReaderText', 'Select', 'Status', 'Table', 'Tabs', 'Tag', 'Text', 'TextArea', 'TextInput', 'Toast', 'Tooltip',
-];
+const statuses = [['Active', 'success'], ['Staged', 'neutral'], ['Password reset', 'caution'], ['Suspended', 'danger']];
 ---
 <div class="odyssey">
-  <HeroCard label="Sign-in form" col={2} row={2}>
-    <div class="fo">
-      <div class="fo-form">
-        <span class="fo-title">Sign In</span>
-        <span class="fo-item"><span class="fo-field"><span>Username</span><span class="fo-input focus">andrew@okta.com</span></span></span>
-        <span class="fo-item"><span class="fo-field"><span>Password</span><span class="fo-input">••••••••••</span></span></span>
-        <span class="fo-item"><span class="fo-check"><span class="fo-box"></span>Keep me signed in</span></span>
-        <span class="fo-item"><span class="fo-btn">Sign In</span></span>
-        <span class="fo-item"><span class="fo-link">Need help signing in?</span></span>
+  <HeroCard label="Admin console" col={2} row={2}>
+    <div class="ad">
+      <div class="ad-top"><span class="ad-search"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>Search for people, apps and groups</span><span class="ad-user">Andrew Berg</span></div>
+      <div class="ad-body">
+        <div class="ad-nav">
+          {nav.map(([name, children]) => (
+            <span class:list={['ad-sec', { open: children }]}>
+              <span class="ad-sec-name">{name}<i></i></span>
+              {children && children.map(child => <span class:list={['ad-sub', { on: child === 'People' }]}>{child}</span>)}
+            </span>
+          ))}
+        </div>
+        <div class="ad-main">
+          <span class="ad-title">People</span>
+          <span class="ad-actions">
+            <span class="ad-btn primary">Add person</span>
+            <span class="ad-btn">Reset passwords</span>
+            <span class="ad-btn">More actions<svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="m6 9 6 6 6-6"/></svg></span>
+          </span>
+          <span class="ad-table">
+            <span class="ad-row ad-head"><span>Person &amp; username</span><span>Status</span></span>
+            {people.map(([name, email, status, tone]) => (
+              <span class="ad-row">
+                <span class="ad-person"><span class="ad-name">{name}</span><span class="ad-email">{email}</span></span>
+                <span class:list={['st', tone]}><i></i>{status}</span>
+              </span>
+            ))}
+          </span>
+        </div>
       </div>
     </div>
   </HeroCard>
 
-  <HeroCard label="Contrast">
-    <span class="cr"><span class="cr-aa on-primary">Aa</span><span class="cr-meta"><b>5.5 : 1</b><em>AA</em></span></span>
-    <span class="cr"><span class="cr-aa on-body">Aa</span><span class="cr-meta"><b>16.8 : 1</b><em>AAA</em></span></span>
-  </HeroCard>
-
-  <HeroCard label="Error state">
-    <span class="er">
-      <span class="er-label">Username</span>
-      <span class="er-input">andrew@</span>
-      <span class="er-msg"><svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/><path d="M12 7v6M12 16.5v.5" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></svg>Enter a valid email address</span>
-    </span>
-  </HeroCard>
-<HeroCard label="Typography" col={2} row={2}>
-    <TypeSample>
-      <Note>FontWeightNormal 400 · Bold 600</Note>
-      <Note>FontSizeBase 87.5% · line length 32rem</Note>
-      <Note font="mono">mono · Inconsolata</Note>
-    </TypeSample>
-    <TypeRow size={25} weight={600} spec="2.571rem">Heading 1</TypeRow>
-    <TypeRow size={20} weight={600} spec="2rem">Heading 3</TypeRow>
-    <TypeRow size={12} weight={600} spec="1.286rem">Heading 5</TypeRow>
-    <TypeRow size={10} spec="1rem">Body</TypeRow>
-    <TypeRow size={8} spec=".857rem">Caption</TypeRow>
+  <HeroCard label="Typography" col={2} row={2}>
+    <div class="ot">
+      {scale.map(([name, rem, px, lh, size, weight]) => (
+        <span class="ot-row">
+          <span class="ot-name" style={`font-size:${size}px;font-weight:${weight};line-height:${lh}`}>{name}</span>
+          <span class="ot-spec"><b>{rem}</b>{px}px · {lh}</span>
+        </span>
+      ))}
+      <span class="ot-foot">
+        <span class="ot-w"><span style="font-weight:400">Aa</span><em>Normal 400</em></span>
+        <span class="ot-w"><span style="font-weight:600">Aa</span><em>Bold 600</em></span>
+        <span class="ot-w mono"><span>Aa</span><em>Inconsolata</em></span>
+      </span>
+    </div>
   </HeroCard>
 
   <HeroCard label="Color" col={2}>
-    <Swatches items={[
-      ['var(--ColorPrimaryLight000)', '000'], ['var(--ColorPrimaryLight)', '300'], ['#788ee2', '400'],
-      ['var(--ColorPrimaryBase)', '500'], ['var(--ColorPrimaryDark)', '900'],
-    ]} />
-    <Swatches items={[['var(--ColorTextBody)', 'Body'], ['var(--ColorTextSub)', 'Sub'], ['var(--ColorBorderInput)', 'Border'], ['var(--ColorSuccessBase)', 'Success'], ['var(--ColorDangerBase)', 'Danger']]} />
+    <span class="oc">
+      {ramps.map(colors => <span class="oc-row">{colors.map(c => <i style={`background:${c}`}></i>)}</span>)}
+    </span>
+  </HeroCard>
+
+  <HeroCard label="Fields" col={2}>
+    <span class="of">
+      <span class="of-col">
+        <span class="of-field"><span class="of-label">First name</span><span class="of-input">Andrew</span></span>
+        <span class="of-field"><span class="of-label">Role</span><span class="of-input select">Super admin<svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="m6 9 6 6 6-6"/></svg></span></span>
+      </span>
+      <span class="of-col">
+        <span class="of-label">Password</span>
+        <span class="of-opt"><i class="radio on"></i>Set by user</span>
+        <span class="of-opt"><i class="radio"></i>Set by admin</span>
+        <span class="of-opt"><i class="box on"><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4"><path d="m5 12 5 5 9-10"/></svg></i>Send activation email</span>
+      </span>
+    </span>
   </HeroCard>
 
   <HeroCard label="Button">
@@ -82,10 +112,7 @@ const components = [
       <Button bg="var(--ColorPrimaryBase)" fg="#ffffff">Primary</Button>
       <Button bg="#ffffff" fg="var(--ColorPrimaryBase)" edge="var(--ColorPrimaryBase)">Secondary</Button>
       <Button bg="var(--ColorDangerBase)" fg="#ffffff">Danger</Button>
-    </Row>
-    <Row align="center">
       <Button bg="transparent" fg="var(--ColorPrimaryBase)">Clear</Button>
-      <Button bg="var(--ColorPrimaryBase)" fg="#ffffff" small>Small</Button>
     </Row>
   </HeroCard>
 
@@ -96,10 +123,17 @@ const components = [
     <Banner tint="var(--ColorDangerLight)" accent="var(--ColorDangerBase)">Sign-in failed.</Banner>
   </HeroCard>
 
-  <HeroCard label="Palette" col={2}>
-    {ramps.map(colors => <Ramp colors={colors} />)}
+  <HeroCard label="Error state">
+    <span class="er">
+      <span class="er-label">Username</span>
+      <span class="er-input">andrew@</span>
+      <span class="er-msg"><svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/><path d="M12 7v6M12 16.5v.5" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></svg>Enter a valid email address</span>
+    </span>
   </HeroCard>
 
+  <HeroCard label="Status">
+    <span class="sts">{statuses.map(([label, tone]) => <span class:list={['st', tone]}><i></i>{label}</span>)}</span>
+  </HeroCard>
 </div>
 
 <style>
@@ -107,7 +141,8 @@ const components = [
     display: contents;
     --FontFamilyBase: 'Public Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     --FontFamilyMono: 'Inconsolata', 'SFMono-Regular', Consolas, Menlo, monospace;
-    --ColorTextBody: #1d1d21; --ColorTextSub: #6e6e78; --ColorBorderInput: #8c8c96;
+    --ColorTextBody: #1d1d21; --ColorTextSub: #6e6e78; --ColorBorderUi: #8c8c96; --ColorBorderDisplay: #d7d7dc;
+    --ColorNeutralLight: #ebebed; --ColorNeutralLighter: #f5f5f6;
     --ColorPrimaryLight000: #f2f5ff; --ColorPrimaryLight: #a7b5ec; --ColorPrimaryBase: #1662dd; --ColorPrimaryDark: #00297a;
     --ColorSuccessBase: #00b478; --ColorSuccessLight: #e5faf3;
     --ColorCautionBase: #ffc61c; --ColorCautionLight: #faf5dc;
@@ -117,43 +152,71 @@ const components = [
     --hero-ink: var(--ColorTextBody); --hero-note: var(--ColorTextSub);
     --hero-display-weight: 600; --hero-edge: rgba(0,0,0,.06);
     --button-pad: 8px; --button-radius: 4px; --button-weight: 600;
-    --field-radius: 4px; --field-edge: var(--ColorBorderInput);
   }
+  .ad span, .ot span, .of span, .er span, .sts span { font-family: var(--FontFamilyBase); }
 
-  .fo { flex: 1; position: relative; display: flex; justify-content: center; min-height: 0; }
-  .fo span, .sr span, .tests span, .cr span, .er span { font-family: var(--FontFamilyBase); }
-  .fo-key { position: absolute; right: 0; top: 0; padding: 3px 8px; border-radius: 4px; background: #fff; box-shadow: inset 0 0 0 1px var(--ColorBorderInput), 0 2px 0 var(--ColorBorderInput); font-size: 9px; font-weight: 600; color: var(--ColorTextBody); }
-  .fo-form { display: flex; flex-direction: column; gap: 9px; width: 250px; padding: 14px 18px; border-radius: 6px; background: #fff; box-shadow: 0 1px 4px rgba(29,29,33,.08), 0 5px 15px rgba(29,29,33,.05), inset 0 0 0 1px rgba(0,0,0,.06); }
-  .fo-title { font-size: 15px; font-weight: 600; color: var(--ColorTextBody); }
-  .fo-item { position: relative; display: flex; }
-  .fo-n { position: absolute; left: -26px; top: 50%; transform: translateY(-50%); display: grid; place-items: center; width: 15px; height: 15px; border-radius: 50%; background: var(--ColorPrimaryDark); color: #fff; font-size: 8px; font-weight: 600; }
-  .fo-field { flex: 1; display: flex; flex-direction: column; gap: 3px; }
-  .fo-field > span:first-child { font-size: 8.5px; font-weight: 600; color: var(--ColorTextBody); }
-  .fo-input { display: flex; align-items: center; height: 22px; padding: 0 7px; border-radius: 4px; box-shadow: inset 0 0 0 1px var(--ColorBorderInput); font-size: 9px; color: var(--ColorTextBody); }
-  .fo-input.focus { box-shadow: inset 0 0 0 1px var(--ColorPrimaryBase), 0 0 0 2px #fff, 0 0 0 4px var(--ColorPrimaryBase); }
-  .fo-check { display: flex; align-items: center; gap: 6px; font-size: 9px; color: var(--ColorTextBody); }
-  .fo-box { width: 12px; height: 12px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--ColorBorderInput); }
-  .fo-btn { flex: 1; display: grid; place-items: center; height: 24px; border-radius: 4px; background: var(--ColorPrimaryBase); color: #fff; font-size: 9.5px; font-weight: 600; }
-  .fo-link { font-size: 8.5px; color: var(--ColorPrimaryBase); text-decoration: underline; }
+  .ad { flex: 1; display: flex; flex-direction: column; min-height: 0; overflow: hidden; border-radius: 6px; background: #fff; box-shadow: inset 0 0 0 1px var(--ColorBorderDisplay); }
+  .ad-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 10px; border-bottom: 1px solid var(--ColorBorderDisplay); }
+  .ad-search { display: flex; align-items: center; gap: 5px; width: 170px; height: 18px; padding: 0 7px; border-radius: 4px; background: var(--ColorNeutralLighter); font-size: 7.5px; color: var(--ColorTextSub); }
+  .ad-user { font-size: 8px; font-weight: 600; color: var(--ColorTextBody); }
+  .ad-body { flex: 1; display: grid; grid-template-columns: 92px minmax(0, 1fr); min-height: 0; }
+  .ad-nav { display: flex; flex-direction: column; gap: 5px; padding: 9px 8px 9px 10px; border-right: 1px solid var(--ColorBorderDisplay); background: var(--ColorNeutralLighter); }
+  .ad-sec { display: flex; flex-direction: column; gap: 4px; }
+  .ad-sec-name { display: flex; align-items: center; justify-content: space-between; font-size: 8px; font-weight: 600; color: var(--ColorTextBody); }
+  .ad-sec-name i { width: 4px; height: 4px; border-right: 1.2px solid var(--ColorTextSub); border-bottom: 1.2px solid var(--ColorTextSub); transform: rotate(-45deg); }
+  .ad-sec.open .ad-sec-name i { transform: rotate(45deg); }
+  .ad-sec:first-child .ad-sec-name i { display: none; }
+  .ad-sub { padding: 2px 0 2px 8px; font-size: 7.5px; color: var(--ColorTextSub); }
+  .ad-sub.on { margin-left: -2px; border-left: 2px solid var(--ColorPrimaryBase); color: var(--ColorPrimaryBase); font-weight: 600; }
+  .ad-main { display: flex; flex-direction: column; gap: 7px; padding: 10px 12px; min-width: 0; }
+  .ad-title { font-size: 16px; font-weight: 600; line-height: 1.2; color: var(--ColorTextBody); }
+  .ad-actions { display: flex; gap: 5px; }
+  .ad-btn { display: flex; align-items: center; gap: 4px; height: 18px; padding: 0 7px; border-radius: 4px; box-shadow: inset 0 0 0 1px var(--ColorBorderUi); font-size: 7.5px; font-weight: 600; color: var(--ColorTextBody); white-space: nowrap; }
+  .ad-btn.primary { background: var(--ColorPrimaryBase); box-shadow: none; color: #fff; }
+  .ad-table { display: flex; flex-direction: column; }
+  .ad-row { display: grid; grid-template-columns: minmax(0, 1fr) 76px; align-items: center; gap: 8px; padding: 4px 2px; border-top: 1px solid var(--ColorBorderDisplay); }
+  .ad-head { border-top: 0; }
+  .ad-head span { font-size: 7.5px; font-weight: 600; color: var(--ColorTextSub); }
+  .ad-person { display: flex; flex-direction: column; min-width: 0; }
+  .ad-name { font-size: 8.5px; font-weight: 600; color: var(--ColorPrimaryBase); }
+  .ad-email { font-size: 7px; color: var(--ColorTextSub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-  .sr { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 4px; padding: 10px 12px; border-radius: 8px; background: rgba(29,29,33,.92); }
-  .sr span { font-size: 9.5px; color: rgba(255,255,255,.75); }
-  .sr b { font-weight: 600; color: #fff; }
-  .sr .sr-err { color: #f88c90; }
+  .st { display: flex; align-items: center; gap: 5px; font-size: 8px; color: var(--ColorTextBody); white-space: nowrap; }
+  .st i { flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--ColorBorderUi); }
+  .st.success i { background: var(--ColorSuccessBase); }
+  .st.caution i { background: var(--ColorCautionBase); }
+  .st.danger i { background: var(--ColorDangerBase); }
+  .sts { display: flex; flex-direction: column; gap: 9px; }
+  .sts .st { font-size: 10px; gap: 7px; }
+  .sts .st i { width: 8px; height: 8px; }
 
-  .tests { flex: 1; display: flex; flex-direction: column; gap: 3px; }
-  .tests-file { display: flex; align-items: center; gap: 6px; margin-bottom: 2px; font-size: 10px; font-weight: 600; color: var(--ColorTextBody); }
-  .tests-pass { padding: 1px 5px; border-radius: 3px; background: var(--ColorSuccessBase); color: #fff !important; font-size: 7.5px; letter-spacing: .04em; }
-  .tests-row { display: flex; align-items: center; gap: 6px; font-size: 9px; color: var(--ColorTextSub); }
-  .tests-ok { display: grid; place-items: center; width: 13px; height: 13px; border-radius: 50%; background: var(--ColorSuccessLight); color: #008055; }
+  .ot { flex: 1; display: flex; flex-direction: column; justify-content: space-between; min-height: 0; }
+  .ot-row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding-bottom: 2px; border-bottom: 1px solid var(--ColorNeutralLight); }
+  .ot-name { color: var(--ColorTextBody); white-space: nowrap; }
+  .ot-spec { display: flex; gap: 6px; font-size: 8px; color: var(--ColorTextSub); white-space: nowrap; }
+  .ot-spec b { font-weight: 600; color: var(--ColorTextBody); }
+  .ot-foot { display: flex; gap: 16px; padding-top: 4px; }
+  .ot-w { display: flex; flex-direction: column; gap: 1px; }
+  .ot-w > span:first-child { font-size: 20px; line-height: 1; color: var(--ColorTextBody); }
+  .ot-w.mono > span:first-child { font-family: var(--FontFamilyMono); }
+  .ot-w em { text-transform: none; letter-spacing: 0; font-style: normal; font-size: 7.5px; color: var(--ColorTextSub); font-family: var(--FontFamilyBase); }
 
-  .cr { display: flex; align-items: center; gap: 10px; }
-  .cr-aa { display: grid; place-items: center; width: 40px; height: 34px; border-radius: 4px; font-size: 17px; font-weight: 600; }
-  .on-primary { background: var(--ColorPrimaryBase); color: #fff; }
-  .on-body { background: #fff; color: var(--ColorTextBody); box-shadow: inset 0 0 0 1px rgba(0,0,0,.08); }
-  .cr-meta { display: flex; flex-direction: column; }
-  .cr-meta b { font-size: 11px; font-weight: 600; color: var(--ColorTextBody); }
-  .cr-meta em { font-style: normal; font-size: 8px; font-weight: 600; color: #008055; }
+  .oc { flex: 1; display: flex; flex-direction: column; gap: 5px; }
+  .oc-row { flex: 1; display: flex; gap: 3px; }
+  .oc-row i { flex: 1; border-radius: 3px; box-shadow: inset 0 0 0 1px rgba(0,0,0,.06); }
+
+  .of { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .of-col { display: flex; flex-direction: column; gap: 6px; }
+  .of-field { display: flex; flex-direction: column; gap: 3px; }
+  .of-label { font-size: 8.5px; font-weight: 600; color: var(--ColorTextBody); }
+  .of-input { display: flex; align-items: center; justify-content: space-between; height: 22px; padding: 0 8px; border-radius: 4px; box-shadow: inset 0 0 0 1px var(--ColorBorderUi); font-size: 9px; color: var(--ColorTextBody); }
+  .of-input svg { color: var(--ColorTextSub); }
+  .of-opt { display: flex; align-items: center; gap: 6px; font-size: 9px; color: var(--ColorTextBody); }
+  .of-opt i { flex: none; display: grid; place-items: center; width: 12px; height: 12px; box-shadow: inset 0 0 0 1px var(--ColorBorderUi); background: #fff; }
+  .of-opt i.radio { border-radius: 50%; }
+  .of-opt i.radio.on { box-shadow: inset 0 0 0 4px var(--ColorPrimaryBase); }
+  .of-opt i.box { border-radius: 3px; }
+  .of-opt i.box.on { background: var(--ColorPrimaryBase); box-shadow: none; }
 
   .er { display: flex; flex-direction: column; gap: 4px; }
   .er-label { font-size: 9px; font-weight: 600; color: var(--ColorTextBody); }
