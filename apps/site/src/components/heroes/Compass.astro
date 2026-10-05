@@ -1,41 +1,89 @@
 ---
 import HeroCard from './parts/HeroCard.astro';
-import Note from './parts/Note.astro';
 import Row from './parts/Row.astro';
 import TypeSample from './parts/TypeSample.astro';
-import TypeRow from './parts/TypeRow.astro';
+import Note from './parts/Note.astro';
 import Ramp from './parts/Ramp.astro';
 import Bars from './parts/Bars.astro';
 import Shapes from './parts/Shapes.astro';
-import Shadows from './parts/Shadows.astro';
 import Button from './parts/Button.astro';
 import Control from './parts/Control.astro';
 import Field from './parts/Field.astro';
 
 // Compass, Veson Nautical. Tailwind's palette and scales, Inter, and Lucide icons.
+// [name, rem, px, line height px, rendered px, weight]
+const sizes = [
+  ['4xl', '2.25rem', 36, 40, 21, 700], ['2xl', '1.5rem', 24, 32, 15, 600],
+  ['base', '1rem', 16, 24, 11, 400], ['xs', '.75rem', 12, 16, 8.5, 400],
+];
+const weights = [['Light', 300], ['Regular', 400], ['Medium', 500], ['Semibold', 600], ['Bold', 700]];
 const palette = {
   blue: ['#eff6ff', '#dbeafe', '#bfdbfe', '#93c5fd', '#60a5fa', '#3b82f6', '#2563eb', '#1d4ed8', '#1e40af', '#1e3a8a', '#172554'],
   emerald: ['#ecfdf5', '#d1fae5', '#a7f3d0', '#6ee7b7', '#34d399', '#10b981', '#059669', '#047857', '#065f46', '#064e3b', '#022c22'],
   amber: ['#fffbeb', '#fef3c7', '#fde68a', '#fcd34d', '#fbbf24', '#f59e0b', '#d97706', '#b45309', '#92400e', '#78350f', '#451a03'],
   red: ['#fef2f2', '#fee2e2', '#fecaca', '#fca5a5', '#f87171', '#ef4444', '#dc2626', '#b91c1c', '#991b1b', '#7f1d1d', '#450a0a'],
 };
+const facts = [['Next Port', 'ALGECIRAS'], ['ETA', '25 Dec 23 at 15:01'], ['ETB', '25 Dec 23 at 15:01'], ['Operator', 'Anett']];
+const voyages = [
+  ['Commenced', 'NAVIOS RAY', '2501', 'IRON ORE', 'BHP Billiton'],
+  ['Scheduled', 'VMR BOSTON', '2025009', 'CPP', 'Carlisle Clean Petroleum'],
+  ['Completed', 'NEULAND', '2025111', 'GRAINS', 'Cargill'],
+];
 const slate = ['#f8fafc', '#f1f5f9', '#e2e8f0', '#cbd5e1', '#94a3b8', '#64748b', '#475569', '#334155', '#1e293b', '#0f172a', '#020617'];
 ---
 <div class="compass">
-  <HeroCard label="Typography · Inter" col={2} row={2}>
-    <TypeSample>
-      <Note>Inter · 400 → 700</Note>
-      <Note>tight tracking on headings</Note>
-    </TypeSample>
-    <TypeRow size={25} weight={700} tracking="-.025em" spec="2.25rem / 2.5rem">4xl</TypeRow>
-    <TypeRow size={17} weight={600} tracking="-.025em" spec="1.5rem / 2rem">2xl</TypeRow>
-    <TypeRow size={12} weight={600} spec="1.125rem / 1.75rem">lg</TypeRow>
-    <TypeRow size={11} spec="1rem / 1.5rem">base</TypeRow>
-    <TypeRow size={10} spec=".875rem / 1.25rem">sm</TypeRow>
-    <TypeRow size={8} weight={500} tracking=".05em" spec=".75rem / 1rem">xs</TypeRow>
+  <HeroCard label="Typography" col={2} row={2}>
+    <div class="ct">
+      <TypeSample>
+        <Note>Inter · 300 → 700</Note>
+        <Note>tight tracking on headings</Note>
+      </TypeSample>
+      {sizes.map(([name, rem, px, lh, size, weight]) => (
+        <span class="ct-row">
+          <span class="ct-name" style={`font-size:${size}px;font-weight:${weight}`}>{name}</span>
+          <span class="ct-spec"><b>{rem}</b>{px}px / {lh}px</span>
+        </span>
+      ))}
+      <span class="ct-foot">
+        <span class="ct-set">{weights.map(([name, weight]) => <span class="ct-w"><span style={`font-weight:${weight}`}>Aa</span><em>{name}</em></span>)}</span>
+        <span class="ct-set">
+          <span class="ct-w"><span>Aa</span><em>Normal</em></span>
+          <span class="ct-w"><span style="font-style:italic">Aa</span><em>Italic</em></span>
+        </span>
+      </span>
+    </div>
   </HeroCard>
 
-  <HeroCard label="Palette · 50 → 950" col={2}>
+  <HeroCard label="Voyage card" row={2}>
+    <div class="vc">
+      <span class="vc-head"><span class="vc-title"><b>NAVIOS RAY</b><em>2501</em></span><span class="vc-pill">Commenced</span></span>
+      <span class="vc-cargo">
+        <svg width="11" height="11" viewBox="0 0 24 24"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><path d="m3.3 7 7.703 4.734a2 2 0 0 0 1.994 0L20.7 7"/><path d="m7.5 4.27 9 5.15"/></svg>
+        <span><b>22,000 MT GAS OIL</b><em>Charterer: Broadwick Clean Petroleum</em></span>
+      </span>
+      <span class="vc-track"><i class="vc-fill"></i><i class="vc-dot"><svg width="7" height="7" viewBox="0 0 24 24"><path d="M3 3l19 9-19 9 4-9z" fill="#fff"/></svg></i></span>
+      <span class="vc-ports">
+        <span><b>TARRAGONA</b><em>03 Jan 24 at 13:34</em></span>
+        <span class="vc-end"><b>BILBAO</b><em>10 Jan 24 at 18:07</em></span>
+      </span>
+      <span class="vc-rule"></span>
+      <span class="vc-facts">
+        {facts.map(([k, v]) => <><span class="k">{k}</span><span>{v}</span></>)}
+      </span>
+      <span class="vc-rule"></span>
+      <span class="vc-foot">Last updated 2 months ago<svg width="9" height="9" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg></span>
+    </div>
+  </HeroCard>
+
+  <HeroCard label="Voyages" col={2}>
+    <div class="tbl">
+      <span class="tbl-row tbl-head"><span>Status</span><span>Voyage</span><span>Cargo</span><span>Counterparty</span></span>
+      {voyages.map(([status, vessel, number, cargo, party]) => (
+        <span class="tbl-row"><span class:list={['pill', status.toLowerCase()]}>{status}</span><span class="v"><b>{vessel}</b><em>{number}</em></span><span>{cargo}</span><span>{party}</span></span>
+      ))}
+    </div>
+  </HeroCard>
+  <HeroCard label="Palette" col={2}>
     {Object.entries(palette).map(([name, colors]) => (
       <Ramp label={name} labelWidth={40} labelGap={6} height={14} colors={colors} />
     ))}
@@ -47,10 +95,9 @@ const slate = ['#f8fafc', '#f1f5f9', '#e2e8f0', '#cbd5e1', '#94a3b8', '#64748b',
       <Button bg="#ffffff" fg="var(--slate-900)" edge="var(--slate-300)">Cancel</Button>
       <Button bg="var(--red-600)" fg="#ffffff">Delete</Button>
     </Row>
-    <Note font="sans">rounded 6 · 12px x · semibold · small shadow</Note>
   </HeroCard>
 
-  <HeroCard label="Lucide · 24px · stroke 2">
+  <HeroCard label="Lucide icons">
     <div class="icons">
       <svg width="20" height="20" viewBox="0 0 24 24"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
       <svg width="20" height="20" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
@@ -60,36 +107,21 @@ const slate = ['#f8fafc', '#f1f5f9', '#e2e8f0', '#cbd5e1', '#94a3b8', '#64748b',
       <svg width="20" height="20" viewBox="0 0 24 24"><path d="M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5"/></svg>
       <svg width="20" height="20" viewBox="0 0 24 24"><path d="M12 2v2"/><path d="M12 9.189V13"/><path d="M19 12V6a2 2 0 00-2-2H7a2 2 0 00-2 2v6"/><path d="M19.38 19A11.6 11.6 0 0021 13l-8.188-3.639a2 2 0 00-1.624 0L3 13.001a11.6 11.6 0 002.81 7.76"/><path d="M2 20c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1s1.2 1 2.5 1c2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/></svg>
       <svg width="20" height="20" viewBox="0 0 24 24"><path d="M12 6v16"/><path d="m19 13 2-1a9 9 0 0 1-18 0l2 1"/><path d="M9 11h6"/><circle cx="12" cy="4" r="2"/></svg>
+      <svg width="20" height="20" viewBox="0 0 24 24"><path d="M8 2v3"/><path d="M16 2v3"/><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></svg>
+      <svg width="20" height="20" viewBox="0 0 24 24"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg>
+      <svg width="20" height="20" viewBox="0 0 24 24"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><polyline points="3.29 7 12 12 20.71 7"/><path d="m7.5 4.27 9 5.15"/></svg>
+      <svg width="20" height="20" viewBox="0 0 24 24"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>
     </div>
-    <Note>house · search · bell · user · settings · heart · ship · anchor</Note>
   </HeroCard>
 
-  <HeroCard label="slate · 50 → 950" col={2}>
-    <Ramp colors={slate} />
-  </HeroCard>
-
-  <HeroCard label="Forms">
-    <Field label="Vessel name" value="MV Northern Light" />
-    <Row gap={10} align="center">
-      <Control type="checkbox" label="checkbox" color="var(--blue-600)" />
-      <Control type="toggle" label="switch" color="var(--blue-600)" width={28} height={15} />
-    </Row>
-  </HeroCard>
-
-  <HeroCard label="Spacing · 0.25rem">
+<HeroCard label="Spacing">
     <Bars color="var(--blue-600)" items={[[6, '1 · 4px'], [12, '2 · 8px'], [19, '3 · 12px'], [25, '4 · 16px'], [38, '6 · 24px'], [51, '8 · 32px'], [76, '12 · 48px']]} />
   </HeroCard>
 
-  <HeroCard label="Border radius">
+  <HeroCard label="Radius">
     <Shapes size={24} gap={5} fill="var(--blue-50)" edge="var(--blue-200)" items={[
       { radius: '2px', label: 'sm 2' }, { radius: '6px', label: 'md 6' }, { radius: '8px', label: 'lg 8' },
       { radius: '12px', label: 'xl 12' }, { radius: '16px', label: '2xl 16' }, { radius: '9999px', label: 'full' },
-    ]} />
-  </HeroCard>
-
-  <HeroCard label="Box shadow">
-    <Shadows width={28} height={24} radius={6} items={[
-      ['var(--shadow-sm)', 'sm'], ['var(--shadow-md)', 'md'], ['var(--shadow-lg)', 'lg'], ['var(--shadow-xl)', 'xl'],
     ]} />
   </HeroCard>
 
@@ -97,13 +129,7 @@ const slate = ['#f8fafc', '#f1f5f9', '#e2e8f0', '#cbd5e1', '#94a3b8', '#64748b',
     <Bars color="var(--slate-400)" gap={3} height={5} items={[[45, 'sm 640px'], [54, 'md 768px'], [73, 'lg 1024px'], [91, 'xl 1280px'], [109, '2xl 1536px']]} />
   </HeroCard>
 
-  <HeroCard label="Stack" col={2}>
-    <div class="stack-card">
-      <svg width="20" height="20" viewBox="0 0 24 24"><path d="M12 2v2"/><path d="M12 9.189V13"/><path d="M19 12V6a2 2 0 00-2-2H7a2 2 0 00-2 2v6"/><path d="M19.38 19A11.6 11.6 0 0021 13l-8.188-3.639a2 2 0 00-1.624 0L3 13.001a11.6 11.6 0 002.81 7.76"/><path d="M2 20c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1s1.2 1 2.5 1c2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/></svg>
-      <span>Compass</span>
-    </div>
-    <Note>Tailwind CSS · Inter · lucide-react</Note>
-  </HeroCard>
+
 </div>
 
 <style>
@@ -112,6 +138,7 @@ const slate = ['#f8fafc', '#f1f5f9', '#e2e8f0', '#cbd5e1', '#94a3b8', '#64748b',
     --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
     --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
     --slate-300: #cbd5e1; --slate-400: #94a3b8; --slate-500: #64748b; --slate-700: #334155; --slate-900: #0f172a; --slate-200: #e2e8f0;
+    --slate-50: #f8fafc; --slate-100: #f1f5f9; --slate-600: #475569;
     --blue-50: #eff6ff; --blue-200: #bfdbfe; --blue-600: #2563eb; --red-600: #dc2626;
     --shadow-sm: 0 1px 2px rgba(0,0,0,.05);
     --shadow-md: 0 4px 6px -1px rgba(0,0,0,.1), 0 2px 4px -2px rgba(0,0,0,.1);
@@ -124,10 +151,105 @@ const slate = ['#f8fafc', '#f1f5f9', '#e2e8f0', '#cbd5e1', '#94a3b8', '#64748b',
     --button-pad: 12px; --button-radius: 6px; --button-weight: 600; --button-shadow: var(--shadow-sm);
     --field-radius: 6px; --field-edge: var(--slate-300); --field-label-weight: 500;
   }
-  .icons { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px 8px; justify-items: center; }
+  .vc { flex: 1; display: flex; flex-direction: column; justify-content: space-between; gap: 7px; padding: 10px; border-radius: 8px; background: #fff; box-shadow: inset 0 0 0 1px #e5e7eb, var(--shadow-sm); }
+  .vc span { font-family: var(--font-sans); }
+  .vc b { font-weight: 600; }
+  .vc em { font-style: normal; }
+  .vc-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; }
+  .vc-title em { font-size: 8.5px; color: #6b7280; }
+  .vc-title { display: flex; flex-direction: column; font-size: 10.5px; white-space: nowrap; line-height: 1.2; color: #111827; letter-spacing: -.01em; }
+  .vc-pill { flex: none; padding: 2px 6px; border-radius: 9999px; background: #eff6d9; font-size: 7px; font-weight: 600; color: #4d7c0f; }
+  .vc-cargo { display: flex; gap: 4px; }
+  .vc-cargo svg { flex: none; margin-top: 1px; fill: none; stroke: #111827; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .vc-cargo > span { display: flex; flex-direction: column; gap: 2px; }
+  .vc-cargo b { font-size: 8.5px; font-weight: 500; color: #111827; }
+  .vc-cargo em { font-size: 7px; color: #6b7280; }
+  .vc-track { position: relative; height: 3px; margin: 4px 0; border-radius: 9999px; background: #f3f4f6; }
+  .vc-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 26%; border-radius: 9999px; background: #2346dd; }
+  .vc-dot { position: absolute; left: 26%; top: 50%; display: grid; place-items: center; width: 11px; height: 11px; margin: -5.5px 0 0 -5.5px; border-radius: 50%; background: #2346dd; }
+  .vc-ports { display: flex; justify-content: space-between; gap: 6px; }
+  .vc-ports > span { display: flex; flex-direction: column; gap: 2px; }
+  .vc-ports .vc-end { align-items: flex-end; }
+  .vc-ports b { font-size: 8px; color: #111827; }
+  .vc-ports em { font-size: 6.8px; color: #111827; white-space: nowrap; }
+  .vc-rule { height: 1px; background: #e5e7eb; }
+  .vc-facts { display: grid; grid-template-columns: 46px 1fr; gap: 5px 6px; font-size: 7.5px; }
+  .vc-facts span { font-size: 7.5px; color: #111827; white-space: nowrap; }
+  .vc-facts .k { color: #6b7280; }
+  .vc-foot { display: flex; align-items: center; gap: 4px; font-size: 7.5px; color: #6b7280; }
+  .vc-foot svg { fill: none; stroke: #6b7280; stroke-width: 2; stroke-linecap: round; }
+  .tbl { display: flex; flex-direction: column; overflow: hidden; border-left: 1px solid #e8e8ec; }
+  .tbl-row { display: grid; grid-template-columns: 62px minmax(0, 1.35fr) .8fr minmax(0, 1.6fr); align-items: stretch; border-top: 1px solid #e8e8ec; font-size: 8px; color: #1d2024; }
+  .tbl-row > span { display: flex; align-items: center; min-width: 0; padding: 3px 8px; white-space: nowrap; overflow: hidden; }
+  .tbl-row > span:last-child { display: block; align-self: center; text-overflow: ellipsis; }
+  .tbl-row > span + span { border-left: 1px solid #e8e8ec; }
+  .tbl-row:nth-child(odd):not(.tbl-head) { background: #f9f9fb; }
+  .tbl-head { border-top: 0; border-bottom: 1px solid #dddede; }
+  .tbl-head > span { position: relative; padding-top: 4px; padding-bottom: 4px; font-size: 8px; font-weight: 500; color: #6b7281; }
+  .tbl-head > span + span { border-left: 0; }
+  .tbl-head > span + span::before { content: ''; position: absolute; left: 0; top: 50%; height: 9px; margin-top: -4.5px; border-left: 1px solid #dddede; }
+  .tbl .v { flex-direction: column; align-items: flex-start; justify-content: center; gap: 1px; }
+  .tbl .v b { font-weight: 600; }
+  .tbl .v em { font-style: normal; color: #6b7281; }
+  .tbl-row > .pill { align-self: center; justify-self: start; width: max-content; margin-left: 6px; padding: 2px 6px; border-radius: 9999px; font-size: 7px; font-weight: 600; }
+  .pill.commenced { background: #eff6d9; color: #627b3a; }
+  .pill.scheduled { background: #f8f2c4; color: #a36600; }
+  .pill.completed { background: #e9f4fd; color: #2670d6; }
+  .pill.closed { background: #f7e5ec; color: #ba3263; }
+  .ct { flex: 1; display: flex; flex-direction: column; justify-content: space-between; min-height: 0; }
+  .ct-row span, .ct-foot span { font-family: var(--font-sans); }
+  .ct-row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding-bottom: 2px; border-bottom: 1px solid var(--slate-200); }
+  .ct-name { line-height: 1.15; letter-spacing: -.02em; color: var(--slate-900); }
+  .ct-spec { display: flex; gap: 6px; font-size: 8px; color: var(--slate-500); white-space: nowrap; }
+  .ct-spec b { font-weight: 600; color: var(--slate-900); }
+  .ct-foot { display: flex; justify-content: space-between; align-items: flex-end; padding-top: 4px; }
+  .ct-set { display: flex; gap: 11px; }
+  .ct-w { display: flex; flex-direction: column; gap: 1px; }
+  .ct-w > span:first-child { font-size: 19px; line-height: 1; color: var(--slate-900); }
+  .ct-w em { font-style: normal; font-size: 7.5px; color: var(--slate-500); text-transform: none; letter-spacing: 0; }
+  .icons { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px 8px; justify-items: center; }
   .icons svg, .stack-card svg { fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   .icons svg { stroke: var(--slate-700); }
   .stack-card { display: flex; align-items: center; gap: 12px; padding: 16px; border-radius: 8px; background: #ffffff; box-shadow: inset 0 0 0 1px var(--slate-200), var(--shadow-sm); }
   .stack-card svg { stroke: var(--slate-500); }
   .stack-card span { font-family: var(--font-sans); font-size: 14px; font-weight: 500; color: var(--slate-900); }
+
+  .mig { flex: 1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; min-height: 0; }
+  .mig span, .spec span, .port span, .tbl span { font-family: var(--font-sans); }
+  .old { display: flex; flex-direction: column; gap: 5px; padding: 0 0 6px; background: #ece9d8; border: 1px solid #8a8a8a; }
+  .old span { font-family: Tahoma, Verdana, 'DejaVu Sans', sans-serif !important; font-size: 8px; color: #000; }
+  .old-bar { padding: 3px 5px; background: linear-gradient(#5f8bd6, #2f5fb3); color: #fff !important; font-weight: 700; }
+  .old-tabs { display: flex; gap: 1px; padding: 0 5px; border-bottom: 1px solid #8a8a8a; }
+  .old-tabs span { padding: 2px 5px; background: #d9d6c3; border: 1px solid #8a8a8a; border-bottom: 0; }
+  .old-tabs .on { background: #ece9d8; }
+  .old-field { display: grid; grid-template-columns: 62px 1fr; align-items: center; padding: 0 5px; }
+  .old-input { height: 14px; padding: 1px 3px; background: #fff; border: 1px solid #7f9db9; overflow: hidden; white-space: nowrap; }
+  .old-actions { display: flex; justify-content: flex-end; gap: 3px; margin-top: auto; padding: 0 5px; }
+  .old-actions span { padding: 2px 8px; background: linear-gradient(#fff, #d6d3c4); border: 1px solid #555; border-radius: 2px; }
+  .ghost { color: var(--slate-900); box-shadow: inset 0 0 0 1px var(--slate-300); }
+  .solid { color: #fff; background: var(--blue-600); box-shadow: var(--shadow-sm); }
+
+  .spec { flex: 1; display: flex; align-items: center; justify-content: space-evenly; gap: 14px; padding: 0 6px 10px; }
+  .spec i { position: absolute; font-style: normal; border-color: #ec4899; }
+  .spec i::after { content: attr(data-n); position: absolute; font-family: var(--font-mono); font-size: 7px; color: #db2777; background: #fdf2f8; padding: 0 2px; border-radius: 2px; white-space: nowrap; }
+  .spec-btn { position: relative; display: inline-flex; align-items: center; height: 36px; padding: 0 12px; border-radius: 6px; background: var(--blue-600); color: #fff; font-size: 11px; font-weight: 600; box-shadow: var(--shadow-sm); }
+  .spec-h { top: 0; bottom: 0; left: -7px; border-left: 1px solid; }
+  .spec-h::after { top: 50%; right: 4px; transform: translateY(-50%); }
+  .spec-x { left: 0; width: 12px; top: calc(100% + 5px); border-top: 1px solid; }
+  .spec-x::after { top: 3px; left: 0; }
+  .spec-badge { position: relative; display: inline-flex; align-items: center; gap: 5px; height: 20px; padding: 0 9px; border-radius: 9999px; background: #ecfdf5; color: #047857; font-size: 9px; font-weight: 500; }
+  .dot-g { width: 6px; height: 6px; border-radius: 50%; background: #10b981; }
+  .spec-r { right: -2px; top: -2px; width: 10px; height: 10px; border-top: 1px solid; border-right: 1px solid; border-top-right-radius: 10px; }
+  .spec-r::after { bottom: 10px; left: 8px; }
+  .spec-field { position: relative; display: flex; flex-direction: column; gap: 6px; width: 110px; }
+  .spec-gap { left: -6px; top: 11px; height: 6px; border-left: 1px solid; }
+  .spec-gap::after { right: 3px; top: -2px; }
+
+  .port { flex: 1; display: flex; align-items: center; gap: 12px; }
+  .port-core { display: flex; align-items: center; gap: 8px; padding: 12px 14px; border-radius: 8px; background: #fff; box-shadow: inset 0 0 0 1px var(--slate-200), var(--shadow-md); }
+  .port-core b { font-size: 14px; font-weight: 600; color: var(--slate-900); letter-spacing: -.02em; }
+  .port-arrow { color: var(--slate-400); font-size: 14px; }
+  .port-apps { flex: 1; display: flex; flex-direction: column; gap: 5px; }
+  .port-apps span { display: flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 6px; background: var(--slate-50); box-shadow: inset 0 0 0 1px var(--slate-200); font-size: 9px; font-weight: 500; color: var(--slate-700); }
+
 </style>
