@@ -6,16 +6,17 @@ import Banner from '../parts/Banner.astro';
 
 // Odyssey, Okta, as of @okta/odyssey-design-tokens 0.14.0. Public Sans on a 14px base.
 const nav = [
-  ['Dashboard'], ['Directory', ['People', 'Groups', 'Devices', 'Profile Editor']], ['Customizations'], ['Applications'],
-  ['Security'], ['Workflow'], ['Reports'], ['Settings'],
+  ['Dashboard'], ['Directory', ['People', 'Groups', 'Profile editor', 'Directory integrations', 'Profile masters']],
+  ['Applications'], ['Security'], ['Workflow'], ['Reports'], ['Settings'],
 ];
-const people = [
-  ['Maria Alvarez', 'maria.alvarez@acme.com', 'Active', 'success'],
-  ['James Okafor', 'james.okafor@acme.com', 'Active', 'success'],
-  ['Linh Nguyen', 'linh.nguyen@acme.com', 'Staged', 'neutral'],
-  ['Sam Patel', 'sam.patel@acme.com', 'Password reset', 'caution'],
-  ['Ruth Cole', 'ruth.cole@acme.com', 'Suspended', 'danger'],
+const filters = [
+  [null, 'Everyone', 121], ['Onboarding'], [null, 'Staged', 3], [null, 'Pending user action', 2],
+  ['Active'], [null, 'Active', 99], [null, 'Password reset', 0], [null, 'Locked out', 4],
+  ['Inactive'], [null, 'Suspended', 1], [null, 'Deactivated', 21],
 ];
+const people = ['Nicolas Backal', 'Zoe Monosson', 'Maggie Law', 'Taylor Laubach', 'Jessica Allen', 'Vince Voong', 'Alex Dahl'];
+const chevron = '<svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="m6 9 6 6 6-6"/></svg>';
+const search = '<svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>';
 // [name, rem, px, line height, rendered px, weight]
 const scale = [
   ['Heading 1', '2.571rem', 36, 1.25, 25, 600],
@@ -39,31 +40,43 @@ const statuses = [['Active', 'success'], ['Staged', 'neutral'], ['Password reset
 <div class="odyssey">
   <HeroCard label="Admin console" col={2} row={2}>
     <div class="ad">
-      <div class="ad-top"><span class="ad-search"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>Search for people, apps and groups</span><span class="ad-user">Andrew Berg</span></div>
+      <div class="ad-top">
+        <span class="ad-search"><Fragment set:html={search} />Search</span>
+        <span class="ad-user"><span>andrew@ocorp.com</span><span class="ad-org">OCORP</span></span>
+      </div>
       <div class="ad-body">
         <div class="ad-nav">
           {nav.map(([name, children]) => (
-            <span class:list={['ad-sec', { open: children }]}>
-              <span class="ad-sec-name">{name}<i></i></span>
+            <span class="ad-sec">
+              <span class="ad-sec-name">{name}{name !== 'Dashboard' && <i class:list={{ up: children }} set:html={chevron} />}</span>
               {children && children.map(child => <span class:list={['ad-sub', { on: child === 'People' }]}>{child}</span>)}
             </span>
           ))}
         </div>
         <div class="ad-main">
-          <span class="ad-title">People</span>
+          <span class="ad-title"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="7" r="5"/><path d="M2 23c0-6 4.5-9 10-9s10 3 10 9z"/></svg>People<span class="ad-help"><b>?</b>Help</span></span>
           <span class="ad-actions">
-            <span class="ad-btn primary">Add person</span>
+            <span class="ad-btn"><svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="7" r="5"/><path d="M0 23c0-6 4-9 9-9s9 3 9 9zM19 6h2v3h3v2h-3v3h-2v-3h-3V9h3z"/></svg>Add person</span>
             <span class="ad-btn">Reset passwords</span>
-            <span class="ad-btn">More actions<svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="m6 9 6 6 6-6"/></svg></span>
+            <span class="ad-btn">Reset multifactor</span>
+            <span class="ad-btn">Actions<Fragment set:html={chevron} /></span>
           </span>
-          <span class="ad-table">
-            <span class="ad-row ad-head"><span>Person &amp; username</span><span>Status</span></span>
-            {people.map(([name, email, status, tone]) => (
-              <span class="ad-row">
-                <span class="ad-person"><span class="ad-name">{name}</span><span class="ad-email">{email}</span></span>
-                <span class:list={['st', tone]}><i></i>{status}</span>
+          <span class="ad-panel">
+            <span class="ad-bar"><span class="ad-find"><Fragment set:html={search} />Search</span></span>
+            <span class="ad-split">
+              <span class="ad-filters">
+                {filters.map(([group, name, count]) => group
+                  ? <span class="ad-group">{group}</span>
+                  : <span class:list={['ad-filter', { on: name === 'Everyone' }]}><span>{name}</span><span>{count}</span></span>)}
               </span>
-            ))}
+              <span class="ad-table">
+                <span class="ad-row ad-head"><span>Person &amp; username</span><span>Status</span></span>
+                {people.map(name => {
+                  const user = `${name.toLowerCase().replace(' ', '.')}@okta.com`;
+                  return <span class="ad-row"><span class="ad-person"><span class="ad-name">{name}</span><span class="ad-email">{user}</span></span><span class="ad-status">Active</span></span>;
+                })}
+              </span>
+            </span>
           </span>
         </div>
       </div>
@@ -153,33 +166,43 @@ const statuses = [['Active', 'success'], ['Staged', 'neutral'], ['Password reset
     --hero-display-weight: 600; --hero-edge: rgba(0,0,0,.06);
     --button-pad: 8px; --button-radius: 4px; --button-weight: 600;
   }
-  .ad span, .ot span, .of span, .er span, .sts span { font-family: var(--FontFamilyBase); }
+
 
   .ad { flex: 1; display: flex; flex-direction: column; min-height: 0; overflow: hidden; border-radius: 6px; background: #fff; box-shadow: inset 0 0 0 1px var(--ColorBorderDisplay); }
-  .ad-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 10px; border-bottom: 1px solid var(--ColorBorderDisplay); }
-  .ad-search { display: flex; align-items: center; gap: 5px; width: 170px; height: 18px; padding: 0 7px; border-radius: 4px; background: var(--ColorNeutralLighter); font-size: 7.5px; color: var(--ColorTextSub); }
-  .ad-user { font-size: 8px; font-weight: 600; color: var(--ColorTextBody); }
-  .ad-body { flex: 1; display: grid; grid-template-columns: 92px minmax(0, 1fr); min-height: 0; }
-  .ad-nav { display: flex; flex-direction: column; gap: 5px; padding: 9px 8px 9px 10px; border-right: 1px solid var(--ColorBorderDisplay); background: var(--ColorNeutralLighter); }
-  .ad-sec { display: flex; flex-direction: column; gap: 4px; }
-  .ad-sec-name { display: flex; align-items: center; justify-content: space-between; font-size: 8px; font-weight: 600; color: var(--ColorTextBody); }
-  .ad-sec-name i { width: 4px; height: 4px; border-right: 1.2px solid var(--ColorTextSub); border-bottom: 1.2px solid var(--ColorTextSub); transform: rotate(-45deg); }
-  .ad-sec.open .ad-sec-name i { transform: rotate(45deg); }
-  .ad-sec:first-child .ad-sec-name i { display: none; }
-  .ad-sub { padding: 2px 0 2px 8px; font-size: 7.5px; color: var(--ColorTextSub); }
-  .ad-sub.on { margin-left: -2px; border-left: 2px solid var(--ColorPrimaryBase); color: var(--ColorPrimaryBase); font-weight: 600; }
-  .ad-main { display: flex; flex-direction: column; gap: 7px; padding: 10px 12px; min-width: 0; }
-  .ad-title { font-size: 16px; font-weight: 600; line-height: 1.2; color: var(--ColorTextBody); }
-  .ad-actions { display: flex; gap: 5px; }
-  .ad-btn { display: flex; align-items: center; gap: 4px; height: 18px; padding: 0 7px; border-radius: 4px; box-shadow: inset 0 0 0 1px var(--ColorBorderUi); font-size: 7.5px; font-weight: 600; color: var(--ColorTextBody); white-space: nowrap; }
-  .ad-btn.primary { background: var(--ColorPrimaryBase); box-shadow: none; color: #fff; }
-  .ad-table { display: flex; flex-direction: column; }
-  .ad-row { display: grid; grid-template-columns: minmax(0, 1fr) 76px; align-items: center; gap: 8px; padding: 4px 2px; border-top: 1px solid var(--ColorBorderDisplay); }
-  .ad-head { border-top: 0; }
-  .ad-head span { font-size: 7.5px; font-weight: 600; color: var(--ColorTextSub); }
+  .ad-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 5px 10px 5px 108px; border-bottom: 1px solid var(--ColorBorderDisplay); }
+  .ad-search { display: flex; align-items: center; gap: 4px; flex: 1; max-width: 170px; height: 16px; padding: 0 6px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--ColorBorderDisplay); font-size: 7px; color: var(--ColorTextSub); }
+  .ad-user { display: flex; flex-direction: column; font-size: 6.5px; line-height: 1.25; color: var(--ColorTextBody); }
+  .ad-org { color: var(--ColorTextSub); }
+  .ad-body { flex: 1; display: grid; grid-template-columns: 98px minmax(0, 1fr); min-height: 0; }
+  .ad-nav { display: flex; flex-direction: column; gap: 6px; padding: 9px 0; border-right: 1px solid var(--ColorBorderDisplay); }
+  .ad-sec { display: flex; flex-direction: column; gap: 1px; }
+  .ad-sec-name { display: flex; align-items: center; justify-content: space-between; padding: 0 8px 0 10px; font-size: 7.5px; font-weight: 600; color: var(--ColorTextBody); }
+  .ad-sec-name i { display: flex; }
+  .ad-sec-name i.up { transform: rotate(180deg); }
+  .ad-sub { padding: 2.5px 6px 2.5px 18px; font-size: 6.8px; color: var(--ColorTextBody); white-space: nowrap; }
+  .ad-sub.on { background: var(--ColorPrimaryLight000); }
+  .ad-main { display: flex; flex-direction: column; gap: 7px; padding: 9px 10px; min-width: 0; }
+  .ad-title { display: flex; align-items: center; gap: 5px; font-size: 14px; font-weight: 600; line-height: 1.1; color: var(--ColorTextBody); }
+  .ad-help { display: flex; align-items: center; gap: 3px; margin-left: auto; font-size: 7.5px; font-weight: 400; color: var(--ColorPrimaryBase); }
+  .ad-help b { display: grid; place-items: center; width: 8px; height: 8px; border-radius: 50%; background: var(--ColorPrimaryBase); color: #fff; font-size: 6px; }
+  .ad-actions { display: flex; gap: 3px; }
+  .ad-btn { display: flex; align-items: center; gap: 3px; height: 16px; padding: 0 5px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--ColorPrimaryBase); font-size: 6.8px; font-weight: 600; color: var(--ColorPrimaryBase); white-space: nowrap; }
+  .ad-panel { flex: 1; display: flex; flex-direction: column; min-height: 0; overflow: hidden; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--ColorBorderDisplay); }
+  .ad-bar { padding: 4px 6px; background: var(--ColorNeutralLighter); border-bottom: 1px solid var(--ColorBorderDisplay); }
+  .ad-find { display: flex; align-items: center; gap: 4px; width: 84px; height: 14px; padding: 0 5px; border-radius: 3px; background: #fff; box-shadow: inset 0 0 0 1px var(--ColorBorderDisplay); font-size: 6.5px; color: var(--ColorTextSub); }
+  .ad-split { flex: 1; display: grid; grid-template-columns: 82px minmax(0, 1fr); min-height: 0; }
+  .ad-filters { display: flex; flex-direction: column; padding: 3px 0; border-right: 1px solid var(--ColorBorderDisplay); }
+  .ad-filter { display: flex; justify-content: space-between; gap: 4px; padding: 2px 5px; font-size: 6.3px; color: var(--ColorTextBody); white-space: nowrap; }
+  .ad-filter.on { background: var(--ColorPrimaryLight000); }
+  .ad-group { padding: 4px 5px 1px; font-size: 6.5px; font-weight: 600; color: var(--ColorTextBody); }
+  .ad-table { display: flex; flex-direction: column; min-width: 0; }
+  .ad-row { display: grid; grid-template-columns: minmax(0, 1fr) 28px; align-items: center; gap: 6px; padding: 2.5px 5px; border-top: 1px solid var(--ColorBorderDisplay); }
+  .ad-head { border-top: 0; padding-top: 4px; }
+  .ad-head span { font-size: 6.5px; font-weight: 600; color: var(--ColorTextBody); }
   .ad-person { display: flex; flex-direction: column; min-width: 0; }
-  .ad-name { font-size: 8.5px; font-weight: 600; color: var(--ColorPrimaryBase); }
-  .ad-email { font-size: 7px; color: var(--ColorTextSub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ad-name { font-size: 7px; color: var(--ColorPrimaryBase); }
+  .ad-email { font-size: 5.8px; color: var(--ColorTextSub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ad-status { font-size: 6.5px; color: var(--ColorTextBody); }
 
   .st { display: flex; align-items: center; gap: 5px; font-size: 8px; color: var(--ColorTextBody); white-space: nowrap; }
   .st i { flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--ColorBorderUi); }
