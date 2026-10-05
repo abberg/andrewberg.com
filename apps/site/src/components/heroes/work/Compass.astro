@@ -56,7 +56,7 @@ const slate = ['#f8fafc', '#f1f5f9', '#e2e8f0', '#cbd5e1', '#94a3b8', '#64748b',
 
   <HeroCard label="Voyage card" row={2}>
     <div class="vc">
-      <span class="vc-title"><b>VHAND ROTTERDAM</b><span class="vc-head"><span>600019</span><span class="vc-pill">Commenced</span></span></span>
+      <span class="vc-head"><span class="vc-title"><b>NAVIOS RAY</b><em>2501</em></span><span class="vc-pill">Commenced</span></span>
       <span class="vc-cargo">
         <svg width="11" height="11" viewBox="0 0 24 24"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><path d="m3.3 7 7.703 4.734a2 2 0 0 0 1.994 0L20.7 7"/><path d="m7.5 4.27 9 5.15"/></svg>
         <span><b>22,000 MT GAS OIL</b><em>Charterer: Broadwick Clean Petroleum</em></span>
@@ -155,7 +155,8 @@ const slate = ['#f8fafc', '#f1f5f9', '#e2e8f0', '#cbd5e1', '#94a3b8', '#64748b',
   .vc span { font-family: var(--font-sans); }
   .vc b { font-weight: 600; }
   .vc em { font-style: normal; }
-  .vc-head { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+  .vc-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; }
+  .vc-title em { font-size: 8.5px; color: #6b7280; }
   .vc-title { display: flex; flex-direction: column; font-size: 10.5px; white-space: nowrap; line-height: 1.2; color: #111827; letter-spacing: -.01em; }
   .vc-pill { flex: none; padding: 2px 6px; border-radius: 9999px; background: #eff6d9; font-size: 7px; font-weight: 600; color: #4d7c0f; }
   .vc-cargo { display: flex; gap: 4px; }
