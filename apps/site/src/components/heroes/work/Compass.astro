@@ -20,8 +20,10 @@ const palette = {
   red: ['#fef2f2', '#fee2e2', '#fecaca', '#fca5a5', '#f87171', '#ef4444', '#dc2626', '#b91c1c', '#991b1b', '#7f1d1d', '#450a0a'],
 };
 const facts = [['Next Port', 'ALGECIRAS'], ['ETA', '25 Dec 23 at 15:01'], ['ETB', '25 Dec 23 at 15:01'], ['Operator', 'Anett']];
-const vessels = [
-  ['MV Northern Light', '2291', 'Oct 14', 'On schedule', 'ok'], ['Pacific Dawn', '2288', 'Oct 17', 'Delayed', 'warn'], ['Cape Meridian', '2276', 'Oct 21', 'At port', 'info'],
+const voyages = [
+  ['Commenced', 'NAVIOS RAY', '2501', 'IRON ORE', 'BHP Billiton'],
+  ['Scheduled', 'VMR BOSTON', '2025009', 'CPP', 'Carlisle Clean Petroleum'],
+  ['Completed', 'NEULAND', '2025111', 'GRAINS', 'Cargill'],
 ];
 const slate = ['#f8fafc', '#f1f5f9', '#e2e8f0', '#cbd5e1', '#94a3b8', '#64748b', '#475569', '#334155', '#1e293b', '#0f172a', '#020617'];
 ---
@@ -60,11 +62,11 @@ const slate = ['#f8fafc', '#f1f5f9', '#e2e8f0', '#cbd5e1', '#94a3b8', '#64748b',
     </div>
   </HeroCard>
 
-  <HeroCard label="Vessels" col={2}>
+  <HeroCard label="Voyages" col={2}>
     <div class="tbl">
-      <span class="tbl-row tbl-head"><span>Vessel</span><span>Voyage</span><span>ETA</span><span>Status</span></span>
-      {vessels.map(([name, voyage, eta, status, tone]) => (
-        <span class="tbl-row"><span class="v">{name}</span><span>{voyage}</span><span>{eta}</span><span class:list={['pill', tone]}>{status}</span></span>
+      <span class="tbl-row tbl-head"><span>Status</span><span>Voyage</span><span>Cargo</span><span>Counterparty</span></span>
+      {voyages.map(([status, vessel, number, cargo, party]) => (
+        <span class="tbl-row"><span class:list={['pill', status.toLowerCase()]}>{status}</span><span class="v"><b>{vessel}</b><em>{number}</em></span><span>{cargo}</span><span>{party}</span></span>
       ))}
     </div>
   </HeroCard>
@@ -163,6 +165,24 @@ const slate = ['#f8fafc', '#f1f5f9', '#e2e8f0', '#cbd5e1', '#94a3b8', '#64748b',
   .vc-facts .k { color: #6b7280; }
   .vc-foot { display: flex; align-items: center; gap: 4px; font-size: 7.5px; color: #6b7280; }
   .vc-foot svg { fill: none; stroke: #6b7280; stroke-width: 2; stroke-linecap: round; }
+  .tbl { display: flex; flex-direction: column; overflow: hidden; border-left: 1px solid #e8e8ec; }
+  .tbl-row { display: grid; grid-template-columns: 62px minmax(0, 1.35fr) .8fr minmax(0, 1.6fr); align-items: stretch; border-top: 1px solid #e8e8ec; font-size: 8px; color: #1d2024; }
+  .tbl-row > span { display: flex; align-items: center; min-width: 0; padding: 3px 8px; white-space: nowrap; overflow: hidden; }
+  .tbl-row > span:last-child { display: block; align-self: center; text-overflow: ellipsis; }
+  .tbl-row > span + span { border-left: 1px solid #e8e8ec; }
+  .tbl-row:nth-child(odd):not(.tbl-head) { background: #f9f9fb; }
+  .tbl-head { border-top: 0; border-bottom: 1px solid #dddede; }
+  .tbl-head > span { position: relative; padding-top: 4px; padding-bottom: 4px; font-size: 8px; font-weight: 500; color: #6b7281; }
+  .tbl-head > span + span { border-left: 0; }
+  .tbl-head > span + span::before { content: ''; position: absolute; left: 0; top: 50%; height: 9px; margin-top: -4.5px; border-left: 1px solid #dddede; }
+  .tbl .v { flex-direction: column; align-items: flex-start; justify-content: center; gap: 1px; }
+  .tbl .v b { font-weight: 600; }
+  .tbl .v em { font-style: normal; color: #6b7281; }
+  .tbl-row > .pill { align-self: center; justify-self: start; width: max-content; margin-left: 6px; padding: 2px 6px; border-radius: 9999px; font-size: 7px; font-weight: 600; }
+  .pill.commenced { background: #eff6d9; color: #627b3a; }
+  .pill.scheduled { background: #f8f2c4; color: #a36600; }
+  .pill.completed { background: #e9f4fd; color: #2670d6; }
+  .pill.closed { background: #f7e5ec; color: #ba3263; }
   .icons { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px 8px; justify-items: center; }
   .icons svg, .stack-card svg { fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   .icons svg { stroke: var(--slate-700); }
@@ -208,13 +228,4 @@ const slate = ['#f8fafc', '#f1f5f9', '#e2e8f0', '#cbd5e1', '#94a3b8', '#64748b',
   .port-apps { flex: 1; display: flex; flex-direction: column; gap: 5px; }
   .port-apps span { display: flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 6px; background: var(--slate-50); box-shadow: inset 0 0 0 1px var(--slate-200); font-size: 9px; font-weight: 500; color: var(--slate-700); }
 
-  .tbl { display: flex; flex-direction: column; border-radius: 8px; box-shadow: inset 0 0 0 1px var(--slate-200); overflow: hidden; }
-  .tbl-row { display: grid; grid-template-columns: minmax(0, 1.6fr) .7fr .8fr 1.2fr; align-items: center; gap: 6px; padding: 5px 10px; border-top: 1px solid var(--slate-200); font-size: 9px; color: var(--slate-600); }
-  .tbl-head { border-top: 0; background: var(--slate-50); }
-  .tbl-head span { font-size: 7.5px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--slate-500); }
-  .tbl .v { font-weight: 500; color: var(--slate-900); }
-  .pill { justify-self: start; padding: 1px 7px; border-radius: 9999px; font-size: 8px; font-weight: 500; }
-  .ok { background: #ecfdf5; color: #047857; }
-  .warn { background: #fffbeb; color: #b45309; }
-  .info { background: var(--blue-50); color: #1d4ed8; }
 </style>
