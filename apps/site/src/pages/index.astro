@@ -247,10 +247,10 @@ const linkedin = 'https://www.linkedin.com/in/andrewbberg';
     .meta { padding-top: 0; font-size: 14px; }
     .end { grid-template-columns: 20px; }
 
-    /* Phone heroes show the first six cards on three columns, left-justified so only the right side is cropped. */
-    .hero { height: var(--ph); margin-top: -92px; margin-right: -20px; overflow: hidden; }
+    /* Phone heroes show the cards marked for phone on three columns, left-justified so only the right side is cropped. */
+    .hero { height: var(--ph); margin-top: -17px; margin-right: -20px; overflow: hidden; }
     .stage { top: var(--ptop); left: var(--pleft); width: var(--pw); margin-left: 0; grid-template-columns: repeat(3, minmax(0, 1fr)); transform: rotateX(56deg) rotateZ(-36deg) scale(.516); }
-    .card:nth-child(n + 7) { display: none; }
+    .card:not([data-phone]) { display: none; }
 
     .blurb { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
     .blurb p { font-size: 13px; line-height: 1.45; }

@@ -33,7 +33,7 @@ const ramps = [
 const statuses = [['Active', 'success'], ['Staged', 'neutral'], ['Password reset', 'caution'], ['Suspended', 'danger']];
 ---
 <div class="odyssey">
-  <HeroCard label="Admin console" col={2} row={2}>
+  <HeroCard label="Admin console" col={2} row={2} phone>
     <span class="ad-panel">
       <span class="ad-bar"><span class="ad-find"><Fragment set:html={search} />Search</span></span>
       <span class="ad-split">
@@ -53,7 +53,7 @@ const statuses = [['Active', 'success'], ['Staged', 'neutral'], ['Password reset
     </span>
   </HeroCard>
 
-  <HeroCard label="Typography" col={2} row={2}>
+  <HeroCard label="Typography" col={2} row={2} phone>
     <div class="ot">
       {scale.map(([name, rem, px, lh, size, weight]) => (
         <span class="ot-row">
@@ -97,7 +97,7 @@ const statuses = [['Active', 'success'], ['Staged', 'neutral'], ['Password reset
     </span>
   </HeroCard>
 
-  <HeroCard label="Button">
+  <HeroCard label="Button" phone>
     <Row wrap>
       <Button bg="var(--ColorPrimaryBase)" fg="#ffffff">Primary</Button>
       <Button bg="#ffffff" fg="var(--ColorPrimaryBase)" edge="var(--ColorPrimaryBase)">Secondary</Button>
@@ -106,14 +106,14 @@ const statuses = [['Active', 'success'], ['Staged', 'neutral'], ['Password reset
     </Row>
   </HeroCard>
 
-  <HeroCard label="Banner">
+  <HeroCard label="Banner" phone>
     <Banner tint="var(--ColorPrimaryLight000)" accent="var(--ColorPrimaryBase)">Your password expires in 3 days.</Banner>
     <Banner tint="var(--ColorSuccessLight)" accent="var(--ColorSuccessBase)">MFA enrolled.</Banner>
     <Banner tint="var(--ColorCautionLight)" accent="var(--ColorCautionBase)">Session ending soon.</Banner>
     <Banner tint="var(--ColorDangerLight)" accent="var(--ColorDangerBase)">Sign-in failed.</Banner>
   </HeroCard>
 
-  <HeroCard label="Status">
+  <HeroCard label="Status" phone>
     <span class="sts">{statuses.map(([label, tone]) => <span class:list={['st', tone]}><i></i>{label}</span>)}</span>
   </HeroCard>
 </div>

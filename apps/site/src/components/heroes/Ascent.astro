@@ -22,7 +22,7 @@ const flows = [
 ];
 ---
 <div class="ascent">
-  <HeroCard label="Typography · system-ui" col={2} row={2}>
+  <HeroCard label="Typography · system-ui" col={2} row={2} phone>
     <TypeSample>
       <Note>500 headings · 600 labels · 400 body</Note>
       <Note>Composer 450 · 4px base</Note>
@@ -36,7 +36,7 @@ const flows = [
     <TypeRow size={8} spec="12 / 1.33">caption</TypeRow>
   </HeroCard>
 
-  <HeroCard label="Core" col={2}>
+  <HeroCard label="Core" col={2} phone>
     <Swatches height={32} items={[
       ['var(--color-text-default)', 'text · inverse'], ['var(--color-text-secondary)', 'text-secondary'], ['var(--color-text-tertiary)', 'text-tertiary'],
       ['var(--color-primary)', 'primary'], ['var(--color-focus)', 'focus'],
@@ -47,7 +47,7 @@ const flows = [
     ]} />
   </HeroCard>
 
-  <HeroCard label="Button · Select">
+  <HeroCard label="Button · Select" phone>
     <Row wrap>
       <Button bg="var(--color-text-default)" fg="var(--color-background)" edge="var(--color-text-default)">Create a campaign</Button>
       <Button bg="var(--color-background)" fg="var(--color-text-default)" edge="var(--color-border)">View dashboard</Button>
@@ -58,7 +58,7 @@ const flows = [
     </Row>
   </HeroCard>
 
-  <HeroCard label="Badges · Chips">
+  <HeroCard label="Badges · Chips" phone>
     <Row gap={5} wrap>
       <span class="badge" style="background:var(--color-positive-subtle-base);color:var(--color-positive-base)">Live</span>
       <span class="badge" style="background:var(--color-info-subtle-base);color:var(--color-info-base)">Info</span>
@@ -70,7 +70,7 @@ const flows = [
     <Note>suggestion chip · intelligence tint</Note>
   </HeroCard>
 
-  <HeroCard label="Status · subtle / base / text" col={2}>
+  <HeroCard label="Status · subtle / base / text" col={2} phone>
     <div class="status">
       {status.map(([name, label]) => (
         <Ramp label={label} labelWidth={48} labelGap={4} height={18} gap={3}
@@ -113,11 +113,11 @@ const flows = [
     <Note>16px corners · 1px border · no shadow</Note>
   </HeroCard>
 
-  <HeroCard label="Spacing · 4px base">
+  <HeroCard label="Spacing · 4px base" phone>
     <Bars color="var(--color-text-default)" items={[[6, '1 · 4px'], [12, '2 · 8px'], [19, '3 · 12px'], [25, '4 · 16px'], [38, '6 · 24px'], [64, '10 · 40px'], [76, '12 · 48px']]} />
   </HeroCard>
 
-  <HeroCard label="Rounded">
+  <HeroCard label="Rounded" phone>
     <Shapes size={24} fill="var(--color-surface-subtle)" edge="var(--color-border)" items={[
       { radius: '2px', label: 'xs 2' }, { radius: '8px', label: 'md 8' }, { radius: '16px', label: 'lg 16' },
       { radius: '9999px', label: 'full' }, { radius: '50%', label: 'circle' },
