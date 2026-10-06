@@ -7,3 +7,4 @@ apps/site/public/thumbnails/
 apps/site/src/data/sketches.json
 output/
 .playwright-cli/
+tmp/
