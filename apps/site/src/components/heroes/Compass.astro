@@ -32,7 +32,7 @@ const voyages = [
 const slate = ['#f8fafc', '#f1f5f9', '#e2e8f0', '#cbd5e1', '#94a3b8', '#64748b', '#475569', '#334155', '#1e293b', '#0f172a', '#020617'];
 ---
 <div class="compass">
-  <HeroCard label="Typography" col={2} row={2}>
+  <HeroCard label="Typography" col={2} row={2} phone>
     <div class="ct">
       <TypeSample>
         <Note>Inter · 300 → 700</Note>
@@ -54,7 +54,7 @@ const slate = ['#f8fafc', '#f1f5f9', '#e2e8f0', '#cbd5e1', '#94a3b8', '#64748b',
     </div>
   </HeroCard>
 
-  <HeroCard label="Voyage card" row={2}>
+  <HeroCard label="Voyage card" row={2} phone>
     <div class="vc">
       <span class="vc-head"><span class="vc-title"><b>NAVIOS RAY</b><em>2501</em></span><span class="vc-pill">Commenced</span></span>
       <span class="vc-cargo">
@@ -75,7 +75,7 @@ const slate = ['#f8fafc', '#f1f5f9', '#e2e8f0', '#cbd5e1', '#94a3b8', '#64748b',
     </div>
   </HeroCard>
 
-  <HeroCard label="Voyages" col={2}>
+  <HeroCard label="Voyages" col={2} phone>
     <div class="tbl">
       <span class="tbl-row tbl-head"><span>Status</span><span>Voyage</span><span>Cargo</span><span>Counterparty</span></span>
       {voyages.map(([status, vessel, number, cargo, party]) => (
@@ -83,13 +83,13 @@ const slate = ['#f8fafc', '#f1f5f9', '#e2e8f0', '#cbd5e1', '#94a3b8', '#64748b',
       ))}
     </div>
   </HeroCard>
-  <HeroCard label="Palette" col={2}>
+  <HeroCard label="Palette" col={2} phone>
     {Object.entries(palette).map(([name, colors]) => (
       <Ramp label={name} labelWidth={40} labelGap={6} height={14} colors={colors} />
     ))}
   </HeroCard>
 
-  <HeroCard label="Button">
+  <HeroCard label="Button" phone>
     <Row wrap>
       <Button bg="var(--blue-600)" fg="#ffffff">Save voyage</Button>
       <Button bg="#ffffff" fg="var(--slate-900)" edge="var(--slate-300)">Cancel</Button>
@@ -97,7 +97,7 @@ const slate = ['#f8fafc', '#f1f5f9', '#e2e8f0', '#cbd5e1', '#94a3b8', '#64748b',
     </Row>
   </HeroCard>
 
-  <HeroCard label="Lucide icons">
+  <HeroCard label="Lucide icons" phone>
     <div class="icons">
       <svg width="20" height="20" viewBox="0 0 24 24"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
       <svg width="20" height="20" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>

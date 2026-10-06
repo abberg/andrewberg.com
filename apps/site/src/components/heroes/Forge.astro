@@ -48,7 +48,7 @@ const schedule = [
 ];
 ---
 <div class="forge">
-  <HeroCard label="Form" col={2} row={2}>
+  <HeroCard label="Form" col={2} row={2} phone>
     <div class="ff">
       <span class="ff-row">
         <span class="ff-label">Name</span>
@@ -89,7 +89,7 @@ const schedule = [
     </div>
   </HeroCard>
 
-<HeroCard label="Typography" col={2} row={2}>
+<HeroCard label="Typography" col={2} row={2} phone>
     <div class="ft">
       {styles.map(([name, px, size, weight, use]) => (
         <span class="ft-row">
@@ -117,7 +117,7 @@ const schedule = [
     ]} />
   </HeroCard>
 
-  <HeroCard label="Button">
+  <HeroCard label="Button" phone>
     <Row wrap>
       <Button bg="var(--color-interaction-default)" fg="#FFFFFF">Save to Chart</Button>
       <Button bg="#FFFFFF" fg="var(--color-interaction-default)" edge="var(--color-interaction-default)">Secondary</Button>
@@ -128,7 +128,7 @@ const schedule = [
     </Row>
   </HeroCard>
 
-  <HeroCard label="StatusTag and Avatar">
+  <HeroCard label="StatusTag and Avatar" phone>
     <Row gap={5} wrap>
       {tags.map(([label, bg, fg]) => <span class="tag" style={{ background: bg, color: fg }}>{label}</span>)}
     </Row>
@@ -137,7 +137,7 @@ const schedule = [
     </span>
   </HeroCard>
 
-  <HeroCard label="FormField">
+  <HeroCard label="FormField" phone>
     <Field label="Patient name" value="Berg, Andrew" hint="Last, First" />
     <Row gap={10} align="center">
       <Control type="checkbox" label="Checkbox" color="var(--color-interaction-default)" />
@@ -145,7 +145,7 @@ const schedule = [
     </Row>
   </HeroCard>
 
-  <HeroCard label="Icons">
+  <HeroCard label="Icons" phone>
     <span class="fi">{icons.map(([name, svg]) => <span class="fi-icon" title={name} set:html={svg} />)}</span>
   </HeroCard>
 

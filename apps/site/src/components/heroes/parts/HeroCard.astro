@@ -1,8 +1,9 @@
 ---
 // One tile on a system's hero plane. Spans are read by HeroStage to size the tilted plane.
-const { label, col = 1, row = 1 } = Astro.props;
+// Cards marked `phone` make up the smaller three-column plane on phones.
+const { label, col = 1, row = 1, phone = false } = Astro.props;
 ---
-<div class="card" style={`grid-column:span ${col};grid-row:span ${row}`}>
+<div class="card" style={`grid-column:span ${col};grid-row:span ${row}`} data-phone={phone || undefined}>
   <div class="label">{label}</div>
   <slot />
 </div>

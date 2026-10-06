@@ -5,9 +5,29 @@
 // Each wrapper is exactly as tall as the tilted shape so heroes never overlap their neighbours.
 const COL = 200, ROW = 150, GAP = 16, TILT = .86, PHONE = .6;
 const cz = Math.cos(36 * Math.PI / 180), sz = Math.sin(36 * Math.PI / 180), cx = Math.cos(56 * Math.PI / 180);
+// Rows the grid really uses: CSS dense auto-placement puts each card in the first gap it fits, row by row.
+function rowsUsed(cards, cols) {
+  const taken = [];
+  const free = (r, c, card) => {
+    for (let y = r; y < r + card.row; y++) for (let x = c; x < c + card.col; x++) if (taken[y]?.[x]) return false;
+    return true;
+  };
+  let rows = 0;
+  for (const card of cards.map(({ col, row }) => ({ col: Math.min(col, cols), row }))) {
+    for (let r = 0, placed = false; !placed; r++) {
+      for (let c = 0; c + card.col <= cols && !placed; c++) {
+        if (!free(r, c, card)) continue;
+        for (let y = r; y < r + card.row; y++) for (let x = c; x < c + card.col; x++) (taken[y] ??= [])[x] = true;
+        rows = Math.max(rows, r + card.row);
+        placed = true;
+      }
+    }
+  }
+  return rows;
+}
 function stage(cards, cols, scale) {
   const w = COL * cols + GAP * (cols - 1);
-  const rows = Math.ceil(cards.reduce((sum, card) => sum + Math.min(card.col, cols) * card.row, 0) / cols);
+  const rows = rowsUsed(cards, cols);
   const h = ROW * rows + GAP * (rows - 1);
   const boxW = (w * cz + h * sz) * TILT * scale;
   const boxH = (w * sz + h * cz) * cx * TILT * scale;
@@ -15,13 +35,14 @@ function stage(cards, cols, scale) {
 }
 function heroStyle(cards) {
   const d = stage(cards, 4, 1);
-  const p = stage(cards.slice(0, 6), 3, PHONE);
+  const p = stage(cards.filter(card => card.phone), 3, PHONE);
   const v = n => `${Math.round(n * 10) / 10}px`;
   return `--w:${v(d.w)};--h:${v(d.boxH)};--top:${v(d.top)};--left:${v(d.left)};--pw:${v(p.w)};--ph:${v(p.boxH)};--ptop:${v(p.top)};--pleft:${v(p.left)}`;
 }
 
 const html = await Astro.slots.render('default');
-const cards = [...html.matchAll(/grid-column:span (\d+);grid-row:span (\d+)/g)].map(([, col, row]) => ({ col: +col, row: +row }));
+const cards = [...html.matchAll(/<div class="card" style="grid-column:span (\d+);grid-row:span (\d+)"( data-phone)?/g)]
+  .map(([, col, row, phone]) => ({ col: +col, row: +row, phone: !!phone }));
 ---
 <div class="hero" aria-hidden="true" style={heroStyle(cards)}>
   <div class="stage" set:html={html} />
