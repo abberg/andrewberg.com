@@ -18,6 +18,10 @@ const linkedin = 'https://www.linkedin.com/in/andrewbberg';
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="Andrew Berg is a design systems engineer building accessible React and TypeScript components, reusable patterns, and tools for product teams." />
+    <script is:inline>
+      // Apply a saved light/dark override before first paint. With nothing saved the page follows the system.
+      try { const theme = localStorage.getItem('theme'); if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme; } catch {}
+    </script>
     <title>Andrew Berg — Design Systems Engineer</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
@@ -39,19 +43,25 @@ const linkedin = 'https://www.linkedin.com/in/andrewbberg';
     <div class="page">
       <header class="site-header">
         <a class="wordmark" href="/">Andrew Berg</a>
-        <nav class="nav mono" aria-label="Main">
-          <a href="#systems" class="current">Design systems</a>
-          <a href="#sketches">Sketches</a>
-          <a href={linkedin}>LinkedIn</a>
-        </nav>
-        <details class="menu mono">
-          <summary>Menu</summary>
-          <nav aria-label="Main">
-            <a href="#systems">Design systems</a>
+        <div class="actions">
+          <nav class="nav mono" aria-label="Main">
+            <a href="#systems" class="current">Design systems</a>
             <a href="#sketches">Sketches</a>
             <a href={linkedin}>LinkedIn</a>
           </nav>
-        </details>
+          <details class="menu mono">
+            <summary>Menu</summary>
+            <nav aria-label="Main">
+              <a href="#systems">Design systems</a>
+              <a href="#sketches">Sketches</a>
+              <a href={linkedin}>LinkedIn</a>
+            </nav>
+          </details>
+          <button class="theme-toggle" type="button" aria-label="Dark mode" aria-pressed="false">
+            <svg class="moon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+            <svg class="sun" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></g></svg>
+          </button>
+        </div>
       </header>
       <main>
         <section class="intro">
@@ -130,16 +140,54 @@ const linkedin = 'https://www.linkedin.com/in/andrewbberg';
         <a href={linkedin}>LinkedIn</a>
       </footer>
     </div>
+    <script>
+      // Two visible states over three real ones (Lea Verou, "Dark mode toggles"): pressing flips what you see.
+      // Landing back on the system's mode clears the saved override; an override is never cleared otherwise.
+      const root = document.documentElement;
+      const toggle = document.querySelector('.theme-toggle');
+      const system = matchMedia('(prefers-color-scheme: dark)');
+      const systemTheme = () => (system.matches ? 'dark' : 'light');
+      const current = () => root.dataset.theme ?? systemTheme();
+      const sync = () => {
+        const dark = current() === 'dark';
+        toggle.setAttribute('aria-pressed', String(dark));
+        toggle.title = `Switch to ${dark ? 'light' : 'dark'} mode`;
+      };
+      toggle.addEventListener('click', () => {
+        const next = current() === 'dark' ? 'light' : 'dark';
+        const saved = next === systemTheme() ? null : next;
+        if (saved) root.dataset.theme = saved; else delete root.dataset.theme;
+        try { if (saved) localStorage.setItem('theme', saved); else localStorage.removeItem('theme'); } catch {}
+        sync();
+      });
+      system.addEventListener('change', sync);
+      sync();
+    </script>
   </body>
 </html>
 <style is:global>
-  :root {
+  /* Heroes keep the light tokens in dark mode: each shows its system as it really looked. */
+  :root, .hero {
     --bg: #F5F5F1; --ink: #16181A; --mute: #5E635E; --dim: #8A8F8A; --rule: #DAD9D3;
     --accent: #3F7A26; --lime: #C9ED9C; --card: #FFFFFF; --edge: #E4E4DE;
+    color-scheme: light;
+  }
+  :root[data-theme="dark"] {
+    --bg: #121412; --ink: #ECECE6; --mute: #A3A8A1; --dim: #737871; --rule: #2E312D;
+    --accent: #8FCB6B; --lime: #3E5A2B; --card: #1B1E1B; --edge: #2C2F2B;
+    color-scheme: dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #121412; --ink: #ECECE6; --mute: #A3A8A1; --dim: #737871; --rule: #2E312D;
+      --accent: #8FCB6B; --lime: #3E5A2B; --card: #1B1E1B; --edge: #2C2F2B;
+      color-scheme: dark;
+    }
+  }
+  :root {
     --sans: 'Epilogue', system-ui, sans-serif;
     --mono: 'Space Mono', ui-monospace, monospace;
     --display: 'Syne', system-ui, sans-serif;
-    color-scheme: light;
     font-family: var(--sans); color: var(--ink); background: var(--bg);
     -webkit-font-smoothing: antialiased; font-synthesis: none;
   }
@@ -159,6 +207,16 @@ const linkedin = 'https://www.linkedin.com/in/andrewbberg';
   .nav { display: flex; gap: 28px; }
   .nav a:hover, .menu a:hover { color: var(--accent); }
   .nav .current { color: var(--ink); }
+  .actions { display: flex; align-items: center; gap: 28px; }
+  .theme-toggle { display: grid; place-items: center; width: 32px; height: 32px; margin-right: -8px; padding: 0; border: 0; border-radius: 50%; background: none; color: var(--mute); cursor: pointer; }
+  .theme-toggle:hover { color: var(--accent); }
+  .theme-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 0; }
+  .theme-toggle .sun, :root[data-theme="dark"] .theme-toggle .moon { display: none; }
+  :root[data-theme="dark"] .theme-toggle .sun { display: block; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .theme-toggle .moon { display: none; }
+    :root:not([data-theme="light"]) .theme-toggle .sun { display: block; }
+  }
   .menu { display: none; position: relative; }
   .menu summary { cursor: pointer; list-style: none; }
   .menu summary::-webkit-details-marker { display: none; }
@@ -193,7 +251,7 @@ const linkedin = 'https://www.linkedin.com/in/andrewbberg';
   .end span { width: 12px; height: 12px; border-radius: 50%; box-shadow: inset 0 0 0 1px var(--rule); }
 
   /* Hero: one flat isometric plane of cards, behind the text, top edge level with the heading. */
-  .hero { position: relative; z-index: 0; height: var(--h); margin-top: -102px; pointer-events: none; user-select: none; }
+  .hero { position: relative; color: var(--ink); z-index: 0; height: var(--h); margin-top: -102px; pointer-events: none; user-select: none; }
   .stage {
     position: absolute; top: var(--top); left: 50%; width: var(--w); margin-left: calc(var(--w) / -2);
     display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-auto-rows: 150px; grid-auto-flow: dense; gap: 16px;
@@ -231,6 +289,7 @@ const linkedin = 'https://www.linkedin.com/in/andrewbberg';
     .page { padding: 0 20px 32px; }
     .site-header { height: 60px; }
     .menu { display: block; }
+    .actions { gap: 16px; }
     .intro { display: flex; flex-direction: column; gap: 20px; padding: 44px 0 40px; }
     .intro .eyebrow { display: block; padding-top: 0; }
     h1 { font-size: 38px; line-height: 1.04; letter-spacing: -.036em; }
