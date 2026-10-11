@@ -3,7 +3,10 @@ import { createRoot } from 'react-dom/client';
 import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber';
 import { Cloud, Clouds, Environment, Trail } from '@react-three/drei';
 import { Bloom, EffectComposer, LensFlare } from '@react-three/postprocessing';
-import { Box3, EquirectangularReflectionMapping, FloatType, Mesh, MeshBasicMaterial, MeshStandardMaterial, SRGBColorSpace, TextureLoader, Vector3 } from 'three';
+import {
+  AnimationClip, AnimationMixer, Box3, EquirectangularReflectionMapping, FloatType, Group, LoopOnce, Mesh, MeshBasicMaterial,
+  MeshStandardMaterial, NumberKeyframeTrack, SRGBColorSpace, TextureLoader, Vector3,
+} from 'three';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { MD2Loader } from 'three/examples/jsm/loaders/MD2Loader.js';
 import { RadialBlurEffect } from './blur.js';
@@ -58,32 +61,123 @@ const WINGTIPS = [new Vector3(-16.3, -1, -27.2), new Vector3(-16.3, -1, 27.2)];
 // drei's Trail tapers to nothing at the tail; its length is in frames, so it shortens on high-refresh displays.
 const TRAIL = { width: 0.15, length: 3, color: '#e8f1ff' };
 
+// Transformation cycle: jet, transform up to the robot, a few seconds standing with the gun, then
+// transform back down. It happens on its own every so often, and when T is pressed.
+const TRANSFORM = {
+  every: [15, 25], // seconds in jet mode between transformations
+  robotFor: [4, 6], // seconds in robot mode
+  fps: 10,
+  crossfade: 0.15,
+  robotSpeed: 0.35, // flight speed multiplier while a robot
+};
+// Shared with the flight: robot eases 0 (jet) to 1 (robot) through the transforms.
+const transform = { phase: 'jet', timer: between(TRANSFORM.every), robot: 0, request: false };
+
+// Play-once clips that end on their last frame, plus a held single-frame jet pose.
+function transformClips(geometry) {
+  const clips = AnimationClip.CreateClipsFromMorphTargetSequences(geometry.morphAttributes.position, TRANSFORM.fps, true);
+  const jet = geometry.morphAttributes.position.find(target => target.name === JET_FRAME);
+  if (jet) clips.push(new AnimationClip('hold-jet', 1, [new NumberKeyframeTrack(`.morphTargetInfluences[${jet.name}]`, [0, 1], [1, 1])]));
+  return name => clips.findLast(clip => clip.name === name);
+}
+
 function Jetfire() {
-  const body = useLoader(MD2Loader, 'jetfire/tris.md2');
-  const [skin, normals] = useLoader(TextureLoader, ['jetfire/vf1s_fokker.jpg', 'jetfire/vf1s_fokker_normal.jpg']);
+  const [body, weapon] = useLoader(MD2Loader, ['jetfire/tris.md2', 'jetfire/weapon.md2']);
+  const [skin, normals, weaponSkin, weaponNormals] = useLoader(TextureLoader, [
+    'jetfire/vf1s_fokker.jpg', 'jetfire/vf1s_fokker_normal.jpg', 'jetfire/weapon.jpg', 'jetfire/weapon_normal.jpg',
+  ]);
 
-  const { mesh, scale, glow } = useMemo(() => {
+  const { model, centers, scale, glow, mixer, actions, gun } = useMemo(() => {
     const mesh = md2Mesh(body, skin, normals);
-    const frame = body.morphAttributes.position.find(target => target.name === JET_FRAME);
-    mesh.morphTargetInfluences[mesh.morphTargetDictionary[JET_FRAME]] = 1;
-    // Centre on the jet pose and keep the robot's scale (roughly two units tall standing up).
-    const box = new Box3().setFromBufferAttribute(frame);
-    mesh.position.copy(box.getCenter(new Vector3()).negate());
+    const gun = md2Mesh(weapon, weaponSkin, weaponNormals);
+    gun.visible = false;
+    const model = new Group();
+    model.add(mesh, gun);
+    // Centre on the jet pose or the standing robot, blending between them while transforming.
+    const centerOf = name => new Box3().setFromBufferAttribute(body.morphAttributes.position.find(target => target.name === name)).getCenter(new Vector3());
+    const centers = { jet: centerOf(JET_FRAME), robot: centerOf('stand01') };
     const height = new Box3().setFromBufferAttribute(body.attributes.position).getSize(new Vector3()).y;
-    return { mesh, scale: 2 / height, glow: createEngineGlow(NOZZLES) };
-  }, [body, skin, normals]);
 
-  useFrame(({ clock }) => glow.update(clock.elapsedTime, boost.value));
+    const mixer = new AnimationMixer(model);
+    const clipFor = { body: transformClips(body), gun: transformClips(weapon) };
+    const action = (name, target, clips, once) => {
+      const clip = clips(name);
+      if (!clip) return null;
+      const result = mixer.clipAction(clip, target);
+      if (once) {
+        result.setLoop(LoopOnce, 1);
+        result.clampWhenFinished = true;
+      }
+      return result;
+    };
+    const actions = {
+      jet: action('hold-jet', mesh, clipFor.body, false),
+      up: action('transformup', mesh, clipFor.body, true),
+      robot: action('stand', mesh, clipFor.body, false),
+      down: action('transformdn', mesh, clipFor.body, true),
+      gun: action('stand', gun, clipFor.gun, false),
+    };
+    actions.jet.play();
+    return { model, centers, scale: 2 / height, glow: createEngineGlow(NOZZLES), mixer, actions, gun };
+  }, [body, weapon, skin, normals, weaponSkin, weaponNormals]);
+
+  useEffect(() => {
+    const press = event => { if (event.code === 'KeyT') transform.request = true; };
+    window.addEventListener('keydown', press);
+    return () => window.removeEventListener('keydown', press);
+  }, []);
+
+  useEffect(() => {
+    // Move to the next phase when a transform clip finishes.
+    const finished = ({ action }) => {
+      if (action === actions.up) switchTo('robot');
+      else if (action === actions.down) switchTo('jet');
+    };
+    const switchTo = phase => {
+      const from = { jet: actions.jet, up: actions.up, robot: actions.robot, down: actions.down }[transform.phase];
+      const to = { jet: actions.jet, up: actions.up, robot: actions.robot, down: actions.down }[phase];
+      transform.phase = phase;
+      to.reset().play();
+      if (from && from !== to) to.crossFadeFrom(from, TRANSFORM.crossfade);
+      // The gun only has frames for the robot's stand.
+      gun.visible = phase === 'robot';
+      if (phase === 'robot') actions.gun.reset().play();
+      else actions.gun.stop();
+      if (phase === 'jet') transform.timer = between(TRANSFORM.every);
+      if (phase === 'robot') transform.timer = between(TRANSFORM.robotFor);
+    };
+    mixer.addEventListener('finished', finished);
+    transform.switchTo = switchTo;
+    return () => mixer.removeEventListener('finished', finished);
+  }, [mixer, actions, gun]);
+
+  useFrame(({ clock }, rawDelta) => {
+    const delta = thumbnailMode ? 0 : Math.min(rawDelta, 0.1);
+    transform.timer -= delta;
+    const due = transform.timer <= 0 || transform.request;
+    transform.request = false;
+    if (due && transform.phase === 'jet') transform.switchTo('up');
+    else if (due && transform.phase === 'robot') transform.switchTo('down');
+    mixer.update(delta);
+
+    const robotTarget = transform.phase === 'up' || transform.phase === 'robot' ? 1 : 0;
+    transform.robot += (robotTarget - transform.robot) * (1 - Math.exp(-delta * 3));
+    model.position.lerpVectors(centers.jet, centers.robot, transform.robot).negate();
+    // The engines are only lit in jet mode.
+    glow.object.visible = transform.robot < 0.5;
+    glow.update(clock.elapsedTime, boost.value);
+  });
   useEffect(() => () => {
-    mesh.material.dispose();
+    mixer.stopAllAction();
+    model.traverse(object => object.material?.dispose());
     glow.dispose();
-  }, [mesh, glow]);
+  }, [model, mixer, glow]);
 
   return (
     <group scale={scale}>
       {/* MD2 models face +X; turn the nose to +Z, which is where Object3D.lookAt points. */}
       <group rotation-y={-Math.PI / 2}>
-        <primitive object={mesh} />
+        <primitive object={model} />
         <primitive object={glow.object} />
         {WINGTIPS.map((tip, i) => (
           <Trail key={i} width={TRAIL.width} length={TRAIL.length} color={TRAIL.color} attenuation={t => t * t}>
@@ -136,7 +230,7 @@ function Flight({ children }) {
       const previous = state.turnTarget;
       state.turnTarget = (Math.random() < 0.5 ? -1 : 1) * (0.5 + Math.random() * 0.5) * MAX_TURN;
       // Positive turns head left from the chase camera's view. Roll the way the new bank leans.
-      if (previous < -ROLL.minTurn && state.turnTarget > ROLL.minTurn && state.barrelTime < 0) {
+      if (previous < -ROLL.minTurn && state.turnTarget > ROLL.minTurn && state.barrelTime < 0 && transform.phase === 'jet') {
         state.barrelTime = 0;
         state.barrelSign = -1;
       }
@@ -171,18 +265,20 @@ function Flight({ children }) {
       boost.auto = !boost.auto;
       boost.timer = between(boost.auto ? BOOST.lasting : BOOST.every);
     }
-    const boostTarget = boost.auto || boost.held ? 1 : 0;
+    const boostTarget = (boost.auto || boost.held) && transform.phase === 'jet' ? 1 : 0;
     const boostRate = boostTarget > boost.value ? BOOST.attack : BOOST.release;
     boost.value += (boostTarget - boost.value) * (1 - Math.exp(-delta * boostRate));
 
     forward.set(Math.sin(state.heading) * Math.cos(state.pitch), Math.sin(state.pitch), Math.cos(state.heading) * Math.cos(state.pitch));
-    state.position.addScaledVector(forward, SPEED * (1 + (BOOST.speed - 1) * boost.value) * delta);
+    const robotSlow = 1 + (TRANSFORM.robotSpeed - 1) * transform.robot;
+    state.position.addScaledVector(forward, SPEED * (1 + (BOOST.speed - 1) * boost.value) * robotSlow * delta);
 
     const jet = ref.current;
     jet.position.copy(state.position);
     jetPosition.copy(state.position);
     jet.lookAt(look.copy(state.position).add(forward));
-    jet.rotateZ(state.roll + state.barrel);
+    // Level out as a robot.
+    jet.rotateZ((state.roll + state.barrel) * (1 - transform.robot));
 
     // Chase camera: sit behind and above, aim a little ahead of the jet. It lags behind as speed builds,
     // so the jet surges ahead when boosting.
