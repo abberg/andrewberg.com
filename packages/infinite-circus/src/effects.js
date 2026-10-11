@@ -19,7 +19,7 @@ function glowTexture() {
 // A flickering blue exhaust glow: a wide halo and a hot core per nozzle, plus a light on the tail.
 // Positions and sizes are in the model's own units. The core is pushed past full brightness so the
 // bloom pass picks it up.
-export function createEngineGlow(nozzles, { color = '#3d7bff', core = '#d8ecff', size = 18, coreBoost = 3 } = {}) {
+export function createEngineGlow(nozzles, { color = '#3d7bff', core = '#d8ecff', size = 18, coreBoost = 3, pulse = 0.25 } = {}) {
   const map = glowTexture();
   const materials = [[color, 1], [core, coreBoost]].map(([tint, boost]) => new SpriteMaterial({
     map, color: new Color(tint).multiplyScalar(boost), blending: AdditiveBlending, depthWrite: false, transparent: true,
@@ -41,12 +41,13 @@ export function createEngineGlow(nozzles, { color = '#3d7bff', core = '#d8ecff',
   return {
     object: group,
     update(time) {
+      const t = time * pulse; // slows the flicker without changing its shape
       for (const [i, { halo, hot }] of sprites.entries()) {
-        const flicker = 1 + 0.08 * Math.sin(time * 41 + i * 2.1) + 0.05 * Math.sin(time * 67 + i);
+        const flicker = 1 + 0.08 * Math.sin(t * 41 + i * 2.1) + 0.05 * Math.sin(t * 67 + i);
         halo.scale.setScalar(size * flicker);
         hot.scale.setScalar(size * 0.4 * flicker);
       }
-      light.intensity = 2 * (1 + 0.1 * Math.sin(time * 53));
+      light.intensity = 2 * (1 + 0.1 * Math.sin(t * 53));
     },
     dispose() {
       map.dispose();
