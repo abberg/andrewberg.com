@@ -1,33 +1,45 @@
 import { Suspense, useEffect, useLayoutEffect, useMemo } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Canvas, useFrame, useLoader } from '@react-three/fiber';
-import { AnimationMixer, Box3, Mesh, MeshStandardMaterial, Vector3 } from 'three';
+import { AnimationMixer, Box3, Group, Mesh, MeshStandardMaterial, Vector3 } from 'three';
 import { MD2Loader } from 'three/examples/jsm/loaders/MD2Loader.js';
 import { PCXLoader } from './PCXLoader.js';
 
 const thumbnailMode = new URLSearchParams(location.search).has('thumbnail');
 
+// Built directly rather than as JSX so the Mesh constructor sets up the morph targets for the geometry.
+function md2Mesh(geometry, skin) {
+  return new Mesh(geometry, new MeshStandardMaterial({ map: skin, roughness: 0.8 }));
+}
+
 function Jetfire() {
-  const geometry = useLoader(MD2Loader, 'jetfire/tris.md2');
-  const skin = useLoader(PCXLoader, 'jetfire/vf1s_fokker.pcx');
+  const [body, weapon] = useLoader(MD2Loader, ['jetfire/tris.md2', 'jetfire/weapon.md2']);
+  const [bodySkin, weaponSkin] = useLoader(PCXLoader, ['jetfire/vf1s_fokker.pcx', 'jetfire/weapon.pcx']);
 
-  // Built directly rather than as JSX so the Mesh constructor sets up the morph targets for this geometry.
-  const { mesh, mixer, scale } = useMemo(() => {
-    const mesh = new Mesh(geometry, new MeshStandardMaterial({ map: skin, roughness: 0.8 }));
-    const box = new Box3().setFromBufferAttribute(geometry.attributes.position);
-    // Centre the model on the origin and scale it to roughly two units tall.
-    mesh.position.copy(box.getCenter(new Vector3()).negate());
-    const mixer = new AnimationMixer(mesh);
-    if (geometry.animations.length) mixer.clipAction(geometry.animations[0]).play();
-    return { mesh, mixer, scale: 2 / box.getSize(new Vector3()).y };
-  }, [geometry, skin]);
+  const { group, mixer, scale } = useMemo(() => {
+    const group = new Group();
+    const meshes = [md2Mesh(body, bodySkin), md2Mesh(weapon, weaponSkin)];
+    // Centre on the body and scale it to roughly two units tall. The weapon shares the body's
+    // coordinate space and frame list, so it gets the same offset and plays in step.
+    const box = new Box3().setFromBufferAttribute(body.attributes.position);
+    group.position.copy(box.getCenter(new Vector3()).negate());
+    const mixer = new AnimationMixer(group);
+    for (const mesh of meshes) {
+      group.add(mesh);
+      if (mesh.geometry.animations.length) mixer.clipAction(mesh.geometry.animations[0], mesh).play();
+    }
+    return { group, mixer, scale: 2 / box.getSize(new Vector3()).y };
+  }, [body, weapon, bodySkin, weaponSkin]);
 
-  useEffect(() => () => { mixer.stopAllAction(); mesh.material.dispose(); }, [mesh, mixer]);
+  useEffect(() => () => {
+    mixer.stopAllAction();
+    group.traverse(object => object.material?.dispose());
+  }, [group, mixer]);
   useFrame((_, delta) => { if (!thumbnailMode) mixer.update(delta); });
 
   return (
     <group scale={scale}>
-      <primitive object={mesh} />
+      <primitive object={group} />
     </group>
   );
 }
