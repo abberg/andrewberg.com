@@ -14,7 +14,7 @@ function md2Mesh(geometry, skin) {
 
 function Jetfire() {
   const [body, weapon] = useLoader(MD2Loader, ['jetfire/tris.md2', 'jetfire/weapon.md2']);
-  const [bodySkin, weaponSkin] = useLoader(TextureLoader, ['jetfire/vf1s_fokker.png', 'jetfire/weapon.png']);
+  const [bodySkin, weaponSkin] = useLoader(TextureLoader, ['jetfire/vf1s_fokker.jpg', 'jetfire/weapon.jpg']);
 
   const { group, mixer, scale } = useMemo(() => {
     const group = new Group();
