@@ -177,6 +177,7 @@ function Jetfire() {
 
   const turn = useRef();
   const hang = useRef();
+  const trails = useRef([]);
   const scene = useThree(state => state.scene);
   const shooting = useMemo(() => ({ frame: -1, from: new Vector3(), direction: new Vector3() }), []);
   const swing = useMemo(() => ({ angle: { x: 0, z: 0 }, velocity: { x: 0, z: 0 }, lastSpeed: 0 }), []);
@@ -257,8 +258,14 @@ function Jetfire() {
       swing.angle[axis] += swing.velocity[axis] * delta;
     }
     hang.current.rotation.set(swing.angle.x, 0, swing.angle.z);
-    // The engines are only lit in jet mode.
+    // The engines are only lit in jet mode, and the wingtip trails fade out as he becomes a robot.
     glow.object.visible = transform.robot < 0.5;
+    for (const line of trails.current) {
+      if (!line) continue;
+      line.material.transparent = true;
+      line.material.opacity = Math.max(0, 1 - transform.robot * 2);
+      line.visible = line.material.opacity > 0;
+    }
     glow.update(clock.elapsedTime, boost.value);
   });
   useEffect(() => () => {
@@ -279,7 +286,7 @@ function Jetfire() {
         <primitive object={model} />
         <primitive object={glow.object} />
         {WINGTIPS.map((tip, i) => (
-          <Trail key={i} width={TRAIL.width} length={TRAIL.length} color={TRAIL.color} attenuation={t => t * t}>
+          <Trail key={i} ref={line => { trails.current[i] = line; }} width={TRAIL.width} length={TRAIL.length} color={TRAIL.color} attenuation={t => t * t}>
             <object3D position={tip} />
           </Trail>
         ))}
