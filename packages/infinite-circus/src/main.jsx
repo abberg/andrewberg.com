@@ -1,9 +1,10 @@
 import { Suspense, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber';
-import { Cloud, Clouds, Trail } from '@react-three/drei';
+import { Cloud, Clouds, Environment, Trail } from '@react-three/drei';
 import { Bloom, EffectComposer } from '@react-three/postprocessing';
-import { Box3, CubeTextureLoader, Mesh, MeshBasicMaterial, MeshStandardMaterial, SRGBColorSpace, TextureLoader, Vector3 } from 'three';
+import { Box3, EquirectangularReflectionMapping, FloatType, Mesh, MeshBasicMaterial, MeshStandardMaterial, SRGBColorSpace, TextureLoader, Vector3 } from 'three';
+import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { MD2Loader } from 'three/examples/jsm/loaders/MD2Loader.js';
 import { createEngineGlow } from './effects.js';
 
@@ -207,11 +208,19 @@ function CloudField() {
   );
 }
 
-function Skybox() {
-  // Faces split from the "Daylight Box UV" cross layout, in Three's px, nx, py, ny, pz, nz order.
-  const [texture] = useLoader(CubeTextureLoader, [['px', 'nx', 'py', 'ny', 'pz', 'nz'].map(face => `skybox/${face}.jpg`)]);
-  texture.colorSpace = SRGBColorSpace;
-  return <primitive attach="background" object={texture} />;
+// Equirectangular HDRI from hdrmaps.com, used as the background and as image-based light on the jet.
+// The sun peaks around 1300, which floods the bloom pass, so values are capped at `cap`.
+const SKY = { file: 'sky/086_hdrmaps_com_free_1K.exr', environmentIntensity: 0.6, cap: 6 };
+
+function Sky() {
+  const texture = useLoader(EXRLoader, SKY.file, loader => loader.setDataType(FloatType));
+  useMemo(() => {
+    const { data } = texture.image;
+    for (let i = 0; i < data.length; i++) if (data[i] > SKY.cap) data[i] = SKY.cap;
+    texture.mapping = EquirectangularReflectionMapping;
+    texture.needsUpdate = true;
+  }, [texture]);
+  return <Environment map={texture} background environmentIntensity={SKY.environmentIntensity} />;
 }
 
 function Ready() {
@@ -224,14 +233,14 @@ function Ready() {
 }
 
 createRoot(document.getElementById('root')).render(
-  // Flat (no tone mapping): post-processing would otherwise tone map the skybox, which three normally leaves alone.
+  // Flat (no tone mapping): post-processing would otherwise tone map the sky, which three normally leaves alone.
   <Canvas flat camera={{ position: [0, 6, -6], fov: 55, far: 2000 }} dpr={[1, 2]}>
     {/* Dim sky fill, a low warm key from the front and a strong cool rim from behind. */}
     <hemisphereLight args={['#9cc4ff', '#2a3448', 0.35]} />
     <directionalLight position={[5, 1.5, 1]} intensity={3.5} color="#ffd2a0" />
     <directionalLight position={[-4, 3, -3]} intensity={4} color="#8fb8ff" />
     <Suspense fallback={null}>
-      <Skybox />
+      <Sky />
       <CloudField />
       <Flight>
         <Jetfire />
