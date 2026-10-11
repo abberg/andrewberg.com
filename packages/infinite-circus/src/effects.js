@@ -69,6 +69,7 @@ export function createEngineGlow(nozzles, {
     map, color: new Color(tint).multiplyScalar(boost), blending: AdditiveBlending, depthWrite: false, transparent: true,
   }));
   const plume = plumeMaterial(core, color, coreBoost);
+  const coreColor = plume.uniforms.core.value.clone();
   // Narrow end at the nozzle, flaring out aft: turn the tube's +Y end round to -X and shift it back by half its length.
   const cone = new CylinderGeometry(flare, radius, 1, 24, 8, true).rotateZ(Math.PI / 2).translate(-0.5, 0, 0);
   const group = new Group();
@@ -90,16 +91,18 @@ export function createEngineGlow(nozzles, {
 
   return {
     object: group,
-    update(time) {
+    // `boost` (0 to 1) stretches and brightens the plume and swells the glow.
+    update(time, boost = 0) {
       const t = time * pulse; // slows the flicker without changing its shape
       // Both engines pulse together.
       const flicker = 1 + 0.08 * Math.sin(t * 41) + 0.05 * Math.sin(t * 67);
       for (const { halo, hot, flame } of parts) {
-        halo.scale.setScalar(size * flicker);
-        hot.scale.setScalar(size * 0.5 * flicker);
-        flame.scale.set(length * flicker, 1, 1);
+        halo.scale.setScalar(size * flicker * (1 + 0.8 * boost));
+        hot.scale.setScalar(size * 0.5 * flicker * (1 + 0.5 * boost));
+        flame.scale.set(length * flicker * (1 + 2.2 * boost), 1 + 0.5 * boost, 1 + 0.5 * boost);
       }
-      light.intensity = 2 * (1 + 0.1 * Math.sin(t * 53));
+      plume.uniforms.core.value.copy(coreColor).multiplyScalar(1 + 1.5 * boost);
+      light.intensity = 2 * (1 + 0.1 * Math.sin(t * 53)) * (1 + 1.5 * boost);
     },
     dispose() {
       map.dispose();

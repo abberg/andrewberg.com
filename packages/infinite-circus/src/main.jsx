@@ -6,6 +6,7 @@ import { Bloom, EffectComposer, LensFlare } from '@react-three/postprocessing';
 import { Box3, EquirectangularReflectionMapping, FloatType, Mesh, MeshBasicMaterial, MeshStandardMaterial, SRGBColorSpace, TextureLoader, Vector3 } from 'three';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { MD2Loader } from 'three/examples/jsm/loaders/MD2Loader.js';
+import { RadialBlurEffect } from './blur.js';
 import { createEngineGlow } from './effects.js';
 
 const thumbnailMode = new URLSearchParams(location.search).has('thumbnail');
@@ -26,7 +27,26 @@ const BOUNDS = 60; // steer back towards the origin beyond this radius
 const ALTITUDE = [-6, 14];
 const BANK = 0.9; // roll per unit of turn rate
 // The camera aims above the jet (aim) so the horizon sits low and the clouds fill the frame.
-const CHASE = { back: 3.8, up: 0.4, ahead: 3, aim: 1.5, follow: 3 };
+const CHASE = { up: 0.4, ahead: 3, aim: 1.5, follow: 3 };
+
+// Boost: the jet surges forward, the engines flare, the camera drops back and widens, and the frame
+// streaks with radial motion blur. It fires on its own every so often, and while Space or a pointer is held.
+const BOOST = {
+  speed: 2, // speed multiplier at full boost
+  fov: [55, 74],
+  back: [3.8, 4.3], // chase distance, on top of the lag from the extra speed
+  blur: 0.04,
+  shake: 0.025,
+  attack: 2.5, // easing rates in and out of boost
+  release: 0.9,
+  every: [5, 11], // seconds between automatic boosts
+  lasting: [1.8, 3.2],
+};
+// Shared boost level, 0 to 1, read by the engine glow and the blur, and where the jet is this frame.
+const boost = { value: 0, held: false, auto: false, timer: 3 };
+const jetPosition = new Vector3();
+const between = ([min, max]) => min + Math.random() * (max - min);
+const mix = ([a, b], t) => a + (b - a) * t;
 
 // Effect anchors on the jet pose, in model units relative to its centre (+X is the nose, Z is the span).
 const NOZZLES = [new Vector3(-30.5, -4.3, -6.4), new Vector3(-30.5, -4.3, 6.4)];
@@ -50,7 +70,7 @@ function Jetfire() {
     return { mesh, scale: 2 / height, glow: createEngineGlow(NOZZLES) };
   }, [body, skin, normals]);
 
-  useFrame(({ clock }) => glow.update(clock.elapsedTime));
+  useFrame(({ clock }) => glow.update(clock.elapsedTime, boost.value));
   useEffect(() => () => {
     mesh.material.dispose();
     glow.dispose();
@@ -88,6 +108,15 @@ function Flight({ children }) {
     lookAt: new Vector3(),
   }), []);
   const scratch = useMemo(() => ({ forward: new Vector3(), desired: new Vector3(), look: new Vector3(), toOrigin: new Vector3() }), []);
+
+  useEffect(() => {
+    const press = event => { if (event.type !== 'keydown' || event.code === 'Space') boost.held = true; };
+    const release = event => { if (event.type !== 'keyup' || event.code === 'Space') boost.held = false; };
+    const events = [['keydown', press], ['keyup', release], ['pointerdown', press], ['pointerup', release], ['pointercancel', release]];
+    for (const [name, handler] of events) window.addEventListener(name, handler);
+    return () => { for (const [name, handler] of events) window.removeEventListener(name, handler); };
+  }, []);
+
   // Runs before other frame callbacks so the trails sample this frame's wingtip positions.
   useFrame((_, rawDelta) => {
     const delta = thumbnailMode ? 0 : Math.min(rawDelta, 0.1);
@@ -116,24 +145,44 @@ function Flight({ children }) {
     state.heading += state.turn * delta;
     state.roll += (-state.turn * BANK - state.roll) * ease;
 
+    // Automatic boosts switch on and off on a timer; holding the input boosts too.
+    boost.timer -= delta;
+    if (boost.timer <= 0) {
+      boost.auto = !boost.auto;
+      boost.timer = between(boost.auto ? BOOST.lasting : BOOST.every);
+    }
+    const boostTarget = boost.auto || boost.held ? 1 : 0;
+    const boostRate = boostTarget > boost.value ? BOOST.attack : BOOST.release;
+    boost.value += (boostTarget - boost.value) * (1 - Math.exp(-delta * boostRate));
+
     forward.set(Math.sin(state.heading) * Math.cos(state.pitch), Math.sin(state.pitch), Math.cos(state.heading) * Math.cos(state.pitch));
-    state.position.addScaledVector(forward, SPEED * delta);
+    state.position.addScaledVector(forward, SPEED * (1 + (BOOST.speed - 1) * boost.value) * delta);
 
     const jet = ref.current;
     jet.position.copy(state.position);
+    jetPosition.copy(state.position);
     jet.lookAt(look.copy(state.position).add(forward));
     jet.rotateZ(state.roll);
 
-    // Chase camera: sit behind and above, aim a little ahead of the jet.
-    desired.copy(state.position).addScaledVector(forward, -CHASE.back);
+    // Chase camera: sit behind and above, aim a little ahead of the jet. It lags behind as speed builds,
+    // so the jet surges ahead when boosting.
+    desired.copy(state.position).addScaledVector(forward, -mix(BOOST.back, boost.value));
     desired.y += CHASE.up;
     look.copy(state.position).addScaledVector(forward, CHASE.ahead);
     look.y += CHASE.aim;
-    const follow = thumbnailMode ? 1 : 1 - Math.exp(-delta * CHASE.follow);
+    const follow = thumbnailMode ? 1 : 1 - Math.exp(-delta * CHASE.follow * (1 + 0.4 * boost.value));
     if (state.lookAt.lengthSq() === 0) { camera.position.copy(desired); state.lookAt.copy(look); }
     camera.position.lerp(desired, follow);
     state.lookAt.lerp(look, follow);
     camera.lookAt(state.lookAt);
+    // Shake a little at speed, and widen the view.
+    const shake = BOOST.shake * boost.value;
+    if (shake > 0) camera.position.add(look.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(shake));
+    const fov = mix(BOOST.fov, boost.value);
+    if (Math.abs(camera.fov - fov) > 0.01) {
+      camera.fov = fov;
+      camera.updateProjectionMatrix();
+    }
     SUN.position.copy(camera.position).addScaledVector(SUN.direction, SUN.distance);
   }, -1);
 
@@ -255,6 +304,19 @@ function Sky() {
   return <Environment map={texture} background environmentIntensity={SKY.environmentIntensity} />;
 }
 
+// Radial blur centred on the jet, so it stays sharp while the frame streaks around it.
+function MotionBlur() {
+  const camera = useThree(state => state.camera);
+  const effect = useMemo(() => new RadialBlurEffect(), []);
+  const projected = useMemo(() => new Vector3(), []);
+  useFrame(() => {
+    effect.strength = BOOST.blur * boost.value * boost.value;
+    projected.copy(jetPosition).project(camera);
+    effect.uniforms.get('center').value.set((projected.x + 1) / 2, (projected.y + 1) / 2);
+  });
+  return <primitive object={effect} />;
+}
+
 function Ready() {
   useLayoutEffect(() => {
     requestAnimationFrame(() => requestAnimationFrame(() => {
@@ -284,6 +346,7 @@ createRoot(document.getElementById('root')).render(
       <Bloom luminanceThreshold={1} intensity={0.8} mipmapBlur />
       {/* Follows the sun and fades out when the jet is in front of it. */}
       <LensFlare lensPosition={SUN.position} glareSize={0.2} flareSize={0.006} ghostScale={0.1} />
+      <MotionBlur />
     </EffectComposer>
   </Canvas>
 );
