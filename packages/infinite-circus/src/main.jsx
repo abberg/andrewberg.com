@@ -70,7 +70,20 @@ const TRANSFORM = {
   crossfade: 0.15,
   robotSpeed: 0.35, // flight speed multiplier while a robot
   faceCameraChance: 0.5, // how often the robot turns round to face the camera
+  chestHeight: 0.72, // robot pivot, as a fraction of his height
 };
+
+// The robot hangs from his chest like a pendulum: his legs trail behind his motion and swing out in
+// turns, on a damped spring so they overshoot and settle when speed or direction changes.
+const SWING = {
+  lean: 0.6, // radians of trailing lean at full jet speed
+  bank: 0.6, // radians of outward swing per unit of turn rate at full jet speed
+  inertia: 0.25, // extra swing per unit of acceleration, relative to jet speed (legs lag, then overshoot)
+  stiffness: 14,
+  damping: 3.5,
+};
+// What the flight is doing this frame, for the swing.
+const motion = { speed: 0, turn: 0 };
 // Shared with the flight: robot eases 0 (jet) to 1 (robot) through the transforms.
 const transform = { phase: 'jet', timer: between(TRANSFORM.every), robot: 0, request: false, faceCamera: false, facing: 0 };
 
@@ -94,9 +107,13 @@ function Jetfire() {
     gun.visible = false;
     const model = new Group();
     model.add(mesh, gun);
-    // Centre on the jet pose or the standing robot, blending between them while transforming.
-    const centerOf = name => new Box3().setFromBufferAttribute(body.morphAttributes.position.find(target => target.name === name)).getCenter(new Vector3());
-    const centers = { jet: centerOf(JET_FRAME), robot: centerOf('stand01') };
+    // Pivot on the jet's centre, or the robot's chest so his legs can swing below it, blending
+    // between them while transforming.
+    const boxOf = name => new Box3().setFromBufferAttribute(body.morphAttributes.position.find(target => target.name === name));
+    const robotBox = boxOf('attack1');
+    const chest = robotBox.getCenter(new Vector3());
+    chest.y = robotBox.min.y + (robotBox.max.y - robotBox.min.y) * TRANSFORM.chestHeight;
+    const centers = { jet: boxOf(JET_FRAME).getCenter(new Vector3()), robot: chest };
     const height = new Box3().setFromBufferAttribute(body.attributes.position).getSize(new Vector3()).y;
 
     const mixer = new AnimationMixer(model);
@@ -114,15 +131,17 @@ function Jetfire() {
     const actions = {
       jet: action('hold-jet', mesh, clipFor.body, false),
       up: action('transformup', mesh, clipFor.body, true),
-      robot: action('stand', mesh, clipFor.body, false),
+      robot: action('attack', mesh, clipFor.body, false),
       down: action('transformdn', mesh, clipFor.body, true),
-      gun: action('stand', gun, clipFor.gun, false),
+      gun: action('attack', gun, clipFor.gun, false),
     };
     actions.jet.play();
     return { model, centers, scale: 2 / height, glow: createEngineGlow(NOZZLES), mixer, actions, gun };
   }, [body, weapon, skin, normals, weaponSkin, weaponNormals]);
 
   const turn = useRef();
+  const hang = useRef();
+  const swing = useMemo(() => ({ angle: { x: 0, z: 0 }, velocity: { x: 0, z: 0 }, lastSpeed: 0 }), []);
 
   useEffect(() => {
     const press = event => { if (event.code === 'KeyT') transform.request = true; };
@@ -142,7 +161,7 @@ function Jetfire() {
       transform.phase = phase;
       to.reset().play();
       if (from && from !== to) to.crossFadeFrom(from, TRANSFORM.crossfade);
-      // The gun only has frames for the robot's stand.
+      // The gun only has frames for the robot animations, not the transforms.
       gun.visible = phase === 'robot';
       if (phase === 'robot') actions.gun.reset().play();
       else actions.gun.stop();
@@ -171,6 +190,23 @@ function Jetfire() {
     const facingTarget = transform.faceCamera && (transform.phase === 'up' || transform.phase === 'robot') ? 1 : 0;
     transform.facing += (facingTarget - transform.facing) * (1 - Math.exp(-delta * 2.5));
     turn.current.rotation.y = -Math.PI / 2 + Math.PI * transform.facing;
+
+    // Pendulum swing about the chest, only as a robot. Rotating about +X tips the head forward and the
+    // legs back. Positive turns head left (+X here), so the legs swing out to the right with a negative
+    // rotation about +Z.
+    const speedFactor = motion.speed / SPEED;
+    const acceleration = delta > 0 ? (motion.speed - swing.lastSpeed) / delta / SPEED : 0;
+    swing.lastSpeed = motion.speed;
+    const targets = {
+      x: SWING.lean * speedFactor + SWING.inertia * acceleration,
+      z: -SWING.bank * motion.turn * speedFactor,
+    };
+    for (const axis of ['x', 'z']) {
+      const target = targets[axis] * transform.robot;
+      swing.velocity[axis] += (SWING.stiffness * (target - swing.angle[axis]) - SWING.damping * swing.velocity[axis]) * delta;
+      swing.angle[axis] += swing.velocity[axis] * delta;
+    }
+    hang.current.rotation.set(swing.angle.x, 0, swing.angle.z);
     // The engines are only lit in jet mode.
     glow.object.visible = transform.robot < 0.5;
     glow.update(clock.elapsedTime, boost.value);
@@ -183,6 +219,8 @@ function Jetfire() {
 
   return (
     <group scale={scale}>
+      {/* Swings about the pivot in the direction of travel, whichever way the robot faces. */}
+      <group ref={hang}>
       {/* MD2 models face +X; turn the nose to +Z, which is where Object3D.lookAt points. */}
       <group ref={turn} rotation-y={-Math.PI / 2}>
         <primitive object={model} />
@@ -192,6 +230,7 @@ function Jetfire() {
             <object3D position={tip} />
           </Trail>
         ))}
+      </group>
       </group>
     </group>
   );
@@ -279,7 +318,9 @@ function Flight({ children }) {
 
     forward.set(Math.sin(state.heading) * Math.cos(state.pitch), Math.sin(state.pitch), Math.cos(state.heading) * Math.cos(state.pitch));
     const robotSlow = 1 + (TRANSFORM.robotSpeed - 1) * transform.robot;
-    state.position.addScaledVector(forward, SPEED * (1 + (BOOST.speed - 1) * boost.value) * robotSlow * delta);
+    motion.speed = SPEED * (1 + (BOOST.speed - 1) * boost.value) * robotSlow;
+    motion.turn = state.turn;
+    state.position.addScaledVector(forward, motion.speed * delta);
 
     const jet = ref.current;
     jet.position.copy(state.position);
@@ -293,7 +334,7 @@ function Flight({ children }) {
     desired.copy(state.position).addScaledVector(forward, -mix(BOOST.back, boost.value));
     desired.y += CHASE.up;
     look.copy(state.position).addScaledVector(forward, CHASE.ahead);
-    look.y += CHASE.aim;
+    look.y += CHASE.aim * (1 - 0.8 * transform.robot); // aim lower to frame the hanging robot
     const follow = thumbnailMode ? 1 : 1 - Math.exp(-delta * CHASE.follow);
     if (state.lookAt.lengthSq() === 0) { camera.position.copy(desired); state.lookAt.copy(look); }
     camera.position.lerp(desired, follow);
