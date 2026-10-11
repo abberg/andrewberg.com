@@ -140,7 +140,8 @@ function Flight({ children }) {
 }
 
 // A field of drei clouds that wraps around the camera, so clouds left behind reappear far ahead.
-const CLOUDS = { count: 64, area: 240, altitude: [-14, 26], fogNear: 60, fogFar: 115, fogColor: '#d6e8f5' };
+const CLOUDS = { count: 64, area: 240, altitude: [-14, 26], fogNear: 60, fogFar: 115, fogColor: '#c2c4c2', color: '#e7ddc9' };
+// Colours sampled from the HDRI: its lit sky clouds average #e7ddc9 and its horizon haze #c2c4c2.
 
 // Small seeded generator so the layout is the same on every load.
 function seeded(seed) {
@@ -198,7 +199,7 @@ function CloudField() {
             segments={12}
             bounds={bounds}
             volume={volume}
-            color="#f4f8ff"
+            color={CLOUDS.color}
             opacity={0.8}
             fade={10}
           />
