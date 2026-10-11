@@ -1,20 +1,20 @@
 import { Suspense, useEffect, useLayoutEffect, useMemo } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Canvas, useFrame, useLoader } from '@react-three/fiber';
-import { AnimationMixer, Box3, Group, Mesh, MeshStandardMaterial, Vector3 } from 'three';
+import { AnimationMixer, Box3, Group, Mesh, MeshStandardMaterial, SRGBColorSpace, TextureLoader, Vector3 } from 'three';
 import { MD2Loader } from 'three/examples/jsm/loaders/MD2Loader.js';
-import { PCXLoader } from './PCXLoader.js';
 
 const thumbnailMode = new URLSearchParams(location.search).has('thumbnail');
 
 // Built directly rather than as JSX so the Mesh constructor sets up the morph targets for the geometry.
 function md2Mesh(geometry, skin) {
+  skin.colorSpace = SRGBColorSpace;
   return new Mesh(geometry, new MeshStandardMaterial({ map: skin, roughness: 0.8 }));
 }
 
 function Jetfire() {
   const [body, weapon] = useLoader(MD2Loader, ['jetfire/tris.md2', 'jetfire/weapon.md2']);
-  const [bodySkin, weaponSkin] = useLoader(PCXLoader, ['jetfire/vf1s_fokker.pcx', 'jetfire/weapon.pcx']);
+  const [bodySkin, weaponSkin] = useLoader(TextureLoader, ['jetfire/vf1s_fokker.png', 'jetfire/weapon.png']);
 
   const { group, mixer, scale } = useMemo(() => {
     const group = new Group();
