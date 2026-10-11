@@ -8,18 +8,21 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 const thumbnailMode = new URLSearchParams(location.search).has('thumbnail');
 
 // Built directly rather than as JSX so the Mesh constructor sets up the morph targets for the geometry.
-function md2Mesh(geometry, skin) {
+// Normal maps were generated from the skins with DeepBump.
+function md2Mesh(geometry, skin, normalMap) {
   skin.colorSpace = SRGBColorSpace;
-  return new Mesh(geometry, new MeshStandardMaterial({ map: skin, roughness: 0.8, flatShading: true }));
+  return new Mesh(geometry, new MeshStandardMaterial({ map: skin, normalMap, roughness: 0.8, flatShading: true }));
 }
 
 function Jetfire() {
   const [body, weapon] = useLoader(MD2Loader, ['jetfire/tris.md2', 'jetfire/weapon.md2']);
-  const [bodySkin, weaponSkin] = useLoader(TextureLoader, ['jetfire/vf1s_fokker.jpg', 'jetfire/weapon.jpg']);
+  const [bodySkin, weaponSkin, bodyNormals, weaponNormals] = useLoader(TextureLoader, [
+    'jetfire/vf1s_fokker.jpg', 'jetfire/weapon.jpg', 'jetfire/vf1s_fokker_normal.jpg', 'jetfire/weapon_normal.jpg',
+  ]);
 
   const { group, mixer, scale } = useMemo(() => {
     const group = new Group();
-    const meshes = [md2Mesh(body, bodySkin), md2Mesh(weapon, weaponSkin)];
+    const meshes = [md2Mesh(body, bodySkin, bodyNormals), md2Mesh(weapon, weaponSkin, weaponNormals)];
     // Centre on the body and scale it to roughly two units tall. The weapon shares the body's
     // coordinate space and frame list, so it gets the same offset and plays in step.
     const box = new Box3().setFromBufferAttribute(body.attributes.position);
@@ -30,7 +33,7 @@ function Jetfire() {
       if (mesh.geometry.animations.length) mixer.clipAction(mesh.geometry.animations[0], mesh).play();
     }
     return { group, mixer, scale: 2 / box.getSize(new Vector3()).y };
-  }, [body, weapon, bodySkin, weaponSkin]);
+  }, [body, weapon, bodySkin, weaponSkin, bodyNormals, weaponNormals]);
 
   useEffect(() => () => {
     mixer.stopAllAction();
