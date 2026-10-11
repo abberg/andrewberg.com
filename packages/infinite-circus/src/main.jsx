@@ -10,7 +10,7 @@ const thumbnailMode = new URLSearchParams(location.search).has('thumbnail');
 // Built directly rather than as JSX so the Mesh constructor sets up the morph targets for the geometry.
 function md2Mesh(geometry, skin) {
   skin.colorSpace = SRGBColorSpace;
-  return new Mesh(geometry, new MeshStandardMaterial({ map: skin, roughness: 0.8 }));
+  return new Mesh(geometry, new MeshStandardMaterial({ map: skin, roughness: 0.8, flatShading: true }));
 }
 
 function Jetfire() {
