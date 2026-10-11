@@ -1,8 +1,9 @@
 import { Suspense, useEffect, useLayoutEffect, useMemo } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Canvas, useFrame, useLoader } from '@react-three/fiber';
+import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber';
 import { AnimationMixer, Box3, CubeTextureLoader, Group, Mesh, MeshStandardMaterial, SRGBColorSpace, TextureLoader, Vector3 } from 'three';
 import { MD2Loader } from 'three/examples/jsm/loaders/MD2Loader.js';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 const thumbnailMode = new URLSearchParams(location.search).has('thumbnail');
 
@@ -51,6 +52,21 @@ function Skybox() {
   return <primitive attach="background" object={texture} />;
 }
 
+function Controls() {
+  const camera = useThree(state => state.camera);
+  const domElement = useThree(state => state.gl.domElement);
+  const controls = useMemo(() => new OrbitControls(camera, domElement), [camera, domElement]);
+  useEffect(() => {
+    controls.enableDamping = true;
+    controls.enablePan = false;
+    controls.minDistance = 2;
+    controls.maxDistance = 10;
+    return () => controls.dispose();
+  }, [controls]);
+  useFrame(() => controls.update());
+  return null;
+}
+
 function Ready() {
   useLayoutEffect(() => {
     requestAnimationFrame(() => requestAnimationFrame(() => {
@@ -64,6 +80,7 @@ createRoot(document.getElementById('root')).render(
   <Canvas camera={{ position: [3, 1, 3], fov: 45 }} dpr={[1, 2]}>
     <ambientLight intensity={0.8} />
     <directionalLight position={[3, 4, 5]} intensity={2} />
+    <Controls />
     <Suspense fallback={null}>
       <Skybox />
       <Jetfire />
