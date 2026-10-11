@@ -1,16 +1,17 @@
 import { Suspense, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber';
+import { Canvas, createPortal, useFrame, useLoader, useThree } from '@react-three/fiber';
 import { Cloud, Clouds, Environment, Trail } from '@react-three/drei';
 import { Bloom, EffectComposer, LensFlare } from '@react-three/postprocessing';
 import {
   AnimationClip, AnimationMixer, Box3, EquirectangularReflectionMapping, FloatType, Group, LoopOnce, Mesh, MeshBasicMaterial,
-  MeshStandardMaterial, NumberKeyframeTrack, SRGBColorSpace, TextureLoader, Vector3,
+  MeshStandardMaterial, NumberKeyframeTrack, Object3D, SRGBColorSpace, TextureLoader, Vector3,
 } from 'three';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { MD2Loader } from 'three/examples/jsm/loaders/MD2Loader.js';
 import { RadialBlurEffect } from './blur.js';
 import { createEngineGlow } from './effects.js';
+import { createGunfire } from './gunfire.js';
 import { createMissileSwarm } from './missiles.js';
 
 const thumbnailMode = new URLSearchParams(location.search).has('thumbnail');
@@ -103,6 +104,9 @@ const PHASES = {
 };
 const ROBOT_PHASES = new Set(['up', 'raise', 'robot', 'lower']);
 
+// Muzzle of the gun in attack frame 1 (raw MD2 units), and the barrel's direction.
+const MUZZLE = { position: new Vector3(30.6, 14.5, -4.1), direction: new Vector3(30.2, -3.3, 3.2).normalize() };
+
 function phaseClip(geometry, name, phase) {
   const targets = geometry.morphAttributes.position;
   const frames = phase.frames ?? (phase.body.animation ? targets.filter(target => target.name.replace(/\d+$/, '') === phase.body.animation).map(target => target.name) : null);
@@ -122,7 +126,7 @@ function Jetfire() {
     'jetfire/vf1s_fokker.jpg', 'jetfire/vf1s_fokker_normal.jpg', 'jetfire/weapon.jpg', 'jetfire/weapon_normal.jpg',
   ]);
 
-  const { model, centers, scale, glow, mixer, actions, gun } = useMemo(() => {
+  const { model, centers, scale, glow, mixer, actions, gun, gunfire, muzzle, aim } = useMemo(() => {
     const mesh = md2Mesh(body, skin, normals);
     const gun = md2Mesh(weapon, weaponSkin, weaponNormals);
     gun.visible = false;
@@ -153,11 +157,22 @@ function Jetfire() {
       gun: phase.gun ? actionFor(weapon, gun, name, phase) : null,
     }]));
     actions.jet.body.play();
-    return { model, centers, scale: 2 / height, glow: createEngineGlow(NOZZLES), mixer, actions, gun };
+    // The gun's muzzle and a point further along its barrel, in the model's raw MD2 coordinates, from
+    // the attack pose. The muzzle flash sits on the muzzle; the pair gives the firing direction.
+    const gunfire = createGunfire();
+    const muzzle = new Object3D();
+    muzzle.position.copy(MUZZLE.position);
+    muzzle.add(gunfire.flash);
+    const aim = new Object3D();
+    aim.position.copy(MUZZLE.position).addScaledVector(MUZZLE.direction, 10);
+    model.add(muzzle, aim);
+    return { model, centers, scale: 2 / height, glow: createEngineGlow(NOZZLES), mixer, actions, gun, gunfire, muzzle, aim };
   }, [body, weapon, skin, normals, weaponSkin, weaponNormals]);
 
   const turn = useRef();
   const hang = useRef();
+  const scene = useThree(state => state.scene);
+  const shooting = useMemo(() => ({ frame: -1, from: new Vector3(), direction: new Vector3() }), []);
   const swing = useMemo(() => ({ angle: { x: 0, z: 0 }, velocity: { x: 0, z: 0 }, lastSpeed: 0 }), []);
 
   useEffect(() => {
@@ -199,6 +214,20 @@ function Jetfire() {
     if (due && (transform.phase === 'jet' || transform.phase === 'robot')) transform.switchTo(PHASES[transform.phase].next);
     mixer.update(delta);
 
+    // Fire on attack frames 1 and 3 (the gun's forward, un-recoiled frames) while in the firing loop.
+    if (transform.phase === 'robot' && delta > 0) {
+      const frame = Math.floor(actions.robot.body.time * TRANSFORM.fps) % 4;
+      if (frame !== shooting.frame && (frame === 0 || frame === 2)) {
+        muzzle.getWorldPosition(shooting.from);
+        aim.getWorldPosition(shooting.direction).sub(shooting.from).normalize();
+        gunfire.fire(shooting.from, shooting.direction, jetVelocity);
+      }
+      shooting.frame = frame;
+    } else {
+      shooting.frame = -1;
+    }
+    gunfire.update(delta);
+
     const robotTarget = ROBOT_PHASES.has(transform.phase) ? 1 : 0;
     transform.robot += (robotTarget - transform.robot) * (1 - Math.exp(-delta * 3));
     model.position.lerpVectors(centers.jet, centers.robot, transform.robot).negate();
@@ -231,10 +260,13 @@ function Jetfire() {
     mixer.stopAllAction();
     model.traverse(object => object.material?.dispose());
     glow.dispose();
-  }, [model, mixer, glow]);
+    gunfire.dispose();
+  }, [model, mixer, glow, gunfire]);
 
   return (
     <group scale={scale}>
+      {/* Bolts fly in world space, independent of the jet. */}
+      {createPortal(<primitive object={gunfire.bolts} />, scene)}
       {/* Swings about the pivot in the direction of travel, whichever way the robot faces. */}
       <group ref={hang}>
       {/* MD2 models face +X; turn the nose to +Z, which is where Object3D.lookAt points. */}
