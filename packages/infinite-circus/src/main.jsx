@@ -23,7 +23,8 @@ function md2Mesh(geometry, skin, normalMap) {
   return new Mesh(geometry, new MeshStandardMaterial({ map: skin, normalMap, roughness: 0.6, flatShading: true }));
 }
 
-const JET_FRAME = 'jet1';
+// The taunt's jet frame: identical to `jet1` but 16 units higher, and it has a matching gun-pod frame.
+const JET_FRAME = 'taunt04';
 
 // Flight tuning, in world units and seconds.
 const SPEED = 6;
@@ -94,13 +95,20 @@ const transform = { phase: 'jet', timer: between(TRANSFORM.every), robot: 0, req
 // `frames` builds a clip from specific frames. The attack's frames 1-4 aim and fire with a little recoil
 // and 5-8 lower the gun back to rest, so the gun is raised once, fires on a loop, then lowered, rather
 // than looping all 8 frames and snapping it back up each time.
+// The taunt is a full transform with the gun: frames 1-4 fold it from the robot's hand to under the jet,
+// 4-14 hold the jet, and 14-17 bring it back. The weapon model has no frames for transformup/transformdn,
+// so both body and gun transform with the taunt's frames, spread over the transform clips' frame counts
+// so they take about as long. The gun stays slung under the jet in between.
+const stretch = (first, last, count) => Array.from({ length: count }, (_, i) =>
+  `taunt${String(Math.round(first + ((last - first) * i) / (count - 1))).padStart(2, '0')}`);
+
 const PHASES = {
-  jet: { body: { hold: JET_FRAME }, next: 'up' },
-  up: { body: { animation: 'transformup' }, once: true, next: 'raise' },
+  jet: { body: { hold: JET_FRAME }, gun: { hold: JET_FRAME }, next: 'up' },
+  up: { frames: stretch(14, 17, 11), gun: true, once: true, next: 'raise' },
   raise: { frames: ['attack8', 'attack7', 'attack6', 'attack5', 'attack4'], once: true, gun: true, next: 'robot' },
   robot: { frames: ['attack1', 'attack2', 'attack3', 'attack4'], gun: true, next: 'lower' },
   lower: { frames: ['attack5', 'attack6', 'attack7', 'attack8'], once: true, gun: true, next: 'down' },
-  down: { body: { animation: 'transformdn' }, once: true, next: 'jet' },
+  down: { frames: stretch(1, 4, 9), gun: true, once: true, next: 'jet' },
 };
 const ROBOT_PHASES = new Set(['up', 'raise', 'robot', 'lower']);
 
@@ -129,7 +137,6 @@ function Jetfire() {
   const { model, centers, scale, glow, mixer, actions, gun, gunfire, muzzle, aim } = useMemo(() => {
     const mesh = md2Mesh(body, skin, normals);
     const gun = md2Mesh(weapon, weaponSkin, weaponNormals);
-    gun.visible = false;
     const model = new Group();
     model.add(mesh, gun);
     // Pivot on the jet's centre, or the robot's chest so his legs can swing below it, blending
@@ -154,9 +161,13 @@ function Jetfire() {
     };
     const actions = Object.fromEntries(Object.entries(PHASES).map(([name, phase]) => [name, {
       body: actionFor(body, mesh, name, phase),
-      gun: phase.gun ? actionFor(weapon, gun, name, phase) : null,
+      // `gun` is true to play the same frames as the body, a list of its own frames, or a frame to hold.
+      gun: phase.gun ? actionFor(weapon, gun, name, Array.isArray(phase.gun) ? { frames: phase.gun, once: phase.once }
+        : phase.gun.hold ? { body: { hold: phase.gun.hold } } : phase) : null,
     }]));
     actions.jet.body.play();
+    actions.jet.gun?.play();
+    gun.visible = Boolean(PHASES.jet.gun);
     // The gun's muzzle and a point further along its barrel, in the model's raw MD2 coordinates, from
     // the attack pose. The muzzle flash sits on the muzzle; the pair gives the firing direction.
     const gunfire = createGunfire();
@@ -195,7 +206,6 @@ function Jetfire() {
         to[part].reset().play();
         if (from[part] && from[part] !== to[part]) to[part].crossFadeFrom(from[part], TRANSFORM.crossfade);
       }
-      // The gun only has frames for the robot animations, not the transforms.
       gun.visible = Boolean(PHASES[phase].gun);
       if (phase === 'jet') transform.timer = between(TRANSFORM.every);
       if (phase === 'up') transform.faceCamera = Math.random() < TRANSFORM.faceCameraChance;
