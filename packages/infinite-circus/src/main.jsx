@@ -11,7 +11,7 @@ const thumbnailMode = new URLSearchParams(location.search).has('thumbnail');
 // Normal maps were generated from the skins with DeepBump.
 function md2Mesh(geometry, skin, normalMap) {
   skin.colorSpace = SRGBColorSpace;
-  return new Mesh(geometry, new MeshStandardMaterial({ map: skin, normalMap, roughness: 0.8, flatShading: true }));
+  return new Mesh(geometry, new MeshStandardMaterial({ map: skin, normalMap, roughness: 0.6, flatShading: true }));
 }
 
 function Jetfire() {
@@ -81,8 +81,10 @@ function Ready() {
 
 createRoot(document.getElementById('root')).render(
   <Canvas camera={{ position: [3, 1, 3], fov: 45 }} dpr={[1, 2]}>
-    <ambientLight intensity={0.8} />
-    <directionalLight position={[3, 4, 5]} intensity={2} />
+    {/* Dim sky fill, a low warm key from the front and a strong cool rim from behind. */}
+    <hemisphereLight args={['#9cc4ff', '#2a3448', 0.35]} />
+    <directionalLight position={[5, 1.5, 1]} intensity={3.5} color="#ffd2a0" />
+    <directionalLight position={[-4, 3, -3]} intensity={4} color="#8fb8ff" />
     <Controls />
     <Suspense fallback={null}>
       <Skybox />
