@@ -1,0 +1,10 @@
+{
+  "title": "Infinite Circus",
+  "description": "A React Three Fiber sketch. Placeholder scene for now.",
+  "category": "3D study",
+  "order": 33,
+  "thumbnail": {
+    "path": "?thumbnail=1",
+    "readySelector": "html[data-thumbnail-ready=\"true\"]"
+  }
+}

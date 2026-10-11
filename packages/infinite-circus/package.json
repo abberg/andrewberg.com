@@ -1,0 +1,16 @@
+{
+  "name": "infinite-circus",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "dev": "node build.mjs --dev"
+  },
+  "dependencies": {
+    "@react-three/fiber": "9.8.1",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "three": "0.186.1"
+  }
+}
