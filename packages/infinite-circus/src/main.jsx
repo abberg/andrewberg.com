@@ -186,7 +186,9 @@ function CloudField() {
     <>
       {/* Haze swallows clouds before they reach the wrap edge, so they never visibly pop. */}
       <fog attach="fog" args={[CLOUDS.fogColor, CLOUDS.fogNear, CLOUDS.fogFar]} />
-      <Clouds texture="clouds/cloud.png" material={MeshBasicMaterial} limit={CLOUDS.count * 12}>
+      {/* Not frustum culled: the instanced mesh's bounds are computed once, before the clouds are placed,
+          so culling would hide or show the whole field at once as the camera turns. */}
+      <Clouds texture="clouds/cloud.png" material={MeshBasicMaterial} limit={CLOUDS.count * 12} frustumCulled={false}>
         {layout.map(({ seed, bounds, volume }, i) => (
           <Cloud
             key={i}
