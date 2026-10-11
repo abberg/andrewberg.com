@@ -1,12 +1,8 @@
-import { Suspense, useEffect, useLayoutEffect, useMemo } from 'react';
+import { Suspense, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber';
-import {
-  AnimationClip, AnimationMixer, Box3, CubeTextureLoader, Group, LoopOnce, Mesh, MeshStandardMaterial, NumberKeyframeTrack,
-  SRGBColorSpace, TextureLoader, Vector3,
-} from 'three';
+import { Box3, CubeTextureLoader, Group, Mesh, MeshStandardMaterial, SRGBColorSpace, TextureLoader, Vector3 } from 'three';
 import { MD2Loader } from 'three/examples/jsm/loaders/MD2Loader.js';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 const thumbnailMode = new URLSearchParams(location.search).has('thumbnail');
 
@@ -17,88 +13,107 @@ function md2Mesh(geometry, skin, normalMap) {
   return new Mesh(geometry, new MeshStandardMaterial({ map: skin, normalMap, roughness: 0.6, flatShading: true }));
 }
 
-// Looping performance. The weapon only has frames for the robot animations, so it is hidden
-// while Jetfire transforms or flies as a jet.
-const SEQUENCE = [
-  { clip: 'stand' },
-  { clip: 'taunt' },
-  { clip: 'transformdn', hideWeapon: true },
-  { clip: 'jet', hold: 3, hideWeapon: true },
-  { clip: 'transformup', hideWeapon: true },
-];
-const FPS = 10;
-const CROSSFADE = 0.15;
+const JET_FRAME = 'jet1';
 
-function clipsFor(geometry) {
-  // Play-once clips that end on their last frame instead of wrapping back to the first.
-  const clips = AnimationClip.CreateClipsFromMorphTargetSequences(geometry.morphAttributes.position, FPS, true);
-  for (const { clip, hold } of SEQUENCE) {
-    if (!hold) continue;
-    const frame = geometry.morphAttributes.position.find(target => target.name.startsWith(clip));
-    if (frame) clips.push(new AnimationClip(clip, hold, [new NumberKeyframeTrack(`.morphTargetInfluences[${frame.name}]`, [0, hold], [1, 1])]));
-  }
-  return clips;
-}
-
-function playSequence(mixer, [body, weapon]) {
-  const actions = [body, weapon].map(mesh => {
-    const clips = clipsFor(mesh.geometry);
-    return SEQUENCE.map(({ clip }) => {
-      const found = clips.findLast(candidate => candidate.name === clip);
-      if (!found) return null;
-      const action = mixer.clipAction(found, mesh);
-      action.setLoop(LoopOnce, 1);
-      action.clampWhenFinished = true;
-      return action;
-    });
-  });
-  let step = -1;
-  const advance = () => {
-    const previous = step;
-    step = (step + 1) % SEQUENCE.length;
-    weapon.visible = !SEQUENCE[step].hideWeapon;
-    for (const meshActions of actions) {
-      const next = meshActions[step];
-      const prev = previous >= 0 ? meshActions[previous] : null;
-      if (!next) { prev?.stop(); continue; }
-      next.reset().play();
-      if (prev) next.crossFadeFrom(prev, CROSSFADE);
-    }
-  };
-  mixer.addEventListener('finished', event => { if (event.action === actions[0][step]) advance(); });
-  advance();
-}
+// Flight tuning, in world units and seconds.
+const SPEED = 6;
+const MAX_TURN = 0.9; // radians per second
+const BOUNDS = 60; // steer back towards the origin beyond this radius
+const ALTITUDE = [-6, 14];
+const BANK = 0.9; // roll per unit of turn rate
+const CHASE = { back: 3.8, up: 1.1, ahead: 3, follow: 3 };
 
 function Jetfire() {
-  const [body, weapon] = useLoader(MD2Loader, ['jetfire/tris.md2', 'jetfire/weapon.md2']);
-  const [bodySkin, weaponSkin, bodyNormals, weaponNormals] = useLoader(TextureLoader, [
-    'jetfire/vf1s_fokker.jpg', 'jetfire/weapon.jpg', 'jetfire/vf1s_fokker_normal.jpg', 'jetfire/weapon_normal.jpg',
-  ]);
+  const body = useLoader(MD2Loader, 'jetfire/tris.md2');
+  const [skin, normals] = useLoader(TextureLoader, ['jetfire/vf1s_fokker.jpg', 'jetfire/vf1s_fokker_normal.jpg']);
 
-  const { group, mixer, scale } = useMemo(() => {
-    const group = new Group();
-    const meshes = [md2Mesh(body, bodySkin, bodyNormals), md2Mesh(weapon, weaponSkin, weaponNormals)];
-    // Centre on the body and scale it to roughly two units tall. The weapon shares the body's
-    // coordinate space and frame list, so it gets the same offset and plays in step.
-    const box = new Box3().setFromBufferAttribute(body.attributes.position);
-    group.position.copy(box.getCenter(new Vector3()).negate());
-    group.add(...meshes);
-    const mixer = new AnimationMixer(group);
-    playSequence(mixer, meshes);
-    return { group, mixer, scale: 2 / box.getSize(new Vector3()).y };
-  }, [body, weapon, bodySkin, weaponSkin, bodyNormals, weaponNormals]);
-
-  useEffect(() => () => {
-    mixer.stopAllAction();
-    group.traverse(object => object.material?.dispose());
-  }, [group, mixer]);
-  useFrame((_, delta) => { if (!thumbnailMode) mixer.update(delta); });
+  const { model, scale } = useMemo(() => {
+    const mesh = md2Mesh(body, skin, normals);
+    const frame = body.morphAttributes.position.find(target => target.name === JET_FRAME);
+    mesh.morphTargetInfluences[mesh.morphTargetDictionary[JET_FRAME]] = 1;
+    // Centre on the jet pose and keep the robot's scale (roughly two units tall standing up).
+    const box = new Box3().setFromBufferAttribute(frame);
+    mesh.position.copy(box.getCenter(new Vector3()).negate());
+    // MD2 models face +X; turn the nose to +Z, which is where Object3D.lookAt points.
+    const model = new Group();
+    model.rotation.y = -Math.PI / 2;
+    model.add(mesh);
+    const height = new Box3().setFromBufferAttribute(body.attributes.position).getSize(new Vector3()).y;
+    return { model, scale: 2 / height };
+  }, [body, skin, normals]);
+  useEffect(() => () => model.traverse(object => object.material?.dispose()), [model]);
 
   return (
     <group scale={scale}>
-      <primitive object={group} />
+      <primitive object={model} />
     </group>
   );
+}
+
+// Wanders smoothly in a bounded volume, banks into turns, and drags the camera along behind.
+function Flight({ children }) {
+  const ref = useRef();
+  const camera = useThree(state => state.camera);
+  const state = useMemo(() => ({
+    position: new Vector3(0, 4, 0),
+    heading: 0,
+    pitch: 0,
+    turn: 0,
+    turnTarget: 0,
+    pitchTarget: 0,
+    roll: 0,
+    retarget: 0,
+    lookAt: new Vector3(),
+  }), []);
+  const scratch = useMemo(() => ({ forward: new Vector3(), desired: new Vector3(), look: new Vector3(), toOrigin: new Vector3() }), []);
+
+  useFrame((_, rawDelta) => {
+    const delta = thumbnailMode ? 0 : Math.min(rawDelta, 0.1);
+    const { forward, desired, look, toOrigin } = scratch;
+
+    // Pick a new random turn and climb every couple of seconds, easing between them.
+    state.retarget -= delta;
+    if (state.retarget <= 0) {
+      state.retarget = 1.5 + Math.random() * 2.5;
+      state.turnTarget = (Math.random() * 2 - 1) * MAX_TURN;
+      state.pitchTarget = (Math.random() * 2 - 1) * 0.25;
+    }
+    // Head home when straying too far, and level out near the altitude limits.
+    toOrigin.set(-state.position.x, 0, -state.position.z);
+    if (toOrigin.length() > BOUNDS) {
+      const homeHeading = Math.atan2(toOrigin.x, toOrigin.z);
+      const error = Math.atan2(Math.sin(homeHeading - state.heading), Math.cos(homeHeading - state.heading));
+      state.turnTarget = Math.sign(error) * MAX_TURN;
+    }
+    if (state.position.y > ALTITUDE[1]) state.pitchTarget = -0.2;
+    if (state.position.y < ALTITUDE[0]) state.pitchTarget = 0.2;
+
+    const ease = 1 - Math.exp(-delta * 1.5);
+    state.turn += (state.turnTarget - state.turn) * ease;
+    state.pitch += (state.pitchTarget - state.pitch) * ease;
+    state.heading += state.turn * delta;
+    state.roll += (-state.turn * BANK - state.roll) * ease;
+
+    forward.set(Math.sin(state.heading) * Math.cos(state.pitch), Math.sin(state.pitch), Math.cos(state.heading) * Math.cos(state.pitch));
+    state.position.addScaledVector(forward, SPEED * delta);
+
+    const jet = ref.current;
+    jet.position.copy(state.position);
+    jet.lookAt(look.copy(state.position).add(forward));
+    jet.rotateZ(state.roll);
+
+    // Chase camera: sit behind and above, aim a little ahead of the jet.
+    desired.copy(state.position).addScaledVector(forward, -CHASE.back);
+    desired.y += CHASE.up;
+    look.copy(state.position).addScaledVector(forward, CHASE.ahead);
+    const follow = thumbnailMode ? 1 : 1 - Math.exp(-delta * CHASE.follow);
+    if (state.lookAt.lengthSq() === 0) { camera.position.copy(desired); state.lookAt.copy(look); }
+    camera.position.lerp(desired, follow);
+    state.lookAt.lerp(look, follow);
+    camera.lookAt(state.lookAt);
+  });
+
+  return <group ref={ref}>{children}</group>;
 }
 
 function Skybox() {
@@ -106,21 +121,6 @@ function Skybox() {
   const [texture] = useLoader(CubeTextureLoader, [['px', 'nx', 'py', 'ny', 'pz', 'nz'].map(face => `skybox/${face}.jpg`)]);
   texture.colorSpace = SRGBColorSpace;
   return <primitive attach="background" object={texture} />;
-}
-
-function Controls() {
-  const camera = useThree(state => state.camera);
-  const domElement = useThree(state => state.gl.domElement);
-  const controls = useMemo(() => new OrbitControls(camera, domElement), [camera, domElement]);
-  useEffect(() => {
-    controls.enableDamping = true;
-    controls.enablePan = false;
-    controls.minDistance = 2;
-    controls.maxDistance = 10;
-    return () => controls.dispose();
-  }, [controls]);
-  useFrame(() => controls.update());
-  return null;
 }
 
 function Ready() {
@@ -133,15 +133,16 @@ function Ready() {
 }
 
 createRoot(document.getElementById('root')).render(
-  <Canvas camera={{ position: [3, 1, 3], fov: 45 }} dpr={[1, 2]}>
+  <Canvas camera={{ position: [0, 6, -6], fov: 55, far: 2000 }} dpr={[1, 2]}>
     {/* Dim sky fill, a low warm key from the front and a strong cool rim from behind. */}
     <hemisphereLight args={['#9cc4ff', '#2a3448', 0.35]} />
     <directionalLight position={[5, 1.5, 1]} intensity={3.5} color="#ffd2a0" />
     <directionalLight position={[-4, 3, -3]} intensity={4} color="#8fb8ff" />
-    <Controls />
     <Suspense fallback={null}>
       <Skybox />
-      <Jetfire />
+      <Flight>
+        <Jetfire />
+      </Flight>
       <Ready />
     </Suspense>
   </Canvas>
