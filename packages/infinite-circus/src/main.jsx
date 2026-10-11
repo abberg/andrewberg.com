@@ -69,9 +69,10 @@ const TRANSFORM = {
   fps: 10,
   crossfade: 0.15,
   robotSpeed: 0.35, // flight speed multiplier while a robot
+  faceCameraChance: 0.5, // how often the robot turns round to face the camera
 };
 // Shared with the flight: robot eases 0 (jet) to 1 (robot) through the transforms.
-const transform = { phase: 'jet', timer: between(TRANSFORM.every), robot: 0, request: false };
+const transform = { phase: 'jet', timer: between(TRANSFORM.every), robot: 0, request: false, faceCamera: false, facing: 0 };
 
 // Play-once clips that end on their last frame, plus a held single-frame jet pose.
 function transformClips(geometry) {
@@ -121,6 +122,8 @@ function Jetfire() {
     return { model, centers, scale: 2 / height, glow: createEngineGlow(NOZZLES), mixer, actions, gun };
   }, [body, weapon, skin, normals, weaponSkin, weaponNormals]);
 
+  const turn = useRef();
+
   useEffect(() => {
     const press = event => { if (event.code === 'KeyT') transform.request = true; };
     window.addEventListener('keydown', press);
@@ -144,6 +147,7 @@ function Jetfire() {
       if (phase === 'robot') actions.gun.reset().play();
       else actions.gun.stop();
       if (phase === 'jet') transform.timer = between(TRANSFORM.every);
+      if (phase === 'up') transform.faceCamera = Math.random() < TRANSFORM.faceCameraChance;
       if (phase === 'robot') transform.timer = between(TRANSFORM.robotFor);
     };
     mixer.addEventListener('finished', finished);
@@ -163,6 +167,10 @@ function Jetfire() {
     const robotTarget = transform.phase === 'up' || transform.phase === 'robot' ? 1 : 0;
     transform.robot += (robotTarget - transform.robot) * (1 - Math.exp(-delta * 3));
     model.position.lerpVectors(centers.jet, centers.robot, transform.robot).negate();
+    // Sometimes the robot turns round to face the chase camera, turning back as it becomes a jet.
+    const facingTarget = transform.faceCamera && (transform.phase === 'up' || transform.phase === 'robot') ? 1 : 0;
+    transform.facing += (facingTarget - transform.facing) * (1 - Math.exp(-delta * 2.5));
+    turn.current.rotation.y = -Math.PI / 2 + Math.PI * transform.facing;
     // The engines are only lit in jet mode.
     glow.object.visible = transform.robot < 0.5;
     glow.update(clock.elapsedTime, boost.value);
@@ -176,7 +184,7 @@ function Jetfire() {
   return (
     <group scale={scale}>
       {/* MD2 models face +X; turn the nose to +Z, which is where Object3D.lookAt points. */}
-      <group rotation-y={-Math.PI / 2}>
+      <group ref={turn} rotation-y={-Math.PI / 2}>
         <primitive object={model} />
         <primitive object={glow.object} />
         {WINGTIPS.map((tip, i) => (
