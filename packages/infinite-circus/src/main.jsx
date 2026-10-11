@@ -140,8 +140,9 @@ function Flight({ children }) {
 }
 
 // A field of drei clouds that wraps around the camera, so clouds left behind reappear far ahead.
-const CLOUDS = { count: 64, area: 240, altitude: [-14, 26], fogNear: 60, fogFar: 115, fogColor: '#c2c4c2', color: '#e7ddc9' };
-// Colours sampled from the HDRI: its lit sky clouds average #e7ddc9 and its horizon haze #c2c4c2.
+// Clouds fade out between fadeNear and fadeFar (horizontal distance from the camera), which is inside
+// half the area, so they are invisible by the time they wrap. The colour is sampled from the HDRI's lit clouds.
+const CLOUDS = { count: 64, area: 240, altitude: [-14, 26], fadeNear: 60, fadeFar: 105, color: '#e7ddc9' };
 
 // Small seeded generator so the layout is the same on every load.
 function seeded(seed) {
@@ -169,6 +170,7 @@ function CloudField() {
     }));
   }, []);
   const refs = useRef([]);
+  const field = useRef();
   const wrap = value => value - CLOUDS.area * Math.floor((value + CLOUDS.area / 2) / CLOUDS.area);
 
   useFrame(() => {
@@ -184,13 +186,26 @@ function CloudField() {
     }
   });
 
+  // drei only fades clouds near the camera, so fade the far ones here. This runs after drei has written
+  // this frame's per-sprite opacities (priority 0) and before the composer renders (priority 1).
+  useFrame(() => {
+    const sprites = field.current?.children.find(child => child.isInstancedMesh);
+    if (!sprites) return;
+    const matrices = sprites.instanceMatrix.array;
+    const opacity = sprites.geometry.attributes.cloudOpacity;
+    for (let i = 0; i < sprites.count; i++) {
+      const distance = Math.hypot(matrices[i * 16 + 12] - camera.position.x, matrices[i * 16 + 14] - camera.position.z);
+      const t = Math.min(Math.max((distance - CLOUDS.fadeNear) / (CLOUDS.fadeFar - CLOUDS.fadeNear), 0), 1);
+      opacity.array[i] *= 1 - t * t * (3 - 2 * t);
+    }
+    opacity.needsUpdate = true;
+  }, 0.5);
+
   return (
     <>
-      {/* Haze swallows clouds before they reach the wrap edge, so they never visibly pop. */}
-      <fog attach="fog" args={[CLOUDS.fogColor, CLOUDS.fogNear, CLOUDS.fogFar]} />
       {/* Not frustum culled: the instanced mesh's bounds are computed once, before the clouds are placed,
           so culling would hide or show the whole field at once as the camera turns. */}
-      <Clouds texture="clouds/cloud.png" material={MeshBasicMaterial} limit={CLOUDS.count * 12} frustumCulled={false}>
+      <Clouds ref={field} texture="clouds/cloud.png" material={MeshBasicMaterial} limit={CLOUDS.count * 12} frustumCulled={false}>
         {layout.map(({ seed, bounds, volume }, i) => (
           <Cloud
             key={i}
