@@ -1,8 +1,12 @@
 import { createContext, Suspense, useContext, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Canvas, createPortal, useFrame, useLoader, useThree } from '@react-three/fiber';
-import { Box3, CubeTextureLoader, Group, Mesh, MeshStandardMaterial, Object3D, SRGBColorSpace, TextureLoader, Vector3 } from 'three';
+import { Box3, CubeTextureLoader, Group, Mesh, MeshStandardMaterial, Object3D, SRGBColorSpace, TextureLoader, Vector2, Vector3 } from 'three';
 import { MD2Loader } from 'three/examples/jsm/loaders/MD2Loader.js';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { createEngineGlow, createTrail } from './effects.js';
 
 const thumbnailMode = new URLSearchParams(location.search).has('thumbnail');
@@ -167,6 +171,28 @@ function Skybox() {
   return <primitive attach="background" object={texture} />;
 }
 
+// Only values brighter than the threshold bloom, so the sky stays crisp while the engine cores flare.
+const BLOOM = { strength: 0.8, radius: 0.4, threshold: 1 };
+
+function Bloom() {
+  const { gl, scene, camera, size } = useThree();
+  const composer = useMemo(() => {
+    const composer = new EffectComposer(gl);
+    composer.addPass(new RenderPass(scene, camera));
+    composer.addPass(new UnrealBloomPass(new Vector2(size.width, size.height), BLOOM.strength, BLOOM.radius, BLOOM.threshold));
+    composer.addPass(new OutputPass());
+    return composer;
+  }, [gl, scene, camera]);
+  useEffect(() => {
+    composer.setPixelRatio(gl.getPixelRatio());
+    composer.setSize(size.width, size.height);
+  }, [composer, gl, size]);
+  useEffect(() => () => composer.dispose(), [composer]);
+  // A positive priority runs after the flight update and takes over rendering from R3F.
+  useFrame((_, delta) => composer.render(delta), 1);
+  return null;
+}
+
 function Ready() {
   useLayoutEffect(() => {
     requestAnimationFrame(() => requestAnimationFrame(() => {
@@ -177,7 +203,8 @@ function Ready() {
 }
 
 createRoot(document.getElementById('root')).render(
-  <Canvas camera={{ position: [0, 6, -6], fov: 55, far: 2000 }} dpr={[1, 2]}>
+  // Flat (no tone mapping): the output pass would otherwise tone map the skybox, which three normally leaves alone.
+  <Canvas flat camera={{ position: [0, 6, -6], fov: 55, far: 2000 }} dpr={[1, 2]}>
     {/* Dim sky fill, a low warm key from the front and a strong cool rim from behind. */}
     <hemisphereLight args={['#9cc4ff', '#2a3448', 0.35]} />
     <directionalLight position={[5, 1.5, 1]} intensity={3.5} color="#ffd2a0" />
@@ -189,5 +216,6 @@ createRoot(document.getElementById('root')).render(
       </Flight>
       <Ready />
     </Suspense>
+    <Bloom />
   </Canvas>
 );

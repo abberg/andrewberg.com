@@ -20,11 +20,12 @@ function glowTexture() {
 }
 
 // A flickering blue exhaust glow: a wide halo and a hot core per nozzle, plus a light on the tail.
-// Positions and sizes are in the model's own units.
-export function createEngineGlow(nozzles, { color = '#3d7bff', core = '#d8ecff', size = 18 } = {}) {
+// Positions and sizes are in the model's own units. The core is pushed past full brightness so the
+// bloom pass picks it up.
+export function createEngineGlow(nozzles, { color = '#3d7bff', core = '#d8ecff', size = 18, coreBoost = 3 } = {}) {
   const map = glowTexture();
-  const materials = [color, core].map(tint => new SpriteMaterial({
-    map, color: tint, blending: AdditiveBlending, depthWrite: false, transparent: true,
+  const materials = [[color, 1], [core, coreBoost]].map(([tint, boost]) => new SpriteMaterial({
+    map, color: new Color(tint).multiplyScalar(boost), blending: AdditiveBlending, depthWrite: false, transparent: true,
   }));
   const group = new Group();
   const sprites = [];
@@ -59,7 +60,7 @@ export function createEngineGlow(nozzles, { color = '#3d7bff', core = '#d8ecff',
 
 // A world-space ribbon that follows a point, turned to face the camera and fading out along its length.
 // Points are laid down every `spacing` units travelled, so its length doesn't depend on frame rate.
-export function createTrail({ length = 32, spacing = 0.08, width = 0.05, color = '#ffffff', opacity = 0.7 } = {}) {
+export function createTrail({ length = 32, spacing = 0.08, width = 0.018, color = '#ffffff', opacity = 0.7 } = {}) {
   const points = [];
   const positions = new Float32Array(length * 2 * 3);
   const colors = new Float32Array(length * 2 * 4);
