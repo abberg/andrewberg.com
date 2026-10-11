@@ -11,6 +11,7 @@ import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { MD2Loader } from 'three/examples/jsm/loaders/MD2Loader.js';
 import { RadialBlurEffect } from './blur.js';
 import { createEngineGlow } from './effects.js';
+import { createMissileSwarm } from './missiles.js';
 
 const thumbnailMode = new URLSearchParams(location.search).has('thumbnail');
 
@@ -51,6 +52,7 @@ const BOOST = {
 // Shared boost level, 0 to 1, read by the engine glow and the blur, and where the jet is this frame.
 const boost = { value: 0, held: false, auto: false, timer: 3 };
 const jetPosition = new Vector3();
+const jetVelocity = new Vector3();
 const between = ([min, max]) => min + Math.random() * (max - min);
 const mix = ([a, b], t) => a + (b - a) * t;
 
@@ -335,6 +337,7 @@ function Flight({ children }) {
     motion.speed = SPEED * (1 + (BOOST.speed - 1) * boost.value) * robotSlow;
     motion.turn = state.turn;
     state.position.addScaledVector(forward, motion.speed * delta);
+    jetVelocity.copy(forward).multiplyScalar(motion.speed);
 
     const jet = ref.current;
     jet.position.copy(state.position);
@@ -483,6 +486,18 @@ function Sky() {
   return <Environment map={texture} background environmentIntensity={SKY.environmentIntensity} />;
 }
 
+// The missile swarm lives in world space and chases the jet.
+function Missiles() {
+  const camera = useThree(state => state.camera);
+  const swarm = useMemo(() => createMissileSwarm(), []);
+  useEffect(() => () => swarm.dispose(), [swarm]);
+  useFrame(({ clock }, rawDelta) => {
+    const delta = thumbnailMode ? 0 : Math.min(rawDelta, 0.1);
+    swarm.update(delta, clock.elapsedTime, jetPosition, jetVelocity, camera.position);
+  });
+  return <primitive object={swarm.object} />;
+}
+
 // Radial blur centred on the jet, so it stays sharp while the frame streaks around it.
 function MotionBlur() {
   const camera = useThree(state => state.camera);
@@ -518,6 +533,7 @@ createRoot(document.getElementById('root')).render(
       <Flight>
         <Jetfire />
       </Flight>
+      <Missiles />
       <Ready />
     </Suspense>
     {/* Only values brighter than white bloom, so the sky stays crisp while the boosted engine cores flare. */}

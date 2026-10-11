@@ -1,0 +1,263 @@
+import {
+  AdditiveBlending, BufferAttribute, BufferGeometry, CanvasTexture, Color, ConeGeometry, CylinderGeometry, DoubleSide, Group,
+  Mesh, MeshBasicMaterial, MeshStandardMaterial, SRGBColorSpace, Sprite, SpriteMaterial, Vector3,
+} from 'three';
+
+// Itano Circus missiles. Each one is a boid steered by Reynolds-style behaviours: pursuit of the jet
+// (aiming where it will be), separation from its neighbours, and a rotating sideways push that makes it
+// corkscrew. Limited turning force means they overshoot and swing round rather than snapping on target.
+// They fly in volleys, leave long smoke trails, and are recycled once spent.
+export const MISSILES = {
+  pool: 36,
+  volley: [8, 14], // missiles per volley
+  every: [5, 9], // seconds between volleys
+  firstVolley: 2,
+  spawnDistance: [28, 45],
+  maxSpeed: 11, // faster than the jet cruising (6), slower than it boosting
+  minSpeed: 5,
+  maxForce: 9, // limits how hard they can turn
+  separation: { radius: 1.5, weight: 6 },
+  spiral: { force: [3, 7], frequency: [4, 9] }, // corkscrew push and its turns per second (radians)
+  nearMiss: 0.8, // closer than this, a missile stops seeking and flies on
+  life: [7, 10],
+  trail: { spacing: 0.3, maxAge: 3.5, width: [0.04, 0.22], opacity: 0.6, color: '#f5f0e6', fadeOut: 2.5 },
+};
+
+const between = ([min, max]) => min + Math.random() * (max - min);
+
+function glowTexture() {
+  const size = 64;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const context = canvas.getContext('2d');
+  const gradient = context.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+  gradient.addColorStop(0.3, 'rgba(255, 255, 255, 0.5)');
+  gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, size, size);
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  return texture;
+}
+
+// A camera-facing ribbon through timestamped points, widening and fading with age like spreading smoke.
+function createSmoke(settings) {
+  const capacity = Math.ceil((settings.maxAge * MISSILES.maxSpeed) / settings.spacing) + 8;
+  const points = []; // { position, time }
+  const positions = new Float32Array(capacity * 2 * 3);
+  const colors = new Float32Array(capacity * 2 * 4);
+  const indices = [];
+  for (let i = 0; i < capacity - 1; i++) {
+    const a = i * 2;
+    indices.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
+  }
+  const geometry = new BufferGeometry();
+  geometry.setAttribute('position', new BufferAttribute(positions, 3));
+  geometry.setAttribute('color', new BufferAttribute(colors, 4));
+  geometry.setIndex(indices);
+  geometry.setDrawRange(0, 0);
+  const material = new MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, side: DoubleSide });
+  const mesh = new Mesh(geometry, material);
+  mesh.frustumCulled = false;
+  mesh.userData.lensflare = 'no-occlusion';
+  const tint = new Color(settings.color);
+  const along = new Vector3();
+  const toCamera = new Vector3();
+  const side = new Vector3();
+
+  return {
+    object: mesh,
+    get empty() { return points.length === 0; },
+    reset() {
+      points.length = 0;
+      geometry.setDrawRange(0, 0);
+    },
+    // `head` is the missile's position, or null once it has stopped emitting. `fade` scales the whole trail.
+    update(head, time, cameraPosition, fade) {
+      if (head) {
+        const last = points.at(-1);
+        const before = points.at(-2);
+        if (!last || !before || last.position.distanceTo(before.position) >= settings.spacing) {
+          points.push({ position: head.clone(), time });
+        } else {
+          last.position.copy(head);
+          last.time = time;
+        }
+      }
+      while (points.length && (time - points[0].time > settings.maxAge || points.length > capacity)) points.shift();
+      const count = points.length;
+      for (let i = 0; i < count; i++) {
+        const { position: p, time: born } = points[i];
+        const age = Math.min((time - born) / settings.maxAge, 1);
+        const prev = points[Math.max(i - 1, 0)].position;
+        const next = points[Math.min(i + 1, count - 1)].position;
+        along.subVectors(next, prev);
+        toCamera.subVectors(cameraPosition, p);
+        side.crossVectors(along, toCamera).normalize().multiplyScalar(
+          (settings.width[0] + (settings.width[1] - settings.width[0]) * Math.sqrt(age)) / 2,
+        );
+        positions.set([p.x + side.x, p.y + side.y, p.z + side.z, p.x - side.x, p.y - side.y, p.z - side.z], i * 6);
+        const alpha = settings.opacity * (1 - age) * (1 - age) * fade;
+        colors.set([tint.r, tint.g, tint.b, alpha, tint.r, tint.g, tint.b, alpha], i * 8);
+      }
+      geometry.attributes.position.needsUpdate = true;
+      geometry.attributes.color.needsUpdate = true;
+      geometry.setDrawRange(0, Math.max(0, count - 1) * 6);
+    },
+    dispose() {
+      geometry.dispose();
+      material.dispose();
+    },
+  };
+}
+
+export function createMissileSwarm(settings = MISSILES) {
+  const group = new Group();
+  const bodyGeometry = new CylinderGeometry(0.035, 0.035, 0.32, 8).rotateX(Math.PI / 2);
+  const noseGeometry = new ConeGeometry(0.035, 0.1, 8).rotateX(Math.PI / 2).translate(0, 0, 0.21);
+  const bodyMaterial = new MeshStandardMaterial({ color: '#d9dde3', roughness: 0.5, metalness: 0.3 });
+  const glowMap = glowTexture();
+  // Pinkish exhaust, pushed past white so the bloom catches it.
+  const flameMaterial = new SpriteMaterial({
+    map: glowMap, color: new Color('#ffb3d9').multiplyScalar(3), blending: AdditiveBlending, depthWrite: false, transparent: true,
+  });
+
+  const missiles = Array.from({ length: settings.pool }, () => {
+    const body = new Group();
+    const shell = new Mesh(bodyGeometry, bodyMaterial);
+    const nose = new Mesh(noseGeometry, bodyMaterial);
+    const flame = new Sprite(flameMaterial);
+    flame.position.z = -0.2;
+    flame.scale.setScalar(0.35);
+    for (const part of [shell, nose, flame]) part.userData.lensflare = 'no-occlusion';
+    body.add(shell, nose, flame);
+    body.visible = false;
+    const smoke = createSmoke(settings.trail);
+    group.add(body, smoke.object);
+    return {
+      body, flame, smoke,
+      state: 'idle', // idle, flying, or fading (trail dissolving after the missile is spent)
+      position: new Vector3(), velocity: new Vector3(),
+      age: 0, life: 0, fade: 1, seeking: true,
+      spiralForce: 0, spiralFrequency: 0, spiralPhase: 0,
+    };
+  });
+
+  const scratch = {
+    desired: new Vector3(), steer: new Vector3(), away: new Vector3(), predicted: new Vector3(),
+    u: new Vector3(), w: new Vector3(), up: new Vector3(0, 1, 0), look: new Vector3(), forward: new Vector3(),
+  };
+  let volleyTimer = settings.firstVolley;
+
+  function launch(target, targetVelocity) {
+    const count = Math.round(between(settings.volley));
+    const idle = missiles.filter(missile => missile.state === 'idle').slice(0, count);
+    // Each volley comes from one side, behind the jet, so the missiles stream in together.
+    const heading = scratch.forward.copy(targetVelocity).normalize();
+    if (heading.lengthSq() === 0) heading.set(0, 0, 1);
+    const side = Math.random() < 0.5 ? -1 : 1;
+    const origin = new Vector3().crossVectors(heading, scratch.up).normalize().multiplyScalar(side)
+      .addScaledVector(heading, -0.6 - Math.random() * 0.8)
+      .add(new Vector3(0, (Math.random() - 0.3) * 0.8, 0))
+      .normalize()
+      .multiplyScalar(between(settings.spawnDistance))
+      .add(target);
+    for (const missile of idle) {
+      missile.state = 'flying';
+      missile.position.copy(origin).add(new Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(4));
+      // Launch roughly towards the jet, fanned out, at a little under full speed.
+      missile.velocity.subVectors(target, missile.position).normalize()
+        .add(new Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(1.2))
+        .normalize().multiplyScalar(settings.maxSpeed * 0.7);
+      missile.age = 0;
+      missile.life = between(settings.life);
+      missile.fade = 1;
+      missile.seeking = true;
+      missile.spiralForce = between(settings.spiral.force);
+      missile.spiralFrequency = between(settings.spiral.frequency) * (Math.random() < 0.5 ? -1 : 1);
+      missile.spiralPhase = Math.random() * Math.PI * 2;
+      missile.body.visible = true;
+      missile.smoke.reset();
+    }
+  }
+
+  function steer(missile, target, targetVelocity, delta) {
+    const { desired, steer: force, away, predicted, u, w, up } = scratch;
+    force.set(0, 0, 0);
+    // Pursuit: aim where the jet will be by the time we could get there.
+    if (missile.seeking) {
+      const distance = missile.position.distanceTo(target);
+      if (distance < settings.nearMiss) missile.seeking = false;
+      const lead = Math.min(distance / settings.maxSpeed, 1.5);
+      predicted.copy(target).addScaledVector(targetVelocity, lead);
+      desired.subVectors(predicted, missile.position).normalize().multiplyScalar(settings.maxSpeed);
+      force.add(desired.sub(missile.velocity));
+    }
+    // Separation: push away from close neighbours, more strongly the closer they are.
+    for (const other of missiles) {
+      if (other === missile || other.state !== 'flying') continue;
+      away.subVectors(missile.position, other.position);
+      const d = away.length();
+      if (d > 0 && d < settings.separation.radius) force.addScaledVector(away, settings.separation.weight / (d * d));
+    }
+    // Corkscrew: a sideways push that rotates around the direction of travel.
+    u.crossVectors(missile.velocity, up);
+    if (u.lengthSq() < 1e-6) u.set(1, 0, 0);
+    u.normalize();
+    w.crossVectors(missile.velocity, u).normalize();
+    missile.spiralPhase += missile.spiralFrequency * delta;
+    force.addScaledVector(u, Math.cos(missile.spiralPhase) * missile.spiralForce)
+      .addScaledVector(w, Math.sin(missile.spiralPhase) * missile.spiralForce);
+
+    if (force.length() > settings.maxForce) force.setLength(settings.maxForce);
+    missile.velocity.addScaledVector(force, delta);
+    const speed = missile.velocity.length();
+    if (speed > settings.maxSpeed) missile.velocity.setLength(settings.maxSpeed);
+    else if (speed < settings.minSpeed) missile.velocity.setLength(settings.minSpeed);
+    missile.position.addScaledVector(missile.velocity, delta);
+  }
+
+  return {
+    object: group,
+    update(delta, time, target, targetVelocity, cameraPosition) {
+      if (delta > 0) {
+        volleyTimer -= delta;
+        if (volleyTimer <= 0) {
+          launch(target, targetVelocity);
+          volleyTimer = between(settings.every);
+        }
+      }
+      for (const missile of missiles) {
+        if (missile.state === 'idle') continue;
+        if (missile.state === 'flying') {
+          steer(missile, target, targetVelocity, delta);
+          missile.age += delta;
+          missile.body.position.copy(missile.position);
+          missile.body.lookAt(scratch.look.copy(missile.position).add(missile.velocity));
+          missile.flame.scale.setScalar(0.3 + 0.08 * Math.sin(time * 40 + missile.spiralPhase));
+          if (missile.age > missile.life) {
+            missile.state = 'fading';
+            missile.body.visible = false;
+          }
+          missile.smoke.update(missile.position, time, cameraPosition, 1);
+        } else {
+          missile.fade = Math.max(0, missile.fade - delta / settings.trail.fadeOut);
+          missile.smoke.update(null, time, cameraPosition, missile.fade);
+          if (missile.fade === 0 || missile.smoke.empty) {
+            missile.state = 'idle';
+            missile.smoke.reset();
+          }
+        }
+      }
+    },
+    dispose() {
+      bodyGeometry.dispose();
+      noseGeometry.dispose();
+      bodyMaterial.dispose();
+      flameMaterial.dispose();
+      glowMap.dispose();
+      for (const missile of missiles) missile.smoke.dispose();
+    },
+  };
+}
