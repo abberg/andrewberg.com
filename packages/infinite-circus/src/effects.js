@@ -77,7 +77,10 @@ export function createEngineGlow(nozzles, {
     const halo = new Sprite(materials[0]);
     const hot = new Sprite(materials[1]);
     const flame = new Mesh(cone, plume);
-    for (const object of [halo, hot, flame]) object.position.copy(nozzle);
+    for (const object of [halo, hot, flame]) {
+      object.position.copy(nozzle);
+      object.userData.lensflare = 'no-occlusion'; // glow shouldn't hide the sun's lens flare
+    }
     group.add(flame, halo, hot);
     parts.push({ halo, hot, flame });
   }

@@ -2,7 +2,7 @@ import { Suspense, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber';
 import { Cloud, Clouds, Environment, Trail } from '@react-three/drei';
-import { Bloom, EffectComposer } from '@react-three/postprocessing';
+import { Bloom, EffectComposer, LensFlare } from '@react-three/postprocessing';
 import { Box3, EquirectangularReflectionMapping, FloatType, Mesh, MeshBasicMaterial, MeshStandardMaterial, SRGBColorSpace, TextureLoader, Vector3 } from 'three';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { MD2Loader } from 'three/examples/jsm/loaders/MD2Loader.js';
@@ -134,6 +134,7 @@ function Flight({ children }) {
     camera.position.lerp(desired, follow);
     state.lookAt.lerp(look, follow);
     camera.lookAt(state.lookAt);
+    SUN.position.copy(camera.position).addScaledVector(SUN.direction, SUN.distance);
   }, -1);
 
   return <group ref={ref}>{children}</group>;
@@ -186,6 +187,12 @@ function CloudField() {
     }
   });
 
+  // Faded clouds would still block the lens flare's occlusion ray, so let it see through them.
+  useEffect(() => {
+    const sprites = field.current?.children.find(child => child.isInstancedMesh);
+    if (sprites) sprites.userData.lensflare = 'no-occlusion';
+  }, []);
+
   // drei only fades clouds near the camera, so fade the far ones here. This runs after drei has written
   // this frame's per-sprite opacities (priority 0) and before the composer renders (priority 1).
   useFrame(() => {
@@ -228,6 +235,15 @@ function CloudField() {
 // The sun peaks around 1300, which floods the bloom pass, so values are capped at `cap`.
 const SKY = { file: 'sky/086_hdrmaps_com_free_1K.exr', environmentIntensity: 0.6, cap: 6 };
 
+// The sun's direction in the HDRI (brightness-weighted centre of its brightest pixels, about 20 degrees
+// up), its light colour, and a point far along that direction that the lens flare tracks.
+const SUN = {
+  direction: new Vector3(0.781, 0.342, 0.522).normalize(),
+  color: '#ffe9c4',
+  distance: 500,
+  position: new Vector3(),
+};
+
 function Sky() {
   const texture = useLoader(EXRLoader, SKY.file, loader => loader.setDataType(FloatType));
   useMemo(() => {
@@ -251,10 +267,10 @@ function Ready() {
 createRoot(document.getElementById('root')).render(
   // Flat (no tone mapping): post-processing would otherwise tone map the sky, which three normally leaves alone.
   <Canvas flat camera={{ position: [0, 6, -6], fov: 55, far: 2000 }} dpr={[1, 2]}>
-    {/* Dim sky fill, a low warm key from the front and a strong cool rim from behind. */}
+    {/* Warm key light from the sun in the HDRI, a soft cool fill from the opposite side, and a dim sky fill. */}
     <hemisphereLight args={['#9cc4ff', '#2a3448', 0.35]} />
-    <directionalLight position={[5, 1.5, 1]} intensity={3.5} color="#ffd2a0" />
-    <directionalLight position={[-4, 3, -3]} intensity={4} color="#8fb8ff" />
+    <directionalLight position={SUN.direction.clone().multiplyScalar(10)} intensity={3.5} color={SUN.color} />
+    <directionalLight position={SUN.direction.clone().multiplyScalar(-10)} intensity={0.8} color="#8fb8ff" />
     <Suspense fallback={null}>
       <Sky />
       <CloudField />
@@ -266,6 +282,8 @@ createRoot(document.getElementById('root')).render(
     {/* Only values brighter than white bloom, so the sky stays crisp while the boosted engine cores flare. */}
     <EffectComposer>
       <Bloom luminanceThreshold={1} intensity={0.8} mipmapBlur />
+      {/* Follows the sun and fades out when the jet is in front of it. */}
+      <LensFlare lensPosition={SUN.position} glareSize={0.2} flareSize={0.006} ghostScale={0.1} />
     </EffectComposer>
   </Canvas>
 );
