@@ -1,8 +1,9 @@
-import { Suspense, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { createContext, Suspense, useContext, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber';
-import { Box3, CubeTextureLoader, Group, Mesh, MeshStandardMaterial, SRGBColorSpace, TextureLoader, Vector3 } from 'three';
+import { Canvas, createPortal, useFrame, useLoader, useThree } from '@react-three/fiber';
+import { Box3, CubeTextureLoader, Group, Mesh, MeshStandardMaterial, Object3D, SRGBColorSpace, TextureLoader, Vector3 } from 'three';
 import { MD2Loader } from 'three/examples/jsm/loaders/MD2Loader.js';
+import { createEngineGlow, createTrail } from './effects.js';
 
 const thumbnailMode = new URLSearchParams(location.search).has('thumbnail');
 
@@ -23,11 +24,21 @@ const ALTITUDE = [-6, 14];
 const BANK = 0.9; // roll per unit of turn rate
 const CHASE = { back: 3.8, up: 1.1, ahead: 3, follow: 3 };
 
+// Effect anchors on the jet pose, in model units relative to its centre (+X is the nose, Z is the span).
+const NOZZLES = [new Vector3(-30.5, -4.3, -6.4), new Vector3(-30.5, -4.3, 6.4)];
+const WINGTIPS = [new Vector3(-16.3, -1, -27.2), new Vector3(-16.3, -1, 27.2)];
+
+// Runs callbacks once the jet and camera have moved each frame, so effects never lag a frame behind.
+const FlightContext = createContext(null);
+
 function Jetfire() {
   const body = useLoader(MD2Loader, 'jetfire/tris.md2');
   const [skin, normals] = useLoader(TextureLoader, ['jetfire/vf1s_fokker.jpg', 'jetfire/vf1s_fokker_normal.jpg']);
+  const scene = useThree(state => state.scene);
+  const camera = useThree(state => state.camera);
+  const afterMove = useContext(FlightContext);
 
-  const { model, scale } = useMemo(() => {
+  const { model, scale, glow, trails } = useMemo(() => {
     const mesh = md2Mesh(body, skin, normals);
     const frame = body.morphAttributes.position.find(target => target.name === JET_FRAME);
     mesh.morphTargetInfluences[mesh.morphTargetDictionary[JET_FRAME]] = 1;
@@ -38,15 +49,41 @@ function Jetfire() {
     const model = new Group();
     model.rotation.y = -Math.PI / 2;
     model.add(mesh);
+    const glow = createEngineGlow(NOZZLES);
+    model.add(glow.object);
+    const trails = WINGTIPS.map(tip => {
+      const anchor = new Object3D();
+      anchor.position.copy(tip);
+      model.add(anchor);
+      return { anchor, ...createTrail() };
+    });
     const height = new Box3().setFromBufferAttribute(body.attributes.position).getSize(new Vector3()).y;
-    return { model, scale: 2 / height };
+    return { model, scale: 2 / height, glow, trails };
   }, [body, skin, normals]);
-  useEffect(() => () => model.traverse(object => object.material?.dispose()), [model]);
+
+  useEffect(() => {
+    const tip = new Vector3();
+    const update = (delta, time) => {
+      glow.update(time);
+      for (const trail of trails) trail.update(trail.anchor.getWorldPosition(tip), camera.position);
+    };
+    afterMove.add(update);
+    return () => afterMove.delete(update);
+  }, [afterMove, glow, trails, camera]);
+  useEffect(() => () => {
+    model.traverse(object => object.material?.dispose());
+    glow.dispose();
+    for (const trail of trails) trail.dispose();
+  }, [model, glow, trails]);
 
   return (
-    <group scale={scale}>
-      <primitive object={model} />
-    </group>
+    <>
+      <group scale={scale}>
+        <primitive object={model} />
+      </group>
+      {/* Trails live in world space so they stay where the wingtips have been. */}
+      {createPortal(trails.map((trail, i) => <primitive key={i} object={trail.object} />), scene)}
+    </>
   );
 }
 
@@ -66,8 +103,9 @@ function Flight({ children }) {
     lookAt: new Vector3(),
   }), []);
   const scratch = useMemo(() => ({ forward: new Vector3(), desired: new Vector3(), look: new Vector3(), toOrigin: new Vector3() }), []);
+  const afterMove = useMemo(() => new Set(), []);
 
-  useFrame((_, rawDelta) => {
+  useFrame(({ clock }, rawDelta) => {
     const delta = thumbnailMode ? 0 : Math.min(rawDelta, 0.1);
     const { forward, desired, look, toOrigin } = scratch;
 
@@ -111,9 +149,15 @@ function Flight({ children }) {
     camera.position.lerp(desired, follow);
     state.lookAt.lerp(look, follow);
     camera.lookAt(state.lookAt);
+
+    for (const callback of afterMove) callback(delta, clock.elapsedTime);
   });
 
-  return <group ref={ref}>{children}</group>;
+  return (
+    <FlightContext.Provider value={afterMove}>
+      <group ref={ref}>{children}</group>
+    </FlightContext.Provider>
+  );
 }
 
 function Skybox() {
