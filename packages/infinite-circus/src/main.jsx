@@ -12,6 +12,7 @@ import { MD2Loader } from 'three/examples/jsm/loaders/MD2Loader.js';
 import { RadialBlurEffect } from './blur.js';
 import { createEngineGlow } from './effects.js';
 import { createGunfire } from './gunfire.js';
+import { addTransformGunFrames, GUN_POD_FRAME } from './gunframes.js';
 import { createMissileSwarm } from './missiles.js';
 
 const thumbnailMode = new URLSearchParams(location.search).has('thumbnail');
@@ -23,8 +24,7 @@ function md2Mesh(geometry, skin, normalMap) {
   return new Mesh(geometry, new MeshStandardMaterial({ map: skin, normalMap, roughness: 0.6, flatShading: true }));
 }
 
-// The taunt's jet frame: identical to `jet1` but 16 units higher, and it has a matching gun-pod frame.
-const JET_FRAME = 'taunt04';
+const JET_FRAME = 'jet1';
 
 // Flight tuning, in world units and seconds.
 const SPEED = 6;
@@ -95,20 +95,14 @@ const transform = { phase: 'jet', timer: between(TRANSFORM.every), robot: 0, req
 // `frames` builds a clip from specific frames. The attack's frames 1-4 aim and fire with a little recoil
 // and 5-8 lower the gun back to rest, so the gun is raised once, fires on a loop, then lowered, rather
 // than looping all 8 frames and snapping it back up each time.
-// The taunt is a full transform with the gun: frames 1-4 fold it from the robot's hand to under the jet,
-// 4-14 hold the jet, and 14-17 bring it back. The weapon model has no frames for transformup/transformdn,
-// so both body and gun transform with the taunt's frames, spread over the transform clips' frame counts
-// so they take about as long. The gun stays slung under the jet in between.
-const stretch = (first, last, count) => Array.from({ length: count }, (_, i) =>
-  `taunt${String(Math.round(first + ((last - first) * i) / (count - 1))).padStart(2, '0')}`);
-
 const PHASES = {
-  jet: { body: { hold: JET_FRAME }, gun: { hold: JET_FRAME }, next: 'up' },
-  up: { frames: stretch(14, 17, 11), gun: true, once: true, next: 'raise' },
+  // The weapon has no frames for the transforms or the jet; gunframes.js generates them.
+  jet: { body: { hold: JET_FRAME }, gun: { hold: GUN_POD_FRAME }, next: 'up' },
+  up: { body: { animation: 'transformup' }, gun: true, once: true, next: 'raise' },
   raise: { frames: ['attack8', 'attack7', 'attack6', 'attack5', 'attack4'], once: true, gun: true, next: 'robot' },
   robot: { frames: ['attack1', 'attack2', 'attack3', 'attack4'], gun: true, next: 'lower' },
   lower: { frames: ['attack5', 'attack6', 'attack7', 'attack8'], once: true, gun: true, next: 'down' },
-  down: { frames: stretch(1, 4, 9), gun: true, once: true, next: 'jet' },
+  down: { body: { animation: 'transformdn' }, gun: true, once: true, next: 'jet' },
 };
 const ROBOT_PHASES = new Set(['up', 'raise', 'robot', 'lower']);
 
@@ -135,6 +129,7 @@ function Jetfire() {
   ]);
 
   const { model, centers, scale, glow, mixer, actions, gun, gunfire, muzzle, aim } = useMemo(() => {
+    addTransformGunFrames(body, weapon);
     const mesh = md2Mesh(body, skin, normals);
     const gun = md2Mesh(weapon, weaponSkin, weaponNormals);
     const model = new Group();
