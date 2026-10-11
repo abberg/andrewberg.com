@@ -87,12 +87,31 @@ const motion = { speed: 0, turn: 0 };
 // Shared with the flight: robot eases 0 (jet) to 1 (robot) through the transforms.
 const transform = { phase: 'jet', timer: between(TRANSFORM.every), robot: 0, request: false, faceCamera: false, facing: 0 };
 
-// Play-once clips that end on their last frame, plus a held single-frame jet pose.
-function transformClips(geometry) {
-  const clips = AnimationClip.CreateClipsFromMorphTargetSequences(geometry.morphAttributes.position, TRANSFORM.fps, true);
-  const jet = geometry.morphAttributes.position.find(target => target.name === JET_FRAME);
-  if (jet) clips.push(new AnimationClip('hold-jet', 1, [new NumberKeyframeTrack(`.morphTargetInfluences[${jet.name}]`, [0, 1], [1, 1])]));
-  return name => clips.findLast(clip => clip.name === name);
+// Each phase of the cycle, in order, with the frames it plays. Named animations come from the model;
+// `frames` builds a clip from specific frames. The attack's frames 1-4 aim and fire with a little recoil
+// and 5-8 lower the gun back to rest, so the gun is raised once, fires on a loop, then lowered, rather
+// than looping all 8 frames and snapping it back up each time.
+const PHASES = {
+  jet: { body: { hold: JET_FRAME }, next: 'up' },
+  up: { body: { animation: 'transformup' }, once: true, next: 'raise' },
+  raise: { frames: ['attack8', 'attack7', 'attack6', 'attack5', 'attack4'], once: true, gun: true, next: 'robot' },
+  robot: { frames: ['attack1', 'attack2', 'attack3', 'attack4'], gun: true, next: 'lower' },
+  lower: { frames: ['attack5', 'attack6', 'attack7', 'attack8'], once: true, gun: true, next: 'down' },
+  down: { body: { animation: 'transformdn' }, once: true, next: 'jet' },
+};
+const ROBOT_PHASES = new Set(['up', 'raise', 'robot', 'lower']);
+
+function phaseClip(geometry, name, phase) {
+  const targets = geometry.morphAttributes.position;
+  const frames = phase.frames ?? (phase.body.animation ? targets.filter(target => target.name.replace(/\d+$/, '') === phase.body.animation).map(target => target.name) : null);
+  if (phase.body?.hold) {
+    if (!targets.some(target => target.name === phase.body.hold)) return null;
+    return new AnimationClip(name, 1, [new NumberKeyframeTrack(`.morphTargetInfluences[${phase.body.hold}]`, [0, 1], [1, 1])]);
+  }
+  const sequence = frames.map(frame => targets.find(target => target.name === frame));
+  if (sequence.some(target => !target)) return null;
+  // Play-once clips end on their last frame; looping clips wrap back to their first.
+  return AnimationClip.CreateFromMorphTargetSequence(name, sequence, TRANSFORM.fps, Boolean(phase.once));
 }
 
 function Jetfire() {
@@ -117,25 +136,21 @@ function Jetfire() {
     const height = new Box3().setFromBufferAttribute(body.attributes.position).getSize(new Vector3()).y;
 
     const mixer = new AnimationMixer(model);
-    const clipFor = { body: transformClips(body), gun: transformClips(weapon) };
-    const action = (name, target, clips, once) => {
-      const clip = clips(name);
+    const actionFor = (geometry, target, name, phase) => {
+      const clip = phaseClip(geometry, name, phase);
       if (!clip) return null;
-      const result = mixer.clipAction(clip, target);
-      if (once) {
-        result.setLoop(LoopOnce, 1);
-        result.clampWhenFinished = true;
+      const action = mixer.clipAction(clip, target);
+      if (phase.once) {
+        action.setLoop(LoopOnce, 1);
+        action.clampWhenFinished = true;
       }
-      return result;
+      return action;
     };
-    const actions = {
-      jet: action('hold-jet', mesh, clipFor.body, false),
-      up: action('transformup', mesh, clipFor.body, true),
-      robot: action('attack', mesh, clipFor.body, false),
-      down: action('transformdn', mesh, clipFor.body, true),
-      gun: action('attack', gun, clipFor.gun, false),
-    };
-    actions.jet.play();
+    const actions = Object.fromEntries(Object.entries(PHASES).map(([name, phase]) => [name, {
+      body: actionFor(body, mesh, name, phase),
+      gun: phase.gun ? actionFor(weapon, gun, name, phase) : null,
+    }]));
+    actions.jet.body.play();
     return { model, centers, scale: 2 / height, glow: createEngineGlow(NOZZLES), mixer, actions, gun };
   }, [body, weapon, skin, normals, weaponSkin, weaponNormals]);
 
@@ -150,21 +165,21 @@ function Jetfire() {
   }, []);
 
   useEffect(() => {
-    // Move to the next phase when a transform clip finishes.
+    // Play-once phases move on when their clip finishes; the others wait for a timer or T.
     const finished = ({ action }) => {
-      if (action === actions.up) switchTo('robot');
-      else if (action === actions.down) switchTo('jet');
+      if (action === actions[transform.phase].body && PHASES[transform.phase].once) switchTo(PHASES[transform.phase].next);
     };
     const switchTo = phase => {
-      const from = { jet: actions.jet, up: actions.up, robot: actions.robot, down: actions.down }[transform.phase];
-      const to = { jet: actions.jet, up: actions.up, robot: actions.robot, down: actions.down }[phase];
+      const from = actions[transform.phase];
+      const to = actions[phase];
       transform.phase = phase;
-      to.reset().play();
-      if (from && from !== to) to.crossFadeFrom(from, TRANSFORM.crossfade);
+      for (const part of ['body', 'gun']) {
+        if (!to[part]) { from[part]?.stop(); continue; }
+        to[part].reset().play();
+        if (from[part] && from[part] !== to[part]) to[part].crossFadeFrom(from[part], TRANSFORM.crossfade);
+      }
       // The gun only has frames for the robot animations, not the transforms.
-      gun.visible = phase === 'robot';
-      if (phase === 'robot') actions.gun.reset().play();
-      else actions.gun.stop();
+      gun.visible = Boolean(PHASES[phase].gun);
       if (phase === 'jet') transform.timer = between(TRANSFORM.every);
       if (phase === 'up') transform.faceCamera = Math.random() < TRANSFORM.faceCameraChance;
       if (phase === 'robot') transform.timer = between(TRANSFORM.robotFor);
@@ -179,15 +194,14 @@ function Jetfire() {
     transform.timer -= delta;
     const due = transform.timer <= 0 || transform.request;
     transform.request = false;
-    if (due && transform.phase === 'jet') transform.switchTo('up');
-    else if (due && transform.phase === 'robot') transform.switchTo('down');
+    if (due && (transform.phase === 'jet' || transform.phase === 'robot')) transform.switchTo(PHASES[transform.phase].next);
     mixer.update(delta);
 
-    const robotTarget = transform.phase === 'up' || transform.phase === 'robot' ? 1 : 0;
+    const robotTarget = ROBOT_PHASES.has(transform.phase) ? 1 : 0;
     transform.robot += (robotTarget - transform.robot) * (1 - Math.exp(-delta * 3));
     model.position.lerpVectors(centers.jet, centers.robot, transform.robot).negate();
     // Sometimes the robot turns round to face the chase camera, turning back as it becomes a jet.
-    const facingTarget = transform.faceCamera && (transform.phase === 'up' || transform.phase === 'robot') ? 1 : 0;
+    const facingTarget = transform.faceCamera && ROBOT_PHASES.has(transform.phase) ? 1 : 0;
     transform.facing += (facingTarget - transform.facing) * (1 - Math.exp(-delta * 2.5));
     turn.current.rotation.y = -Math.PI / 2 + Math.PI * transform.facing;
 
