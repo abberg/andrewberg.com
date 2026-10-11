@@ -1,7 +1,7 @@
 import { Suspense, useEffect, useLayoutEffect, useMemo } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Canvas, useFrame, useLoader } from '@react-three/fiber';
-import { AnimationMixer, Box3, Group, Mesh, MeshStandardMaterial, SRGBColorSpace, TextureLoader, Vector3 } from 'three';
+import { AnimationMixer, Box3, CubeTextureLoader, Group, Mesh, MeshStandardMaterial, SRGBColorSpace, TextureLoader, Vector3 } from 'three';
 import { MD2Loader } from 'three/examples/jsm/loaders/MD2Loader.js';
 
 const thumbnailMode = new URLSearchParams(location.search).has('thumbnail');
@@ -44,6 +44,13 @@ function Jetfire() {
   );
 }
 
+function Skybox() {
+  // Faces split from the "Daylight Box UV" cross layout, in Three's px, nx, py, ny, pz, nz order.
+  const [texture] = useLoader(CubeTextureLoader, [['px', 'nx', 'py', 'ny', 'pz', 'nz'].map(face => `skybox/${face}.jpg`)]);
+  texture.colorSpace = SRGBColorSpace;
+  return <primitive attach="background" object={texture} />;
+}
+
 function Ready() {
   useLayoutEffect(() => {
     requestAnimationFrame(() => requestAnimationFrame(() => {
@@ -58,6 +65,7 @@ createRoot(document.getElementById('root')).render(
     <ambientLight intensity={0.8} />
     <directionalLight position={[3, 4, 5]} intensity={2} />
     <Suspense fallback={null}>
+      <Skybox />
       <Jetfire />
       <Ready />
     </Suspense>
