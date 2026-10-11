@@ -24,7 +24,8 @@ const MAX_TURN = 0.9; // radians per second
 const BOUNDS = 60; // steer back towards the origin beyond this radius
 const ALTITUDE = [-6, 14];
 const BANK = 0.9; // roll per unit of turn rate
-const CHASE = { back: 3.8, up: 1.1, ahead: 3, follow: 3 };
+// The camera aims above the jet (aim) so the horizon sits low and the clouds fill the frame.
+const CHASE = { back: 3.8, up: 0.4, ahead: 3, aim: 1.5, follow: 3 };
 
 // Effect anchors on the jet pose, in model units relative to its centre (+X is the nose, Z is the span).
 const NOZZLES = [new Vector3(-30.5, -4.3, -6.4), new Vector3(-30.5, -4.3, 6.4)];
@@ -126,6 +127,7 @@ function Flight({ children }) {
     desired.copy(state.position).addScaledVector(forward, -CHASE.back);
     desired.y += CHASE.up;
     look.copy(state.position).addScaledVector(forward, CHASE.ahead);
+    look.y += CHASE.aim;
     const follow = thumbnailMode ? 1 : 1 - Math.exp(-delta * CHASE.follow);
     if (state.lookAt.lengthSq() === 0) { camera.position.copy(desired); state.lookAt.copy(look); }
     camera.position.lerp(desired, follow);
