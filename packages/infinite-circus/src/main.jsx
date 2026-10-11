@@ -32,9 +32,9 @@ const CHASE = { up: 0.4, ahead: 3, aim: 1.5, follow: 3 };
 // Boost: the jet surges forward, the engines flare, the camera drops back and widens, and the frame
 // streaks with radial motion blur. It fires on its own every so often, and while Space or a pointer is held.
 const BOOST = {
-  speed: 2, // speed multiplier at full boost
+  speed: 2.6, // speed multiplier at full boost
   fov: [55, 74],
-  back: [3.8, 4.3], // chase distance, on top of the lag from the extra speed
+  back: [3.8, 10], // chase distance, on top of the lag from the extra speed
   blur: 0.04,
   shake: 0.025,
   attack: 2.5, // easing rates in and out of boost
@@ -170,7 +170,7 @@ function Flight({ children }) {
     desired.y += CHASE.up;
     look.copy(state.position).addScaledVector(forward, CHASE.ahead);
     look.y += CHASE.aim;
-    const follow = thumbnailMode ? 1 : 1 - Math.exp(-delta * CHASE.follow * (1 + 0.4 * boost.value));
+    const follow = thumbnailMode ? 1 : 1 - Math.exp(-delta * CHASE.follow);
     if (state.lookAt.lengthSq() === 0) { camera.position.copy(desired); state.lookAt.copy(look); }
     camera.position.lerp(desired, follow);
     state.lookAt.lerp(look, follow);
