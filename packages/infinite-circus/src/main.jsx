@@ -22,10 +22,13 @@ const JET_FRAME = 'jet1';
 
 // Flight tuning, in world units and seconds.
 const SPEED = 6;
-const MAX_TURN = 0.9; // radians per second
+const MAX_TURN = 1.4; // radians per second
 const BOUNDS = 60; // steer back towards the origin beyond this radius
 const ALTITUDE = [-6, 14];
-const BANK = 0.9; // roll per unit of turn rate
+const BANK = 1.1; // roll per unit of turn rate
+const TURN_EASE = 2.6; // how quickly turns and banks settle
+// A full barrel roll, in the direction of the new bank, whenever the jet switches from a right turn to a left one.
+const ROLL = { duration: 1.1, minTurn: 0.3 };
 // The camera aims above the jet (aim) so the horizon sits low and the clouds fill the frame.
 const CHASE = { up: 0.4, ahead: 3, aim: 1.5, follow: 3 };
 
@@ -104,6 +107,9 @@ function Flight({ children }) {
     turnTarget: 0,
     pitchTarget: 0,
     roll: 0,
+    barrel: 0, // extra roll from a barrel roll in progress
+    barrelTime: -1, // seconds into the barrel roll, or -1 when not rolling
+    barrelSign: 1,
     retarget: 0,
     lookAt: new Vector3(),
   }), []);
@@ -126,7 +132,14 @@ function Flight({ children }) {
     state.retarget -= delta;
     if (state.retarget <= 0) {
       state.retarget = 1.5 + Math.random() * 2.5;
-      state.turnTarget = (Math.random() * 2 - 1) * MAX_TURN;
+      // Commit to proper turns: at least half the maximum rate, either way.
+      const previous = state.turnTarget;
+      state.turnTarget = (Math.random() < 0.5 ? -1 : 1) * (0.5 + Math.random() * 0.5) * MAX_TURN;
+      // Positive turns head left from the chase camera's view. Roll the way the new bank leans.
+      if (previous < -ROLL.minTurn && state.turnTarget > ROLL.minTurn && state.barrelTime < 0) {
+        state.barrelTime = 0;
+        state.barrelSign = -1;
+      }
       state.pitchTarget = (Math.random() * 2 - 1) * 0.25;
     }
     // Head home when straying too far, and level out near the altitude limits.
@@ -139,11 +152,18 @@ function Flight({ children }) {
     if (state.position.y > ALTITUDE[1]) state.pitchTarget = -0.2;
     if (state.position.y < ALTITUDE[0]) state.pitchTarget = 0.2;
 
-    const ease = 1 - Math.exp(-delta * 1.5);
+    const ease = 1 - Math.exp(-delta * TURN_EASE);
     state.turn += (state.turnTarget - state.turn) * ease;
     state.pitch += (state.pitchTarget - state.pitch) * ease;
     state.heading += state.turn * delta;
     state.roll += (-state.turn * BANK - state.roll) * ease;
+    if (state.barrelTime >= 0) {
+      state.barrelTime += delta;
+      const p = Math.min(state.barrelTime / ROLL.duration, 1);
+      const eased = p < 0.5 ? 4 * p ** 3 : 1 - (-2 * p + 2) ** 3 / 2;
+      state.barrel = state.barrelSign * Math.PI * 2 * eased;
+      if (p === 1) { state.barrelTime = -1; state.barrel = 0; }
+    }
 
     // Automatic boosts switch on and off on a timer; holding the input boosts too.
     boost.timer -= delta;
@@ -162,7 +182,7 @@ function Flight({ children }) {
     jet.position.copy(state.position);
     jetPosition.copy(state.position);
     jet.lookAt(look.copy(state.position).add(forward));
-    jet.rotateZ(state.roll);
+    jet.rotateZ(state.roll + state.barrel);
 
     // Chase camera: sit behind and above, aim a little ahead of the jet. It lags behind as speed builds,
     // so the jet surges ahead when boosting.
