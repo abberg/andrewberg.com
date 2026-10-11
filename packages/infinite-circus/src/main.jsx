@@ -1,13 +1,11 @@
-import { createContext, Suspense, useContext, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { Suspense, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Canvas, createPortal, useFrame, useLoader, useThree } from '@react-three/fiber';
-import { Box3, CubeTextureLoader, Group, Mesh, MeshStandardMaterial, Object3D, SRGBColorSpace, TextureLoader, Vector2, Vector3 } from 'three';
+import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber';
+import { Trail } from '@react-three/drei';
+import { Bloom, EffectComposer } from '@react-three/postprocessing';
+import { Box3, CubeTextureLoader, Mesh, MeshStandardMaterial, SRGBColorSpace, TextureLoader, Vector3 } from 'three';
 import { MD2Loader } from 'three/examples/jsm/loaders/MD2Loader.js';
-import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
-import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
-import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
-import { createEngineGlow, createTrail } from './effects.js';
+import { createEngineGlow } from './effects.js';
 
 const thumbnailMode = new URLSearchParams(location.search).has('thumbnail');
 
@@ -32,62 +30,43 @@ const CHASE = { back: 3.8, up: 1.1, ahead: 3, follow: 3 };
 const NOZZLES = [new Vector3(-30.5, -4.3, -6.4), new Vector3(-30.5, -4.3, 6.4)];
 const WINGTIPS = [new Vector3(-16.3, -1, -27.2), new Vector3(-16.3, -1, 27.2)];
 
-// Runs callbacks once the jet and camera have moved each frame, so effects never lag a frame behind.
-const FlightContext = createContext(null);
+// drei's Trail tapers to nothing at the tail; its length is in frames, so it shortens on high-refresh displays.
+const TRAIL = { width: 0.15, length: 3, color: '#e8f1ff' };
 
 function Jetfire() {
   const body = useLoader(MD2Loader, 'jetfire/tris.md2');
   const [skin, normals] = useLoader(TextureLoader, ['jetfire/vf1s_fokker.jpg', 'jetfire/vf1s_fokker_normal.jpg']);
-  const scene = useThree(state => state.scene);
-  const camera = useThree(state => state.camera);
-  const afterMove = useContext(FlightContext);
 
-  const { model, scale, glow, trails } = useMemo(() => {
+  const { mesh, scale, glow } = useMemo(() => {
     const mesh = md2Mesh(body, skin, normals);
     const frame = body.morphAttributes.position.find(target => target.name === JET_FRAME);
     mesh.morphTargetInfluences[mesh.morphTargetDictionary[JET_FRAME]] = 1;
     // Centre on the jet pose and keep the robot's scale (roughly two units tall standing up).
     const box = new Box3().setFromBufferAttribute(frame);
     mesh.position.copy(box.getCenter(new Vector3()).negate());
-    // MD2 models face +X; turn the nose to +Z, which is where Object3D.lookAt points.
-    const model = new Group();
-    model.rotation.y = -Math.PI / 2;
-    model.add(mesh);
-    const glow = createEngineGlow(NOZZLES);
-    model.add(glow.object);
-    const trails = WINGTIPS.map(tip => {
-      const anchor = new Object3D();
-      anchor.position.copy(tip);
-      model.add(anchor);
-      return { anchor, ...createTrail() };
-    });
     const height = new Box3().setFromBufferAttribute(body.attributes.position).getSize(new Vector3()).y;
-    return { model, scale: 2 / height, glow, trails };
+    return { mesh, scale: 2 / height, glow: createEngineGlow(NOZZLES) };
   }, [body, skin, normals]);
 
-  useEffect(() => {
-    const tip = new Vector3();
-    const update = (delta, time) => {
-      glow.update(time);
-      for (const trail of trails) trail.update(trail.anchor.getWorldPosition(tip), camera.position);
-    };
-    afterMove.add(update);
-    return () => afterMove.delete(update);
-  }, [afterMove, glow, trails, camera]);
+  useFrame(({ clock }) => glow.update(clock.elapsedTime));
   useEffect(() => () => {
-    model.traverse(object => object.material?.dispose());
+    mesh.material.dispose();
     glow.dispose();
-    for (const trail of trails) trail.dispose();
-  }, [model, glow, trails]);
+  }, [mesh, glow]);
 
   return (
-    <>
-      <group scale={scale}>
-        <primitive object={model} />
+    <group scale={scale}>
+      {/* MD2 models face +X; turn the nose to +Z, which is where Object3D.lookAt points. */}
+      <group rotation-y={-Math.PI / 2}>
+        <primitive object={mesh} />
+        <primitive object={glow.object} />
+        {WINGTIPS.map((tip, i) => (
+          <Trail key={i} width={TRAIL.width} length={TRAIL.length} color={TRAIL.color} attenuation={t => t * t}>
+            <object3D position={tip} />
+          </Trail>
+        ))}
       </group>
-      {/* Trails live in world space so they stay where the wingtips have been. */}
-      {createPortal(trails.map((trail, i) => <primitive key={i} object={trail.object} />), scene)}
-    </>
+    </group>
   );
 }
 
@@ -107,9 +86,8 @@ function Flight({ children }) {
     lookAt: new Vector3(),
   }), []);
   const scratch = useMemo(() => ({ forward: new Vector3(), desired: new Vector3(), look: new Vector3(), toOrigin: new Vector3() }), []);
-  const afterMove = useMemo(() => new Set(), []);
-
-  useFrame(({ clock }, rawDelta) => {
+  // Runs before other frame callbacks so the trails sample this frame's wingtip positions.
+  useFrame((_, rawDelta) => {
     const delta = thumbnailMode ? 0 : Math.min(rawDelta, 0.1);
     const { forward, desired, look, toOrigin } = scratch;
 
@@ -153,15 +131,9 @@ function Flight({ children }) {
     camera.position.lerp(desired, follow);
     state.lookAt.lerp(look, follow);
     camera.lookAt(state.lookAt);
+  }, -1);
 
-    for (const callback of afterMove) callback(delta, clock.elapsedTime);
-  });
-
-  return (
-    <FlightContext.Provider value={afterMove}>
-      <group ref={ref}>{children}</group>
-    </FlightContext.Provider>
-  );
+  return <group ref={ref}>{children}</group>;
 }
 
 function Skybox() {
@@ -169,28 +141,6 @@ function Skybox() {
   const [texture] = useLoader(CubeTextureLoader, [['px', 'nx', 'py', 'ny', 'pz', 'nz'].map(face => `skybox/${face}.jpg`)]);
   texture.colorSpace = SRGBColorSpace;
   return <primitive attach="background" object={texture} />;
-}
-
-// Only values brighter than the threshold bloom, so the sky stays crisp while the engine cores flare.
-const BLOOM = { strength: 0.8, radius: 0.4, threshold: 1 };
-
-function Bloom() {
-  const { gl, scene, camera, size } = useThree();
-  const composer = useMemo(() => {
-    const composer = new EffectComposer(gl);
-    composer.addPass(new RenderPass(scene, camera));
-    composer.addPass(new UnrealBloomPass(new Vector2(size.width, size.height), BLOOM.strength, BLOOM.radius, BLOOM.threshold));
-    composer.addPass(new OutputPass());
-    return composer;
-  }, [gl, scene, camera]);
-  useEffect(() => {
-    composer.setPixelRatio(gl.getPixelRatio());
-    composer.setSize(size.width, size.height);
-  }, [composer, gl, size]);
-  useEffect(() => () => composer.dispose(), [composer]);
-  // A positive priority runs after the flight update and takes over rendering from R3F.
-  useFrame((_, delta) => composer.render(delta), 1);
-  return null;
 }
 
 function Ready() {
@@ -203,7 +153,7 @@ function Ready() {
 }
 
 createRoot(document.getElementById('root')).render(
-  // Flat (no tone mapping): the output pass would otherwise tone map the skybox, which three normally leaves alone.
+  // Flat (no tone mapping): post-processing would otherwise tone map the skybox, which three normally leaves alone.
   <Canvas flat camera={{ position: [0, 6, -6], fov: 55, far: 2000 }} dpr={[1, 2]}>
     {/* Dim sky fill, a low warm key from the front and a strong cool rim from behind. */}
     <hemisphereLight args={['#9cc4ff', '#2a3448', 0.35]} />
@@ -216,6 +166,9 @@ createRoot(document.getElementById('root')).render(
       </Flight>
       <Ready />
     </Suspense>
-    <Bloom />
+    {/* Only values brighter than white bloom, so the sky stays crisp while the boosted engine cores flare. */}
+    <EffectComposer>
+      <Bloom luminanceThreshold={1} intensity={0.8} mipmapBlur />
+    </EffectComposer>
   </Canvas>
 );
