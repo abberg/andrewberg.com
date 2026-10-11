@@ -1,9 +1,9 @@
 import { Suspense, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber';
-import { Trail } from '@react-three/drei';
+import { Cloud, Clouds, Trail } from '@react-three/drei';
 import { Bloom, EffectComposer } from '@react-three/postprocessing';
-import { Box3, CubeTextureLoader, Mesh, MeshStandardMaterial, SRGBColorSpace, TextureLoader, Vector3 } from 'three';
+import { Box3, CubeTextureLoader, Mesh, MeshBasicMaterial, MeshStandardMaterial, SRGBColorSpace, TextureLoader, Vector3 } from 'three';
 import { MD2Loader } from 'three/examples/jsm/loaders/MD2Loader.js';
 import { createEngineGlow } from './effects.js';
 
@@ -138,6 +138,73 @@ function Flight({ children }) {
   return <group ref={ref}>{children}</group>;
 }
 
+// A field of drei clouds that wraps around the camera, so clouds left behind reappear far ahead.
+const CLOUDS = { count: 64, area: 240, altitude: [-14, 26], fogNear: 60, fogFar: 115, fogColor: '#d6e8f5' };
+
+// Small seeded generator so the layout is the same on every load.
+function seeded(seed) {
+  return () => {
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function CloudField() {
+  const camera = useThree(state => state.camera);
+  const layout = useMemo(() => {
+    const random = seeded(7);
+    return Array.from({ length: CLOUDS.count }, () => ({
+      offset: new Vector3(
+        (random() - 0.5) * CLOUDS.area,
+        CLOUDS.altitude[0] + random() * (CLOUDS.altitude[1] - CLOUDS.altitude[0]),
+        (random() - 0.5) * CLOUDS.area,
+      ),
+      seed: Math.floor(random() * 1000),
+      bounds: [6 + random() * 8, 1.5 + random() * 2, 4 + random() * 6],
+      volume: 5 + random() * 5,
+    }));
+  }, []);
+  const refs = useRef([]);
+  const wrap = value => value - CLOUDS.area * Math.floor((value + CLOUDS.area / 2) / CLOUDS.area);
+
+  useFrame(() => {
+    for (const [i, { offset }] of layout.entries()) {
+      const cloud = refs.current[i];
+      if (!cloud) continue;
+      // Keep each cloud within half the area of the camera on x and z.
+      cloud.position.set(
+        camera.position.x + wrap(offset.x - camera.position.x),
+        offset.y,
+        camera.position.z + wrap(offset.z - camera.position.z),
+      );
+    }
+  });
+
+  return (
+    <>
+      {/* Haze swallows clouds before they reach the wrap edge, so they never visibly pop. */}
+      <fog attach="fog" args={[CLOUDS.fogColor, CLOUDS.fogNear, CLOUDS.fogFar]} />
+      <Clouds texture="clouds/cloud.png" material={MeshBasicMaterial} limit={CLOUDS.count * 12}>
+        {layout.map(({ seed, bounds, volume }, i) => (
+          <Cloud
+            key={i}
+            ref={cloud => { refs.current[i] = cloud; }}
+            seed={seed}
+            segments={12}
+            bounds={bounds}
+            volume={volume}
+            color="#f4f8ff"
+            opacity={0.8}
+            fade={10}
+          />
+        ))}
+      </Clouds>
+    </>
+  );
+}
+
 function Skybox() {
   // Faces split from the "Daylight Box UV" cross layout, in Three's px, nx, py, ny, pz, nz order.
   const [texture] = useLoader(CubeTextureLoader, [['px', 'nx', 'py', 'ny', 'pz', 'nz'].map(face => `skybox/${face}.jpg`)]);
@@ -163,6 +230,7 @@ createRoot(document.getElementById('root')).render(
     <directionalLight position={[-4, 3, -3]} intensity={4} color="#8fb8ff" />
     <Suspense fallback={null}>
       <Skybox />
+      <CloudField />
       <Flight>
         <Jetfire />
       </Flight>
