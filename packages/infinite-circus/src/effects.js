@@ -42,8 +42,9 @@ export function createEngineGlow(nozzles, { color = '#3d7bff', core = '#d8ecff',
     object: group,
     update(time) {
       const t = time * pulse; // slows the flicker without changing its shape
-      for (const [i, { halo, hot }] of sprites.entries()) {
-        const flicker = 1 + 0.08 * Math.sin(t * 41 + i * 2.1) + 0.05 * Math.sin(t * 67 + i);
+      // Both engines pulse together.
+      const flicker = 1 + 0.08 * Math.sin(t * 41) + 0.05 * Math.sin(t * 67);
+      for (const { halo, hot } of sprites) {
         halo.scale.setScalar(size * flicker);
         hot.scale.setScalar(size * 0.4 * flicker);
       }
