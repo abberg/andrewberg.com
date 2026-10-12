@@ -1,11 +1,11 @@
-import { Suspense, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Canvas, createPortal, useFrame, useLoader, useThree } from '@react-three/fiber';
 import { Cloud, Clouds, Environment, Trail } from '@react-three/drei';
 import { Bloom, EffectComposer, LensFlare } from '@react-three/postprocessing';
 import {
   AnimationClip, AnimationMixer, Box3, EquirectangularReflectionMapping, FloatType, Group, LoopOnce, Mesh, MeshBasicMaterial,
-  MeshStandardMaterial, NumberKeyframeTrack, Object3D, SRGBColorSpace, TextureLoader, Vector3,
+  MeshStandardMaterial, NumberKeyframeTrack, Object3D, PerspectiveCamera, SRGBColorSpace, TextureLoader, Vector3,
 } from 'three';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { MD2Loader } from 'three/examples/jsm/loaders/MD2Loader.js';
@@ -503,8 +503,11 @@ function CloudField() {
   // Faded clouds would still block the lens flare's occlusion ray, so let it see through them.
   useEffect(() => {
     const sprites = field.current?.children.find(child => child.isInstancedMesh);
-    if (sprites) sprites.userData.lensflare = 'no-occlusion';
-  }, []);
+    if (!sprites) return;
+    sprites.userData.lensflare = 'no-occlusion';
+    sprites.layers.set(CLOUD_LAYER);
+    camera.layers.enable(CLOUD_LAYER);
+  }, [camera]);
 
   // drei only fades clouds near the camera, so fade the far ones here. This runs after drei has written
   // this frame's per-sprite opacities (priority 0) and before the composer renders (priority 1).
@@ -581,6 +584,69 @@ function Missiles() {
 }
 
 // Radial blur centred on the jet, so it stays sharp while the frame streaks around it.
+// A second, inset view from off the jet's right side and pulled well back, to watch missiles approach.
+// Drawn after the main (post-processed) frame into the bottom-right corner. V toggles it.
+const SIDE_VIEW = { right: 15, up: 2, back: 4, lookBehind: 9, fov: 75, width: 0.32, margin: 16 };
+// The 3D clouds turn to face the main camera, so from the side they'd show as streaks. They sit on
+// their own layer, which only the main camera renders.
+const CLOUD_LAYER = 2;
+const sideView = { visible: !thumbnailMode };
+
+function SideView() {
+  const { gl, scene, size } = useThree();
+  const camera = useMemo(() => new PerspectiveCamera(SIDE_VIEW.fov, 4 / 3, 0.1, 2000), []);
+  const vectors = useMemo(() => ({ forward: new Vector3(), right: new Vector3(), up: new Vector3(0, 1, 0), target: new Vector3() }), []);
+  useFrame(() => {
+    if (!sideView.visible) return;
+    const { forward, right, up, target } = vectors;
+    forward.copy(jetVelocity).normalize();
+    if (forward.lengthSq() === 0) forward.set(0, 0, 1);
+    right.crossVectors(forward, up).normalize();
+    camera.position.copy(jetPosition)
+      .addScaledVector(right, SIDE_VIEW.right)
+      .addScaledVector(up, SIDE_VIEW.up)
+      .addScaledVector(forward, -SIDE_VIEW.back);
+    camera.lookAt(target.copy(jetPosition).addScaledVector(forward, -SIDE_VIEW.lookBehind));
+
+    const width = Math.round(size.width * SIDE_VIEW.width);
+    const height = Math.round(width * 3 / 4);
+    const x = size.width - width - SIDE_VIEW.margin;
+    const y = SIDE_VIEW.margin; // from the bottom
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+    gl.autoClear = false;
+    gl.setScissorTest(true);
+    gl.setScissor(x, y, width, height);
+    gl.setViewport(x, y, width, height);
+    gl.clear(true, true, true);
+    gl.render(scene, camera);
+    gl.setScissorTest(false);
+    gl.setViewport(0, 0, size.width, size.height);
+    gl.autoClear = true;
+  }, 2);
+  return null;
+}
+
+// Frames the inset view and labels it.
+function SideViewFrame() {
+  const [visible, setVisible] = useState(sideView.visible);
+  useEffect(() => {
+    const press = event => {
+      if (event.code !== 'KeyV') return;
+      sideView.visible = !sideView.visible;
+      setVisible(sideView.visible);
+    };
+    window.addEventListener('keydown', press);
+    return () => window.removeEventListener('keydown', press);
+  }, []);
+  if (!visible) return null;
+  return (
+    <div className="side-view" style={{ width: `${SIDE_VIEW.width * 100}vw`, right: SIDE_VIEW.margin, bottom: SIDE_VIEW.margin }}>
+      <span>Side view (V)</span>
+    </div>
+  );
+}
+
 function MotionBlur() {
   const camera = useThree(state => state.camera);
   const effect = useMemo(() => new RadialBlurEffect(), []);
@@ -603,7 +669,8 @@ function Ready() {
 }
 
 createRoot(document.getElementById('root')).render(
-  // Flat (no tone mapping): post-processing would otherwise tone map the sky, which three normally leaves alone.
+  <>
+  {/* Flat (no tone mapping): post-processing would otherwise tone map the sky, which three normally leaves alone. */}
   <Canvas flat camera={{ position: [0, 6, -6], fov: 55, far: 2000 }} dpr={[1, 2]}>
     {/* Warm key light from the sun in the HDRI, a soft cool fill from the opposite side, and a dim sky fill. */}
     <hemisphereLight args={['#9cc4ff', '#2a3448', 0.35]} />
@@ -625,5 +692,8 @@ createRoot(document.getElementById('root')).render(
       <LensFlare lensPosition={SUN.position} glareSize={0.2} flareSize={0.006} ghostScale={0.1} />
       <MotionBlur />
     </EffectComposer>
+    <SideView />
   </Canvas>
+  <SideViewFrame />
+  </>
 );
