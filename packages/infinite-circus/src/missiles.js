@@ -23,6 +23,7 @@ export const MISSILES = {
   spiral: { force: [3, 7], frequency: [4, 9] }, // corkscrew push and its turns per second (radians)
   nearMiss: 0.8, // closer than this, a missile stops seeking and flies on
   life: [7, 10],
+  explosion: { time: 0.45, size: [0.3, 3.2], color: '#ffb46b', glow: 4, pool: 16 },
   trail: { spacing: 0.3, maxAge: 3.5, width: [0.04, 0.22], opacity: 0.6, color: '#f5f0e6', fadeOut: 2.5 },
 };
 
@@ -154,6 +155,28 @@ export function createMissileSwarm(settings = MISSILES) {
   let volleyTimer = settings.firstVolley;
   const flyingPositions = [];
 
+  // Explosions: an additive fireball that swells and fades where a missile is shot down.
+  const explosionMaterial = new SpriteMaterial({
+    map: glowMap, color: new Color(settings.explosion.color).multiplyScalar(settings.explosion.glow),
+    blending: AdditiveBlending, depthWrite: false, transparent: true,
+  });
+  const explosions = Array.from({ length: settings.explosion.pool }, () => {
+    const sprite = new Sprite(explosionMaterial.clone());
+    sprite.visible = false;
+    sprite.userData = { age: 0, lensflare: 'no-occlusion' };
+    group.add(sprite);
+    return sprite;
+  });
+  function explode(position) {
+    const sprite = explosions.find(entry => !entry.visible) ?? explosions.reduce((a, b) => (a.userData.age > b.userData.age ? a : b));
+    sprite.position.copy(position);
+    sprite.userData.age = 0;
+    sprite.material.rotation = Math.random() * Math.PI * 2;
+    sprite.visible = true;
+  }
+  const closest = new Vector3();
+  const segment = new Vector3();
+
   function launch(count, target, cameraPosition) {
     const idle = missiles.filter(missile => missile.state === 'idle').slice(0, count);
     // Launch from just behind the camera, so the volley streams past it towards the jet.
@@ -218,6 +241,33 @@ export function createMissileSwarm(settings = MISSILES) {
   return {
     object: group,
     // Positions of the missiles in flight this frame (shared array, valid until the next update).
+    // Destroys the first missile within `radius` of the segment `from`-`to` (a bolt's path this frame).
+    hit(from, to, radius) {
+      segment.subVectors(to, from);
+      const lengthSq = segment.lengthSq();
+      for (const missile of missiles) {
+        if (missile.state !== 'flying') continue;
+        const t = lengthSq > 0 ? Math.min(Math.max(closest.subVectors(missile.position, from).dot(segment) / lengthSq, 0), 1) : 0;
+        closest.copy(from).addScaledVector(segment, t);
+        if (closest.distanceTo(missile.position) > radius) continue;
+        explode(missile.position);
+        missile.state = 'fading';
+        missile.body.visible = false;
+        return true;
+      }
+      return false;
+    },
+    // The flying missile nearest `position` within `range`, or null.
+    nearest(position, range) {
+      let best = null;
+      let bestDistance = range;
+      for (const missile of missiles) {
+        if (missile.state !== 'flying') continue;
+        const distance = missile.position.distanceTo(position);
+        if (distance < bestDistance) { best = missile; bestDistance = distance; }
+      }
+      return best;
+    },
     flying() {
       flyingPositions.length = 0;
       for (const missile of missiles) if (missile.state === 'flying') flyingPositions.push(missile.position);
@@ -232,6 +282,14 @@ export function createMissileSwarm(settings = MISSILES) {
           launch(Math.round(between(settings.volley)), target, cameraPosition);
           volleyTimer = between(settings.every);
         }
+      }
+      for (const sprite of explosions) {
+        if (!sprite.visible) continue;
+        sprite.userData.age += delta;
+        const t = sprite.userData.age / settings.explosion.time;
+        if (t >= 1) { sprite.visible = false; continue; }
+        sprite.scale.setScalar(settings.explosion.size[0] + (settings.explosion.size[1] - settings.explosion.size[0]) * Math.sqrt(t));
+        sprite.material.opacity = 1 - t * t;
       }
       for (const missile of missiles) {
         if (missile.state === 'idle') continue;
@@ -261,6 +319,8 @@ export function createMissileSwarm(settings = MISSILES) {
       noseGeometry.dispose();
       bodyMaterial.dispose();
       flameMaterial.dispose();
+      explosionMaterial.dispose();
+      for (const sprite of explosions) sprite.material.dispose();
       glowMap.dispose();
       for (const missile of missiles) missile.smoke.dispose();
     },

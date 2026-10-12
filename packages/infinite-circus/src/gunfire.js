@@ -77,6 +77,7 @@ export function createGunfire(settings = GUNFIRE) {
     return { bolt, velocity: new Vector3(), age: 0 };
   });
   const look = new Vector3();
+  const previous = new Vector3();
 
   return {
     flash,
@@ -97,14 +98,16 @@ export function createGunfire(settings = GUNFIRE) {
       shot.bolt.lookAt(look.copy(shot.bolt.position).add(shot.velocity));
       shot.bolt.visible = true;
     },
-    update(delta) {
+    // `collide(from, to)` is asked about each bolt's path this frame; returning true stops the bolt.
+    update(delta, collide) {
       flashTimer -= delta;
       if (flashTimer <= 0) for (const sprite of flashes) sprite.visible = false;
       for (const shot of pool) {
         if (!shot.bolt.visible) continue;
         shot.age += delta;
+        previous.copy(shot.bolt.position);
         shot.bolt.position.addScaledVector(shot.velocity, delta);
-        if (shot.age > settings.boltLife) shot.bolt.visible = false;
+        if (shot.age > settings.boltLife || (collide && collide(previous, shot.bolt.position))) shot.bolt.visible = false;
       }
     },
     dispose() {

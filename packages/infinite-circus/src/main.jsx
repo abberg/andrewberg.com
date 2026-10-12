@@ -5,13 +5,13 @@ import { Cloud, Clouds, Environment, Trail } from '@react-three/drei';
 import { Bloom, EffectComposer, LensFlare } from '@react-three/postprocessing';
 import {
   AnimationClip, AnimationMixer, Box3, EquirectangularReflectionMapping, FloatType, Group, LoopOnce, Mesh, MeshBasicMaterial,
-  MeshStandardMaterial, NumberKeyframeTrack, Object3D, PerspectiveCamera, SRGBColorSpace, TextureLoader, Vector3,
+  MeshStandardMaterial, NumberKeyframeTrack, Object3D, PerspectiveCamera, Quaternion, SRGBColorSpace, TextureLoader, Vector3,
 } from 'three';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { MD2Loader } from 'three/examples/jsm/loaders/MD2Loader.js';
 import { RadialBlurEffect } from './blur.js';
 import { createEngineGlow } from './effects.js';
-import { createGunfire } from './gunfire.js';
+import { createGunfire, GUNFIRE } from './gunfire.js';
 import { addTransformGunFrames, GUN_POD_FRAME } from './gunframes.js';
 import { createMissileSwarm } from './missiles.js';
 
@@ -30,7 +30,7 @@ const JET_FRAME = 'jet1';
 const SPEED = 6;
 // Which of the jet's own behaviours run. All off for now, so it flies straight and level while its
 // reactions to the missiles are built up. Space (boost) and T (transform) still work by hand.
-const AUTOPILOT = { wander: false, boost: false, transform: false, flee: true, boostOnThreat: true };
+const AUTOPILOT = { wander: false, boost: false, transform: false, flee: true, boostOnThreat: true, fightOnThreat: true };
 
 // Flee: missiles inside `radius` push the jet away, more strongly the closer they are. The push, in the
 // jet's own frame, sets how hard it turns (sideways part) and climbs or dives (vertical part).
@@ -40,8 +40,12 @@ const FLEE = { radius: 9, turnGain: 2.5, pitchGain: 2, maxPitch: 0.6, jink: [1.2
 // Boost away when the flee pressure (closeness-weighted count of nearby missiles) passes `pressure`, for
 // `lasting` seconds, then wait out a `cooldown` before boosting again.
 const THREAT_BOOST = { pressure: 0.5, lasting: [1.5, 2.5], cooldown: [2, 4] };
+// Fight: when missiles still crowd him and he isn't boosting, transform, turn to face the nearest missile
+// within `range`, and shoot at it, leading the shot. He folds back into a jet when his robot time is up or
+// nothing has been in range for `giveUp` seconds, then waits out a `cooldown`.
+const FIGHT = { pressure: 0.8, range: 25, hitRadius: 0.7, giveUp: 1.2, cooldown: [6, 10], turnRate: 6 };
 // Missile positions in flight, refreshed each frame by the swarm, for the jet to react to.
-const threats = { positions: [] };
+const threats = { positions: [], pressure: 0, swarm: null };
 
 const MAX_TURN = 1.4; // radians per second
 const BOUNDS = 60; // steer back towards the origin beyond this radius
@@ -104,7 +108,12 @@ const SWING = {
 // What the flight is doing this frame, for the swing.
 const motion = { speed: 0, turn: 0 };
 // Shared with the flight: robot eases 0 (jet) to 1 (robot) through the transforms.
-const transform = { phase: 'jet', timer: between(TRANSFORM.every), robot: 0, request: false, faceCamera: false, facing: 0 };
+const transform = {
+  phase: 'jet', timer: between(TRANSFORM.every), robot: 0, request: false, faceCamera: false,
+  yaw: 0, // the robot's turn away from the direction of travel, radians
+  cooldown: 0, // seconds before he can fight again
+  idle: 0, // seconds in robot mode with nothing in range
+};
 
 // Each phase of the cycle, in order, with the frames it plays. Named animations come from the model;
 // `frames` builds a clip from specific frames. The attack's frames 1-4 aim and fire with a little recoil
@@ -207,6 +216,7 @@ function Jetfire() {
   const scratchVertex = useMemo(() => new Vector3(), []);
   const scene = useThree(state => state.scene);
   const shooting = useMemo(() => ({ frame: -1, from: new Vector3(), direction: new Vector3() }), []);
+  const aiming = useMemo(() => ({ rotation: new Quaternion(), toward: new Vector3() }), []);
   const swing = useMemo(() => ({ angle: { x: 0, z: 0 }, velocity: { x: 0, z: 0 }, lastSpeed: 0 }), []);
 
   useEffect(() => {
@@ -230,7 +240,11 @@ function Jetfire() {
         if (from[part] && from[part] !== to[part]) to[part].crossFadeFrom(from[part], TRANSFORM.crossfade);
       }
       gun.visible = Boolean(PHASES[phase].gun);
-      if (phase === 'jet') transform.timer = between(TRANSFORM.every);
+      if (phase === 'jet') {
+        transform.timer = between(TRANSFORM.every);
+        transform.cooldown = between(FIGHT.cooldown);
+      }
+      if (phase === 'robot') transform.idle = 0;
       if (phase === 'up') transform.faceCamera = Math.random() < TRANSFORM.faceCameraChance;
       if (phase === 'robot') transform.timer = between(TRANSFORM.robotFor);
     };
@@ -242,32 +256,57 @@ function Jetfire() {
   useFrame(({ clock }, rawDelta) => {
     const delta = thumbnailMode ? 0 : Math.min(rawDelta, 0.1);
     transform.timer -= delta;
-    const due = (AUTOPILOT.transform && transform.timer <= 0) || transform.request;
+    transform.cooldown -= delta;
+    const target = ROBOT_PHASES.has(transform.phase) ? threats.swarm?.nearest(jetPosition, FIGHT.range) : null;
+    if (transform.phase === 'robot') transform.idle = target ? 0 : transform.idle + delta;
+    const fight = AUTOPILOT.fightOnThreat && delta > 0 && (
+      (transform.phase === 'jet' && transform.cooldown <= 0 && threats.pressure > FIGHT.pressure && boost.value < 0.3)
+      || (transform.phase === 'robot' && (transform.timer <= 0 || transform.idle > FIGHT.giveUp))
+    );
+    const due = (AUTOPILOT.transform && transform.timer <= 0) || transform.request || fight;
     transform.request = false;
     if (due && (transform.phase === 'jet' || transform.phase === 'robot')) transform.switchTo(PHASES[transform.phase].next);
     mixer.update(delta);
 
-    // Fire on attack frames 1 and 3 (the gun's forward, un-recoiled frames) while in the firing loop.
+    // Fire on attack frames 1 and 3 (the gun's forward, un-recoiled frames) while in the firing loop:
+    // at the target if there is one, leading it by the bolt's flight time, otherwise along the barrel.
     if (transform.phase === 'robot' && delta > 0) {
       const frame = Math.floor(actions.robot.body.time * TRANSFORM.fps) % 4;
       if (frame !== shooting.frame && (frame === 0 || frame === 2)) {
         muzzle.getWorldPosition(shooting.from);
-        aim.getWorldPosition(shooting.direction).sub(shooting.from).normalize();
+        if (target) {
+          const flightTime = target.position.distanceTo(shooting.from) / GUNFIRE.boltSpeed;
+          shooting.direction.copy(target.position).addScaledVector(target.velocity, flightTime)
+            .addScaledVector(jetVelocity, -flightTime).sub(shooting.from).normalize();
+        } else {
+          aim.getWorldPosition(shooting.direction).sub(shooting.from).normalize();
+        }
         gunfire.fire(shooting.from, shooting.direction, jetVelocity);
       }
       shooting.frame = frame;
     } else {
       shooting.frame = -1;
     }
-    gunfire.update(delta);
+    gunfire.update(delta, (from, to) => threats.swarm?.hit(from, to, FIGHT.hitRadius));
 
     const robotTarget = ROBOT_PHASES.has(transform.phase) ? 1 : 0;
     transform.robot += (robotTarget - transform.robot) * (1 - Math.exp(-delta * 3));
     model.position.lerpVectors(centers.jet, centers.robot, transform.robot).negate();
-    // Sometimes the robot turns round to face the chase camera, turning back as it becomes a jet.
-    const facingTarget = transform.faceCamera && ROBOT_PHASES.has(transform.phase) ? 1 : 0;
-    transform.facing += (facingTarget - transform.facing) * (1 - Math.exp(-delta * 2.5));
-    turn.current.rotation.y = -Math.PI / 2 + Math.PI * transform.facing;
+    // As a robot, turn to face the target, in the flight's own frame (0 faces the direction of travel).
+    // With no target, sometimes face the chase camera instead. Turn back as he becomes a jet.
+    let yawTarget = 0;
+    if (ROBOT_PHASES.has(transform.phase)) {
+      if (target) {
+        hang.current.parent.getWorldQuaternion(aiming.rotation).invert();
+        aiming.toward.subVectors(target.position, jetPosition).applyQuaternion(aiming.rotation);
+        yawTarget = Math.atan2(aiming.toward.x, aiming.toward.z);
+      } else if (transform.faceCamera) {
+        yawTarget = Math.PI;
+      }
+    }
+    const yawError = Math.atan2(Math.sin(yawTarget - transform.yaw), Math.cos(yawTarget - transform.yaw));
+    transform.yaw += yawError * (1 - Math.exp(-delta * (target ? FIGHT.turnRate : 2.5)));
+    turn.current.rotation.y = -Math.PI / 2 + transform.yaw;
 
     // Pendulum swing about the chest, only as a robot. Rotating about +X tips the head forward and the
     // legs back. Positive turns head left (+X here), so the legs swing out to the right with a negative
@@ -430,6 +469,7 @@ function Flight({ children }) {
         pressure += weight;
       }
       state.pressure = pressure;
+      threats.pressure = pressure;
       if (pressure > 0) {
         state.jinkTimer -= delta;
         if (state.jinkTimer <= 0) {
@@ -657,6 +697,7 @@ function Missiles() {
     const delta = thumbnailMode ? 0 : Math.min(rawDelta, 0.1);
     swarm.update(delta, clock.elapsedTime, jetPosition, jetVelocity, camera.position);
     threats.positions = swarm.flying();
+    threats.swarm = swarm;
   });
   return <primitive object={swarm.object} />;
 }
