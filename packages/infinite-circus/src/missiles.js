@@ -16,9 +16,9 @@ export const MISSILES = {
   firstVolley: 2,
   spawnBehindCamera: [1.5, 4], // how far behind the camera a launch starts
   spawnSpread: 2.5, // how far apart a volley's missiles start
-  maxSpeed: 14.5, // nearly as fast as the boosting jet (15.6); well past it cruising (6)
-  minSpeed: 6,
-  maxForce: 12, // limits how hard they can turn
+  maxSpeed: 17.5, // faster than the boosting jet (15.6), so a boost can't shake them for long
+  minSpeed: 7,
+  maxForce: 14, // limits how hard they can turn
   separation: { radius: 1.5, weight: 6 },
   spiral: { force: [3, 7], frequency: [4, 9] }, // corkscrew push and its turns per second (radians)
   nearMiss: 0.8, // closer than this, a missile stops seeking and flies on
