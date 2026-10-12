@@ -152,6 +152,7 @@ export function createMissileSwarm(settings = MISSILES) {
     u: new Vector3(), w: new Vector3(), up: new Vector3(0, 1, 0), look: new Vector3(), forward: new Vector3(),
   };
   let volleyTimer = settings.firstVolley;
+  const flyingPositions = [];
 
   function launch(count, target, cameraPosition) {
     const idle = missiles.filter(missile => missile.state === 'idle').slice(0, count);
@@ -216,6 +217,12 @@ export function createMissileSwarm(settings = MISSILES) {
 
   return {
     object: group,
+    // Positions of the missiles in flight this frame (shared array, valid until the next update).
+    flying() {
+      flyingPositions.length = 0;
+      for (const missile of missiles) if (missile.state === 'flying') flyingPositions.push(missile.position);
+      return flyingPositions;
+    },
     update(delta, time, target, targetVelocity, cameraPosition) {
       if (delta > 0) {
         const flying = missiles.filter(missile => missile.state === 'flying').length;

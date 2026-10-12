@@ -30,7 +30,13 @@ const JET_FRAME = 'jet1';
 const SPEED = 6;
 // Which of the jet's own behaviours run. All off for now, so it flies straight and level while its
 // reactions to the missiles are built up. Space (boost) and T (transform) still work by hand.
-const AUTOPILOT = { wander: false, boost: false, transform: false };
+const AUTOPILOT = { wander: false, boost: false, transform: false, flee: true };
+
+// Flee: missiles inside `radius` push the jet away, more strongly the closer they are. The push, in the
+// jet's own frame, sets how hard it turns (sideways part) and climbs or dives (vertical part).
+const FLEE = { radius: 9, turnGain: 2.5, pitchGain: 2, maxPitch: 0.6 };
+// Missile positions in flight, refreshed each frame by the swarm, for the jet to react to.
+const threats = { positions: [] };
 
 const MAX_TURN = 1.4; // radians per second
 const BOUNDS = 60; // steer back towards the origin beyond this radius
@@ -352,7 +358,10 @@ function Flight({ children }) {
     retarget: 0,
     lookAt: new Vector3(),
   }), []);
-  const scratch = useMemo(() => ({ forward: new Vector3(), desired: new Vector3(), look: new Vector3(), toOrigin: new Vector3() }), []);
+  const scratch = useMemo(() => ({
+    forward: new Vector3(), desired: new Vector3(), look: new Vector3(), toOrigin: new Vector3(),
+    flee: new Vector3(), away: new Vector3(), left: new Vector3(),
+  }), []);
 
   useEffect(() => {
     const press = event => { if (event.type !== 'keydown' || event.code === 'Space') boost.held = true; };
@@ -365,7 +374,7 @@ function Flight({ children }) {
   // Runs before other frame callbacks so the trails sample this frame's wingtip positions.
   useFrame((_, rawDelta) => {
     const delta = thumbnailMode ? 0 : Math.min(rawDelta, 0.1);
-    const { forward, desired, look, toOrigin } = scratch;
+    const { forward, desired, look, toOrigin, flee, away, left } = scratch;
 
     // Pick a new random turn and climb every couple of seconds, easing between them.
     state.retarget -= delta;
@@ -390,6 +399,40 @@ function Flight({ children }) {
     }
     if (AUTOPILOT.wander && state.position.y > ALTITUDE[1]) state.pitchTarget = -0.2;
     if (AUTOPILOT.wander && state.position.y < ALTITUDE[0]) state.pitchTarget = 0.2;
+
+    if (AUTOPILOT.flee) {
+      // Sum the push away from each nearby missile, then read it in the jet's frame: positive left turns
+      // head towards +X here (left from the chase camera), and up is world up.
+      flee.set(0, 0, 0);
+      let pressure = 0;
+      for (const missile of threats.positions) {
+        away.subVectors(state.position, missile);
+        const distance = away.length();
+        if (distance === 0 || distance > FLEE.radius) continue;
+        const weight = (1 - distance / FLEE.radius) ** 2;
+        flee.addScaledVector(away.divideScalar(distance), weight);
+        pressure += weight;
+      }
+      const previous = state.turnTarget;
+      if (pressure > 0) {
+        left.set(Math.cos(state.heading), 0, -Math.sin(state.heading));
+        const sideways = flee.dot(left);
+        state.turnTarget = Math.max(-1, Math.min(1, sideways * FLEE.turnGain)) * MAX_TURN;
+        state.pitchTarget = Math.max(-1, Math.min(1, flee.y * FLEE.pitchGain)) * FLEE.maxPitch;
+      } else if (!AUTOPILOT.wander) {
+        // Nothing close: ease back to straight and level.
+        state.turnTarget = 0;
+        state.pitchTarget = 0;
+      }
+      // Don't flee out of the cloud band.
+      if (state.position.y > ALTITUDE[1]) state.pitchTarget = Math.min(state.pitchTarget, -0.2);
+      if (state.position.y < ALTITUDE[0]) state.pitchTarget = Math.max(state.pitchTarget, 0.2);
+      // A hard reversal from right to left still earns a barrel roll.
+      if (previous < -ROLL.minTurn && state.turnTarget > ROLL.minTurn && state.barrelTime < 0 && transform.phase === 'jet') {
+        state.barrelTime = 0;
+        state.barrelSign = -1;
+      }
+    }
 
     const ease = 1 - Math.exp(-delta * TURN_EASE);
     state.turn += (state.turnTarget - state.turn) * ease;
@@ -579,6 +622,7 @@ function Missiles() {
   useFrame(({ clock }, rawDelta) => {
     const delta = thumbnailMode ? 0 : Math.min(rawDelta, 0.1);
     swarm.update(delta, clock.elapsedTime, jetPosition, jetVelocity, camera.position);
+    threats.positions = swarm.flying();
   });
   return <primitive object={swarm.object} />;
 }
