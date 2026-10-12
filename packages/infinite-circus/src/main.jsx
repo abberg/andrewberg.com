@@ -91,7 +91,7 @@ const TRANSFORM = {
   robotFor: [4, 6], // seconds in robot mode
   fps: 10,
   crossfade: 0.15,
-  robotSpeed: 0.35, // flight speed multiplier while a robot
+  robotSpeed: 0.9, // flight speed multiplier while a robot: he keeps moving while he fights
   faceCameraChance: 0.5, // how often the robot turns round to face the camera
   chestHeight: 0.72, // robot pivot, as a fraction of his height
 };
