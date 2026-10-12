@@ -30,13 +30,16 @@ const JET_FRAME = 'jet1';
 const SPEED = 6;
 // Which of the jet's own behaviours run. All off for now, so it flies straight and level while its
 // reactions to the missiles are built up. Space (boost) and T (transform) still work by hand.
-const AUTOPILOT = { wander: false, boost: false, transform: false, flee: true };
+const AUTOPILOT = { wander: false, boost: false, transform: false, flee: true, boostOnThreat: true };
 
 // Flee: missiles inside `radius` push the jet away, more strongly the closer they are. The push, in the
 // jet's own frame, sets how hard it turns (sideways part) and climbs or dives (vertical part).
 // Missiles coming from behind don't push him sideways (chasers end up outside his turn, which would just
 // tighten the same turn forever); instead he jinks, breaking to one side and switching every `jink` seconds.
 const FLEE = { radius: 9, turnGain: 2.5, pitchGain: 2, maxPitch: 0.6, jink: [1.2, 2.5] };
+// Boost away when the flee pressure (closeness-weighted count of nearby missiles) passes `pressure`, for
+// `lasting` seconds, then wait out a `cooldown` before boosting again.
+const THREAT_BOOST = { pressure: 0.5, lasting: [1.5, 2.5], cooldown: [2, 4] };
 // Missile positions in flight, refreshed each frame by the swarm, for the jet to react to.
 const threats = { positions: [] };
 
@@ -359,6 +362,9 @@ function Flight({ children }) {
     barrelSign: 1,
     jinkSide: Math.random() < 0.5 ? -1 : 1,
     jinkTimer: 0,
+    pressure: 0,
+    boostLeft: 0, // seconds of threat boost remaining
+    boostCooldown: 0,
     retarget: 0,
     lookAt: new Vector3(),
   }), []);
@@ -423,6 +429,7 @@ function Flight({ children }) {
         flee.addScaledVector(away, weight);
         pressure += weight;
       }
+      state.pressure = pressure;
       if (pressure > 0) {
         state.jinkTimer -= delta;
         if (state.jinkTimer <= 0) {
@@ -463,10 +470,22 @@ function Flight({ children }) {
     }
 
     // Automatic boosts switch on and off on a timer; holding the input boosts too.
-    if (AUTOPILOT.boost) boost.timer -= delta;
-    if (boost.timer <= 0) {
-      boost.auto = !boost.auto;
-      boost.timer = between(boost.auto ? BOOST.lasting : BOOST.every);
+    if (AUTOPILOT.boost) {
+      boost.timer -= delta;
+      if (boost.timer <= 0) {
+        boost.auto = !boost.auto;
+        boost.timer = between(boost.auto ? BOOST.lasting : BOOST.every);
+      }
+    }
+    if (AUTOPILOT.boostOnThreat) {
+      state.boostCooldown -= delta;
+      if (state.boostLeft > 0) {
+        state.boostLeft -= delta;
+        if (state.boostLeft <= 0) state.boostCooldown = between(THREAT_BOOST.cooldown);
+      } else if (state.pressure > THREAT_BOOST.pressure && state.boostCooldown <= 0 && transform.phase === 'jet') {
+        state.boostLeft = between(THREAT_BOOST.lasting);
+      }
+      boost.auto = state.boostLeft > 0;
     }
     const boostTarget = (boost.auto || boost.held) && transform.phase === 'jet' ? 1 : 0;
     const boostRate = boostTarget > boost.value ? BOOST.attack : BOOST.release;
