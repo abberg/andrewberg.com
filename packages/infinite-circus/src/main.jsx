@@ -28,6 +28,10 @@ const JET_FRAME = 'jet1';
 
 // Flight tuning, in world units and seconds.
 const SPEED = 6;
+// Which of the jet's own behaviours run. All off for now, so it flies straight and level while its
+// reactions to the missiles are built up. Space (boost) and T (transform) still work by hand.
+const AUTOPILOT = { wander: false, boost: false, transform: false };
+
 const MAX_TURN = 1.4; // radians per second
 const BOUNDS = 60; // steer back towards the origin beyond this radius
 const ALTITUDE = [-6, 14];
@@ -227,7 +231,7 @@ function Jetfire() {
   useFrame(({ clock }, rawDelta) => {
     const delta = thumbnailMode ? 0 : Math.min(rawDelta, 0.1);
     transform.timer -= delta;
-    const due = transform.timer <= 0 || transform.request;
+    const due = (AUTOPILOT.transform && transform.timer <= 0) || transform.request;
     transform.request = false;
     if (due && (transform.phase === 'jet' || transform.phase === 'robot')) transform.switchTo(PHASES[transform.phase].next);
     mixer.update(delta);
@@ -365,7 +369,7 @@ function Flight({ children }) {
 
     // Pick a new random turn and climb every couple of seconds, easing between them.
     state.retarget -= delta;
-    if (state.retarget <= 0) {
+    if (AUTOPILOT.wander && state.retarget <= 0) {
       state.retarget = 1.5 + Math.random() * 2.5;
       // Commit to proper turns: at least half the maximum rate, either way.
       const previous = state.turnTarget;
@@ -379,13 +383,13 @@ function Flight({ children }) {
     }
     // Head home when straying too far, and level out near the altitude limits.
     toOrigin.set(-state.position.x, 0, -state.position.z);
-    if (toOrigin.length() > BOUNDS) {
+    if (AUTOPILOT.wander && toOrigin.length() > BOUNDS) {
       const homeHeading = Math.atan2(toOrigin.x, toOrigin.z);
       const error = Math.atan2(Math.sin(homeHeading - state.heading), Math.cos(homeHeading - state.heading));
       state.turnTarget = Math.sign(error) * MAX_TURN;
     }
-    if (state.position.y > ALTITUDE[1]) state.pitchTarget = -0.2;
-    if (state.position.y < ALTITUDE[0]) state.pitchTarget = 0.2;
+    if (AUTOPILOT.wander && state.position.y > ALTITUDE[1]) state.pitchTarget = -0.2;
+    if (AUTOPILOT.wander && state.position.y < ALTITUDE[0]) state.pitchTarget = 0.2;
 
     const ease = 1 - Math.exp(-delta * TURN_EASE);
     state.turn += (state.turnTarget - state.turn) * ease;
@@ -401,7 +405,7 @@ function Flight({ children }) {
     }
 
     // Automatic boosts switch on and off on a timer; holding the input boosts too.
-    boost.timer -= delta;
+    if (AUTOPILOT.boost) boost.timer -= delta;
     if (boost.timer <= 0) {
       boost.auto = !boost.auto;
       boost.timer = between(boost.auto ? BOOST.lasting : BOOST.every);
