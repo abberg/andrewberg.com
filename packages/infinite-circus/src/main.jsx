@@ -43,7 +43,13 @@ const THREAT_BOOST = { pressure: 0.5, lasting: [1.5, 2.5], cooldown: [2, 4] };
 // Fight: when missiles still crowd him and he isn't boosting, transform, turn to face the nearest missile
 // within `range`, and shoot at it, leading the shot. He folds back into a jet when his robot time is up or
 // nothing has been in range for `giveUp` seconds, then waits out a `cooldown`.
-const FIGHT = { pressure: 0.8, range: 25, hitRadius: 0.7, giveUp: 1.2, cooldown: [6, 10], turnRate: 6 };
+// He only fires once the barrel points within `fireCone` of where the shot needs to go, and each bolt
+// leaves within `correction` of the barrel, so shots never leave the gun at odd angles. He also tilts to
+// aim up or down, up to `maxPitch`.
+const FIGHT = {
+  pressure: 0.8, range: 25, hitRadius: 0.7, giveUp: 1.2, cooldown: [6, 10], turnRate: 14,
+  fireCone: 0.5, correction: 0.15, maxPitch: 0.7, // radians (about 29, 9 and 40 degrees)
+};
 // Missile positions in flight, refreshed each frame by the swarm, for the jet to react to.
 const threats = { positions: [], pressure: 0, swarm: null };
 
@@ -111,6 +117,8 @@ const motion = { speed: 0, turn: 0 };
 const transform = {
   phase: 'jet', timer: between(TRANSFORM.every), robot: 0, request: false, faceCamera: false,
   yaw: 0, // the robot's turn away from the direction of travel, radians
+  pitch: 0, // and its tilt up (positive) or down to aim
+  target: null, // the missile he's locked on to
   cooldown: 0, // seconds before he can fight again
   idle: 0, // seconds in robot mode with nothing in range
 };
@@ -215,7 +223,7 @@ function Jetfire() {
   const sample = useMemo(() => new Vector3(), []);
   const scratchVertex = useMemo(() => new Vector3(), []);
   const scene = useThree(state => state.scene);
-  const shooting = useMemo(() => ({ frame: -1, from: new Vector3(), direction: new Vector3() }), []);
+  const shooting = useMemo(() => ({ frame: -1, from: new Vector3(), direction: new Vector3(), barrel: new Vector3(), lead: new Vector3() }), []);
   const aiming = useMemo(() => ({ rotation: new Quaternion(), toward: new Vector3() }), []);
   const swing = useMemo(() => ({ angle: { x: 0, z: 0 }, velocity: { x: 0, z: 0 }, lastSpeed: 0 }), []);
 
@@ -257,7 +265,11 @@ function Jetfire() {
     const delta = thumbnailMode ? 0 : Math.min(rawDelta, 0.1);
     transform.timer -= delta;
     transform.cooldown -= delta;
-    const target = ROBOT_PHASES.has(transform.phase) ? threats.swarm?.nearest(jetPosition, FIGHT.range) : null;
+    // Stay locked on one missile while it's flying and in range, so the aim doesn't flick between targets.
+    const locked = transform.target;
+    const keep = locked && locked.state === 'flying' && locked.position.distanceTo(jetPosition) < FIGHT.range;
+    const target = ROBOT_PHASES.has(transform.phase) ? (keep ? locked : threats.swarm?.nearest(jetPosition, FIGHT.range)) : null;
+    transform.target = target;
     if (transform.phase === 'robot') transform.idle = target ? 0 : transform.idle + delta;
     const fight = AUTOPILOT.fightOnThreat && delta > 0 && (
       (transform.phase === 'jet' && transform.cooldown <= 0 && threats.pressure > FIGHT.pressure && boost.value < 0.3)
@@ -274,14 +286,19 @@ function Jetfire() {
       const frame = Math.floor(actions.robot.body.time * TRANSFORM.fps) % 4;
       if (frame !== shooting.frame && (frame === 0 || frame === 2)) {
         muzzle.getWorldPosition(shooting.from);
+        aim.getWorldPosition(shooting.barrel).sub(shooting.from).normalize();
+        let fire = true;
+        shooting.direction.copy(shooting.barrel);
         if (target) {
           const flightTime = target.position.distanceTo(shooting.from) / GUNFIRE.boltSpeed;
-          shooting.direction.copy(target.position).addScaledVector(target.velocity, flightTime)
+          shooting.lead.copy(target.position).addScaledVector(target.velocity, flightTime)
             .addScaledVector(jetVelocity, -flightTime).sub(shooting.from).normalize();
-        } else {
-          aim.getWorldPosition(shooting.direction).sub(shooting.from).normalize();
+          const off = shooting.barrel.angleTo(shooting.lead);
+          // Hold fire until the gun is roughly on target, then nudge the bolt the rest of the way.
+          fire = off <= FIGHT.fireCone;
+          shooting.direction.lerp(shooting.lead, off > 0 ? Math.min(1, FIGHT.correction / off) : 1).normalize();
         }
-        gunfire.fire(shooting.from, shooting.direction, jetVelocity);
+        if (fire) gunfire.fire(shooting.from, shooting.direction, jetVelocity);
       }
       shooting.frame = frame;
     } else {
@@ -294,19 +311,28 @@ function Jetfire() {
     model.position.lerpVectors(centers.jet, centers.robot, transform.robot).negate();
     // As a robot, turn to face the target, in the flight's own frame (0 faces the direction of travel).
     // With no target, sometimes face the chase camera instead. Turn back as he becomes a jet.
+    // He also tilts (pitch) to aim up or down at the target.
     let yawTarget = 0;
+    let pitchTarget = 0;
     if (ROBOT_PHASES.has(transform.phase)) {
       if (target) {
-        hang.current.parent.getWorldQuaternion(aiming.rotation).invert();
+        // In the frame the turn happens in: the swing group's, which includes the pendulum lean.
+        hang.current.getWorldQuaternion(aiming.rotation).invert();
         aiming.toward.subVectors(target.position, jetPosition).applyQuaternion(aiming.rotation);
         yawTarget = Math.atan2(aiming.toward.x, aiming.toward.z);
+        const elevation = Math.atan2(aiming.toward.y, Math.hypot(aiming.toward.x, aiming.toward.z));
+        pitchTarget = Math.max(-FIGHT.maxPitch, Math.min(FIGHT.maxPitch, elevation));
       } else if (transform.faceCamera) {
         yawTarget = Math.PI;
       }
     }
+    const aimEase = 1 - Math.exp(-delta * (target ? FIGHT.turnRate : 2.5));
     const yawError = Math.atan2(Math.sin(yawTarget - transform.yaw), Math.cos(yawTarget - transform.yaw));
-    transform.yaw += yawError * (1 - Math.exp(-delta * (target ? FIGHT.turnRate : 2.5)));
-    turn.current.rotation.y = -Math.PI / 2 + transform.yaw;
+    transform.yaw += yawError * aimEase;
+    transform.pitch += (pitchTarget - transform.pitch) * aimEase;
+    // Yaw, then pitch about the model's sideways (Z) axis: the robot faces model +X, and a positive Z
+    // rotation tips +X up.
+    turn.current.rotation.set(0, -Math.PI / 2 + transform.yaw, transform.pitch, 'YXZ');
 
     // Pendulum swing about the chest, only as a robot. Rotating about +X tips the head forward and the
     // legs back. Positive turns head left (+X here), so the legs swing out to the right with a negative
