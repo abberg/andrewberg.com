@@ -735,7 +735,7 @@ const SIDE_VIEW = { right: 15, up: 2, back: 4, lookBehind: 9, fov: 75, width: 0.
 // The 3D clouds turn to face the main camera, so from the side they'd show as streaks. They sit on
 // their own layer, which only the main camera renders.
 const CLOUD_LAYER = 2;
-const sideView = { visible: !thumbnailMode };
+const sideView = { visible: false }; // off by default; V shows it
 
 function SideView() {
   const { gl, scene, size } = useThree();
