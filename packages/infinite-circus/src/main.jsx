@@ -49,6 +49,7 @@ const THREAT_BOOST = { pressure: 0.5, lasting: [1.5, 2.5], cooldown: [2, 4] };
 const FIGHT = {
   pressure: 0.8, range: 25, hitRadius: 0.7, giveUp: 1.2, cooldown: [6, 10], turnRate: 14,
   fireCone: 0.5, correction: 0.15, maxPitch: 0.7, // radians (about 29, 9 and 40 degrees)
+  startDelay: 8, // seconds as a jet after the page loads before he'll first fight
 };
 // Missile positions in flight, refreshed each frame by the swarm, for the jet to react to.
 const threats = { positions: [], pressure: 0, swarm: null };
@@ -119,7 +120,7 @@ const transform = {
   yaw: 0, // the robot's turn away from the direction of travel, radians
   pitch: 0, // and its tilt up (positive) or down to aim
   target: null, // the missile he's locked on to
-  cooldown: 0, // seconds before he can fight again
+  cooldown: FIGHT.startDelay, // seconds before he can fight (again)
   idle: 0, // seconds in robot mode with nothing in range
 };
 
