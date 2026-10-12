@@ -89,8 +89,16 @@ export function createEngineGlow(nozzles, {
   light.position.copy(nozzles.reduce((sum, nozzle) => sum.add(nozzle), new Vector3()).divideScalar(nozzles.length));
   group.add(light);
 
+  const centre = new Vector3();
   return {
     object: group,
+    // Moves each nozzle's glow (and the tail light between them), e.g. to follow animated feet.
+    place(positions) {
+      positions.forEach((position, i) => {
+        for (const object of Object.values(parts[i])) object.position.copy(position);
+      });
+      light.position.copy(positions.reduce((sum, position) => sum.add(position), centre.set(0, 0, 0))).divideScalar(positions.length);
+    },
     // `boost` (0 to 1) stretches and brightens the plume and swells the glow.
     update(time, boost = 0) {
       const t = time * pulse; // slows the flicker without changing its shape

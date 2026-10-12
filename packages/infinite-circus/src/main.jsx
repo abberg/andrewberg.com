@@ -128,7 +128,7 @@ function Jetfire() {
     'jetfire/vf1s_fokker.jpg', 'jetfire/vf1s_fokker_normal.jpg', 'jetfire/weapon.jpg', 'jetfire/weapon_normal.jpg',
   ]);
 
-  const { model, centers, scale, glow, mixer, actions, gun, gunfire, muzzle, aim } = useMemo(() => {
+  const { model, mesh, centers, scale, glow, nozzles, mixer, actions, gun, gunfire, muzzle, aim } = useMemo(() => {
     addTransformGunFrames(body, weapon);
     const mesh = md2Mesh(body, skin, normals);
     const gun = md2Mesh(weapon, weaponSkin, weaponNormals);
@@ -172,12 +172,24 @@ function Jetfire() {
     const aim = new Object3D();
     aim.position.copy(MUZZLE.position).addScaledVector(MUZZLE.direction, 10);
     model.add(muzzle, aim);
-    return { model, centers, scale: 2 / height, glow: createEngineGlow(NOZZLES), mixer, actions, gun, gunfire, muzzle, aim };
+    // The feet carry the engines: track the body vertices around each nozzle so the glow can ride along
+    // with them through the transforms. Offsets keep the glow just behind the nozzle, as placed for the jet.
+    const jetFrame = body.morphAttributes.position.find(target => target.name === JET_FRAME);
+    const nozzles = NOZZLES.map(nozzle => {
+      const raw = nozzle.clone().add(centers.jet);
+      const vertices = [];
+      for (let i = 0; i < jetFrame.count; i++) if (new Vector3().fromBufferAttribute(jetFrame, i).distanceTo(raw) < 4) vertices.push(i);
+      const centroid = vertices.reduce((sum, i) => sum.add(new Vector3().fromBufferAttribute(jetFrame, i)), new Vector3()).divideScalar(vertices.length);
+      return { vertices, offset: raw.sub(centroid), position: new Vector3() };
+    });
+    return { model, mesh, centers, scale: 2 / height, glow: createEngineGlow(NOZZLES), nozzles, mixer, actions, gun, gunfire, muzzle, aim };
   }, [body, weapon, skin, normals, weaponSkin, weaponNormals]);
 
   const turn = useRef();
   const hang = useRef();
   const trails = useRef([]);
+  const sample = useMemo(() => new Vector3(), []);
+  const scratchVertex = useMemo(() => new Vector3(), []);
   const scene = useThree(state => state.scene);
   const shooting = useMemo(() => ({ frame: -1, from: new Vector3(), direction: new Vector3() }), []);
   const swing = useMemo(() => ({ angle: { x: 0, z: 0 }, velocity: { x: 0, z: 0 }, lastSpeed: 0 }), []);
@@ -258,8 +270,30 @@ function Jetfire() {
       swing.angle[axis] += swing.velocity[axis] * delta;
     }
     hang.current.rotation.set(swing.angle.x, 0, swing.angle.z);
-    // The engines are only lit in jet mode, and the wingtip trails fade out as he becomes a robot.
-    glow.object.visible = transform.robot < 0.5;
+    // The engines light once the feet are mostly in jet position: in jet mode, late in the transform down,
+    // and early in the transform up. The glow follows the animated feet.
+    const progress = action => (action ? action.time / action.getClip().duration : 0);
+    glow.object.visible = transform.phase === 'jet'
+      || (transform.phase === 'down' && progress(actions.down.body) > 0.6)
+      || (transform.phase === 'up' && progress(actions.up.body) < 0.3);
+    if (glow.object.visible) {
+      const influences = mesh.morphTargetInfluences;
+      const targets = body.morphAttributes.position;
+      const base = 1 - influences.reduce((sum, weight) => sum + weight, 0);
+      for (const nozzle of nozzles) {
+        nozzle.position.set(0, 0, 0);
+        for (const i of nozzle.vertices) {
+          sample.fromBufferAttribute(body.attributes.position, i).multiplyScalar(base);
+          for (let k = 0; k < influences.length; k++) {
+            if (influences[k] > 0) sample.add(scratchVertex.fromBufferAttribute(targets[k], i).multiplyScalar(influences[k]));
+          }
+          nozzle.position.add(sample);
+        }
+        nozzle.position.divideScalar(nozzle.vertices.length).add(nozzle.offset).add(model.position);
+      }
+      glow.place(nozzles.map(nozzle => nozzle.position));
+    }
+    // The wingtip trails fade out as he becomes a robot.
     for (const line of trails.current) {
       if (!line) continue;
       line.material.transparent = true;
