@@ -6,16 +6,19 @@ import {
 // Itano Circus missiles. Each one is a boid steered by Reynolds-style behaviours: pursuit of the jet
 // (aiming where it will be), separation from its neighbours, and a rotating sideways push that makes it
 // corkscrew. Limited turning force means they overshoot and swing round rather than snapping on target.
-// They fly in volleys, leave long smoke trails, and are recycled once spent.
+// They launch in volleys from just behind the chase camera, leave long smoke trails, and are recycled once
+// spent. There are always at least `minFlying` in the air.
 export const MISSILES = {
-  pool: 36,
-  volley: [8, 14], // missiles per volley
-  every: [5, 9], // seconds between volleys
+  pool: 40,
+  minFlying: 10, // topped up with a fresh launch whenever fewer are flying
+  volley: [8, 14], // missiles per extra volley
+  every: [5, 9], // seconds between extra volleys
   firstVolley: 2,
-  spawnDistance: [28, 45],
-  maxSpeed: 11, // faster than the jet cruising (6), slower than it boosting
-  minSpeed: 5,
-  maxForce: 9, // limits how hard they can turn
+  spawnBehindCamera: [1.5, 4], // how far behind the camera a launch starts
+  spawnSpread: 2.5, // how far apart a volley's missiles start
+  maxSpeed: 14.5, // nearly as fast as the boosting jet (15.6); well past it cruising (6)
+  minSpeed: 6,
+  maxForce: 12, // limits how hard they can turn
   separation: { radius: 1.5, weight: 6 },
   spiral: { force: [3, 7], frequency: [4, 9] }, // corkscrew push and its turns per second (radians)
   nearMiss: 0.8, // closer than this, a missile stops seeking and flies on
@@ -150,25 +153,18 @@ export function createMissileSwarm(settings = MISSILES) {
   };
   let volleyTimer = settings.firstVolley;
 
-  function launch(target, targetVelocity) {
-    const count = Math.round(between(settings.volley));
+  function launch(count, target, cameraPosition) {
     const idle = missiles.filter(missile => missile.state === 'idle').slice(0, count);
-    // Each volley comes from one side, behind the jet, so the missiles stream in together.
-    const heading = scratch.forward.copy(targetVelocity).normalize();
-    if (heading.lengthSq() === 0) heading.set(0, 0, 1);
-    const side = Math.random() < 0.5 ? -1 : 1;
-    const origin = new Vector3().crossVectors(heading, scratch.up).normalize().multiplyScalar(side)
-      .addScaledVector(heading, -0.6 - Math.random() * 0.8)
-      .add(new Vector3(0, (Math.random() - 0.3) * 0.8, 0))
-      .normalize()
-      .multiplyScalar(between(settings.spawnDistance))
-      .add(target);
+    // Launch from just behind the camera, so the volley streams past it towards the jet.
+    const away = scratch.forward.subVectors(cameraPosition, target).normalize();
+    const origin = new Vector3().copy(cameraPosition).addScaledVector(away, between(settings.spawnBehindCamera));
     for (const missile of idle) {
       missile.state = 'flying';
-      missile.position.copy(origin).add(new Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(4));
+      missile.position.copy(origin)
+        .add(new Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(settings.spawnSpread * 2));
       // Launch roughly towards the jet, fanned out, at a little under full speed.
       missile.velocity.subVectors(target, missile.position).normalize()
-        .add(new Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(1.2))
+        .add(new Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(0.8))
         .normalize().multiplyScalar(settings.maxSpeed * 0.7);
       missile.age = 0;
       missile.life = between(settings.life);
@@ -222,9 +218,11 @@ export function createMissileSwarm(settings = MISSILES) {
     object: group,
     update(delta, time, target, targetVelocity, cameraPosition) {
       if (delta > 0) {
+        const flying = missiles.filter(missile => missile.state === 'flying').length;
+        if (flying < settings.minFlying) launch(settings.minFlying - flying, target, cameraPosition);
         volleyTimer -= delta;
         if (volleyTimer <= 0) {
-          launch(target, targetVelocity);
+          launch(Math.round(between(settings.volley)), target, cameraPosition);
           volleyTimer = between(settings.every);
         }
       }
