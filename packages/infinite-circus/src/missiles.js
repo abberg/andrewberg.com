@@ -300,6 +300,8 @@ export function createMissileSwarm(settings = MISSILES) {
           missile.body.lookAt(scratch.look.copy(missile.position).add(missile.velocity));
           missile.flame.scale.setScalar(0.3 + 0.08 * Math.sin(time * 40 + missile.spiralPhase));
           if (missile.age > missile.life) {
+            // Out of fuel: self-destruct rather than just vanishing.
+            explode(missile.position);
             missile.state = 'fading';
             missile.body.visible = false;
           }
