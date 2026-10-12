@@ -34,7 +34,9 @@ const AUTOPILOT = { wander: false, boost: false, transform: false, flee: true };
 
 // Flee: missiles inside `radius` push the jet away, more strongly the closer they are. The push, in the
 // jet's own frame, sets how hard it turns (sideways part) and climbs or dives (vertical part).
-const FLEE = { radius: 9, turnGain: 2.5, pitchGain: 2, maxPitch: 0.6 };
+// Missiles coming from behind don't push him sideways (chasers end up outside his turn, which would just
+// tighten the same turn forever); instead he jinks, breaking to one side and switching every `jink` seconds.
+const FLEE = { radius: 9, turnGain: 2.5, pitchGain: 2, maxPitch: 0.6, jink: [1.2, 2.5] };
 // Missile positions in flight, refreshed each frame by the swarm, for the jet to react to.
 const threats = { positions: [] };
 
@@ -355,6 +357,8 @@ function Flight({ children }) {
     barrel: 0, // extra roll from a barrel roll in progress
     barrelTime: -1, // seconds into the barrel roll, or -1 when not rolling
     barrelSign: 1,
+    jinkSide: Math.random() < 0.5 ? -1 : 1,
+    jinkTimer: 0,
     retarget: 0,
     lookAt: new Vector3(),
   }), []);
@@ -404,19 +408,30 @@ function Flight({ children }) {
       // Sum the push away from each nearby missile, then read it in the jet's frame: positive left turns
       // head towards +X here (left from the chase camera), and up is world up.
       flee.set(0, 0, 0);
+      left.set(Math.cos(state.heading), 0, -Math.sin(state.heading));
       let pressure = 0;
+      let sideways = 0;
       for (const missile of threats.positions) {
         away.subVectors(state.position, missile);
         const distance = away.length();
         if (distance === 0 || distance > FLEE.radius) continue;
         const weight = (1 - distance / FLEE.radius) ** 2;
-        flee.addScaledVector(away.divideScalar(distance), weight);
+        away.divideScalar(distance);
+        // How much this missile is behind him: 0 dead ahead, 0.5 abeam, 1 straight behind.
+        const behind = 0.5 + 0.5 * (away.x * Math.sin(state.heading) + away.z * Math.cos(state.heading));
+        sideways += weight * ((1 - behind) * away.dot(left) + behind * state.jinkSide);
+        flee.addScaledVector(away, weight);
         pressure += weight;
+      }
+      if (pressure > 0) {
+        state.jinkTimer -= delta;
+        if (state.jinkTimer <= 0) {
+          state.jinkSide = -state.jinkSide;
+          state.jinkTimer = between(FLEE.jink);
+        }
       }
       const previous = state.turnTarget;
       if (pressure > 0) {
-        left.set(Math.cos(state.heading), 0, -Math.sin(state.heading));
-        const sideways = flee.dot(left);
         state.turnTarget = Math.max(-1, Math.min(1, sideways * FLEE.turnGain)) * MAX_TURN;
         state.pitchTarget = Math.max(-1, Math.min(1, flee.y * FLEE.pitchGain)) * FLEE.maxPitch;
       } else if (!AUTOPILOT.wander) {
