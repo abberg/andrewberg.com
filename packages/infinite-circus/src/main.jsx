@@ -16,6 +16,8 @@ import { addTransformGunFrames, GUN_POD_FRAME } from './gunframes.js';
 import { createMissileSwarm } from './missiles.js';
 
 const thumbnailMode = new URLSearchParams(location.search).has('thumbnail');
+// The site's 4:3 thumbnail fills the frame rather than showing the 2.35:1 letterbox.
+if (thumbnailMode) document.documentElement.classList.add('thumbnail');
 
 // Built directly rather than as JSX so the Mesh constructor sets up the morph targets for the geometry.
 // Normal maps were generated from the skins with DeepBump.

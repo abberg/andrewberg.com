@@ -1,0 +1,52 @@
+---
+import Base from '../layouts/Base.astro';
+import SketchTiles from '../components/SketchTiles.astro';
+import sketches from '../data/sketches.json';
+import videos from '../data/videos.json';
+const all = sketches.map((item, index) => ({ ...item, number: index + 1 }));
+---
+<Base
+  title="Sketches — Andrew Berg"
+  description="Browser sketches by Andrew Berg exploring form, motion, and interaction, plus sketches written in C++ and recorded to video."
+  path="/sketches/"
+  current="sketches"
+>
+  <section class="intro">
+    <div class="mono eyebrow">Sketches</div>
+    <h1>Form, motion, and interaction.</h1>
+    <p>My background is in painting and creative technology. These sketches run in the browser; the recorded ones further down were written in C++.</p>
+  </section>
+
+  <section id="browser" class="sketches first" aria-labelledby="browser-heading">
+    <div class="sketches-header">
+      <div class="mono eyebrow">In the browser</div>
+      <h2 id="browser-heading"><span class="mono phone-only">In the browser — </span>Browser sketches</h2>
+      <div class="mono count">{sketches.length} sketches</div>
+    </div>
+    <SketchTiles items={all} eager={8} />
+  </section>
+
+  <section id="videos" class="sketches videos" aria-labelledby="videos-heading">
+    <div class="sketches-header">
+      <div class="mono eyebrow">In C++</div>
+      <h2 id="videos-heading"><span class="mono phone-only">In C++ — </span>Recorded sketches</h2>
+      <div class="mono count">{videos.length} videos</div>
+    </div>
+    <p class="sketches-intro">Sketches in the same spirit, written in C++ and recorded to video.</p>
+    <div class="clips">
+      {videos.map(video => (
+        <figure class="clip">
+          <iframe
+            src={`https://player.vimeo.com/video/${video.vimeo}?badge=0&autopause=0&dnt=1`}
+            title={video.title}
+            style={`aspect-ratio:${video.ratio}`}
+            loading="lazy"
+            allow="autoplay; fullscreen; picture-in-picture"
+            referrerpolicy="strict-origin-when-cross-origin"
+          ></iframe>
+          <figcaption class="mono">{video.title}</figcaption>
+        </figure>
+      ))}
+    </div>
+  </section>
+</Base>

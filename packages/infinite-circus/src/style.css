@@ -19,6 +19,12 @@ html, body, #root {
   aspect-ratio: 2.35 / 1;
 }
 
+.thumbnail .stage {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+}
+
 /* Outline and label for the inset side view, which the canvas draws underneath. */
 .side-view {
   position: absolute;
