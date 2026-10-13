@@ -1,13 +1,13 @@
 import { Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Canvas, createPortal, useFrame, useLoader, useThree } from '@react-three/fiber';
-import { Cloud, Clouds, Environment, Trail } from '@react-three/drei';
+import { Cloud, Clouds, Environment, Trail, useTexture } from '@react-three/drei';
 import { Bloom, EffectComposer, LensFlare } from '@react-three/postprocessing';
 import {
-  AnimationClip, AnimationMixer, Box3, EquirectangularReflectionMapping, FloatType, Group, LoopOnce, Mesh, MeshBasicMaterial,
+  AnimationClip, AnimationMixer, Box3, EquirectangularReflectionMapping, Group, LoopOnce, Mesh, MeshBasicMaterial,
   MeshStandardMaterial, NumberKeyframeTrack, Object3D, PerspectiveCamera, Quaternion, SRGBColorSpace, TextureLoader, Vector2, Vector3,
 } from 'three';
-import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
+import { UltraHDRLoader } from 'three/examples/jsm/loaders/UltraHDRLoader.js';
 import { MD2Loader } from 'three/examples/jsm/loaders/MD2Loader.js';
 import { RadialBlurEffect } from './blur.js';
 import { createEngineGlow } from './effects.js';
@@ -25,6 +25,9 @@ function md2Mesh(geometry, skin, normalMap) {
 }
 
 const JET_FRAME = 'jet1';
+const MODELS = ['jetfire/tris.md2', 'jetfire/weapon.md2'];
+const SKINS = ['jetfire/vf1s_fokker.jpg', 'jetfire/vf1s_fokker_normal.jpg', 'jetfire/weapon.jpg', 'jetfire/weapon_normal.jpg'];
+const CLOUD_TEXTURE = 'clouds/cloud.png';
 
 // Flight tuning, in world units and seconds.
 const SPEED = 6;
@@ -168,10 +171,8 @@ function phaseClip(geometry, name, phase) {
 }
 
 function Jetfire() {
-  const [body, weapon] = useLoader(MD2Loader, ['jetfire/tris.md2', 'jetfire/weapon.md2']);
-  const [skin, normals, weaponSkin, weaponNormals] = useLoader(TextureLoader, [
-    'jetfire/vf1s_fokker.jpg', 'jetfire/vf1s_fokker_normal.jpg', 'jetfire/weapon.jpg', 'jetfire/weapon_normal.jpg',
-  ]);
+  const [body, weapon] = useLoader(MD2Loader, MODELS);
+  const [skin, normals, weaponSkin, weaponNormals] = useLoader(TextureLoader, SKINS);
 
   const { legUniforms, model, mesh, centers, scale, glow, nozzles, mixer, actions, gun, gunfire, muzzle, aim } = useMemo(() => {
     addTransformGunFrames(body, weapon);
@@ -735,7 +736,7 @@ function CloudField() {
     <>
       {/* Not frustum culled: the instanced mesh's bounds are computed once, before the clouds are placed,
           so culling would hide or show the whole field at once as the camera turns. */}
-      <Clouds ref={field} texture="clouds/cloud.png" material={MeshBasicMaterial} limit={CLOUDS.count * 12} frustumCulled={false}>
+      <Clouds ref={field} texture={CLOUD_TEXTURE} material={MeshBasicMaterial} limit={CLOUDS.count * 12} frustumCulled={false}>
         {layout.map(({ seed, bounds, volume }, i) => (
           <Cloud
             key={i}
@@ -754,9 +755,11 @@ function CloudField() {
   );
 }
 
-// Equirectangular HDRI from hdrmaps.com, used as the background and as image-based light on the jet.
-// The sun peaks around 1300, which floods the bloom pass, so values are capped at `cap`.
-const SKY = { file: 'sky/086_hdrmaps_com_free_1K.exr', environmentIntensity: 0.6, cap: 6 };
+// Equirectangular HDRI (hdrmaps.com 086, 1K), used as the background and as image-based light on the jet.
+// Stored as an Ultra HDR JPEG (an ordinary JPEG plus a gain map that restores the HDR range): 153 KB
+// against 1.5 MB for the original EXR. The sun, which peaked around 1300 and flooded the bloom pass, was
+// capped at 6 when it was converted (with @monogrid/gainmap-js, quality 90).
+const SKY = { file: 'sky/sky.jpg', environmentIntensity: 0.6 };
 
 // The sun's direction in the HDRI (brightness-weighted centre of its brightest pixels, about 20 degrees
 // up), its light colour, and a point far along that direction that the lens flare tracks.
@@ -768,13 +771,8 @@ const SUN = {
 };
 
 function Sky() {
-  const texture = useLoader(EXRLoader, SKY.file, loader => loader.setDataType(FloatType));
-  useMemo(() => {
-    const { data } = texture.image;
-    for (let i = 0; i < data.length; i++) if (data[i] > SKY.cap) data[i] = SKY.cap;
-    texture.mapping = EquirectangularReflectionMapping;
-    texture.needsUpdate = true;
-  }, [texture]);
+  const texture = useLoader(UltraHDRLoader, SKY.file);
+  texture.mapping = EquirectangularReflectionMapping;
   return <Environment map={texture} background environmentIntensity={SKY.environmentIntensity} />;
 }
 
@@ -876,6 +874,13 @@ function Ready() {
   }, []);
   return null;
 }
+
+// Start every download at once. Otherwise each suspending component only starts loading once the one
+// before it has finished: sky, then clouds, then the models and skins.
+useLoader.preload(UltraHDRLoader, SKY.file);
+useLoader.preload(MD2Loader, MODELS);
+useLoader.preload(TextureLoader, SKINS);
+useTexture.preload(CLOUD_TEXTURE);
 
 createRoot(document.getElementById('root')).render(
   <>
