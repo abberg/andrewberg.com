@@ -1,69 +1,24 @@
 ---
+import Base from '../layouts/Base.astro';
+import SketchTiles from '../components/SketchTiles.astro';
 import sketches from '../data/sketches.json';
 import work from '../data/work.json';
-import videos from '../data/videos.json';
 import HeroStage from '../components/heroes/HeroStage.astro';
 import { heroes } from '../components/heroes';
 const logos = import.meta.glob('../icons/*.svg', { query: '?raw', import: 'default', eager: true });
 const logo = name => logos[`../icons/${name}.svg`];
 const systems = [...work].reverse();
-const pad = n => String(n).padStart(2, '0');
-
-const linkedin = 'https://www.linkedin.com/in/andrewbberg';
-
+// A hand-picked, varied selection for the home page, by sketch number (place in the full list on /sketches/).
+const FEATURED = [2, 5, 11, 14, 17, 26, 32, 33];
+const featured = FEATURED.map(number => ({ ...sketches[number - 1], number }));
 ---
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Andrew Berg is a design systems engineer building accessible React and TypeScript components, reusable patterns, and tools for product teams." />
-    <script is:inline>
-      // Apply a saved light/dark override before first paint. With nothing saved the page follows the system.
-      try { const theme = localStorage.getItem('theme'); if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme; } catch {}
-    </script>
-    <title>Andrew Berg — Design Systems Engineer</title>
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://andrewberg.com/" />
-    <meta property="og:title" content="Andrew Berg — Design Systems Engineer" />
-    <meta property="og:description" content="Design systems engineer building accessible components, patterns, and tools for product teams." />
-    <meta property="og:image" content="https://andrewberg.com/og-image.png" />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="Andrew Berg, design systems engineer" />
-    <meta name="twitter:card" content="summary_large_image" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@700&family=Epilogue:wght@400;500;600&family=Space+Mono&family=JetBrains+Mono:wght@400;500&family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=Libre+Franklin:wght@300;400;700;800&family=Source+Sans+3:wght@300;400;600;700&family=Public+Sans:wght@400;600&family=Inconsolata:wght@400&family=Inter:ital,wght@0,300..700;1,300..700&display=swap" />
-  </head>
-  <body>
-    <div class="page">
-      <header class="site-header">
-        <a class="wordmark" href="/">Andrew Berg</a>
-        <div class="actions">
-          <nav class="nav mono" aria-label="Main">
-            <a href="#systems" class="current">Design systems</a>
-            <a href="#sketches">Sketches</a>
-            <a href={linkedin}>LinkedIn</a>
-          </nav>
-          <details class="menu mono">
-            <summary>Menu</summary>
-            <nav aria-label="Main">
-              <a href="#systems">Design systems</a>
-              <a href="#sketches">Sketches</a>
-              <a href={linkedin}>LinkedIn</a>
-            </nav>
-          </details>
-          <button class="theme-toggle" type="button" aria-label="Dark mode" aria-pressed="false">
-            <svg class="moon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
-            <svg class="sun" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></g></svg>
-          </button>
-        </div>
-      </header>
-      <main>
+<Base
+  title="Andrew Berg — Design Systems Engineer"
+  description="Andrew Berg is a design systems engineer building accessible React and TypeScript components, reusable patterns, and tools for product teams."
+  ogDescription="Design systems engineer building accessible components, patterns, and tools for product teams."
+  path="/"
+  current="systems"
+>
         <section class="intro">
           <div class="mono eyebrow">Intro</div>
           <h1>Ten years, five design systems.</h1>
@@ -98,235 +53,9 @@ const linkedin = 'https://www.linkedin.com/in/andrewbberg';
           <div class="sketches-header">
             <div class="mono eyebrow">Before that</div>
             <h2 id="sketches-heading"><span class="mono phone-only">Before that — </span>Browser sketches</h2>
-            <div class="mono count">{sketches.length} sketches</div>
           </div>
-          <p class="sketches-intro">My background is in painting and creative technology. These earlier browser sketches explore form, motion, and interaction.</p>
-          <div class="tiles">
-            {sketches.map((item, index) => (
-              <a class="tile" href={item.href} aria-label={`Sketch ${pad(index + 1)}: ${item.title}`}>
-                <img src={item.image} alt="" width="960" height="720" loading={index < 4 ? 'eager' : 'lazy'} />
-                <span class="mono">{pad(index + 1)}</span>
-              </a>
-            ))}
-          </div>
+          <p class="sketches-intro">Exploring form, motion, and interaction.</p>
+          <SketchTiles items={featured} numbered={false} />
+          <p class="more"><a class="mono" href="/sketches/">See all</a></p>
         </section>
-
-        <section id="videos" class="sketches videos" aria-labelledby="videos-heading">
-          <div class="sketches-header">
-            <div class="mono eyebrow">In C++</div>
-            <h2 id="videos-heading"><span class="mono phone-only">In C++ — </span>Recorded sketches</h2>
-            <div class="mono count">{videos.length} videos</div>
-          </div>
-          <p class="sketches-intro">Sketches in the same spirit, written in C++ and recorded to video.</p>
-          <div class="clips">
-            {videos.map(video => (
-              <figure class="clip">
-                <iframe
-                  src={`https://player.vimeo.com/video/${video.vimeo}?badge=0&autopause=0&dnt=1`}
-                  title={video.title}
-                  style={`aspect-ratio:${video.ratio}`}
-                  loading="lazy"
-                  allow="autoplay; fullscreen; picture-in-picture"
-                  referrerpolicy="strict-origin-when-cross-origin"
-                ></iframe>
-                <figcaption class="mono">{video.title}</figcaption>
-              </figure>
-            ))}
-          </div>
-        </section>
-      </main>
-      <footer class="site-footer mono">
-        <span>Andrew Berg · Boston</span>
-        <a href={linkedin}>LinkedIn</a>
-      </footer>
-    </div>
-    <script>
-      // Two visible states over three real ones (Lea Verou, "Dark mode toggles"): pressing flips what you see.
-      // Landing back on the system's mode clears the saved override; an override is never cleared otherwise.
-      const root = document.documentElement;
-      const toggle = document.querySelector('.theme-toggle');
-      const system = matchMedia('(prefers-color-scheme: dark)');
-      const systemTheme = () => (system.matches ? 'dark' : 'light');
-      const current = () => root.dataset.theme ?? systemTheme();
-      const sync = () => {
-        const dark = current() === 'dark';
-        toggle.setAttribute('aria-pressed', String(dark));
-        toggle.title = `Switch to ${dark ? 'light' : 'dark'} mode`;
-      };
-      toggle.addEventListener('click', () => {
-        const next = current() === 'dark' ? 'light' : 'dark';
-        const saved = next === systemTheme() ? null : next;
-        if (saved) root.dataset.theme = saved; else delete root.dataset.theme;
-        try { if (saved) localStorage.setItem('theme', saved); else localStorage.removeItem('theme'); } catch {}
-        sync();
-      });
-      system.addEventListener('change', sync);
-      sync();
-    </script>
-  </body>
-</html>
-<style is:global>
-  /* Heroes keep the light tokens in dark mode: each shows its system as it really looked. */
-  :root, .hero {
-    --bg: #F5F5F1; --ink: #16181A; --mute: #5E635E; --dim: #8A8F8A; --rule: #DAD9D3;
-    --accent: #3F7A26; --lime: #C9ED9C; --card: #FFFFFF; --edge: #E4E4DE;
-    color-scheme: light;
-  }
-  :root[data-theme="dark"] {
-    --bg: oklch(22.8% 0.013 107.4); --ink: #ECECE6; --mute: #A3A8A1; --dim: #737871; --rule: #2E312D;
-    --accent: #8FCB6B; --lime: #3E5A2B; --card: #1B1E1B; --edge: #2C2F2B;
-    color-scheme: dark;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-      --bg: oklch(19.1% 0.0095 107.3); --ink: #ECECE6; --mute: #A3A8A1; --dim: #737871; --rule: #2E312D;
-      --accent: #8FCB6B; --lime: #3E5A2B; --card: #1B1E1B; --edge: #2C2F2B;
-      color-scheme: dark;
-    }
-  }
-  :root {
-    --sans: 'Epilogue', system-ui, sans-serif;
-    --mono: 'Space Mono', ui-monospace, monospace;
-    --display: 'Syne', system-ui, sans-serif;
-    font-family: var(--sans); color: var(--ink); background: var(--bg);
-    -webkit-font-smoothing: antialiased; font-synthesis: none;
-  }
-  * { box-sizing: border-box; }
-  body { margin: 0; }
-  a { color: var(--ink); }
-  a:hover { color: var(--accent); }
-  a:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 2px; }
-  .mono { font-family: var(--mono); font-size: 12px; letter-spacing: .02em; text-transform: uppercase; color: var(--mute); font-variant-numeric: tabular-nums; }
-  .mono a, a.mono { color: inherit; text-decoration: none; }
-  .phone-only { display: none; }
-
-  .page { max-width: 1280px; margin-inline: auto; padding: 0 64px 64px; overflow-x: clip; }
-
-  .site-header { display: flex; justify-content: space-between; align-items: center; height: 72px; border-bottom: 1px solid var(--rule); }
-  .wordmark { font-size: 15px; font-weight: 600; letter-spacing: -.01em; text-decoration: none; }
-  .nav { display: flex; gap: 28px; }
-  .nav a:hover, .menu a:hover { color: var(--accent); }
-  .nav .current { color: var(--ink); }
-  .actions { display: flex; align-items: center; gap: 28px; }
-  .theme-toggle { display: grid; place-items: center; width: 32px; height: 32px; margin-right: -8px; padding: 0; border: 0; border-radius: 50%; background: none; color: var(--mute); cursor: pointer; }
-  .theme-toggle:hover { color: var(--accent); }
-  .theme-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 0; }
-  .theme-toggle .sun, :root[data-theme="dark"] .theme-toggle .moon { display: none; }
-  :root[data-theme="dark"] .theme-toggle .sun { display: block; }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) .theme-toggle .moon { display: none; }
-    :root:not([data-theme="light"]) .theme-toggle .sun { display: block; }
-  }
-  .menu { display: none; position: relative; }
-  .menu summary { cursor: pointer; list-style: none; }
-  .menu summary::-webkit-details-marker { display: none; }
-  .menu nav { position: absolute; right: 0; top: calc(100% + 12px); z-index: 2; display: flex; flex-direction: column; gap: 14px; padding: 16px 20px; background: var(--card); border-radius: 10px; box-shadow: inset 0 0 0 1px var(--edge); white-space: nowrap; }
-
-  .intro { display: grid; grid-template-columns: 192px minmax(0, 1fr) 300px; gap: 32px; padding: 96px 0; }
-  .intro .eyebrow { padding-top: 12px; }
-  h1 { margin: 0; font-family: var(--display); font-size: 60px; line-height: 1.02; letter-spacing: -.042em; font-weight: 700; max-width: 15ch; }
-  .intro p { margin: 0; padding-top: 12px; font-size: 16px; line-height: 1.5; color: var(--mute); }
-
-  .timeline { display: flex; flex-direction: column; }
-  .entry { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 0 32px; align-items: start; }
-  .spine { display: flex; flex-direction: column; align-items: center; align-self: stretch; padding-top: 2px; }
-  .dot { flex: none; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px var(--bg), 0 0 0 5px var(--rule); }
-  .line { flex: 1; width: 1px; margin-top: 8px; background: var(--rule); }
-  .last .line { background: transparent; }
-  .body { display: flex; flex-direction: column; padding-bottom: 96px; min-width: 0; }
-  .last .body { padding-bottom: 0; }
-  .heading, .blurb { position: relative; z-index: 1; }
-  .heading h2 { display: flex; align-items: center; gap: 12px; margin: 0; font-family: var(--display); font-size: 40px; font-weight: 700; letter-spacing: -.036em; line-height: 1; }
-  .heading h2 a { text-decoration: underline; text-decoration-color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 6px; }
-  .logo { flex: none; width: 28px; height: 28px; }
-  .logo svg { display: block; width: 100%; height: 100%; }
-  .meta { margin: 0; padding-top: 12px; font-size: 17px; }
-  .meta .role { color: var(--mute); }
-  .heading .years { margin: 0 0 12px; line-height: 16px; }
-  .blurb { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 48px; align-items: start; margin-top: 24px; }
-  .blurb p { margin: 0; max-width: 60ch; font-size: 17px; line-height: 1.5; color: var(--mute); }
-  .blurb a { justify-self: end; padding-top: 4px; color: var(--accent); }
-  .blurb a:hover { color: var(--ink); }
-  .end { display: grid; grid-template-columns: 40px; padding-top: 40px; justify-items: center; }
-  .end span { width: 12px; height: 12px; border-radius: 50%; box-shadow: inset 0 0 0 1px var(--rule); }
-
-  /* Hero: one flat isometric plane of cards, behind the text, top edge level with the heading. */
-  .hero { position: relative; color: var(--ink); z-index: 0; height: var(--h); margin-top: -102px; pointer-events: none; user-select: none; }
-  .stage {
-    position: absolute; top: var(--top); left: 50%; width: var(--w); margin-left: calc(var(--w) / -2);
-    display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-auto-rows: 150px; grid-auto-flow: dense; gap: 16px;
-    transform: rotateX(56deg) rotateZ(-36deg) scale(.86);
-  }
-  .card { display: flex; flex-direction: column; gap: 8px; padding: 16px; overflow: hidden; border-radius: 10px; background: var(--card); box-shadow: inset 0 0 0 1px var(--edge), 0 1px 2px rgba(22, 24, 26, .06), 0 6px 14px -4px rgba(22, 24, 26, .08); }
-
-  .sketches { padding-top: 140px; }
-  .sketches-header { display: grid; grid-template-columns: 192px minmax(0, 1fr) 300px; gap: 32px; align-items: end; padding-bottom: 32px; }
-  .sketches-header h2 { margin: 0; font-family: var(--display); font-size: 34px; font-weight: 700; letter-spacing: -.025em; line-height: 1.05; }
-  .count { text-align: right; }
-  .sketches-intro { margin: 0 0 32px; max-width: 60ch; font-size: 17px; line-height: 1.5; color: var(--mute); }
-  .tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px 20px; }
-  .tile { display: flex; flex-direction: column; gap: 10px; text-decoration: none; }
-  .tile img { display: block; width: 100%; height: auto; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 10px; background: var(--edge); }
-  .tile:hover .mono { color: var(--accent); }
-
-  .videos { padding-top: 96px; }
-  .clips { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px 20px; align-items: start; }
-  .clip { display: flex; flex-direction: column; gap: 10px; margin: 0; }
-  .clip iframe { display: block; width: 100%; height: auto; border: 0; border-radius: 10px; background: var(--edge); }
-
-  .site-footer { display: flex; justify-content: space-between; gap: 16px; margin-top: 96px; padding-top: 24px; border-top: 1px solid var(--rule); }
-
-  @media (max-width: 1100px) {
-    .intro, .sketches-header { grid-template-columns: minmax(0, 1fr) 260px; }
-    .intro .eyebrow, .sketches-header .eyebrow { display: none; }
-    /* Narrower screens left-justify the hero so it never crosses the spine; only its right side is cropped. */
-    .stage { left: var(--left); margin-left: 0; }
-  }
-
-  @media (max-width: 720px) {
-    .nav, .meta .role { display: none; }
-    .phone-only { display: inline; }
-    .page { padding: 0 20px 32px; }
-    .site-header { height: 60px; }
-    .menu { display: block; }
-    .actions { gap: 16px; }
-    .intro { display: flex; flex-direction: column; gap: 20px; padding: 44px 0 40px; }
-    .intro .eyebrow { display: block; padding-top: 0; }
-    h1 { font-size: 38px; line-height: 1.04; letter-spacing: -.036em; }
-    .intro p { padding-top: 0; font-size: 15px; }
-
-    .entry { grid-template-columns: 20px minmax(0, 1fr); gap: 0 16px; }
-    .spine { padding-top: 3px; }
-    .dot { width: 10px; height: 10px; box-shadow: none; }
-    .body { padding-bottom: 48px; }
-    .heading { display: flex; flex-direction: column; gap: 10px; padding-bottom: 10px; }
-    .heading h2 { gap: 8px; font-size: 28px; }
-    .heading .years { margin: 0; }
-    .logo { width: 20px; height: 20px; }
-    .meta { padding-top: 0; font-size: 14px; }
-    .end { grid-template-columns: 20px; }
-
-    /* Phone heroes show the cards marked for phone on three columns, left-justified so only the right side is cropped. */
-    .hero { height: var(--ph); margin-top: -17px; margin-right: -20px; overflow: hidden; }
-    .stage { top: var(--ptop); left: var(--pleft); width: var(--pw); margin-left: 0; grid-template-columns: repeat(3, minmax(0, 1fr)); transform: rotateX(56deg) rotateZ(-36deg) scale(.516); }
-    .card:not([data-phone]) { display: none; }
-
-    .blurb { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
-    .blurb p { font-size: 13px; line-height: 1.45; }
-    .blurb a { justify-self: auto; padding-top: 0; }
-
-    .sketches { padding-top: 44px; }
-    .sketches-header { display: block; padding-bottom: 14px; }
-    .sketches-header .eyebrow, .count { display: none; }
-    .sketches-header h2 { font-family: var(--mono); font-size: 12px; font-weight: 400; letter-spacing: .02em; line-height: 1.5; text-transform: uppercase; color: var(--mute); }
-    .sketches-intro { margin-bottom: 20px; font-size: 15px; }
-    .tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px 12px; }
-    .tile { gap: 8px; }
-    .tile img { border-radius: 8px; }
-    .videos { padding-top: 44px; }
-    .clips { grid-template-columns: minmax(0, 1fr); gap: 20px; }
-    .clip { gap: 8px; }
-    .clip iframe { border-radius: 8px; }
-    .site-footer { flex-direction: column; margin-top: 56px; }
-  }
-</style>
+</Base>

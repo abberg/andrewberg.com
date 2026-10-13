@@ -1,0 +1,10 @@
+{
+  "title": "Infinite Circus",
+  "description": "Jetfire, a VF-1S Valkyrie, flees, boosts, and transforms to shoot down an endless Itano Circus of homing missiles.",
+  "category": "3D study",
+  "order": 33,
+  "thumbnail": {
+    "path": "?thumbnail=1",
+    "readySelector": "html[data-thumbnail-ready=\"true\"]"
+  }
+}
