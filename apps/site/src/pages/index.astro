@@ -53,7 +53,6 @@ const featured = FEATURED.map(number => ({ ...sketches[number - 1], number }));
           <div class="sketches-header">
             <div class="mono eyebrow">Before that</div>
             <h2 id="sketches-heading"><span class="mono phone-only">Before that — </span>Browser sketches</h2>
-            <a class="mono count" href="/sketches/">All {sketches.length} sketches →</a>
           </div>
           <p class="sketches-intro">Exploring form, motion, and interaction.</p>
           <SketchTiles items={featured} numbered={false} />
