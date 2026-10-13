@@ -755,9 +755,9 @@ function CloudField() {
   );
 }
 
-// Equirectangular HDRI (hdrmaps.com 086, 4K), used as the background and as image-based light on the jet.
-// Stored as an Ultra HDR JPEG (an ordinary JPEG plus a gain map that restores the HDR range) at quality 85:
-// 964 KB, against 20 MB for the 4K EXR. The sun, which peaked around 1300 and flooded the bloom pass, was
+// Equirectangular HDRI (hdrmaps.com 086, averaged down from 4K to 2K), used as the background and as
+// image-based light on the jet. Stored as an Ultra HDR JPEG (an ordinary JPEG plus a gain map that restores
+// the HDR range) at quality 95: 700 KB, against 20 MB for the 4K EXR. The sun, which peaked around 1300 and flooded the bloom pass, was
 // capped at 6 when it was converted (with @monogrid/gainmap-js).
 const SKY = { file: 'sky/sky.jpg', environmentIntensity: 0.6 };
 
