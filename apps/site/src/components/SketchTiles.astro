@@ -1,17 +1,18 @@
 ---
-// A grid of sketch thumbnails. Each tile is numbered by its place in the full list of sketches.
+// A grid of sketch thumbnails. Tiles can be numbered by their place in the full list of sketches.
 interface Props {
   items: { title: string; href: string; image: string; number: number }[];
   eager?: number;
+  numbered?: boolean;
 }
-const { items, eager = 4 } = Astro.props;
+const { items, eager = 4, numbered = true } = Astro.props;
 const pad = n => String(n).padStart(2, '0');
 ---
 <div class="tiles">
   {items.map((item, index) => (
-    <a class="tile" href={item.href} aria-label={`Sketch ${pad(item.number)}: ${item.title}`}>
+    <a class="tile" href={item.href} aria-label={numbered ? `Sketch ${pad(item.number)}: ${item.title}` : item.title}>
       <img src={item.image} alt="" width="960" height="720" loading={index < eager ? 'eager' : 'lazy'} />
-      <span class="mono">{pad(item.number)}</span>
+      {numbered && <span class="mono">{pad(item.number)}</span>}
     </a>
   ))}
 </div>

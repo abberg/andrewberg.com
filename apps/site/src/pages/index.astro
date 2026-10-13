@@ -9,9 +9,9 @@ import { heroes } from '../components/heroes';
 const logos = import.meta.glob('../icons/*.svg', { query: '?raw', import: 'default', eager: true });
 const logo = name => logos[`../icons/${name}.svg`];
 const systems = [...work].reverse();
-// The home page shows the newest sketches, newest first; the rest are on /sketches/.
-const HOME_SKETCHES = 8;
-const latest = sketches.map((item, index) => ({ ...item, number: index + 1 })).slice(-HOME_SKETCHES).reverse();
+// A hand-picked, varied selection for the home page, by sketch number (place in the full list on /sketches/).
+const FEATURED = [2, 5, 11, 14, 17, 26, 32, 33];
+const featured = FEATURED.map(number => ({ ...sketches[number - 1], number }));
 ---
 <Base
   title="Andrew Berg — Design Systems Engineer"
@@ -57,7 +57,7 @@ const latest = sketches.map((item, index) => ({ ...item, number: index + 1 })).s
             <a class="mono count" href="/sketches/">All {sketches.length} sketches →</a>
           </div>
           <p class="sketches-intro">My background is in painting and creative technology. These browser sketches explore form, motion, and interaction.</p>
-          <SketchTiles items={latest} />
+          <SketchTiles items={featured} numbered={false} />
           <p class="more"><a class="mono" href="/sketches/">See all {sketches.length} sketches and {videos.length} recorded ones →</a></p>
         </section>
 </Base>
