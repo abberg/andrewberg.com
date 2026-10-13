@@ -756,9 +756,10 @@ function CloudField() {
 }
 
 // Equirectangular HDRI (hdrmaps.com 086, 1K), used as the background and as image-based light on the jet.
-// Stored as an Ultra HDR JPEG (an ordinary JPEG plus a gain map that restores the HDR range): 153 KB
-// against 1.5 MB for the original EXR. The sun, which peaked around 1300 and flooded the bloom pass, was
-// capped at 6 when it was converted (with @monogrid/gainmap-js, quality 90).
+// Stored as an Ultra HDR JPEG (an ordinary JPEG plus a gain map that restores the HDR range): 348 KB
+// against 1.5 MB for the original EXR. Quality 98, because a 1K sky is magnified several times on screen
+// and lower qualities showed blocky compression. The sun, which peaked around 1300 and flooded the bloom
+// pass, was capped at 6 when it was converted (with @monogrid/gainmap-js).
 const SKY = { file: 'sky/sky.jpg', environmentIntensity: 0.6 };
 
 // The sun's direction in the HDRI (brightness-weighted centre of its brightest pixels, about 20 degrees
