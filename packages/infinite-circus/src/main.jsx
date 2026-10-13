@@ -5,7 +5,7 @@ import { Cloud, Clouds, Environment, Trail } from '@react-three/drei';
 import { Bloom, EffectComposer, LensFlare } from '@react-three/postprocessing';
 import {
   AnimationClip, AnimationMixer, Box3, EquirectangularReflectionMapping, FloatType, Group, LoopOnce, Mesh, MeshBasicMaterial,
-  MeshStandardMaterial, NumberKeyframeTrack, Object3D, PerspectiveCamera, Quaternion, SRGBColorSpace, TextureLoader, Vector3,
+  MeshStandardMaterial, NumberKeyframeTrack, Object3D, PerspectiveCamera, Quaternion, SRGBColorSpace, TextureLoader, Vector2, Vector3,
 } from 'three';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { MD2Loader } from 'three/examples/jsm/loaders/MD2Loader.js';
@@ -112,6 +112,18 @@ const SWING = {
   stiffness: 14,
   damping: 3.5,
 };
+// Ragdoll legs. The MD2 has no skeleton, so the vertex shader bends everything below the hips (robot pose,
+// raw model units) about a pivot for each leg, blending in between `blend` heights. Each leg's angle is a
+// loose spring, with slightly different stiffness per leg, kicked by the body swing, by how fast the robot
+// turns to aim, and by a little wobble, so the legs lag, flop and overshoot.
+const LEGS = {
+  hip: new Vector3(0.5, 4, 0), spread: 6, blend: [0, 6],
+  stiffness: [15, 21], damping: 2.4,
+  follow: 0.15, // lag behind the body swing's angular velocity
+  fling: 0.06, // swing out from turning to aim (per radian per second)
+  wobble: 0.08, max: 0.5,
+};
+
 // What the flight is doing this frame, for the swing.
 const motion = { speed: 0, turn: 0 };
 // Shared with the flight: robot eases 0 (jet) to 1 (robot) through the transforms.
@@ -161,9 +173,36 @@ function Jetfire() {
     'jetfire/vf1s_fokker.jpg', 'jetfire/vf1s_fokker_normal.jpg', 'jetfire/weapon.jpg', 'jetfire/weapon_normal.jpg',
   ]);
 
-  const { model, mesh, centers, scale, glow, nozzles, mixer, actions, gun, gunfire, muzzle, aim } = useMemo(() => {
+  const { legUniforms, model, mesh, centers, scale, glow, nozzles, mixer, actions, gun, gunfire, muzzle, aim } = useMemo(() => {
     addTransformGunFrames(body, weapon);
     const mesh = md2Mesh(body, skin, normals);
+    const legUniforms = {
+      uLegL: { value: new Vector2() }, uLegR: { value: new Vector2() },
+      uHip: { value: LEGS.hip }, uSpread: { value: LEGS.spread },
+      uBlend: { value: new Vector2(...LEGS.blend) }, uLegAmount: { value: 0 },
+    };
+    // Bend the legs after the morph has posed them. Legs are split by side (z), and each rotates about its
+    // hip: first forward/back about the model's sideways axis (z), then out to the side about x.
+    mesh.material.onBeforeCompile = shader => {
+      Object.assign(shader.uniforms, legUniforms);
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', `#include <common>
+          uniform vec2 uLegL; uniform vec2 uLegR; uniform vec3 uHip; uniform float uSpread;
+          uniform vec2 uBlend; uniform float uLegAmount;`)
+        .replace('#include <morphtarget_vertex>', `#include <morphtarget_vertex>
+          float legWeight = uLegAmount * (1.0 - smoothstep(uBlend.x, uBlend.y, transformed.y));
+          if (legWeight > 0.0) {
+            bool leftLeg = transformed.z > uHip.z;
+            vec2 legAngle = (leftLeg ? uLegL : uLegR) * legWeight;
+            vec3 pivot = uHip + vec3(0.0, 0.0, leftLeg ? uSpread : -uSpread);
+            vec3 p = transformed - pivot;
+            float c = cos(legAngle.x), s = sin(legAngle.x);
+            p = vec3(c * p.x - s * p.y, s * p.x + c * p.y, p.z);
+            c = cos(legAngle.y); s = sin(legAngle.y);
+            p = vec3(p.x, c * p.y - s * p.z, s * p.y + c * p.z);
+            transformed = p + pivot;
+          }`);
+    };
     const gun = md2Mesh(weapon, weaponSkin, weaponNormals);
     const model = new Group();
     model.add(mesh, gun);
@@ -215,7 +254,7 @@ function Jetfire() {
       const centroid = vertices.reduce((sum, i) => sum.add(new Vector3().fromBufferAttribute(jetFrame, i)), new Vector3()).divideScalar(vertices.length);
       return { vertices, offset: raw.sub(centroid), position: new Vector3() };
     });
-    return { model, mesh, centers, scale: 2 / height, glow: createEngineGlow(NOZZLES), nozzles, mixer, actions, gun, gunfire, muzzle, aim };
+    return { legUniforms, model, mesh, centers, scale: 2 / height, glow: createEngineGlow(NOZZLES), nozzles, mixer, actions, gun, gunfire, muzzle, aim };
   }, [body, weapon, skin, normals, weaponSkin, weaponNormals]);
 
   const turn = useRef();
@@ -227,6 +266,10 @@ function Jetfire() {
   const shooting = useMemo(() => ({ frame: -1, from: new Vector3(), direction: new Vector3(), barrel: new Vector3(), lead: new Vector3() }), []);
   const aiming = useMemo(() => ({ rotation: new Quaternion(), toward: new Vector3() }), []);
   const swing = useMemo(() => ({ angle: { x: 0, z: 0 }, velocity: { x: 0, z: 0 }, lastSpeed: 0 }), []);
+  const legs = useMemo(() => ({
+    amount: 0, lastYaw: 0, lastPitch: 0,
+    sides: [0, 1].map(() => ({ angle: { x: 0, y: 0 }, velocity: { x: 0, y: 0 } })),
+  }), []);
 
   useEffect(() => {
     const press = event => { if (event.code === 'KeyT') transform.request = true; };
@@ -351,6 +394,26 @@ function Jetfire() {
       swing.angle[axis] += swing.velocity[axis] * delta;
     }
     hang.current.rotation.set(swing.angle.x, 0, swing.angle.z);
+
+    // Ragdoll legs: only once he's standing as a robot, easing in and out around the transforms.
+    const legTarget = transform.phase === 'raise' || transform.phase === 'robot' || transform.phase === 'lower' ? 1 : 0;
+    legs.amount += (legTarget - legs.amount) * (1 - Math.exp(-delta * 4));
+    const yawRate = delta > 0 ? Math.atan2(Math.sin(transform.yaw - legs.lastYaw), Math.cos(transform.yaw - legs.lastYaw)) / delta : 0;
+    const pitchRate = delta > 0 ? (transform.pitch - legs.lastPitch) / delta : 0;
+    legs.lastYaw = transform.yaw;
+    legs.lastPitch = transform.pitch;
+    const time = clock.elapsedTime;
+    legs.sides.forEach((leg, i) => {
+      const targetForward = -LEGS.follow * swing.velocity.x - LEGS.fling * pitchRate + LEGS.wobble * Math.sin(time * (2.3 + i * 0.7) + i);
+      const targetOut = -LEGS.follow * swing.velocity.z + LEGS.fling * yawRate * (i === 0 ? 1 : 0.7) + LEGS.wobble * Math.sin(time * (1.7 + i * 0.9) + 2 * i);
+      for (const [axis, target] of [['x', targetForward], ['y', targetOut]]) {
+        leg.velocity[axis] += (LEGS.stiffness[i] * (target - leg.angle[axis]) - LEGS.damping * leg.velocity[axis]) * delta;
+        leg.angle[axis] = Math.max(-LEGS.max, Math.min(LEGS.max, leg.angle[axis] + leg.velocity[axis] * delta));
+      }
+    });
+    legUniforms.uLegAmount.value = legs.amount;
+    legUniforms.uLegL.value.set(legs.sides[0].angle.x, legs.sides[0].angle.y);
+    legUniforms.uLegR.value.set(legs.sides[1].angle.x, legs.sides[1].angle.y);
     // The engines light once the feet are mostly in jet position: in jet mode, late in the transform down,
     // and early in the transform up. The glow follows the animated feet.
     const progress = action => (action ? action.time / action.getClip().duration : 0);
