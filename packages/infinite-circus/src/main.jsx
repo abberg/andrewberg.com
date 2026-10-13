@@ -118,10 +118,10 @@ const SWING = {
 // turns to aim, and by a little wobble, so the legs lag, flop and overshoot.
 const LEGS = {
   hip: new Vector3(0.5, 4, 0), spread: 6, blend: [0, 6],
-  stiffness: [15, 21], damping: 2.4,
-  follow: 0.15, // lag behind the body swing's angular velocity
-  fling: 0.06, // swing out from turning to aim (per radian per second)
-  wobble: 0.08, max: 0.5,
+  stiffness: [8, 12], damping: 1.4,
+  follow: 0.32, // lag behind the body swing's angular velocity
+  fling: 0.12, // swing out from turning to aim (per radian per second)
+  wobble: 0.22, max: 1,
 };
 
 // What the flight is doing this frame, for the swing.
