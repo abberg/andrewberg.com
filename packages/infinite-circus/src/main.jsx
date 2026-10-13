@@ -848,7 +848,7 @@ function SideViewFrame() {
   }, []);
   if (!visible) return null;
   return (
-    <div className="side-view" style={{ width: `${SIDE_VIEW.width * 100}vw`, right: SIDE_VIEW.margin, bottom: SIDE_VIEW.margin }}>
+    <div className="side-view" style={{ width: `${SIDE_VIEW.width * 100}%`, right: SIDE_VIEW.margin, bottom: SIDE_VIEW.margin }}>
       <span>Side view (V)</span>
     </div>
   );
@@ -883,7 +883,8 @@ useLoader.preload(TextureLoader, SKINS);
 useTexture.preload(CLOUD_TEXTURE);
 
 createRoot(document.getElementById('root')).render(
-  <>
+  // A 2.35:1 frame, letterboxed on black like the untitled sketches.
+  <div className="stage">
   {/* Flat (no tone mapping): post-processing would otherwise tone map the sky, which three normally leaves alone. */}
   <Canvas flat camera={{ position: [0, 6, -6], fov: 55, far: 2000 }} dpr={[1, 2]}>
     {/* Warm key light from the sun in the HDRI, a soft cool fill from the opposite side, and a dim sky fill. */}
@@ -909,5 +910,5 @@ createRoot(document.getElementById('root')).render(
     <SideView />
   </Canvas>
   <SideViewFrame />
-  </>
+  </div>
 );

@@ -2,11 +2,21 @@ html, body, #root {
   width: 100%;
   height: 100%;
   margin: 0;
-  background: #111;
+  background: #000;
 }
 
+/* Centre a 2.35:1 frame: full width with bars above and below, or full height with bars at the sides
+   when the window is wider than 2.35:1. */
 #root {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stage {
   position: relative;
+  width: min(100vw, calc(100vh * 2.35));
+  aspect-ratio: 2.35 / 1;
 }
 
 /* Outline and label for the inset side view, which the canvas draws underneath. */
