@@ -1,0 +1,9 @@
+{
+  "title": "Tw0 Bot",
+  "description": "A mirrored robot built from randomly placed rectangles, scattered by Poisson disk sampling inside a hand-drawn outline.",
+  "category": "Generative",
+  "order": 34,
+  "thumbnail": {
+    "readySelector": "html[data-thumbnail-ready=\"true\"]"
+  }
+}
