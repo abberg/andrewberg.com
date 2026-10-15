@@ -72,13 +72,15 @@ async function setup() {
     const panes = Array.from({ length: columns * rows }, addPane);
     // Deal palettes from a shuffled deck, so none repeats until all are used.
     let deck = [];
-    // Panes are in reading order, so each robot starts STAGGER after the one
-    // before it: left to right, then top to bottom.
+    // A diagonal wave from the top left: each robot starts STAGGER after the
+    // one to its left and the one above it, so a row doesn't wait for the
+    // row above to finish starting.
     const builds = panes.map((pane, i) => {
+      const wave = (i % columns) + Math.floor(i / columns);
       if (!deck.length) deck = [...palettes].sort(() => Math.random() - 0.5);
       const palette = deck.pop();
       pane.title = palette.name;
-      return drawRobot(pane, paletteTheme(palette), outline(), i * STAGGER);
+      return drawRobot(pane, paletteTheme(palette), outline(), wave * STAGGER);
     });
     await Promise.all(builds);
   }
@@ -230,7 +232,7 @@ const animate = !matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 // How long the whole build takes, and how long each tile takes to fall.
 const BUILD_TIME = 2600;
-// How long each robot in the grid waits after the one before it.
+// How long each robot in the grid waits after its neighbours to the left and above.
 const STAGGER = 250;
 const FALL_TIME = 650;
 
