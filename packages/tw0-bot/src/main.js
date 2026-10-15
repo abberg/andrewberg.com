@@ -61,7 +61,7 @@ async function setup() {
     // Lay out both halves before drawing, so each stage sizes to its half.
     document.body.classList.add("pair");
     const panes = themes.map(addPane);
-    await Promise.all(themes.map((theme, i) => drawRobot(panes[i], theme, outline())));
+    await Promise.all(themes.map((theme, i) => drawRobot(panes[i], theme, outline(), i * STAGGER)));
   } else {
     // A grid that fills the window with cells of roughly CELL_SIZE pixels.
     const columns = Math.max(1, Math.round(innerWidth / CELL_SIZE));
@@ -72,11 +72,13 @@ async function setup() {
     const panes = Array.from({ length: columns * rows }, addPane);
     // Deal palettes from a shuffled deck, so none repeats until all are used.
     let deck = [];
-    const builds = panes.map((pane) => {
+    // Panes are in reading order, so each robot starts STAGGER after the one
+    // before it: left to right, then top to bottom.
+    const builds = panes.map((pane, i) => {
       if (!deck.length) deck = [...palettes].sort(() => Math.random() - 0.5);
       const palette = deck.pop();
       pane.title = palette.name;
-      return drawRobot(pane, paletteTheme(palette), outline());
+      return drawRobot(pane, paletteTheme(palette), outline(), i * STAGGER);
     });
     await Promise.all(builds);
   }
@@ -136,7 +138,7 @@ function luminance(rgb) {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 
-function drawRobot(pane, theme, outline) {
+function drawRobot(pane, theme, outline, delay = 0) {
   const two = new Two().appendTo(pane);
   two.renderer.domElement.style.background = theme.background;
   const robot = two.makeGroup();
@@ -219,7 +221,7 @@ function drawRobot(pane, theme, outline) {
   pane.querySelectorAll(".js-add-shadow-l").forEach((path) => (path.style.filter = "url(#dropshadow-l)"));
   pane.querySelectorAll(".js-add-shadow-r").forEach((path) => (path.style.filter = "url(#dropshadow-r)"));
 
-  return animate ? rainDown(two, robot, tiles, backing) : Promise.resolve();
+  return animate ? rainDown(two, robot, tiles, backing, delay) : Promise.resolve();
 }
 
 // Skip the animation for people who prefer reduced motion, and for the site's
@@ -228,6 +230,8 @@ const animate = !matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 // How long the whole build takes, and how long each tile takes to fall.
 const BUILD_TIME = 2600;
+// How long each robot in the grid waits after the one before it.
+const STAGGER = 250;
 const FALL_TIME = 650;
 
 // Drops each tile in from above the top of its cell. It falls under gravity,
@@ -236,13 +240,14 @@ const FALL_TIME = 650;
 // it's done.
 const BACKING_FADE = 300;
 
-function rainDown(two, robot, tiles, backing) {
+function rainDown(two, robot, tiles, backing, delay) {
   // Far enough to start above the top of the cell, in the robot's own units.
   const drop = () => two.height / robot.scale + 100;
   for (const tile of tiles) tile.spin = (Math.random() - 0.5) * 120 * DEG_TO_RAD;
 
   return new Promise((resolve) => {
-    const start = performance.now();
+    // Until the delay is up, every tile waits above the cell.
+    const start = performance.now() + delay;
     const frame = (now) => {
       const elapsed = now - start;
       const height = drop();
@@ -262,7 +267,7 @@ function rainDown(two, robot, tiles, backing) {
       if (elapsed < BUILD_TIME + BACKING_FADE) requestAnimationFrame(frame);
       else resolve();
     };
-    frame(start);
+    frame(performance.now());
   });
 }
 
