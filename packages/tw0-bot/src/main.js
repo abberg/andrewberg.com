@@ -27,18 +27,6 @@ const themes = [
   },
 ];
 
-// The grid's robots all stand on one light grey page, so they're always dark.
-// These two stand in when Colormind can't be reached, and in the thumbnail.
-const PAGE_GREY = "#E6E5E3";
-const gridThemes = [
-  { ...themes[1], background: undefined },
-  {
-    backing: "#000",
-    colors: ["#FF8811", "#9DD9D2", "#F4D06F", "#2D2A32"],
-    weights: [5, 5, 4, 86],
-  },
-];
-
 const shapes = [
   (two) => two.makeRectangle(0, 0, 30, 40 * Math.random() + 60),
   (two) => {
@@ -81,14 +69,14 @@ async function setup() {
     const columns = Math.max(1, Math.round(innerWidth / CELL_SIZE));
     const rows = Math.max(1, Math.round(innerHeight / CELL_SIZE));
     document.body.classList.add("grid");
-    document.body.style.background = PAGE_GREY;
     document.body.style.gridTemplateColumns = `repeat(${columns}, 1fr)`;
     document.body.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
     const panes = Array.from({ length: columns * rows }, addPane);
     await Promise.all(
       panes.map(async (pane, i) => {
-        const fallback = gridThemes[i % gridThemes.length];
-        const theme = thumbnailMode ? fallback : await fetchTheme().catch(() => fallback);
+        const theme = thumbnailMode
+          ? themes[i % themes.length]
+          : await fetchTheme().catch(() => themes[i % themes.length]);
         drawRobot(pane, theme, outline());
       })
     );
@@ -120,17 +108,21 @@ async function fetchTheme() {
   return paletteTheme(result);
 }
 
-// Sorts the palette from dark to light. The darkest colour is the main tile
-// colour, so the robot reads against the grey page; the middle three are the
-// accents, and the backing between the tiles is a deeper shade of the darkest.
-// The lightest is usually close to white, so it's left out.
+// Sorts the palette from dark to light, then picks a light robot on the
+// darkest colour or a dark robot on the lightest, whichever has more contrast.
+// The middle three colours are the accents, and the backing between the tiles
+// is a deep shade of whichever colour is darkest.
 function paletteTheme(palette) {
-  const [darkest, ...middle] = [...palette].sort((a, b) => luminance(a) - luminance(b));
-  middle.pop();
+  const sorted = [...palette].sort((a, b) => luminance(a) - luminance(b));
+  const [darkest, ...middle] = sorted;
+  const lightest = middle.pop();
+  const lightRobot = chance(0.5);
   const hex = (rgb) => "#" + rgb.map((c) => Math.round(c).toString(16).padStart(2, "0")).join("");
+  const shade = (rgb, amount) => rgb.map((c) => c * (1 - amount));
   return {
-    backing: hex(darkest.map((c) => c * 0.6)),
-    colors: [...middle.map(hex), hex(darkest)],
+    background: hex(lightRobot ? darkest : lightest),
+    backing: hex(shade(darkest, lightRobot ? 0.6 : 0.3)),
+    colors: [...middle.map(hex), hex(lightRobot ? lightest : darkest)],
     weights: [6, 5, 4, 85],
   };
 }
@@ -141,7 +133,7 @@ function luminance([r, g, b]) {
 
 function drawRobot(pane, theme, outline) {
   const two = new Two().appendTo(pane);
-  if (theme.background) two.renderer.domElement.style.background = theme.background;
+  two.renderer.domElement.style.background = theme.background;
   const robot = two.makeGroup();
   const getColor = weightedRandom(theme.colors, theme.weights);
 
