@@ -18,7 +18,7 @@ const themes = [
   {
     // Black, indigo, purple and pink. The dark accents barely show against
     // black, so they get more weight than the light robot's accents.
-    background: "#FFF8F0",
+    background: "#F5EAD7",
     backing: "#150050",
     colors: ["#150050", "#3F0071", "#FB2576", "#000000"],
     weights: [12, 10, 6, 72],
