@@ -365,7 +365,7 @@ function dropOut(two, robot, tiles, backing) {
 
 // The ease-out-back curve (as on easings.net), from 0 to 1 with a slight
 // overshoot near the end. The standard 1.70158 overshoots by 10%; 0.8 is
-// about 3%.
+// about 2%.
 function easeOutBack(t) {
   const c1 = 0.8;
   const c3 = c1 + 1;
