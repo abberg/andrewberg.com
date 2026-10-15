@@ -51,6 +51,7 @@ const shapeWeights = [44, 44, 10, 10, 2];
 const getShape = weightedRandom(shapes, shapeWeights);
 
 const params = new URLSearchParams(location.search);
+const randomOrder = params.get("order") === "random";
 
 async function setup() {
   // ?outline=svg uses the original hand-drawn outline instead of generated ones.
@@ -190,7 +191,15 @@ function drawRobot(pane, theme, outline, delay = 0) {
   // Remove any robot left over from before.
   pane.replaceChildren();
   const two = new Two().appendTo(pane);
-  pane.style.backgroundColor = theme.background;
+  // The first background appears at once; later ones fade (see index.html).
+  if (!pane.style.backgroundColor) {
+    pane.style.transition = "none";
+    pane.style.backgroundColor = theme.background;
+    pane.getBoundingClientRect();
+    pane.style.transition = "";
+  } else {
+    pane.style.backgroundColor = theme.background;
+  }
   const robot = two.makeGroup();
   const getColor = weightedRandom(theme.colors, theme.weights);
 
@@ -227,7 +236,9 @@ function drawRobot(pane, theme, outline, delay = 0) {
     .filter((point) => inside(point[0], point[1]))
     .map((point) => {
       const fromFeet = 0.5 - point[1] / outline.height;
-      return { point, lands: 0.65 * fromFeet + 0.35 * Math.random() };
+      // ?order=random lands the tiles in any order instead.
+      const lands = randomOrder ? Math.random() : 0.65 * fromFeet + 0.35 * Math.random();
+      return { point, lands };
     })
     .sort((a, b) => a.lands - b.lands);
 
