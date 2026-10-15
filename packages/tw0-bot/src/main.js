@@ -293,7 +293,7 @@ const STAGGER = 250;
 const FALL_TIME = 650;
 
 // Drops each tile in from above the top of its cell. It eases out as it
-// comes down, spinning, and settles into place. The backing stays hidden
+// comes down, spinning, overshoots its place slightly and settles back. The backing stays hidden
 // until the last tile lands, then fades in to fill the gaps. Resolves when
 // it's done.
 const BACKING_FADE = 300;
@@ -311,8 +311,9 @@ function rainDown(two, robot, tiles, backing, delay) {
       const height = drop();
       for (const tile of tiles) {
         const t = Math.min(1, Math.max(0, (elapsed - tile.lands * (BUILD_TIME - FALL_TIME)) / FALL_TIME));
-        // Ease out (cubic): fast at first, slowing to settle into place.
-        const fall = (1 - t) ** 3;
+        // Ease out back: fast at first, overshooting a little past its place
+        // before settling back into it.
+        const fall = 1 - easeOutBack(t);
         for (const shape of tile.shapes) {
           shape.position.y = tile.y - fall * height;
           // The mirrored tile's flipped scale mirrors its spin too.
@@ -360,6 +361,14 @@ function dropOut(two, robot, tiles, backing) {
     };
     frame(start);
   });
+}
+
+// The standard ease-out-back curve (as on easings.net), from 0 to 1 with a
+// slight overshoot near the end.
+function easeOutBack(t) {
+  const c1 = 1.70158;
+  const c3 = c1 + 1;
+  return 1 + c3 * (t - 1) ** 3 + c1 * (t - 1) ** 2;
 }
 
 function loadOutline(uri) {
