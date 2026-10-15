@@ -94,7 +94,45 @@ function addPane() {
 }
 
 function paletteTheme({ background, backing, main, accents }) {
-  return { background, backing, colors: [main, ...accents], weights: paletteWeights };
+  return {
+    background: withContrast(background, main, backing),
+    backing,
+    colors: [main, ...accents],
+    weights: paletteWeights,
+  };
+}
+
+// The least contrast allowed between a robot's main colour and its background,
+// as a WCAG contrast ratio. 3:1 is WCAG's minimum for graphics.
+const MIN_CONTRAST = 3;
+
+// Returns the background, mixed step by step toward the backing colour (a dark
+// shade from the same scheme) until it has MIN_CONTRAST against the robot's
+// main colour. Backgrounds that already have enough contrast are unchanged.
+function withContrast(background, main, backing) {
+  const [bg, fg, dark] = [background, main, backing].map(rgb);
+  for (let t = 0; t <= 1; t += 0.05) {
+    const mixed = bg.map((c, i) => c + (dark[i] - c) * t);
+    if (contrast(mixed, fg) >= MIN_CONTRAST) return hex(mixed);
+  }
+  return backing;
+}
+
+const rgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+const hex = (rgb) => "#" + rgb.map((c) => Math.round(c).toString(16).padStart(2, "0")).join("");
+
+function contrast(a, b) {
+  const [lighter, darker] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+// WCAG relative luminance.
+function luminance(rgb) {
+  const [r, g, b] = rgb.map((c) => {
+    c /= 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 
 function drawRobot(pane, theme, outline) {
