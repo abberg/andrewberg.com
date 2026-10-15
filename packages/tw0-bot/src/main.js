@@ -163,15 +163,19 @@ const chance = (odds) => Math.random() < odds;
 // four-sided polygon. Parts are measured from the centre line (x) and the top
 // of the head (y), and stack on one another so the body always joins up. The
 // base sizes come from outline.svg; each robot then gets its own proportions
-// and a few optional parts, so some are squat tanks and some are lanky. Returns the outline's polygons;
-// drawRobot() draws the backing from them.
+// and a few optional parts, so some are squat tanks and some are lanky.
+// Finally the arms and legs are pushed apart so the limbs stay readable once
+// they're tiled. Returns the outline's polygons; drawRobot() draws the backing
+// from them.
 function generateOutline() {
   const parts = [];
+  // Which part of the body the next quads belong to, for separate().
+  let kind = "body";
   // A rectangle from x0 to x1 out from the centre line, y0 to y1 down.
   const box = (x0, x1, y0, y1) => quad(x0, x1, x0, x1, y0, y1);
   // A quad whose top edge spans x0 to x1 and bottom edge spans x2 to x3.
   const quad = (x0, x1, x2, x3, y0, y1) => {
-    parts.push([[x0, y0], [x1, y0], [x3, y1], [x2, y1]]);
+    parts.push({ kind, points: [[x0, y0], [x1, y0], [x3, y1], [x2, y1]] });
   };
 
   // This robot's proportions.
@@ -216,6 +220,7 @@ function generateOutline() {
   // Big pads ride up beside the head.
   const shoulderTop = chestTop - between(0, 20) * shoulderSize;
   const shoulderBottom = shoulderTop + between(45, 70) * Math.sqrt(shoulderSize);
+  kind = "shoulder";
   box(chestW * between(0.4, 0.8), shoulderW, shoulderTop, shoulderBottom);
   if (chance(0.3)) {
     // A spike rising off the shoulder pad.
@@ -225,6 +230,7 @@ function generateOutline() {
   }
 
   // Upper arm, angled out from under the shoulder.
+  kind = "arm";
   const upperArmW = between(25, 40) * armBulk;
   const upperArmX = shoulderW - upperArmW * between(0.6, 1.4);
   const upperArmLean = between(0, 30);
@@ -255,19 +261,23 @@ function generateOutline() {
   const handW = forearmTopW * between(0.5, 0.9);
   box(forearmX - handW / 2, forearmX + handW / 2, wrist - 2, wrist + between(20, 45) * Math.sqrt(armBulk));
 
+  kind = "body";
   const waistW = Math.min(chestW - 10, between(30, 55) * bulk);
   const waistBottom = chestBottom + between(30, 80) * torsoLength;
   box(0, waistW, chestBottom - 2, waistBottom);
 
   const hipW = waistW + between(10, 30) * legBulk;
   const hipBottom = waistBottom + between(18, 35);
+  kind = "hips";
   box(0, hipW, waistBottom - 2, hipBottom);
+  kind = "body";
   if (chance(0.25)) {
     // A skirt of armour flaring out from the hips.
     quad(0, hipW, 0, hipW + between(15, 50), waistBottom, hipBottom + between(25, 60) * legLength);
   }
 
   // Thigh, angled in or out from the hip toward the knee.
+  kind = "leg";
   const legGap = between(8, Math.max(10, hipW * 0.5));
   const thighW = between(30, 45) * legBulk;
   const thighIn = between(-10, 20);
@@ -300,22 +310,111 @@ function generateOutline() {
   );
 
   // Trim the empty space left above the head when there's nothing up there.
-  const top = Math.min(...parts.flat().map(([, y]) => y));
-  for (const part of parts) for (const point of part) point[1] -= top;
+  const top = Math.min(...parts.flatMap((part) => part.points.map(([, y]) => y)));
+  for (const part of parts) for (const point of part.points) point[1] -= top;
 
   // Fit the robot to the same box as outline.svg, keeping its proportions.
-  const width = Math.max(...parts.flat().map(([x]) => x));
-  const height = Math.max(...parts.flat().map(([, y]) => y));
-  const scale = Math.min(1, 640 / height, 360 / width);
+  // Separating the limbs makes the robot wider, which can shrink it further,
+  // so the gap is set in screen pixels and recomputed for the new scale.
+  const height = Math.max(...parts.flatMap((part) => part.points.map(([, y]) => y)));
+  let scale = Math.min(1, 640 / height);
+  let separated, width;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    separated = separate(parts, LIMB_GAP / scale);
+    width = Math.max(...separated.flatMap((part) => part.points.map(([x]) => x)));
+    const fitted = Math.min(1, 640 / height, 360 / width);
+    if (fitted >= scale * 0.98) break;
+    scale = fitted;
+  }
 
   // Convert to scene coordinates, with the left half to the left of x = 0.
   return {
     width: width * scale,
     height: height * scale,
-    polygons: parts.map((part) =>
-      part.flatMap(([x, y]) => [-x * scale, y * scale - (height * scale) / 2])
+    polygons: separated.map((part) =>
+      part.points.flatMap(([x, y]) => [-x * scale, y * scale - (height * scale) / 2])
     ),
   };
+}
+
+// The space, in screen pixels, kept clear between the legs, and between each
+// arm and the rest of the body. Tiles overhang the outline by up to about 25px
+// each side, so this leaves a visible strip of background once it's tiled.
+const LIMB_GAP = 70;
+
+// Returns a copy of the robot's parts with the limbs moved apart: the legs out
+// from the centre line until they're gap apart, then each arm out until it's
+// gap clear of everything but its shoulder pad. The hips and shoulder pad
+// stretch to stay attached to the leg and arm.
+function separate(original, gap) {
+  const parts = original.map((part) => ({
+    kind: part.kind,
+    points: part.points.map((point) => [...point]),
+  }));
+  const ofKind = (kind) => parts.filter((part) => part.kind === kind);
+  const shift = (group, dx) => {
+    for (const part of group) for (const point of part.points) point[0] += dx;
+  };
+  // Widens a box-shaped part so its outer edge reaches at least x.
+  const reach = (part, x) => {
+    const [, topRight, bottomRight] = part.points;
+    topRight[0] = Math.max(topRight[0], x);
+    bottomRight[0] = Math.max(bottomRight[0], x);
+  };
+
+  const legs = ofKind("leg");
+  const [thigh] = legs;
+  const inner = Math.min(...legs.flatMap((part) => part.points.map(([x]) => x)));
+  if (inner < gap / 2) shift(legs, gap / 2 - inner);
+  reach(ofKind("hips")[0], thigh.points[1][0]);
+
+  const arm = ofKind("arm");
+  const [upperArm] = arm;
+  const others = parts.filter((part) => part.kind !== "arm" && part.kind !== "shoulder");
+  for (let step = 0; step < 100 && clearance(arm, others) < gap; step++) {
+    shift(arm, 4);
+  }
+  // The pad is the first shoulder part; any spike on it stays as it is.
+  reach(ofKind("shoulder")[0], upperArm.points[1][0]);
+
+  return parts;
+}
+
+// The smallest distance between any part in a and any part in b.
+function clearance(a, b) {
+  let min = Infinity;
+  for (const p of a) for (const q of b) min = Math.min(min, distance(p.points, q.points));
+  return min;
+}
+
+// The distance between two polygons, or 0 if they overlap.
+function distance(a, b) {
+  if (Intersects.polygonPolygon(a.flat(), b.flat())) return 0;
+  let min = Infinity;
+  for (let i = 0; i < a.length; i++) {
+    const a1 = a[i];
+    const a2 = a[(i + 1) % a.length];
+    for (let j = 0; j < b.length; j++) {
+      const b1 = b[j];
+      const b2 = b[(j + 1) % b.length];
+      min = Math.min(
+        min,
+        pointToSegment(a1, b1, b2),
+        pointToSegment(a2, b1, b2),
+        pointToSegment(b1, a1, a2),
+        pointToSegment(b2, a1, a2)
+      );
+    }
+  }
+  return min;
+}
+
+function pointToSegment([px, py], [x1, y1], [x2, y2]) {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const length = dx * dx + dy * dy;
+  const t = length ? Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / length)) : 0;
+  return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
 }
 
 setup();
