@@ -5,7 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" href="data:,">
   <title>Tw0 Bot — Andrew Berg</title>
-  <style>html, body { margin: 0; height: 100%; overflow: hidden; background: #392F5A; }</style>
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #392F5A; }
+    body { display: flex; }
+    .pane { flex: 1 1 0; min-width: 0; height: 100%; overflow: hidden; }
+    .pane > svg { display: block; }
+  </style>
 </head>
 <body>
 <svg width="0" height="0" style="position: absolute">

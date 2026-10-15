@@ -5,25 +5,33 @@ import Intersects from "intersects";
 
 const DEG_TO_RAD = Math.PI / 180;
 
-var two = new Two({
-  fullscreen: true,
-}).appendTo(document.body);
-
-two.renderer.domElement.style.background = "#392F5A";
-
-const colors = ["#FF8811", "#9DD9D2", "#F4D06F", "#FFF8F0"];
+// The window is split in two, with a robot in each half. Each theme sets the
+// background, the colour that shows between the tiles, and the tile colours.
+// The accents are shared; the main tile colour swaps from white to black.
+const accents = ["#FF8811", "#9DD9D2", "#F4D06F"];
+const themes = [
+  {
+    background: "#392F5A",
+    backing: "#000",
+    colors: [...accents, "#FFF8F0"],
+  },
+  {
+    background: "#FFF8F0",
+    backing: "#392F5A",
+    colors: [...accents, "#231F20"],
+  },
+];
 const weights = [5, 5, 4, 86];
-const getColor = weightedRandom(colors, weights);
 
 const shapes = [
-  () => two.makeRectangle(0, 0, 30, 40 * Math.random() + 60),
-  () => {
+  (two) => two.makeRectangle(0, 0, 30, 40 * Math.random() + 60),
+  (two) => {
     const size = Math.random() * 10 + 40;
     return two.makeRectangle(0, 0, size, size);
   },
-  () => two.makeRectangle(0, 0, 30, 30),
-  () => two.makeCircle(0, 0, 10),
-  () => {
+  (two) => two.makeRectangle(0, 0, 30, 30),
+  (two) => two.makeCircle(0, 0, 10),
+  (two) => {
     const rect = two.makeRectangle(
       0,
       0,
@@ -38,82 +46,97 @@ const shapeWeights = [44, 44, 10, 10, 2];
 const getShape = weightedRandom(shapes, shapeWeights);
 
 async function setup() {
-  // ?outline=svg uses the original hand-drawn outline instead of a generated one.
+  // ?outline=svg uses the original hand-drawn outline instead of generated ones.
   const useSvg = new URLSearchParams(location.search).get("outline") === "svg";
-  const outline = useSvg ? await svgOutline() : generateOutline();
+  const svg = useSvg ? await svgOutline() : null;
+  // Lay out both halves before drawing, so each stage sizes to its half.
+  const panes = themes.map(() => {
+    const pane = document.createElement("div");
+    pane.className = "pane";
+    document.body.append(pane);
+    return pane;
+  });
+  themes.forEach((theme, i) => drawRobot(panes[i], theme, svg ?? generateOutline()));
+
+  document.querySelectorAll(".js-add-shadow-l").forEach((path) => (path.style.filter = "url(#dropshadow-l)"));
+  document.querySelectorAll(".js-add-shadow-r").forEach((path) => (path.style.filter = "url(#dropshadow-r)"));
+
+  // The site's thumbnail script waits for this before taking its screenshot.
+  document.documentElement.dataset.thumbnailReady = "true";
+}
+
+function drawRobot(pane, theme, outline) {
+  const two = new Two().appendTo(pane);
+  two.renderer.domElement.style.background = theme.background;
+  const robot = two.makeGroup();
+  const getColor = weightedRandom(theme.colors, weights);
+
+  // The backing that shows between the tiles, and its mirror image.
+  for (const polygon of outline.polygons) {
+    for (const flip of [1, -1]) {
+      const anchors = [];
+      for (let i = 0; i < polygon.length; i += 2) {
+        anchors.push(new Two.Anchor(polygon[i] * flip, polygon[i + 1]));
+      }
+      const path = new Two.Path(anchors, true);
+      path.fill = theme.backing;
+      path.noStroke();
+      robot.add(path);
+    }
+  }
+
   const inside = (x, y) =>
     outline.polygons.some((polygon) => Intersects.polygonPoint(polygon, x, y));
-
-  /*
-  const vl = vert.length;
-  for (let i = 0; i < vl; i += 2) {
-    const circ = two.makeCircle(vert[i], vert[i + 1], 5);
-    circ.fill = "#666";
-  }
-  */
-  var p = new PoissonDiskSampling({
+  const p = new PoissonDiskSampling({
     shape: [outline.width, outline.height],
     minDistance: 25,
     maxDistance: 30,
     tries: 20,
   });
-  var points = p
+  const points = p
     .fill()
     .map((point) => [point[0] - outline.width, point[1] - outline.height * 0.5])
     .filter((point) => inside(point[0], point[1]))
     .sort(() => Math.random() - 0.5);
 
   points.forEach((point) => {
-    const shape = getShape()();
+    const shape = getShape()(two);
     shape.position.set(point[0], point[1]);
     shape.rotation = (Math.random() * 16 - 8) * DEG_TO_RAD;
     shape.fill = getColor();
     shape.stroke = "none";
     shape.className = "js-add-shadow-l";
+    robot.add(shape);
 
     const mirrored = shape.clone();
     mirrored.position.x = -shape.position.x;
     const mirrorScale = new Two.Vector(-1, 1);
     mirrored.scale = mirrorScale.multiply(mirrored.scale);
     mirrored.className = "js-add-shadow-r";
-    two.add(mirrored);
+    robot.add(mirrored);
   });
-  /*
-  points.forEach((point) => {
-    //const circ = two.makeCircle(point[0], point[1], 2);
-    //circ.fill = "#999";
-    const shape = two.makeRectangle(
-      point[0],
-      point[1],
-      10 + Math.random() * 5,
-      30 + Math.random() * 200
+
+  // Centre the robot in its half, shrinking it to fit if the half is small.
+  // The margin leaves room for tiles that hang over the edge of the outline.
+  const fit = () => {
+    two.renderer.setSize(pane.clientWidth, pane.clientHeight);
+    two.width = pane.clientWidth;
+    two.height = pane.clientHeight;
+    robot.position.set(two.width / 2, two.height / 2);
+    robot.scale = Math.min(
+      1,
+      two.width / (outline.width * 2 + 80),
+      two.height / (outline.height + 80)
     );
-    //shape.skewX = Math.random();
-    shape.rotation = (Math.random() * 90 - 45) * DEG_TO_RAD;
-    shape.fill = getColor();
-    shape.stroke = "none";
-
-    const mirrored = shape.clone();
-    mirrored.position.x = -shape.position.x;
-    const mirrorScale = new Two.Vector(-1, 1);
-    mirrored.scale = mirrorScale.multiply(mirrored.scale);
-    two.add(mirrored);
-  });
-  */
-  two.update();
-
-  const paths1 = document.querySelectorAll(".js-add-shadow-l");
-  paths1.forEach((path) => (path.style = "filter:url(#dropshadow-l)"));
-  const paths2 = document.querySelectorAll(".js-add-shadow-r");
-  paths2.forEach((path) => (path.style = "filter:url(#dropshadow-r)"));
-
-  // The site's thumbnail script waits for this before taking its screenshot.
-  document.documentElement.dataset.thumbnailReady = "true";
+    two.update();
+  };
+  new ResizeObserver(fit).observe(pane);
+  fit();
 }
 
 function loadOutline(uri) {
   return new Promise((resolve) => {
-    two.load(uri, resolve);
+    new Two().load(uri, resolve);
   });
 }
 
@@ -121,18 +144,10 @@ function loadOutline(uri) {
 async function svgOutline() {
   const group = await loadOutline("outline.svg");
   const svg = group.children[0];
-  svg.position.set(-svg.width, -svg.height / 2);
-  two.add(svg);
-
-  const flipped = svg.clone();
-  flipped.scale = new Two.Vector(-1, 1);
-  flipped.position.x = svg.width;
-  two.add(flipped);
-
-  const vert = svg.children[0].vertices
+  const vertices = svg.children[0].vertices
     .map((vert) => [vert.x - svg.width / 2, vert.y])
     .flat();
-  return { width: svg.width, height: svg.height, polygons: [vert] };
+  return { width: svg.width, height: svg.height, polygons: [vertices] };
 }
 
 const between = (min, max) => min + Math.random() * (max - min);
@@ -145,7 +160,8 @@ const chance = (odds) => Math.random() < odds;
 // four-sided polygon. Parts are measured from the centre line (x) and the top
 // of the head (y), and stack on one another so the body always joins up. The
 // base sizes come from outline.svg; each robot then gets its own proportions
-// and a few optional parts, so some are squat tanks and some are lanky.
+// and a few optional parts, so some are squat tanks and some are lanky. Returns the outline's polygons;
+// drawRobot() draws the backing from them.
 function generateOutline() {
   const parts = [];
   // A rectangle from x0 to x1 out from the centre line, y0 to y1 down.
@@ -290,33 +306,13 @@ function generateOutline() {
   const scale = Math.min(1, 640 / height, 360 / width);
 
   // Convert to scene coordinates, with the left half to the left of x = 0.
-  const polygons = parts.map((part) =>
-    part.map(([x, y]) => [-x * scale, y * scale - (height * scale) / 2])
-  );
-
-  // The black backing that shows between the tiles, and its mirror image.
-  for (const polygon of polygons) {
-    for (const flip of [1, -1]) {
-      const anchors = polygon.map(([x, y]) => new Two.Anchor(x * flip, y));
-      const path = new Two.Path(anchors, true);
-      path.fill = "#000";
-      path.noStroke();
-      two.add(path);
-    }
-  }
-
   return {
     width: width * scale,
     height: height * scale,
-    polygons: polygons.map((polygon) => polygon.flat()),
+    polygons: parts.map((part) =>
+      part.flatMap(([x, y]) => [-x * scale, y * scale - (height * scale) / 2])
+    ),
   };
 }
 
-two.bind("resize", resize);
-resize();
-
 setup();
-
-function resize() {
-  two.scene.position.set(two.width / 2, two.height / 2);
-}

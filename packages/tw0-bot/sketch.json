@@ -1,6 +1,6 @@
 {
   "title": "Tw0 Bot",
-  "description": "A mirrored robot whose body is generated from randomly sized parts, then tiled with rectangles scattered by Poisson disk sampling.",
+  "description": "Two mirrored robots side by side, white on purple and black on cream, each with a body generated from randomly sized parts and tiled with rectangles scattered by Poisson disk sampling.",
   "category": "Generative",
   "order": 34,
   "thumbnail": {
