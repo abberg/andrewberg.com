@@ -51,7 +51,7 @@ const shapeWeights = [44, 44, 10, 10, 2];
 const getShape = weightedRandom(shapes, shapeWeights);
 
 const params = new URLSearchParams(location.search);
-const randomOrder = params.get("order") === "random";
+const feetFirst = params.get("order") === "feet";
 
 async function setup() {
   // ?outline=svg uses the original hand-drawn outline instead of generated ones.
@@ -227,17 +227,17 @@ function drawRobot(pane, theme, outline, delay = 0) {
     maxDistance: 30,
     tries: 20,
   });
-  // Each tile lands at a time between 0 and 1 through the build: mostly from
-  // the feet up, with some jitter. Tiles are drawn in landing order, so a
-  // falling tile is always in front of the ones already in place.
+  // Each tile lands at a random time between 0 and 1 through the build. Tiles
+  // are drawn in landing order, so a falling tile is always in front of the
+  // ones already in place.
   const points = p
     .fill()
     .map((point) => [point[0] - outline.width, point[1] - outline.height * 0.5])
     .filter((point) => inside(point[0], point[1]))
     .map((point) => {
       const fromFeet = 0.5 - point[1] / outline.height;
-      // ?order=random lands the tiles in any order instead.
-      const lands = randomOrder ? Math.random() : 0.65 * fromFeet + 0.35 * Math.random();
+      // ?order=feet lands them mostly from the feet up instead.
+      const lands = feetFirst ? 0.65 * fromFeet + 0.35 * Math.random() : Math.random();
       return { point, lands };
     })
     .sort((a, b) => a.lands - b.lands);
