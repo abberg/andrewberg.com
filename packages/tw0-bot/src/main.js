@@ -16,11 +16,12 @@ const themes = [
     weights: [5, 5, 4, 86],
   },
   {
-    // Black, indigo, purple and pink. The dark accents barely show against
-    // black, so they get more weight than the light robot's accents.
+    // Off-black, indigo, purple and pink. The main colour is lifted off pure
+    // black so the drop shadows show. The dark accents are subtle against it,
+    // so they get more weight than the light robot's accents.
     background: "#F5EAD7",
     backing: "#150050",
-    colors: ["#150050", "#3F0071", "#FB2576", "#000000"],
+    colors: ["#150050", "#3F0071", "#FB2576", "#2D2A32"],
     weights: [12, 10, 6, 72],
   },
 ];
