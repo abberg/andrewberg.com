@@ -61,7 +61,7 @@ async function setup() {
     // Lay out both halves before drawing, so each stage sizes to its half.
     document.body.classList.add("pair");
     const panes = themes.map(addPane);
-    await Promise.all(themes.map((theme, i) => drawRobot(panes[i], theme, outline(), i * STAGGER)));
+    await Promise.all(themes.map((theme, i) => drawRobot(panes[i], theme, outline(), i * STAGGER).built));
   } else {
     // A grid that fills the window with cells of roughly CELL_SIZE pixels.
     const columns = Math.max(1, Math.round(innerWidth / CELL_SIZE));
@@ -70,24 +70,60 @@ async function setup() {
     document.body.style.gridTemplateColumns = `repeat(${columns}, 1fr)`;
     document.body.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
     const panes = Array.from({ length: columns * rows }, addPane);
-    // Deal palettes from a shuffled deck, so none repeats until all are used.
+    // Deal palettes from a shuffled deck, so none repeats until all are used,
+    // skipping any already on screen.
     let deck = [];
+    const deal = () => {
+      const showing = new Set(panes.map((pane) => pane.title));
+      for (let tries = 0; tries < palettes.length * 2; tries++) {
+        if (!deck.length) deck = [...palettes].sort(() => Math.random() - 0.5);
+        const palette = deck.pop();
+        if (!showing.has(palette.name)) return palette;
+      }
+      return palettes[Math.floor(Math.random() * palettes.length)];
+    };
+    const build = (pane, delay) => {
+      const palette = deal();
+      pane.title = palette.name;
+      return drawRobot(pane, paletteTheme(palette), outline(), delay);
+    };
+
     // A diagonal wave from the top left: each robot starts STAGGER after the
     // one to its left and the one above it, so a row doesn't wait for the
     // row above to finish starting.
-    const builds = panes.map((pane, i) => {
+    const robots = panes.map((pane, i) => {
       const wave = (i % columns) + Math.floor(i / columns);
-      if (!deck.length) deck = [...palettes].sort(() => Math.random() - 0.5);
-      const palette = deck.pop();
-      pane.title = palette.name;
-      return drawRobot(pane, paletteTheme(palette), outline(), wave * STAGGER);
+      return build(pane, wave * STAGGER);
     });
-    await Promise.all(builds);
+    await Promise.all(robots.map((robot) => robot.built));
+    document.documentElement.dataset.thumbnailReady = "true";
+
+    // Then every SWAP_INTERVAL, a random robot falls away, its cell changes
+    // to a new palette's background, and a new robot rains down in its place.
+    // The thumbnail asks for reduced motion, so it never gets here.
+    if (!animate) return;
+    let last = -1;
+    while (true) {
+      await wait(SWAP_INTERVAL);
+      let i;
+      do i = Math.floor(Math.random() * panes.length);
+      while (panes.length > 1 && i === last);
+      last = i;
+      await robots[i].fallAway();
+      robots[i] = build(panes[i], BACKGROUND_CHANGE);
+      await robots[i].built;
+    }
   }
 
   // The site's thumbnail script waits for this before taking its screenshot.
   document.documentElement.dataset.thumbnailReady = "true";
 }
+
+const SWAP_INTERVAL = 2500;
+// How long a cell's background takes to change colour (see .pane in index.html).
+const BACKGROUND_CHANGE = 500;
+
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const CELL_SIZE = 300;
 
@@ -140,9 +176,14 @@ function luminance(rgb) {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 
+// Draws a robot into a pane and starts it raining down after delay. Returns
+// its build, which resolves once it's in place, and fallAway(), which drops
+// it out of the bottom of the pane and removes it.
 function drawRobot(pane, theme, outline, delay = 0) {
+  // Remove any robot left over from before.
+  pane.replaceChildren();
   const two = new Two().appendTo(pane);
-  two.renderer.domElement.style.background = theme.background;
+  pane.style.backgroundColor = theme.background;
   const robot = two.makeGroup();
   const getColor = weightedRandom(theme.colors, theme.weights);
 
@@ -217,13 +258,21 @@ function drawRobot(pane, theme, outline, delay = 0) {
     );
     two.update();
   };
-  new ResizeObserver(fit).observe(pane);
+  const observer = new ResizeObserver(fit);
+  observer.observe(pane);
   fit();
 
   pane.querySelectorAll(".js-add-shadow-l").forEach((path) => (path.style.filter = "url(#dropshadow-l)"));
   pane.querySelectorAll(".js-add-shadow-r").forEach((path) => (path.style.filter = "url(#dropshadow-r)"));
 
-  return animate ? rainDown(two, robot, tiles, backing, delay) : Promise.resolve();
+  return {
+    built: animate ? rainDown(two, robot, tiles, backing, delay) : Promise.resolve(),
+    fallAway: async () => {
+      await dropOut(two, robot, tiles, backing);
+      observer.disconnect();
+      two.renderer.domElement.remove();
+    },
+  };
 }
 
 // Skip the animation for people who prefer reduced motion, and for the site's
@@ -270,6 +319,39 @@ function rainDown(two, robot, tiles, backing, delay) {
       else resolve();
     };
     frame(performance.now());
+  });
+}
+
+// How long a robot takes to fall away, and how long each tile takes to leave.
+const FALL_AWAY_TIME = 1100;
+const DROP_TIME = 600;
+
+// The reverse of rainDown(): the backing fades out, then each tile in turn
+// lets go, spins, and falls under gravity out of the bottom of the pane.
+function dropOut(two, robot, tiles, backing) {
+  const drop = () => two.height / robot.scale + 100;
+  const leaves = tiles.map(() => Math.random() * (FALL_AWAY_TIME - DROP_TIME));
+  for (const tile of tiles) tile.spin = (Math.random() - 0.5) * 180 * DEG_TO_RAD;
+
+  return new Promise((resolve) => {
+    const start = performance.now();
+    const frame = (now) => {
+      const elapsed = now - start;
+      const height = drop();
+      tiles.forEach((tile, i) => {
+        const t = Math.min(1, Math.max(0, (elapsed - leaves[i]) / DROP_TIME));
+        for (const shape of tile.shapes) {
+          shape.position.y = tile.y + t * t * height;
+          shape.rotation = tile.rotation + tile.spin * t;
+        }
+      });
+      const opacity = 1 - Math.min(1, elapsed / BACKING_FADE);
+      for (const path of backing) path.opacity = opacity;
+      two.update();
+      if (elapsed < FALL_AWAY_TIME) requestAnimationFrame(frame);
+      else resolve();
+    };
+    frame(start);
   });
 }
 
