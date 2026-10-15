@@ -1,6 +1,6 @@
 {
   "title": "Tw0 Bot",
-  "description": "A mirrored robot built from randomly placed rectangles, scattered by Poisson disk sampling inside a hand-drawn outline.",
+  "description": "A mirrored robot whose body is generated from randomly sized parts, then tiled with rectangles scattered by Poisson disk sampling.",
   "category": "Generative",
   "order": 34,
   "thumbnail": {
