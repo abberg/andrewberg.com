@@ -292,8 +292,8 @@ const BUILD_TIME = 2600;
 const STAGGER = 250;
 const FALL_TIME = 650;
 
-// Drops each tile in from above the top of its cell. It falls under gravity,
-// spinning, then bounces once as it lands in place. The backing stays hidden
+// Drops each tile in from above the top of its cell. It eases out as it
+// comes down, spinning, and settles into place. The backing stays hidden
 // until the last tile lands, then fades in to fill the gaps. Resolves when
 // it's done.
 const BACKING_FADE = 300;
@@ -311,12 +311,12 @@ function rainDown(two, robot, tiles, backing, delay) {
       const height = drop();
       for (const tile of tiles) {
         const t = Math.min(1, Math.max(0, (elapsed - tile.lands * (BUILD_TIME - FALL_TIME)) / FALL_TIME));
-        // The first 80% of the fall accelerates down; the rest is a small bounce.
-        const fall = t < 0.8 ? 1 - (t / 0.8) ** 2 : -0.04 * Math.sin(((t - 0.8) / 0.2) * Math.PI);
+        // Ease out (cubic): fast at first, slowing to settle into place.
+        const fall = (1 - t) ** 3;
         for (const shape of tile.shapes) {
           shape.position.y = tile.y - fall * height;
           // The mirrored tile's flipped scale mirrors its spin too.
-          shape.rotation = tile.rotation + tile.spin * Math.max(0, fall);
+          shape.rotation = tile.rotation + tile.spin * fall;
         }
       }
       const opacity = Math.min(1, Math.max(0, (elapsed - BUILD_TIME) / BACKING_FADE));
