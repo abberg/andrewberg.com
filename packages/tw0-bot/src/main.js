@@ -61,7 +61,7 @@ async function setup() {
     // Lay out both halves before drawing, so each stage sizes to its half.
     document.body.classList.add("pair");
     const panes = themes.map(addPane);
-    themes.forEach((theme, i) => drawRobot(panes[i], theme, outline()));
+    await Promise.all(themes.map((theme, i) => drawRobot(panes[i], theme, outline())));
   } else {
     // A grid that fills the window with cells of roughly CELL_SIZE pixels.
     const columns = Math.max(1, Math.round(innerWidth / CELL_SIZE));
@@ -72,12 +72,13 @@ async function setup() {
     const panes = Array.from({ length: columns * rows }, addPane);
     // Deal palettes from a shuffled deck, so none repeats until all are used.
     let deck = [];
-    for (const pane of panes) {
+    const builds = panes.map((pane) => {
       if (!deck.length) deck = [...palettes].sort(() => Math.random() - 0.5);
       const palette = deck.pop();
       pane.title = palette.name;
-      drawRobot(pane, paletteTheme(palette), outline());
-    }
+      return drawRobot(pane, paletteTheme(palette), outline());
+    });
+    await Promise.all(builds);
   }
 
   // The site's thumbnail script waits for this before taking its screenshot.
@@ -163,13 +164,21 @@ function drawRobot(pane, theme, outline) {
     maxDistance: 30,
     tries: 20,
   });
+  // Each tile lands at a time between 0 and 1 through the build: mostly from
+  // the feet up, with some jitter. Tiles are drawn in landing order, so a
+  // falling tile is always in front of the ones already in place.
   const points = p
     .fill()
     .map((point) => [point[0] - outline.width, point[1] - outline.height * 0.5])
     .filter((point) => inside(point[0], point[1]))
-    .sort(() => Math.random() - 0.5);
+    .map((point) => {
+      const fromFeet = 0.5 - point[1] / outline.height;
+      return { point, lands: 0.65 * fromFeet + 0.35 * Math.random() };
+    })
+    .sort((a, b) => a.lands - b.lands);
 
-  points.forEach((point) => {
+  const tiles = [];
+  points.forEach(({ point, lands }) => {
     const shape = getShape()(two);
     shape.position.set(point[0], point[1]);
     shape.rotation = (Math.random() * 16 - 8) * DEG_TO_RAD;
@@ -184,6 +193,7 @@ function drawRobot(pane, theme, outline) {
     mirrored.scale = mirrorScale.multiply(mirrored.scale);
     mirrored.className = "js-add-shadow-r";
     robot.add(mirrored);
+    tiles.push({ shapes: [shape, mirrored], y: point[1], rotation: shape.rotation, lands });
   });
 
   // Centre the robot in its half, shrinking it to fit if the half is small.
@@ -206,6 +216,47 @@ function drawRobot(pane, theme, outline) {
 
   pane.querySelectorAll(".js-add-shadow-l").forEach((path) => (path.style.filter = "url(#dropshadow-l)"));
   pane.querySelectorAll(".js-add-shadow-r").forEach((path) => (path.style.filter = "url(#dropshadow-r)"));
+
+  return animate ? rainDown(two, robot, tiles) : Promise.resolve();
+}
+
+// Skip the animation for people who prefer reduced motion, and for the site's
+// thumbnail script, which asks for reduced motion too.
+const animate = !matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// How long the whole build takes, and how long each tile takes to fall.
+const BUILD_TIME = 2600;
+const FALL_TIME = 650;
+
+// Drops each tile in from above the top of its cell. It falls under gravity,
+// spinning, then bounces once as it lands in place. Resolves when every tile
+// has landed.
+function rainDown(two, robot, tiles) {
+  // Far enough to start above the top of the cell, in the robot's own units.
+  const drop = () => two.height / robot.scale + 100;
+  for (const tile of tiles) tile.spin = (Math.random() - 0.5) * 120 * DEG_TO_RAD;
+
+  return new Promise((resolve) => {
+    const start = performance.now();
+    const frame = (now) => {
+      const elapsed = now - start;
+      const height = drop();
+      for (const tile of tiles) {
+        const t = Math.min(1, Math.max(0, (elapsed - tile.lands * (BUILD_TIME - FALL_TIME)) / FALL_TIME));
+        // The first 80% of the fall accelerates down; the rest is a small bounce.
+        const fall = t < 0.8 ? 1 - (t / 0.8) ** 2 : -0.04 * Math.sin(((t - 0.8) / 0.2) * Math.PI);
+        for (const shape of tile.shapes) {
+          shape.position.y = tile.y - fall * height;
+          // The mirrored tile's flipped scale mirrors its spin too.
+          shape.rotation = tile.rotation + tile.spin * Math.max(0, fall);
+        }
+      }
+      two.update();
+      if (elapsed < BUILD_TIME) requestAnimationFrame(frame);
+      else resolve();
+    };
+    frame(start);
+  });
 }
 
 function loadOutline(uri) {
