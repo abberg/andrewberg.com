@@ -405,6 +405,90 @@ const between = (min, max) => min + Math.random() * (max - min);
 const factor = (min, max) => Math.exp(between(Math.log(min), Math.log(max)));
 const chance = (odds) => Math.random() < odds;
 
+// Ranges for each proportion, as multipliers on the base sizes (waist is a
+// share of the chest width). factor() picks within each range.
+const archetypes = [
+  // Heroic: a small head on wide shoulders, a pinched waist, long legs.
+  {
+    bulk: [1, 1.3],
+    headSize: [0.45, 0.65],
+    headAspect: [0.7, 1.2],
+    torsoLength: [0.8, 1.1],
+    shoulderSize: [1.6, 2.4],
+    armLength: [1, 1.3],
+    armBulk: [0.9, 1.3],
+    legLength: [1.3, 1.8],
+    legBulk: [0.8, 1.1],
+    waist: [0.3, 0.42],
+  },
+  // Brute: huge arms and chest, a tiny head, short bowed legs.
+  {
+    bulk: [1.4, 1.8],
+    headSize: [0.4, 0.55],
+    headAspect: [1.1, 1.8],
+    torsoLength: [1, 1.4],
+    shoulderSize: [1, 1.6],
+    armLength: [1.3, 1.7],
+    armBulk: [1.6, 2.2],
+    legLength: [0.4, 0.6],
+    legBulk: [1.1, 1.5],
+    waist: [0.5, 0.65],
+  },
+  // Lanky: a narrow body on long, thin limbs.
+  {
+    bulk: [0.55, 0.75],
+    headSize: [0.6, 0.9],
+    headAspect: [0.5, 0.8],
+    torsoLength: [0.7, 1],
+    shoulderSize: [0.4, 0.9],
+    armLength: [1.5, 2],
+    armBulk: [0.45, 0.6],
+    legLength: [1.6, 2],
+    legBulk: [0.5, 0.7],
+    waist: [0.35, 0.5],
+  },
+  // Tank: a massive block of a body, the head sunk into it, stubby legs.
+  {
+    bulk: [1.5, 1.9],
+    headSize: [0.4, 0.55],
+    headAspect: [1.3, 2],
+    torsoLength: [1.3, 1.7],
+    shoulderSize: [0.3, 0.6],
+    armLength: [0.6, 0.85],
+    armBulk: [1, 1.4],
+    legLength: [0.35, 0.5],
+    legBulk: [1.5, 1.9],
+    waist: [0.75, 0.9],
+  },
+  // Knight: tall and elegant, with a small head, towering shoulder pads, a
+  // slim waist and long tapering legs.
+  {
+    bulk: [0.8, 1],
+    headSize: [0.45, 0.6],
+    headAspect: [0.6, 0.9],
+    torsoLength: [0.9, 1.2],
+    shoulderSize: [2, 2.6],
+    armLength: [1.1, 1.4],
+    armBulk: [0.6, 0.8],
+    legLength: [1.4, 1.8],
+    legBulk: [0.7, 0.9],
+    waist: [0.28, 0.38],
+  },
+  // Big-head: a large head on a compact body, like a super-deformed kit.
+  {
+    bulk: [0.8, 1.1],
+    headSize: [1.8, 2.4],
+    headAspect: [0.9, 1.3],
+    torsoLength: [0.6, 0.8],
+    shoulderSize: [0.8, 1.3],
+    armLength: [0.6, 0.8],
+    armBulk: [1, 1.4],
+    legLength: [0.4, 0.6],
+    legBulk: [1.1, 1.4],
+    waist: [0.5, 0.7],
+  },
+];
+
 // Builds the left half of a robot from randomly sized body parts, each a
 // four-sided polygon. Parts are measured from the centre line (x) and the top
 // of the head (y), and stack on one another so the body always joins up. The
@@ -424,16 +508,25 @@ function generateOutline() {
     parts.push({ kind, points: [[x0, y0], [x1, y0], [x3, y1], [x2, y1]] });
   };
 
-  // This robot's proportions.
-  const bulk = factor(0.6, 1.7);
-  const headSize = factor(0.5, 2);
-  const headAspect = factor(0.5, 2);
-  const torsoLength = factor(0.6, 1.6);
-  const shoulderSize = factor(0.3, 2.2);
-  const armLength = factor(0.5, 1.8);
-  const armBulk = factor(0.5, 1.8);
-  const legLength = factor(0.35, 1.8);
-  const legBulk = factor(0.6, 1.8);
+  // This robot's proportions, from one of the archetypes below. Each pushes
+  // a few relationships to an extreme (a tiny head on huge shoulders, a
+  // pinched waist, long legs under a short torso) so the silhouettes read as
+  // characters rather than averages.
+  const archetype = archetypes[Math.floor(Math.random() * archetypes.length)];
+  const {
+    bulk,
+    headSize,
+    headAspect,
+    torsoLength,
+    shoulderSize,
+    armLength,
+    armBulk,
+    legLength,
+    legBulk,
+    waist,
+  } = Object.fromEntries(
+    Object.entries(archetype).map(([key, [min, max]]) => [key, factor(min, max)])
+  );
 
   const headW = between(28, 45) * headSize * Math.sqrt(headAspect);
   const headH = between(70, 100) * headSize / Math.sqrt(headAspect);
@@ -508,7 +601,9 @@ function generateOutline() {
   box(forearmX - handW / 2, forearmX + handW / 2, wrist - 2, wrist + between(20, 45) * Math.sqrt(armBulk));
 
   kind = "body";
-  const waistW = Math.min(chestW - 10, between(30, 55) * bulk);
+  // The waist as a share of the chest, so a pinched waist stays pinched
+  // however broad the chest is.
+  const waistW = Math.max(18, chestW * waist);
   const waistBottom = chestBottom + between(30, 80) * torsoLength;
   box(0, waistW, chestBottom - 2, waistBottom);
 
