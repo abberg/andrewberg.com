@@ -363,10 +363,11 @@ function dropOut(two, robot, tiles, backing) {
   });
 }
 
-// The standard ease-out-back curve (as on easings.net), from 0 to 1 with a
-// slight overshoot near the end.
+// The ease-out-back curve (as on easings.net), from 0 to 1 with a slight
+// overshoot near the end. The standard 1.70158 overshoots by 10%; 0.8 is
+// about 3%.
 function easeOutBack(t) {
-  const c1 = 1.70158;
+  const c1 = 0.8;
   const c3 = c1 + 1;
   return 1 + c3 * (t - 1) ** 3 + c1 * (t - 1) ** 2;
 }
