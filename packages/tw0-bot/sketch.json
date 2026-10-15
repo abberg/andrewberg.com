@@ -1,9 +1,10 @@
 {
   "title": "Tw0 Bot",
-  "description": "Two mirrored robots side by side, white on purple and black on cream, each with a body generated from randomly sized parts and tiled with rectangles scattered by Poisson disk sampling.",
+  "description": "A grid of mirrored robots, each with a body generated from randomly sized parts, tiled with rectangles scattered by Poisson disk sampling, and coloured with its own palette from Colormind.",
   "category": "Generative",
   "order": 34,
   "thumbnail": {
+    "path": "?thumbnail=1",
     "readySelector": "html[data-thumbnail-ready=\"true\"]"
   }
 }

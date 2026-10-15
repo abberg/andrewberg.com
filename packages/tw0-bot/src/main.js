@@ -5,9 +5,10 @@ import Intersects from "intersects";
 
 const DEG_TO_RAD = Math.PI / 180;
 
-// The window is split in two, with a robot in each half. Each theme sets the
-// background, the colour that shows between the tiles, and the tile colours
-// with their weights: mostly the main colour, with a few accents.
+// Each theme sets the background, the colour that shows between the tiles, and
+// the tile colours with their weights: mostly the main colour, with a few
+// accents. ?layout=pair shows these two side by side; the default grid fetches
+// a palette per robot from Colormind and falls back to these if it can't.
 const themes = [
   {
     background: "#392F5A",
@@ -48,24 +49,86 @@ const shapes = [
 const shapeWeights = [44, 44, 10, 10, 2];
 const getShape = weightedRandom(shapes, shapeWeights);
 
+const params = new URLSearchParams(location.search);
+// The site's thumbnail script loads the sketch with ?thumbnail=1. It uses the
+// built-in palettes, so the site build doesn't depend on Colormind being up.
+const thumbnailMode = params.has("thumbnail");
+
 async function setup() {
   // ?outline=svg uses the original hand-drawn outline instead of generated ones.
-  const useSvg = new URLSearchParams(location.search).get("outline") === "svg";
-  const svg = useSvg ? await svgOutline() : null;
-  // Lay out both halves before drawing, so each stage sizes to its half.
-  const panes = themes.map(() => {
-    const pane = document.createElement("div");
-    pane.className = "pane";
-    document.body.append(pane);
-    return pane;
-  });
-  themes.forEach((theme, i) => drawRobot(panes[i], theme, svg ?? generateOutline()));
+  const svg = params.get("outline") === "svg" ? await svgOutline() : null;
+  const outline = () => svg ?? generateOutline();
 
-  document.querySelectorAll(".js-add-shadow-l").forEach((path) => (path.style.filter = "url(#dropshadow-l)"));
-  document.querySelectorAll(".js-add-shadow-r").forEach((path) => (path.style.filter = "url(#dropshadow-r)"));
+  if (params.get("layout") === "pair") {
+    // Lay out both halves before drawing, so each stage sizes to its half.
+    document.body.classList.add("pair");
+    const panes = themes.map(addPane);
+    themes.forEach((theme, i) => drawRobot(panes[i], theme, outline()));
+  } else {
+    // A grid that fills the window with cells of roughly CELL_SIZE pixels.
+    const columns = Math.max(1, Math.round(innerWidth / CELL_SIZE));
+    const rows = Math.max(1, Math.round(innerHeight / CELL_SIZE));
+    document.body.classList.add("grid");
+    document.body.style.gridTemplateColumns = `repeat(${columns}, 1fr)`;
+    document.body.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+    const panes = Array.from({ length: columns * rows }, addPane);
+    await Promise.all(
+      panes.map(async (pane, i) => {
+        const theme = thumbnailMode
+          ? themes[i % themes.length]
+          : await fetchTheme().catch(() => themes[i % themes.length]);
+        drawRobot(pane, theme, outline());
+      })
+    );
+  }
 
   // The site's thumbnail script waits for this before taking its screenshot.
   document.documentElement.dataset.thumbnailReady = "true";
+}
+
+const CELL_SIZE = 300;
+
+function addPane() {
+  const pane = document.createElement("div");
+  pane.className = "pane";
+  document.body.append(pane);
+  return pane;
+}
+
+// Asks Colormind (http://colormind.io/api-access/) for a five-colour palette
+// and turns it into a theme.
+async function fetchTheme() {
+  const response = await fetch("https://colormind.io/api/", {
+    method: "POST",
+    body: JSON.stringify({ model: "default" }),
+    signal: AbortSignal.timeout(5000),
+  });
+  if (!response.ok) throw new Error(`Colormind: ${response.status}`);
+  const { result } = await response.json();
+  return paletteTheme(result);
+}
+
+// Sorts the palette from dark to light, then picks a light robot on the
+// darkest colour or a dark robot on the lightest, whichever has more contrast.
+// The middle three colours are the accents, and the backing between the tiles
+// is a deep shade of whichever colour is darkest.
+function paletteTheme(palette) {
+  const sorted = [...palette].sort((a, b) => luminance(a) - luminance(b));
+  const [darkest, ...middle] = sorted;
+  const lightest = middle.pop();
+  const lightRobot = chance(0.5);
+  const hex = (rgb) => "#" + rgb.map((c) => Math.round(c).toString(16).padStart(2, "0")).join("");
+  const shade = (rgb, amount) => rgb.map((c) => c * (1 - amount));
+  return {
+    background: hex(lightRobot ? darkest : lightest),
+    backing: hex(shade(darkest, lightRobot ? 0.6 : 0.3)),
+    colors: [...middle.map(hex), hex(lightRobot ? lightest : darkest)],
+    weights: [6, 5, 4, 85],
+  };
+}
+
+function luminance([r, g, b]) {
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 
 function drawRobot(pane, theme, outline) {
@@ -126,8 +189,9 @@ function drawRobot(pane, theme, outline) {
     two.width = pane.clientWidth;
     two.height = pane.clientHeight;
     robot.position.set(two.width / 2, two.height / 2);
-    robot.scale = Math.min(
-      1,
+    // In the grid the 0.85 leaves a little background between neighbours.
+    robot.scale = 0.85 * Math.min(
+      1 / 0.85,
       two.width / (outline.width * 2 + 80),
       two.height / (outline.height + 80)
     );
@@ -135,6 +199,9 @@ function drawRobot(pane, theme, outline) {
   };
   new ResizeObserver(fit).observe(pane);
   fit();
+
+  pane.querySelectorAll(".js-add-shadow-l").forEach((path) => (path.style.filter = "url(#dropshadow-l)"));
+  pane.querySelectorAll(".js-add-shadow-r").forEach((path) => (path.style.filter = "url(#dropshadow-r)"));
 }
 
 function loadOutline(uri) {
