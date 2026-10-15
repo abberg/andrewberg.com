@@ -98,17 +98,24 @@ async function setup() {
     await Promise.all(robots.map((robot) => robot.built));
     document.documentElement.dataset.thumbnailReady = "true";
 
-    // Then every SWAP_INTERVAL, a random robot falls away, its cell changes
-    // to a new palette's background, and a new robot rains down in its place.
-    // The thumbnail asks for reduced motion, so it never gets here.
+    // Then every SWAP_INTERVAL, a robot falls away, its cell changes to a new
+    // palette's background, and a new robot rains down in its place. The cells
+    // go in a shuffled order, so each is swapped once before any is swapped
+    // again; the order is reshuffled each time it runs out. The thumbnail asks
+    // for reduced motion, so it never gets here.
     if (!animate) return;
-    let last = -1;
-    while (true) {
+    const shuffle = () => panes.map((_, i) => i).sort(() => Math.random() - 0.5);
+    let order = shuffle();
+    for (let n = 0; ; n++) {
+      if (n === order.length) {
+        const last = order[n - 1];
+        // Don't start the new round on the cell that ended the last one.
+        do order = shuffle();
+        while (panes.length > 1 && order[0] === last);
+        n = 0;
+      }
+      const i = order[n];
       await wait(SWAP_INTERVAL);
-      let i;
-      do i = Math.floor(Math.random() * panes.length);
-      while (panes.length > 1 && i === last);
-      last = i;
       await robots[i].fallAway();
       robots[i] = build(panes[i], BACKGROUND_CHANGE);
       await robots[i].built;
