@@ -1,0 +1,20 @@
+{
+  "name": "tw0-bot",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@thi.ng/random": "4.1.54",
+    "intersects": "2.7.2",
+    "poisson-disk-sampling": "2.3.1",
+    "two.js": "0.8.24"
+  },
+  "devDependencies": {
+    "vite": "8.3.0"
+  }
+}
