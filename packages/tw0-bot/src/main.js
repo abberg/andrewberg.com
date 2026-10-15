@@ -143,6 +143,7 @@ function drawRobot(pane, theme, outline) {
   const getColor = weightedRandom(theme.colors, theme.weights);
 
   // The backing that shows between the tiles, and its mirror image.
+  const backing = [];
   for (const polygon of outline.polygons) {
     for (const flip of [1, -1]) {
       const anchors = [];
@@ -153,6 +154,7 @@ function drawRobot(pane, theme, outline) {
       path.fill = theme.backing;
       path.noStroke();
       robot.add(path);
+      backing.push(path);
     }
   }
 
@@ -217,7 +219,7 @@ function drawRobot(pane, theme, outline) {
   pane.querySelectorAll(".js-add-shadow-l").forEach((path) => (path.style.filter = "url(#dropshadow-l)"));
   pane.querySelectorAll(".js-add-shadow-r").forEach((path) => (path.style.filter = "url(#dropshadow-r)"));
 
-  return animate ? rainDown(two, robot, tiles) : Promise.resolve();
+  return animate ? rainDown(two, robot, tiles, backing) : Promise.resolve();
 }
 
 // Skip the animation for people who prefer reduced motion, and for the site's
@@ -229,9 +231,12 @@ const BUILD_TIME = 2600;
 const FALL_TIME = 650;
 
 // Drops each tile in from above the top of its cell. It falls under gravity,
-// spinning, then bounces once as it lands in place. Resolves when every tile
-// has landed.
-function rainDown(two, robot, tiles) {
+// spinning, then bounces once as it lands in place. The backing stays hidden
+// until the last tile lands, then fades in to fill the gaps. Resolves when
+// it's done.
+const BACKING_FADE = 300;
+
+function rainDown(two, robot, tiles, backing) {
   // Far enough to start above the top of the cell, in the robot's own units.
   const drop = () => two.height / robot.scale + 100;
   for (const tile of tiles) tile.spin = (Math.random() - 0.5) * 120 * DEG_TO_RAD;
@@ -251,8 +256,10 @@ function rainDown(two, robot, tiles) {
           shape.rotation = tile.rotation + tile.spin * Math.max(0, fall);
         }
       }
+      const opacity = Math.min(1, Math.max(0, (elapsed - BUILD_TIME) / BACKING_FADE));
+      for (const path of backing) path.opacity = opacity;
       two.update();
-      if (elapsed < BUILD_TIME) requestAnimationFrame(frame);
+      if (elapsed < BUILD_TIME + BACKING_FADE) requestAnimationFrame(frame);
       else resolve();
     };
     frame(start);
