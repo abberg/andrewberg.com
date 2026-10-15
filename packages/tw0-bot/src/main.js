@@ -6,22 +6,24 @@ import Intersects from "intersects";
 const DEG_TO_RAD = Math.PI / 180;
 
 // The window is split in two, with a robot in each half. Each theme sets the
-// background, the colour that shows between the tiles, and the tile colours.
-// The accents are shared; the main tile colour swaps from white to black.
-const accents = ["#FF8811", "#9DD9D2", "#F4D06F"];
+// background, the colour that shows between the tiles, and the tile colours
+// with their weights: mostly the main colour, with a few accents.
 const themes = [
   {
     background: "#392F5A",
     backing: "#000",
-    colors: [...accents, "#FFF8F0"],
+    colors: ["#FF8811", "#9DD9D2", "#F4D06F", "#FFF8F0"],
+    weights: [5, 5, 4, 86],
   },
   {
+    // Black, indigo, purple and pink. The dark accents barely show against
+    // black, so they get more weight than the light robot's accents.
     background: "#FFF8F0",
-    backing: "#392F5A",
-    colors: [...accents, "#231F20"],
+    backing: "#150050",
+    colors: ["#150050", "#3F0071", "#FB2576", "#000000"],
+    weights: [12, 10, 6, 72],
   },
 ];
-const weights = [5, 5, 4, 86];
 
 const shapes = [
   (two) => two.makeRectangle(0, 0, 30, 40 * Math.random() + 60),
@@ -69,7 +71,7 @@ function drawRobot(pane, theme, outline) {
   const two = new Two().appendTo(pane);
   two.renderer.domElement.style.background = theme.background;
   const robot = two.makeGroup();
-  const getColor = weightedRandom(theme.colors, weights);
+  const getColor = weightedRandom(theme.colors, theme.weights);
 
   // The backing that shows between the tiles, and its mirror image.
   for (const polygon of outline.polygons) {
