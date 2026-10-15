@@ -136,11 +136,16 @@ async function svgOutline() {
 }
 
 const between = (min, max) => min + Math.random() * (max - min);
+// Like between(), but even odds of landing either side of the geometric
+// middle, so 0.5 to 2 is as likely to halve a size as to double it.
+const factor = (min, max) => Math.exp(between(Math.log(min), Math.log(max)));
+const chance = (odds) => Math.random() < odds;
 
 // Builds the left half of a robot from randomly sized body parts, each a
 // four-sided polygon. Parts are measured from the centre line (x) and the top
 // of the head (y), and stack on one another so the body always joins up. The
-// ranges are taken from the proportions of outline.svg.
+// base sizes come from outline.svg; each robot then gets its own proportions
+// and a few optional parts, so some are squat tanks and some are lanky.
 function generateOutline() {
   const parts = [];
   // A rectangle from x0 to x1 out from the centre line, y0 to y1 down.
@@ -150,28 +155,61 @@ function generateOutline() {
     parts.push([[x0, y0], [x1, y0], [x3, y1], [x2, y1]]);
   };
 
-  const headW = between(28, 55);
-  const headH = between(70, 110);
-  box(0, headW, 0, headH);
+  // This robot's proportions.
+  const bulk = factor(0.6, 1.7);
+  const headSize = factor(0.5, 2);
+  const headAspect = factor(0.5, 2);
+  const torsoLength = factor(0.6, 1.6);
+  const shoulderSize = factor(0.3, 2.2);
+  const armLength = factor(0.5, 1.8);
+  const armBulk = factor(0.5, 1.8);
+  const legLength = factor(0.35, 1.8);
+  const legBulk = factor(0.6, 1.8);
 
-  const collarH = between(12, 24);
-  box(between(8, 20), headW + between(15, 40), headH, headH + collarH);
+  const headW = between(28, 45) * headSize * Math.sqrt(headAspect);
+  const headH = between(70, 100) * headSize / Math.sqrt(headAspect);
+  // Leave room above the head for a crest or antennae.
+  const headTop = 60;
+  box(0, headW, headTop, headTop + headH);
 
-  const chestTop = headH + collarH * between(0, 0.6);
-  const chestW = between(70, 105);
-  const chestBottom = chestTop + between(80, 115);
+  if (chance(0.35)) {
+    // A crest down the middle of the head.
+    const crestW = headW * between(0.15, 0.5);
+    box(0, crestW, headTop - between(15, 55), headTop + 5);
+  } else if (chance(0.4)) {
+    // Antennae or horns, leaning out.
+    const hornX = headW * between(0.4, 0.95);
+    const hornW = between(6, 16);
+    const lean = between(-5, 30);
+    quad(hornX - hornW, hornX, hornX - hornW + lean, hornX - hornW / 3 + lean, headTop + 5, headTop - between(20, 60));
+  }
+
+  const neck = headTop + headH;
+  const collarH = chance(0.3) ? 0 : between(12, 24);
+  if (collarH) box(between(8, 20), headW + between(15, 40) * bulk, neck, neck + collarH);
+
+  const chestTop = neck + collarH * between(0, 0.6);
+  const chestW = between(70, 100) * bulk;
+  const chestBottom = chestTop + between(80, 110) * torsoLength;
   box(0, chestW, chestTop, chestBottom);
 
-  const shoulderW = chestW + between(50, 85);
-  const shoulderTop = chestTop - between(0, 15);
-  const shoulderBottom = shoulderTop + between(50, 75);
+  const shoulderW = chestW + between(40, 75) * shoulderSize;
+  // Big pads ride up beside the head.
+  const shoulderTop = chestTop - between(0, 20) * shoulderSize;
+  const shoulderBottom = shoulderTop + between(45, 70) * Math.sqrt(shoulderSize);
   box(chestW * between(0.4, 0.8), shoulderW, shoulderTop, shoulderBottom);
+  if (chance(0.3)) {
+    // A spike rising off the shoulder pad.
+    const spikeX = between(chestW, shoulderW - 10);
+    const spikeW = between(15, 40);
+    quad(spikeX - spikeW, spikeX + spikeW, spikeX + between(0, 25), spikeX + between(0, 25) + 4, shoulderTop + 5, shoulderTop - between(25, 70));
+  }
 
   // Upper arm, angled out from under the shoulder.
-  const upperArmW = between(25, 40);
+  const upperArmW = between(25, 40) * armBulk;
   const upperArmX = shoulderW - upperArmW * between(0.6, 1.4);
-  const upperArmLean = between(5, 25);
-  const elbow = shoulderBottom + between(45, 80);
+  const upperArmLean = between(0, 30);
+  const elbow = shoulderBottom + between(45, 75) * armLength;
   quad(
     upperArmX - upperArmW / 2,
     upperArmX + upperArmW / 2,
@@ -182,48 +220,74 @@ function generateOutline() {
   );
 
   const forearmX = upperArmX + upperArmLean;
-  const forearmW = between(55, 80);
-  const wrist = elbow + between(100, 150);
-  box(forearmX - forearmW / 2, forearmX + forearmW / 2, elbow, wrist);
+  const forearmTopW = between(45, 75) * armBulk;
+  // Some forearms flare out toward the wrist, like gauntlets.
+  const forearmBottomW = forearmTopW * (chance(0.35) ? between(1.2, 1.7) : 1);
+  const wrist = elbow + between(95, 140) * armLength;
+  quad(
+    forearmX - forearmTopW / 2,
+    forearmX + forearmTopW / 2,
+    forearmX - forearmBottomW / 2,
+    forearmX + forearmBottomW / 2,
+    elbow,
+    wrist
+  );
 
-  const handW = forearmW * between(0.55, 0.8);
-  box(forearmX - handW / 2, forearmX + handW / 2, wrist - 2, wrist + between(22, 40));
+  const handW = forearmTopW * between(0.5, 0.9);
+  box(forearmX - handW / 2, forearmX + handW / 2, wrist - 2, wrist + between(20, 45) * Math.sqrt(armBulk));
 
-  const waistW = between(30, Math.min(55, chestW - 20));
-  const waistBottom = chestBottom + between(40, 85);
+  const waistW = Math.min(chestW - 10, between(30, 55) * bulk);
+  const waistBottom = chestBottom + between(30, 80) * torsoLength;
   box(0, waistW, chestBottom - 2, waistBottom);
 
-  const hipW = waistW + between(10, 25);
-  const hipBottom = waistBottom + between(20, 35);
+  const hipW = waistW + between(10, 30) * legBulk;
+  const hipBottom = waistBottom + between(18, 35);
   box(0, hipW, waistBottom - 2, hipBottom);
+  if (chance(0.25)) {
+    // A skirt of armour flaring out from the hips.
+    quad(0, hipW, 0, hipW + between(15, 50), waistBottom, hipBottom + between(25, 60) * legLength);
+  }
 
-  // Thigh, angled in from the hip toward the knee.
-  const legGap = between(12, Math.min(35, hipW - 20));
-  const thighW = between(30, 50);
-  const thighIn = between(0, 15);
-  const knee = hipBottom + between(90, 140);
+  // Thigh, angled in or out from the hip toward the knee.
+  const legGap = between(8, Math.max(10, hipW * 0.5));
+  const thighW = between(30, 45) * legBulk;
+  const thighIn = between(-10, 20);
+  const knee = hipBottom + between(80, 130) * legLength;
   quad(legGap, legGap + thighW, legGap + thighIn, legGap + thighIn + thighW, hipBottom - 25, knee);
 
-  const shinX = legGap + thighIn + thighW / 2 + between(0, 15);
-  const shinW = between(55, 85);
-  const ankle = knee + between(130, 180);
-  box(Math.max(legGap, shinX - shinW / 2), shinX + shinW / 2, knee, ankle);
+  const shinX = legGap + thighIn + thighW / 2 + between(0, 20) * legBulk;
+  const shinTopW = between(50, 75) * legBulk;
+  // Some shins taper toward the ankle, some swell like boots.
+  const shinBottomW = shinTopW * factor(0.6, 1.5);
+  const ankle = knee + between(120, 170) * legLength;
+  quad(
+    Math.max(legGap, shinX - shinTopW / 2),
+    shinX + shinTopW / 2,
+    Math.max(legGap, shinX - shinBottomW / 2),
+    shinX + shinBottomW / 2,
+    knee,
+    ankle
+  );
 
-  const footTopW = shinW * between(0.35, 0.6);
-  const footW = shinW + between(10, 35);
+  const footTopW = shinBottomW * between(0.35, 0.8);
+  const footW = shinBottomW + between(5, 45) * legBulk;
   quad(
     shinX - footTopW / 2,
     shinX + footTopW / 2,
     Math.max(legGap - 10, shinX - footW / 2),
     shinX + footW / 2,
     ankle,
-    ankle + between(25, 45)
+    ankle + between(20, 45) * Math.sqrt(legBulk)
   );
+
+  // Trim the empty space left above the head when there's nothing up there.
+  const top = Math.min(...parts.flat().map(([, y]) => y));
+  for (const part of parts) for (const point of part) point[1] -= top;
 
   // Fit the robot to the same box as outline.svg, keeping its proportions.
   const width = Math.max(...parts.flat().map(([x]) => x));
   const height = Math.max(...parts.flat().map(([, y]) => y));
-  const scale = Math.min(1, 640 / height, 240 / width);
+  const scale = Math.min(1, 640 / height, 360 / width);
 
   // Convert to scene coordinates, with the left half to the left of x = 0.
   const polygons = parts.map((part) =>
