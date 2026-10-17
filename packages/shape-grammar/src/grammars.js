@@ -147,22 +147,29 @@ const HEX_HEIGHT = Math.sqrt(3) / 2;
 const EDGES = [0, 1, 2, 3, 4, 5];
 const insetAt = (edge) => compose(rotate(60 * edge), translate(0.75, HEX_HEIGHT / 2), scale(0.5));
 const hexRules = {
-  inset: { at: insetAt, childEdge: null },
+  // An inset hexagon is a detail, not a seed: no rule touches it again.
+  inset: { at: insetAt, terminal: true },
   // A neighbour's edge 3 is the one it shares with its parent.
   neighbour: { at: (edge) => compose(rotate(60 * edge), translate(1.5, HEX_HEIGHT)), childEdge: 3 },
   // The inverse of inset: in the bigger hexagon's frame, this one sits on
   // its edge 0, which is then taken.
   outset: { at: (edge) => compose(rotate(60 * edge), scale(2), translate(-0.75, -HEX_HEIGHT / 2)), childEdge: 0 },
 };
-const MAX_HEXAGONS = 500;
-const MIN_SCALE = 20;
-const MAX_SCALE = 200;
+// Three sizes at most (the axiom, half it, and twice it), and a cap on the
+// count, so runs stay legible.
+const MAX_HEXAGONS = 110;
+const MIN_SCALE = 25;
+const MAX_SCALE = 100;
 
 // Where a hexagon would land, and how big.
 function hexPlace(transform) {
   const [x, y] = apply(transform, [0, 0]);
   return { x, y, size: scaleOf(transform) };
 }
+
+// Rounded to a tenth, nudged so values a hair either side of a half round alike.
+const round = (v) => Math.round(v * 10 + 1e-6);
+const placeKey = ({ x, y, size }) => `${round(x)},${round(y)},${round(size)}`;
 
 // Hexagons of one size may touch but not overlap, which keeps runs legible:
 // two the same size overlap when their centres are closer than √3 sides.
@@ -195,21 +202,48 @@ function makePlans(random, steps) {
 
 // The edges of a hexagon this step's plan can grow on: free, inside the size
 // limits, and not overlapping a hexagon of the same size.
-function hexMoves(matched, plan, context) {
-  if (!context.placed) context.placed = context.shapes.map((s) => hexPlace(s.transform));
-  if (context.shapes.length > MAX_HEXAGONS) return [];
+// The moves a hexagon could make this step, before checking for collisions
+// with other moves in the same step.
+function candidateMoves(matched, plan, context, period) {
+  if (matched.label == null || context.shapes.length > MAX_HEXAGONS) return [];
   const size = scaleOf(matched.transform);
-  return EDGES.filter((edge) => {
+  // A hexagon centred on the middle of the design is its own symmetric copy,
+  // so it only takes a step whose plan has the design's symmetry.
+  const [x, y] = apply(matched.transform, [0, 0]);
+  if (Math.hypot(x, y) < 0.5 && plan.some((ruleName, edge) => ruleName !== plan[(edge + period) % 6])) return [];
+  return EDGES.flatMap((edge) => {
     const ruleName = plan[edge];
-    if (!ruleName || !matched.data.free.includes(edge)) return false;
-    if (ruleName === "inset" && size / 2 < MIN_SCALE) return false;
-    if (ruleName === "outset" && size * 2 > MAX_SCALE) return false;
-    return !crowded(hexPlace(compose(matched.transform, hexRules[ruleName].at(edge))), context.placed);
+    if (!ruleName || !matched.data.free.includes(edge)) return [];
+    // With a little slack, as rotations leave sizes a hair off.
+    if (ruleName === "inset" && size / 2 < MIN_SCALE - 0.01) return [];
+    if (ruleName === "outset" && size * 2 > MAX_SCALE + 0.01) return [];
+    const place = hexPlace(compose(matched.transform, hexRules[ruleName].at(edge)));
+    return crowded(place, context.placed) ? [] : [{ edge, key: placeKey(place) }];
   });
+}
+
+// The edges a hexagon grows on this step. Collisions are judged against the
+// hexagons from earlier steps, and a spot two moves in the same step both
+// want goes to neither: picking one would depend on the order hexagons are
+// visited in, which would break the symmetry.
+function hexMoves(matched, plan, context, period) {
+  if (!context.placed) {
+    context.placed = context.shapes.map((s) => hexPlace(s.transform));
+    context.wanted = new Map();
+    for (const s of context.shapes) {
+      for (const { key } of candidateMoves(s, plan, context, period)) context.wanted.set(key, (context.wanted.get(key) ?? 0) + 1);
+    }
+  }
+  return candidateMoves(matched, plan, context, period)
+    .filter(({ key }) => context.wanted.get(key) === 1)
+    .map(({ edge }) => edge);
 }
 
 function hexGrammar(plans) {
   const planFor = (context) => plans[context.step - 1];
+  // The design's symmetry is the first step's: six-fold if its plan repeats
+  // every edge, three-fold if every other edge.
+  const period = plans[0].every((ruleName, edge) => ruleName === plans[0][(edge + 1) % 6]) ? 1 : 2;
   return grammar({
     axiom: [shape(hexagon(1), { label: "H", transform: scale(50), data: { free: EDGES } })],
     steps: plans.length,
@@ -218,18 +252,18 @@ function hexGrammar(plans) {
         "H",
         (matched, context) => {
           const plan = planFor(context);
-          const edges = hexMoves(matched, plan, context);
+          const edges = hexMoves(matched, plan, context, period);
           const free = matched.data.free.filter((edge) => !edges.includes(edge));
           return [
             { label: free.length ? "H" : null, data: { free } },
             ...edges.map((edge) => {
-              const { at, childEdge } = hexRules[plan[edge]];
-              context.placed.push(hexPlace(compose(matched.transform, at(edge))));
+              const { at, childEdge, terminal } = hexRules[plan[edge]];
+              if (terminal) return { at: at(edge) };
               return { label: "H", at: at(edge), data: { free: EDGES.filter((e) => e !== childEdge) } };
             }),
           ];
         },
-        { when: (matched, context) => hexMoves(matched, planFor(context), context).length > 0 },
+        { when: (matched, context) => hexMoves(matched, planFor(context), context, period).length > 0 },
       ),
     ],
   });
