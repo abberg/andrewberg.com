@@ -4,13 +4,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" href="data:,">
-  <title>Shape Grammar — Andrew Berg</title>
+  <title>Shape Grammars — Andrew Berg</title>
   <style>
     :root { --paper: #000; --ink: #fff; --muted: #8A8A8A; }
     html { background: var(--paper); color: var(--ink); font: 13px/1.45 ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
-    body { box-sizing: border-box; margin: 0 auto; padding: 40px 32px; max-width: 1400px; min-height: 100vh; display: grid; grid-template-columns: minmax(220px, 1fr) minmax(0, 2.4fr); gap: 56px; align-items: center; }
+    body { box-sizing: border-box; margin: 0 auto; padding: 40px 32px; max-width: 1400px; min-height: 100vh; display: grid; grid-template-columns: minmax(220px, 1fr) minmax(0, 2.4fr); grid-template-rows: auto 1fr; column-gap: 56px; row-gap: 32px; align-items: center; }
     header { display: flex; flex-direction: column; align-items: center; gap: 24px; text-align: center; }
-    h1 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: 0.02em; }
+    h1 { grid-column: 1 / -1; align-self: start; margin: 0; font-size: 15px; font-weight: 600; letter-spacing: 0.02em; }
     #rule, #rule svg { display: block; width: 100%; max-width: 360px; height: auto; }
     button { font: inherit; color: inherit; background: transparent; border: 1px solid rgba(255, 255, 255, 0.35); border-radius: 4px; padding: 4px 12px; cursor: pointer; }
     button:hover { border-color: var(--ink); }
@@ -22,14 +22,14 @@
     .shape { fill: none; stroke: var(--ink); stroke-width: 1; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
     .arrow { fill: none; stroke: var(--ink); stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
     @media (max-width: 760px) {
-      body { padding: 24px 16px 48px; grid-template-columns: minmax(0, 1fr); gap: 32px; align-items: start; }
+      body { padding: 24px 16px 48px; grid-template-columns: minmax(0, 1fr); grid-template-rows: none; gap: 32px; align-items: start; }
       #grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
     }
   </style>
 </head>
 <body>
+<h1>Shape Grammars</h1>
 <header>
-  <h1>Shape Grammar</h1>
   <div id="rule"></div>
   <button id="again" title="Regenerate (R)">Regenerate</button>
 </header>

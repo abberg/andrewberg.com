@@ -1,5 +1,5 @@
 {
-  "title": "Shape Grammar",
+  "title": "Shape Grammars",
   "description": "A square grows a diamond on one side, and the diamond is a square the rule can apply to again: a shape rule above a grid of finished runs.",
   "category": "Generative",
   "order": 35,

@@ -1,4 +1,4 @@
-Shape Grammar
+Shape Grammars
 
 A small shape grammar engine and a page that shows one rule beside a grid of six finished runs of it. The rule: a square grows a diamond on one side, a square half its area turned 45° and centred on that side. The diamond is a square too, so the rule applies to it in turn. Most runs pick one set of sides each step and apply it to every square in its own frame, so the design keeps the symmetry of its first step; the rest add one diamond at a time on a random free side. Every run is drawn at the same scale. Press Regenerate (or R) for another six.
 
