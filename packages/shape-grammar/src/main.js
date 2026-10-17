@@ -48,16 +48,17 @@ function drawRule(shapeRule, figure) {
 }
 
 // Every run of a rule is drawn at the same scale, centred in its cell, so
-// their sizes can be compared.
+// their sizes can be compared, unless the rule asks for each to fill its cell.
 function drawGrid(shapeRule, grid) {
   const runs = Array.from({ length: RUNS }, () => {
     const shapes = shapeRule.run(Math.random);
     return { shapes, box: bounds(shapes) };
   });
-  const size = Math.max(...runs.map(({ box }) => Math.max(box.w, box.h)));
+  const largest = Math.max(...runs.map(({ box }) => Math.max(box.w, box.h)));
   grid.replaceChildren(
     ...runs.map(({ shapes, box }) => {
       const cell = document.createElement("figure");
+      const size = shapeRule.fit === "each" ? Math.max(box.w, box.h) : largest;
       const centre = { x: box.x + box.w / 2 - size / 2, y: box.y + box.h / 2 - size / 2, w: size, h: size };
       const svg = svgElement("svg", { viewBox: viewBox(centre, 0.05) });
       const g = svgElement("g");

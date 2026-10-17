@@ -139,84 +139,101 @@ const triangleWalk = grammar({
 
 // Hexagons, with two rules. Rule 1 puts a half-size hexagon centred on the
 // midpoint of an edge; rule 2 puts a full-size hexagon beside an edge, sharing
-// it. Edges are numbered in each hexagon's own frame, 0 being the lower right
-// and counting clockwise. Each edge takes one rule or the other, once. A
-// neighbour's edge 3 is the one it shares with its parent, so it isn't free;
-// a half-size hexagon keeps all six.
+// it. Rule 1 also runs backwards ("outset"): a hexagon becomes the half-size
+// one on the edge of a hexagon twice its size. Edges are numbered in each
+// hexagon's own frame, 0 being the lower right and counting clockwise. Each
+// edge takes one rule, once.
 const HEX_HEIGHT = Math.sqrt(3) / 2;
 const EDGES = [0, 1, 2, 3, 4, 5];
+const insetAt = (edge) => compose(rotate(60 * edge), translate(0.75, HEX_HEIGHT / 2), scale(0.5));
 const hexRules = {
-  inset: { at: (edge) => compose(rotate(60 * edge), translate(0.75, HEX_HEIGHT / 2), scale(0.5)), free: EDGES },
-  neighbour: { at: (edge) => compose(rotate(60 * edge), translate(1.5, HEX_HEIGHT)), free: [0, 1, 2, 4, 5] },
+  inset: { at: insetAt, childEdge: null },
+  // A neighbour's edge 3 is the one it shares with its parent.
+  neighbour: { at: (edge) => compose(rotate(60 * edge), translate(1.5, HEX_HEIGHT)), childEdge: 3 },
+  // The inverse of inset: in the bigger hexagon's frame, this one sits on
+  // its edge 0, which is then taken.
+  outset: { at: (edge) => compose(rotate(60 * edge), scale(2), translate(-0.75, -HEX_HEIGHT / 2)), childEdge: 0 },
 };
-const MAX_HEXAGONS = 400;
+const MAX_HEXAGONS = 500;
+const MIN_SCALE = 20;
+const MAX_SCALE = 200;
 
-// Where a hexagon would land, and how big, so a rule never stacks one
-// exactly on another.
-function hexKey(transform) {
+// Where a hexagon would land, and how big.
+function hexPlace(transform) {
   const [x, y] = apply(transform, [0, 0]);
-  return `${Math.round(x)},${Math.round(y)},${Math.round(scaleOf(transform))}`;
+  return { x, y, size: scaleOf(transform) };
 }
 
-function openHexEdges(matched, ruleName, edges, context) {
-  if (!context.taken) context.taken = new Set(context.shapes.map((s) => hexKey(s.transform)));
-  if (context.shapes.length > MAX_HEXAGONS) return [];
-  // Half-size hexagons stop once they're too small to see.
-  if (ruleName === "inset" && scaleOf(matched.transform) < 20) return [];
-  return edges.filter(
-    (edge) =>
-      matched.data.free.includes(edge) &&
-      !context.taken.has(hexKey(compose(matched.transform, hexRules[ruleName].at(edge)))),
+// Hexagons of one size may touch but not overlap, which keeps runs legible:
+// two the same size overlap when their centres are closer than √3 sides.
+function crowded(place, placed) {
+  return placed.some(
+    (p) => Math.abs(p.size - place.size) < 0.5 && Math.hypot(p.x - place.x, p.y - place.y) < place.size * 1.7,
   );
 }
 
-function growHexagons(matched, ruleName, edges, context) {
-  const { at, free: childFree } = hexRules[ruleName];
-  for (const edge of edges) context.taken.add(hexKey(compose(matched.transform, at(edge))));
-  const free = matched.data.free.filter((edge) => !edges.includes(edge));
-  return [
-    { label: free.length ? "H" : null, data: { free } },
-    ...edges.map((edge) => ({ label: "H", at: at(edge), data: { free: childFree } })),
-  ];
+// A step's plan gives each of the six edges a rule, or none. The plan
+// repeats every `period` edges: a period of 1 or 2 gives the first step six-
+// or three-fold symmetry, and since every later step applies its plan to
+// each hexagon in its own frame, the whole design keeps it.
+function makePlan(random, periods) {
+  const period = periods[Math.floor(random() * periods.length)];
+  const options = [null, null, "inset", "neighbour", "neighbour", "outset"];
+  const motif = Array.from({ length: period }, () => options[Math.floor(random() * options.length)]);
+  return EDGES.map((edge) => motif[edge % period]);
 }
 
-const hexAxiom = () => [shape(hexagon(1), { label: "H", transform: scale(100), data: { free: EDGES } })];
-
-// Every step picks one rule and one set of edges for every hexagon at once.
-function stepHexChoice(context) {
-  if (!context.choice) {
-    const ruleName = context.random() < 0.65 ? "neighbour" : "inset";
-    const picks = context.step === 1 ? [EDGES, [0, 2, 4], [0, 3]] : [[0], [1], [5], [0, 1], [0, 5], [0, 2, 4]];
-    context.choice = { ruleName, edges: picks[Math.floor(context.random() * picks.length)] };
+// Plans for a whole run, redrawn until they use rule 2 and at least one
+// direction of rule 1, and the first step isn't empty.
+function makePlans(random, steps) {
+  for (;;) {
+    const plans = Array.from({ length: steps }, (_, i) => makePlan(random, i === 0 ? [1, 2] : [1, 2, 3, 6]));
+    const used = new Set(plans.flat());
+    if (plans[0].some(Boolean) && used.has("neighbour") && (used.has("inset") || used.has("outset"))) return plans;
   }
-  return context.choice;
 }
 
-const symmetricHexRule = (ruleName) =>
-  rule(
-    "H",
-    (matched, context) => growHexagons(matched, ruleName, openHexEdges(matched, ruleName, stepHexChoice(context).edges, context), context),
-    {
-      name: ruleName,
-      when: (matched, context) =>
-        stepHexChoice(context).ruleName === ruleName &&
-        openHexEdges(matched, ruleName, stepHexChoice(context).edges, context).length > 0,
-    },
-  );
+// The edges of a hexagon this step's plan can grow on: free, inside the size
+// limits, and not overlapping a hexagon of the same size.
+function hexMoves(matched, plan, context) {
+  if (!context.placed) context.placed = context.shapes.map((s) => hexPlace(s.transform));
+  if (context.shapes.length > MAX_HEXAGONS) return [];
+  const size = scaleOf(matched.transform);
+  return EDGES.filter((edge) => {
+    const ruleName = plan[edge];
+    if (!ruleName || !matched.data.free.includes(edge)) return false;
+    if (ruleName === "inset" && size / 2 < MIN_SCALE) return false;
+    if (ruleName === "outset" && size * 2 > MAX_SCALE) return false;
+    return !crowded(hexPlace(compose(matched.transform, hexRules[ruleName].at(edge))), context.placed);
+  });
+}
 
-const hexSymmetric = grammar({ axiom: hexAxiom(), rules: [symmetricHexRule("inset"), symmetricHexRule("neighbour")] });
-
-const walkHexRule = (ruleName, weight) =>
-  rule(
-    "H",
-    (matched, context) => {
-      const edges = openHexEdges(matched, ruleName, EDGES, context);
-      return growHexagons(matched, ruleName, [edges[Math.floor(context.random() * edges.length)]], context);
-    },
-    { name: ruleName, weight, when: (matched, context) => openHexEdges(matched, ruleName, EDGES, context).length > 0 },
-  );
-
-const hexWalk = grammar({ axiom: hexAxiom(), mode: "sequential", rules: [walkHexRule("inset", 0.35), walkHexRule("neighbour", 1)] });
+function hexGrammar(plans) {
+  const planFor = (context) => plans[context.step - 1];
+  return grammar({
+    axiom: [shape(hexagon(1), { label: "H", transform: scale(50), data: { free: EDGES } })],
+    steps: plans.length,
+    rules: [
+      rule(
+        "H",
+        (matched, context) => {
+          const plan = planFor(context);
+          const edges = hexMoves(matched, plan, context);
+          const free = matched.data.free.filter((edge) => !edges.includes(edge));
+          return [
+            { label: free.length ? "H" : null, data: { free } },
+            ...edges.map((edge) => {
+              const { at, childEdge } = hexRules[plan[edge]];
+              context.placed.push(hexPlace(compose(matched.transform, at(edge))));
+              return { label: "H", at: at(edge), data: { free: EDGES.filter((e) => e !== childEdge) } };
+            }),
+          ];
+        },
+        { when: (matched, context) => hexMoves(matched, planFor(context), context).length > 0 },
+      ),
+    ],
+  });
+}
 
 // Each grammar, simplest first: its left side for the diagrams (given a
 // transform), the parts each rule's right side adds, and a way to make one
@@ -246,9 +263,15 @@ export const shapeRules = {
       [{}, { at: hexRules.inset.at(0) }],
       [{}, { at: hexRules.neighbour.at(0) }],
     ],
-    run: (random) =>
-      random() < 0.6
-        ? derive(hexSymmetric, { steps: 3 + Math.floor(random() * 2), random }).at(-1).shapes
-        : derive(hexWalk, { steps: 6 + Math.floor(random() * 18), random }).at(-1).shapes,
+    // Every run is symmetric, mixing the rules within and across steps.
+    // Runs with too few hexagons to be interesting are drawn again.
+    run: (random) => {
+      for (let tries = 0; ; tries++) {
+        const shapes = derive(hexGrammar(makePlans(random, 3 + Math.floor(random() * 3))), { random }).at(-1).shapes;
+        if (shapes.length >= 24 || tries > 20) return shapes;
+      }
+    },
+    // Each run fills its own cell: outsets make some runs far bigger than others.
+    fit: "each",
   },
 };
