@@ -15,7 +15,7 @@ const playButton = document.getElementById("play");
 
 if (thumbnail) document.documentElement.classList.add("thumbnail");
 
-let key = grammars[params.get("grammar")] ? params.get("grammar") : "rooms";
+let key = grammars[params.get("grammar")] ? params.get("grammar") : "diamonds";
 let states = [];
 let index = 0;
 let markerRadius = 1;
@@ -91,7 +91,7 @@ function drawRules(g) {
   for (const r of g.rules) {
     const lhs = g.axiom.find((s) => s.label === r.label);
     if (!lhs) continue;
-    const rhs = rewrite(r, lhs, { step: 1, random, shapes: [lhs] });
+    const rhs = rewrite(r.diagram ? { ...r, rhs: r.diagram } : r, lhs, { step: 1, random, shapes: [lhs] });
     const box = bounds([lhs, ...rhs]);
     const row = document.createElement("div");
     row.className = "rule";

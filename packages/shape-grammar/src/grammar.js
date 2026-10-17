@@ -15,24 +15,31 @@ import { IDENTITY, multiply } from "./geometry.js";
 
 let nextId = 0;
 
-export function shape(geometry, { label = null, transform = IDENTITY, ...style } = {}) {
-  return { id: nextId++, geometry, label, transform, step: 0, style };
+export function shape(geometry, { label = null, transform = IDENTITY, data = {}, ...style } = {}) {
+  return { id: nextId++, geometry, label, transform, step: 0, style, data };
 }
 
 // rule(label, rhs, options)
 //
 // rhs is a list of parts, or a function (matched, context) => parts for rules
 // that vary. Each part is
-//   { at, label, geometry, style }
+//   { at, label, geometry, style, data }
 // where `at` is a transform in the matched shape's frame (the identity if
 // left out), `label` is the new shape's label (none, so terminal, if left
 // out), and `geometry` is its geometry (the matched shape's if left out).
-// So { } on its own keeps the matched shape and drops its label.
+// So { } on its own keeps the matched shape and drops its label. `data` is
+// anything a rule wants to remember about a shape, such as which of its sides
+// are still free.
+//
+// The context passed to rules and guards is shared by every rewrite in a
+// step, so a rule can make one choice per step and apply it everywhere.
 //
 // options.when(matched, context) can refuse a match; options.weight sets how
-// often a rule is picked when several apply; options.name names it.
-export function rule(label, rhs, { when = () => true, weight = 1, name = label } = {}) {
-  return { label, rhs, when, weight, name };
+// often a rule is picked when several apply; options.name names it; and
+// options.diagram gives fixed parts to draw the rule with, for rules whose
+// right side varies.
+export function rule(label, rhs, { when = () => true, weight = 1, name = label, diagram } = {}) {
+  return { label, rhs, when, weight, name, diagram };
 }
 
 export function grammar({ axiom, rules, mode = "parallel", steps = 10 }) {
@@ -55,6 +62,7 @@ export function rewrite(r, matched, context) {
     transform: multiply(matched.transform, part.at ?? IDENTITY),
     step: context.step,
     style: part.style ?? (part.geometry ? {} : matched.style),
+    data: part.data ?? {},
   }));
 }
 
