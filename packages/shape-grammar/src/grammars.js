@@ -142,14 +142,6 @@ const triangleWalk = grammar({
 // rule to the same sides of every shape at once, so they keep the symmetry of
 // their first step; the rest add one shape at a time.
 export const shapeRules = {
-  triangle: {
-    lhs: (transform) => shape(triangle(1), { transform: compose(transform, rotate(180)) }),
-    diagram: [{}, { at: offsetAt(0) }],
-    run: (random) =>
-      random() < 0.5
-        ? derive(triangleSymmetric, { steps: 3 + Math.floor(random() * 4), random }).at(-1).shapes
-        : derive(triangleWalk, { steps: 4 + Math.floor(random() * 14), random }).at(-1).shapes,
-  },
   diamond: {
     lhs: (transform) => shape(square(1), { transform }),
     diagram: diamondRule.diagram,
@@ -157,5 +149,13 @@ export const shapeRules = {
       random() < 0.7
         ? derive(diamondSymmetric, { steps: 3 + Math.floor(random() * 3), random }).at(-1).shapes
         : derive(diamondWalk, { steps: 8 + Math.floor(random() * 24), random }).at(-1).shapes,
+  },
+  triangle: {
+    lhs: (transform) => shape(triangle(1), { transform: compose(transform, rotate(180)) }),
+    diagram: [{}, { at: offsetAt(0) }],
+    run: (random) =>
+      random() < 0.5
+        ? derive(triangleSymmetric, { steps: 3 + Math.floor(random() * 4), random }).at(-1).shapes
+        : derive(triangleWalk, { steps: 4 + Math.floor(random() * 14), random }).at(-1).shapes,
   },
 };

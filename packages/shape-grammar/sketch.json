@@ -1,6 +1,6 @@
 {
   "title": "Shape Grammars",
-  "description": "A triangle grows an upside-down copy of itself, offset half a side along one edge, and the copy can grow its own: a shape rule beside a grid of finished runs.",
+  "description": "Shape rules, each beside a grid of finished runs: a square that grows diamonds, and a triangle that grows offset, upside-down copies of itself.",
   "category": "Generative",
   "order": 35,
   "thumbnail": {

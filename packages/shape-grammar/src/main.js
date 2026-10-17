@@ -5,15 +5,30 @@ import { bounds, drawShapes, svgElement, viewBox } from "./render.js";
 
 const RUNS = 6;
 
-// ?rule=diamond for the square and diamond rule; the offset triangle by default.
-const params = new URLSearchParams(location.search);
-const shapeRule = shapeRules[params.get("rule")] ?? shapeRules.triangle;
+// One row per rule: the rule beside a grid of finished runs.
+const rows = Object.values(shapeRules).map((shapeRule) => {
+  const section = document.createElement("section");
+  const header = document.createElement("header");
+  const ruleFigure = document.createElement("div");
+  ruleFigure.className = "rule";
+  const button = document.createElement("button");
+  button.textContent = "Regenerate";
+  button.title = "Regenerate (R regenerates every rule)";
+  const grid = document.createElement("div");
+  grid.className = "grid";
+  header.append(ruleFigure, button);
+  section.append(header, grid);
+  document.getElementById("rules").append(section);
 
-const ruleFigure = document.getElementById("rule");
-const grid = document.getElementById("grid");
+  drawRule(shapeRule, ruleFigure);
+  const regenerate = () => drawGrid(shapeRule, grid);
+  button.addEventListener("click", regenerate);
+  regenerate();
+  return regenerate;
+});
 
 // The rule: its left side, an arrow, and its right side.
-function drawRule() {
+function drawRule(shapeRule, figure) {
   const lhs = shapeRule.lhs(scale(100));
   const matched = shapeRule.lhs(compose(translate(270, 0), scale(100)));
   const rhs = rewrite({ rhs: shapeRule.diagram }, matched, { step: 1 });
@@ -22,12 +37,12 @@ function drawRule() {
   const g = svgElement("g");
   drawShapes(g, shapes, { plain: true });
   svg.append(g, svgElement("path", { d: "M85,0H170M158,-8L172,0L158,8", class: "arrow" }));
-  ruleFigure.replaceChildren(svg);
+  figure.replaceChildren(svg);
 }
 
-// Every run is drawn at the same scale, centred in its cell, so their sizes
-// can be compared.
-function drawGrid() {
+// Every run of a rule is drawn at the same scale, centred in its cell, so
+// their sizes can be compared.
+function drawGrid(shapeRule, grid) {
   const runs = Array.from({ length: RUNS }, () => {
     const shapes = shapeRule.run(Math.random);
     return { shapes, box: bounds(shapes) };
@@ -47,12 +62,8 @@ function drawGrid() {
   );
 }
 
-drawRule();
-drawGrid();
-
-document.getElementById("again").addEventListener("click", drawGrid);
 addEventListener("keydown", (event) => {
-  if ((event.key === "r" || event.key === "R") && !event.metaKey && !event.ctrlKey) drawGrid();
+  if ((event.key === "r" || event.key === "R") && !event.metaKey && !event.ctrlKey) rows.forEach((regenerate) => regenerate());
 });
 
 // The site's thumbnail script waits for this before taking its screenshot.
