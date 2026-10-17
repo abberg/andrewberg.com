@@ -20,7 +20,7 @@
     figure { margin: 0; }
     figure svg { display: block; width: 100%; height: auto; aspect-ratio: 1; }
     /* A white drop shadow on every drawing fakes a bloom. */
-    .rule svg, figure svg { filter: drop-shadow(0 0 2px rgba(255, 255, 255, 1)) drop-shadow(0 0 8px rgba(255, 255, 255, 0.6)); }
+    .rule svg, figure svg { filter: drop-shadow(0 0 1px #fff) drop-shadow(0 0 3px #fff) drop-shadow(0 0 10px rgba(255, 255, 255, 0.8)) drop-shadow(0 0 28px rgba(255, 255, 255, 0.55)); }
     .shape { fill: none; stroke: var(--ink); stroke-width: 1; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
     .arrow { fill: none; stroke: var(--ink); stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
     @media (max-width: 760px) {
