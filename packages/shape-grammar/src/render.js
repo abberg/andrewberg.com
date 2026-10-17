@@ -36,15 +36,16 @@ export function viewBox({ x, y, w, h }, padding) {
 
 // Draw shapes into an SVG group. Labelled shapes, the ones rules can still
 // rewrite, are drawn in the accent colour with a dot at their marker so their
-// orientation shows; terminal shapes are drawn in ink.
-export function drawShapes(group, shapes, { markerRadius }) {
+// orientation shows; terminal shapes are drawn in ink. With `plain`, every
+// shape is drawn in ink.
+export function drawShapes(group, shapes, { markerRadius, plain = false }) {
   group.replaceChildren();
   // Terminal shapes first, so the live ones sit on top.
   const ordered = [...shapes].sort((a, b) => (a.label == null ? 0 : 1) - (b.label == null ? 0 : 1));
   for (const s of ordered) {
     const points = worldPoints(s);
     const d = `M${points.map(([x, y]) => `${x.toFixed(2)},${y.toFixed(2)}`).join("L")}${s.geometry.closed ? "Z" : ""}`;
-    const live = s.label != null;
+    const live = !plain && s.label != null;
     group.append(
       svgElement("path", {
         d,

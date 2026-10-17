@@ -1,10 +1,9 @@
 {
   "title": "Shape Grammar",
-  "description": "A small shape grammar engine: labelled shapes, rules that find a label and replace it with new shapes in its frame, and a derivation stepped one rule application at a time.",
+  "description": "A square grows a diamond on one side, and the diamond is a square the rule can apply to again: a shape rule above a grid of finished runs.",
   "category": "Generative",
   "order": 35,
   "thumbnail": {
-    "path": "?thumbnail=1",
     "readySelector": "html[data-thumbnail-ready=\"true\"]"
   }
 }
