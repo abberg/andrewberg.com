@@ -6,21 +6,22 @@
   <link rel="icon" href="data:,">
   <title>Shape Grammars — Andrew Berg</title>
   <style>
-    :root { --paper: #000; --ink: #fff; --muted: #8A8A8A; }
+    :root { --paper: #0A0700; --ink: #FFB000; --muted: #9A6A00; }
     html { background: var(--paper); color: var(--ink); font: 13px/1.45 ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
     body { box-sizing: border-box; margin: 0 auto; padding: 40px 32px 64px; max-width: 1400px; }
+    h1, button { text-shadow: 0 0 6px rgba(255, 160, 0, 0.7); }
     h1 { margin: 0 0 32px; font-size: 15px; font-weight: 600; letter-spacing: 0.02em; }
     section { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(0, 2.4fr); column-gap: 56px; align-items: center; padding: 32px 0; }
     section header { display: flex; flex-direction: column; align-items: center; gap: 24px; }
     .rule { display: flex; flex-direction: column; gap: 16px; width: 100%; max-width: 360px; }
     .rule svg { display: block; width: 100%; height: auto; }
-    button { font: inherit; color: inherit; background: transparent; border: 1px solid rgba(255, 255, 255, 0.35); border-radius: 4px; padding: 4px 12px; cursor: pointer; }
+    button { font: inherit; color: inherit; background: transparent; border: 1px solid rgba(255, 176, 0, 0.45); border-radius: 4px; padding: 4px 12px; cursor: pointer; }
     button:hover { border-color: var(--ink); }
     .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
     figure { margin: 0; }
     figure svg { display: block; width: 100%; height: auto; aspect-ratio: 1; }
-    /* A white drop shadow on every drawing fakes a bloom. */
-    .rule svg, figure svg { filter: drop-shadow(0 0 1px #fff) drop-shadow(0 0 3px #fff) drop-shadow(0 0 10px rgba(255, 255, 255, 0.8)) drop-shadow(0 0 28px rgba(255, 255, 255, 0.55)); }
+    /* Amber drop shadows on every drawing fake the bloom of an old amber monitor. */
+    .rule svg, figure svg { filter: drop-shadow(0 0 1px #FFC233) drop-shadow(0 0 3px #FFB000) drop-shadow(0 0 10px rgba(255, 160, 0, 0.8)) drop-shadow(0 0 28px rgba(255, 140, 0, 0.55)); }
     .shape { fill: none; stroke: var(--ink); stroke-width: 1; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
     .arrow { fill: none; stroke: var(--ink); stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
     @media (max-width: 760px) {
