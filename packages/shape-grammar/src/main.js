@@ -3,7 +3,7 @@ import { derive, rewrite, shape } from "./grammar.js";
 import { diamondRule, symmetric, walk } from "./grammars.js";
 import { bounds, drawShapes, svgElement, viewBox } from "./render.js";
 
-const RUNS = 24;
+const RUNS = 6;
 
 const ruleFigure = document.getElementById("rule");
 const grid = document.getElementById("grid");
@@ -41,16 +41,14 @@ function drawGrid() {
   });
   const size = Math.max(...runs.map(({ box }) => Math.max(box.w, box.h)));
   grid.replaceChildren(
-    ...runs.map(({ shapes, box }, i) => {
+    ...runs.map(({ shapes, box }) => {
       const cell = document.createElement("figure");
-      const number = document.createElement("figcaption");
-      number.textContent = i + 1;
       const centre = { x: box.x + box.w / 2 - size / 2, y: box.y + box.h / 2 - size / 2, w: size, h: size };
       const svg = svgElement("svg", { viewBox: viewBox(centre, 0.05) });
       const g = svgElement("g");
       drawShapes(g, shapes, { plain: true });
       svg.append(g);
-      cell.append(number, svg);
+      cell.append(svg);
       return cell;
     }),
   );
