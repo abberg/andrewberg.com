@@ -1,5 +1,5 @@
-import { compose, rotate, scale, square, translate } from "./geometry.js";
-import { grammar, rule, shape } from "./grammar.js";
+import { apply, compose, rotate, scale, square, translate, triangle } from "./geometry.js";
+import { derive, grammar, rule, shape } from "./grammar.js";
 
 // Square and diamond: a square grows a diamond on one side, a square half
 // its area turned 45° and centred on that side's midpoint. The diamond is a
@@ -17,7 +17,7 @@ function growDiamonds(matched, sides) {
   ];
 }
 
-export const diamondRule = { name: "add diamond", diagram: [{}, { label: "S", at: diamondAt(0) }] };
+const diamondRule = { name: "add diamond", diagram: [{}, { label: "S", at: diamondAt(0) }] };
 const diamondAxiom = () => [shape(square(1), { label: "S", transform: scale(300), data: { free: [0, 1, 2, 3] } })];
 
 // Every step picks one set of sides and grows diamonds on those sides of
@@ -36,7 +36,7 @@ function stepSides(context) {
   return context.sides;
 }
 
-export const symmetric = grammar({
+const diamondSymmetric = grammar({
   axiom: diamondAxiom(),
   rules: [
     rule("S", (matched, context) => growDiamonds(matched, stepSides(context).filter((side) => matched.data.free.includes(side))), {
@@ -48,7 +48,7 @@ export const symmetric = grammar({
 });
 
 // The same rule, one square and one free side at a time.
-export const walk = grammar({
+const diamondWalk = grammar({
   axiom: diamondAxiom(),
   mode: "sequential",
   rules: [
@@ -63,3 +63,99 @@ export const walk = grammar({
   ],
   steps: 40,
 });
+
+// Offset triangle: a triangle grows a copy of itself turned upside down,
+// sharing the line of one edge and slid half a side along it, so the copy's
+// corner sits on that edge's midpoint. The copy is the same triangle, so the
+// rule applies to it in turn. Edges are numbered in each triangle's own frame,
+// 0 being the one the copy grows from; edge 0 of a copy lies on its parent's,
+// so a copy has edges 1 and 2 free.
+const TRIANGLE_HEIGHT = Math.sqrt(3) / 2;
+const offsetAt = (edge) => compose(rotate(120 * edge), translate(-0.5, (2 * TRIANGLE_HEIGHT) / 3), rotate(180));
+const TRIANGLE_FREE = [1, 2];
+
+// Where a triangle would land, so a rule never stacks one exactly on another.
+function centreKey(transform) {
+  const [x, y] = apply(transform, [0, 0]);
+  return `${Math.round(x)},${Math.round(y)}`;
+}
+
+// The free edges of a triangle whose copy wouldn't land on a triangle that's
+// already there, or one placed earlier in the same step.
+function openEdges(matched, edges, context) {
+  if (!context.taken) context.taken = new Set(context.shapes.map((s) => centreKey(s.transform)));
+  return edges.filter(
+    (edge) => matched.data.free.includes(edge) && !context.taken.has(centreKey(compose(matched.transform, offsetAt(edge)))),
+  );
+}
+
+function growTriangles(matched, edges, context) {
+  for (const edge of edges) context.taken.add(centreKey(compose(matched.transform, offsetAt(edge))));
+  const free = matched.data.free.filter((edge) => !edges.includes(edge));
+  return [
+    { label: free.length ? "T" : null, data: { free } },
+    ...edges.map((edge) => ({ label: "T", at: offsetAt(edge), data: { free: TRIANGLE_FREE } })),
+  ];
+}
+
+// The axiom points down, as in the rule.
+const triangleAxiom = () => [
+  shape(triangle(1), { label: "T", transform: compose(rotate(180), scale(100)), data: { free: [0, 1, 2] } }),
+];
+
+function stepEdges(context) {
+  if (!context.edges) {
+    // Mostly one edge per step after the first, which grows arms rather
+    // than filling in a lattice.
+    const picks = context.step === 1 ? [[0, 1, 2], [0, 1, 2], [0]] : [[1], [2], [1], [2], [1, 2]];
+    context.edges = picks[Math.floor(context.random() * picks.length)];
+  }
+  return context.edges;
+}
+
+const triangleSymmetric = grammar({
+  axiom: triangleAxiom(),
+  rules: [
+    rule("T", (matched, context) => growTriangles(matched, openEdges(matched, stepEdges(context), context), context), {
+      when: (matched, context) => openEdges(matched, stepEdges(context), context).length > 0,
+    }),
+  ],
+});
+
+const triangleWalk = grammar({
+  axiom: triangleAxiom(),
+  mode: "sequential",
+  rules: [
+    rule(
+      "T",
+      (matched, context) => {
+        const edges = openEdges(matched, [0, 1, 2], context);
+        return growTriangles(matched, [edges[Math.floor(context.random() * edges.length)]], context);
+      },
+      { when: (matched, context) => openEdges(matched, [0, 1, 2], context).length > 0 },
+    ),
+  ],
+});
+
+// Each rule: its left side for the diagram (given a transform), the parts its
+// right side adds, and a way to make one finished run. Most runs apply the
+// rule to the same sides of every shape at once, so they keep the symmetry of
+// their first step; the rest add one shape at a time.
+export const shapeRules = {
+  triangle: {
+    lhs: (transform) => shape(triangle(1), { transform: compose(transform, rotate(180)) }),
+    diagram: [{}, { at: offsetAt(0) }],
+    run: (random) =>
+      random() < 0.5
+        ? derive(triangleSymmetric, { steps: 3 + Math.floor(random() * 4), random }).at(-1).shapes
+        : derive(triangleWalk, { steps: 4 + Math.floor(random() * 14), random }).at(-1).shapes,
+  },
+  diamond: {
+    lhs: (transform) => shape(square(1), { transform }),
+    diagram: diamondRule.diagram,
+    run: (random) =>
+      random() < 0.7
+        ? derive(diamondSymmetric, { steps: 3 + Math.floor(random() * 3), random }).at(-1).shapes
+        : derive(diamondWalk, { steps: 8 + Math.floor(random() * 24), random }).at(-1).shapes,
+  },
+};

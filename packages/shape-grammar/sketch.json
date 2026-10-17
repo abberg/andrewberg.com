@@ -1,6 +1,6 @@
 {
   "title": "Shape Grammars",
-  "description": "A square grows a diamond on one side, and the diamond is a square the rule can apply to again: a shape rule above a grid of finished runs.",
+  "description": "A triangle grows an upside-down copy of itself, offset half a side along one edge, and the copy can grow its own: a shape rule beside a grid of finished runs.",
   "category": "Generative",
   "order": 35,
   "thumbnail": {

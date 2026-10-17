@@ -1,18 +1,22 @@
-import { compose, scale, square, translate } from "./geometry.js";
-import { derive, rewrite, shape } from "./grammar.js";
-import { diamondRule, symmetric, walk } from "./grammars.js";
+import { compose, scale, translate } from "./geometry.js";
+import { rewrite } from "./grammar.js";
+import { shapeRules } from "./grammars.js";
 import { bounds, drawShapes, svgElement, viewBox } from "./render.js";
 
 const RUNS = 6;
 
+// ?rule=diamond for the square and diamond rule; the offset triangle by default.
+const params = new URLSearchParams(location.search);
+const shapeRule = shapeRules[params.get("rule")] ?? shapeRules.triangle;
+
 const ruleFigure = document.getElementById("rule");
 const grid = document.getElementById("grid");
 
-// The rule: a square, an arrow, and the square with its diamond.
+// The rule: its left side, an arrow, and its right side.
 function drawRule() {
-  const lhs = shape(square(1), { transform: scale(100) });
-  const matched = shape(square(1), { transform: compose(translate(270, 0), scale(100)) });
-  const rhs = rewrite({ rhs: diamondRule.diagram }, matched, { step: 1 });
+  const lhs = shapeRule.lhs(scale(100));
+  const matched = shapeRule.lhs(compose(translate(270, 0), scale(100)));
+  const rhs = rewrite({ rhs: shapeRule.diagram }, matched, { step: 1 });
   const shapes = [lhs, ...rhs];
   const svg = svgElement("svg", { viewBox: viewBox(bounds(shapes), 0.04) });
   const g = svgElement("g");
@@ -21,22 +25,11 @@ function drawRule() {
   ruleFigure.replaceChildren(svg);
 }
 
-// One finished run: most apply the rule to the same sides of every square at
-// once, so they stay symmetric; some add one diamond at a time.
-function run(random) {
-  if (random() < 0.7) {
-    const steps = 3 + Math.floor(random() * 3);
-    return derive(symmetric, { steps, random }).at(-1).shapes;
-  }
-  const steps = 8 + Math.floor(random() * 24);
-  return derive(walk, { steps, random }).at(-1).shapes;
-}
-
 // Every run is drawn at the same scale, centred in its cell, so their sizes
 // can be compared.
 function drawGrid() {
   const runs = Array.from({ length: RUNS }, () => {
-    const shapes = run(Math.random);
+    const shapes = shapeRule.run(Math.random);
     return { shapes, box: bounds(shapes) };
   });
   const size = Math.max(...runs.map(({ box }) => Math.max(box.w, box.h)));
