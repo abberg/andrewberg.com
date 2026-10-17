@@ -1,6 +1,6 @@
 {
   "title": "Shape Grammars",
-  "description": "Shape rules, each beside a grid of finished runs: a square that grows diamonds, and a triangle that grows offset, upside-down copies of itself.",
+  "description": "Shape rules, each beside a grid of finished runs: a triangle that grows offset, upside-down copies of itself, and a square that grows diamonds.",
   "category": "Generative",
   "order": 35,
   "thumbnail": {

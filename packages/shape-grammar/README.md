@@ -2,7 +2,7 @@ Shape Grammars
 
 A small shape grammar engine and a page with a row per rule: the rule beside a grid of six finished runs of it. Each row's Regenerate deals another six; R regenerates every row.
 
-The rules are the square and diamond, where a square grows a diamond on one side, a square half its area turned 45° and centred on that side; and the offset triangle, where a triangle grows a copy of itself turned upside down, sharing the line of one edge and slid half a side along it. The copy is the same triangle, so the rule applies to it in turn; a copy that would land exactly on an existing triangle is skipped.
+The rules, simplest first, are the offset triangle, where a triangle grows a copy of itself turned upside down, sharing the line of one edge and slid half a side along it (a copy that would land exactly on an existing triangle is skipped); and the square and diamond, where a square grows a diamond on one side, a square half its area turned 45° and centred on that side. Either way the new shape is one the rule applies to in turn.
 
 Most runs pick one set of edges each step and apply it to every shape in its own frame, so the design keeps the symmetry of its first step; the rest add one shape at a time on a random free edge. Every run is drawn at the same scale.
 
