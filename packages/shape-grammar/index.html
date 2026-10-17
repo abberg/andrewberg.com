@@ -12,7 +12,8 @@
     h1 { margin: 0 0 32px; font-size: 15px; font-weight: 600; letter-spacing: 0.02em; }
     section { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(0, 2.4fr); column-gap: 56px; align-items: center; padding: 32px 0; }
     section header { display: flex; flex-direction: column; align-items: center; gap: 24px; }
-    .rule, .rule svg { display: block; width: 100%; max-width: 360px; height: auto; }
+    .rule { display: flex; flex-direction: column; gap: 16px; width: 100%; max-width: 360px; }
+    .rule svg { display: block; width: 100%; height: auto; }
     button { font: inherit; color: inherit; background: transparent; border: 1px solid rgba(255, 255, 255, 0.35); border-radius: 4px; padding: 4px 12px; cursor: pointer; }
     button:hover { border-color: var(--ink); }
     .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }

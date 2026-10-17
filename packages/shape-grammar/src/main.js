@@ -27,17 +27,24 @@ const rows = Object.values(shapeRules).map((shapeRule) => {
   return regenerate;
 });
 
-// The rule: its left side, an arrow, and its right side.
+// Each rule: its left side, an arrow, and its right side. A grammar with
+// several rules stacks them, all at one scale.
 function drawRule(shapeRule, figure) {
-  const lhs = shapeRule.lhs(scale(100));
-  const matched = shapeRule.lhs(compose(translate(270, 0), scale(100)));
-  const rhs = rewrite({ rhs: shapeRule.diagram }, matched, { step: 1 });
-  const shapes = [lhs, ...rhs];
-  const svg = svgElement("svg", { viewBox: viewBox(bounds(shapes), 0.04) });
-  const g = svgElement("g");
-  drawShapes(g, shapes, { plain: true });
-  svg.append(g, svgElement("path", { d: "M85,0H170M158,-8L172,0L158,8", class: "arrow" }));
-  figure.replaceChildren(svg);
+  const diagrams = shapeRule.diagrams.map((parts) => {
+    const lhs = shapeRule.lhs(scale(100));
+    const matched = shapeRule.lhs(compose(translate(270, 0), scale(100)));
+    return [lhs, ...rewrite({ rhs: parts }, matched, { step: 1 })];
+  });
+  const box = bounds(diagrams.flat());
+  figure.replaceChildren(
+    ...diagrams.map((shapes) => {
+      const svg = svgElement("svg", { viewBox: viewBox(box, 0.04) });
+      const g = svgElement("g");
+      drawShapes(g, shapes, { plain: true });
+      svg.append(g, svgElement("path", { d: "M85,0H170M158,-8L172,0L158,8", class: "arrow" }));
+      return svg;
+    }),
+  );
 }
 
 // Every run of a rule is drawn at the same scale, centred in its cell, so

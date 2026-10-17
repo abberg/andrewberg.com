@@ -85,6 +85,16 @@ export function triangle(side = 1) {
   );
 }
 
+// A regular hexagon with flat top and bottom, centred on the origin, with
+// its marker near the top left corner.
+export function hexagon(side = 1) {
+  const h = (side * Math.sqrt(3)) / 2;
+  return polygon(
+    [[-side, 0], [-side / 2, -h], [side / 2, -h], [side, 0], [side / 2, h], [-side / 2, h]],
+    [-side / 2, -h * 0.6],
+  );
+}
+
 function centroid(points) {
   let x = 0;
   let y = 0;
