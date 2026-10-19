@@ -1,6 +1,6 @@
 {
   "title": "Shape Grammars",
-  "description": "A two-rule hexagon shape grammar beside a grid of finished, symmetric runs: one rule insets a smaller hexagon on an edge, the other adds a neighbour.",
+  "description": "An endless scroll of a two-rule hexagon shape grammar, from single steps at the top to dense, sometimes asymmetric designs further down, in amber.",
   "category": "Generative",
   "order": 35,
   "thumbnail": {
