@@ -96,18 +96,8 @@ const observer = new IntersectionObserver((entries) => {
   if (entries.some((entry) => entry.isIntersecting)) fill();
 }, { rootMargin: "800px 0px" });
 
-function regenerate() {
-  rows.replaceChildren();
-  rowCount = 0;
-  scrollTo(0, 0);
-  fill();
-}
 
 drawRules(document.getElementById("rule"));
-document.getElementById("again").addEventListener("click", regenerate);
-addEventListener("keydown", (event) => {
-  if ((event.key === "r" || event.key === "R") && !event.metaKey && !event.ctrlKey) regenerate();
-});
 fill();
 observer.observe(sentinel);
 
