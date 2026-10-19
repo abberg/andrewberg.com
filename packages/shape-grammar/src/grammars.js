@@ -147,8 +147,11 @@ const HEX_HEIGHT = Math.sqrt(3) / 2;
 const EDGES = [0, 1, 2, 3, 4, 5];
 const insetAt = (edge) => compose(rotate(60 * edge), translate(0.75, HEX_HEIGHT / 2), scale(0.5));
 const hexRules = {
-  // An inset hexagon is a detail, not a seed: no rule touches it again.
-  inset: { at: insetAt, terminal: true },
+  // An inset hexagon starts a chain: the rule applies again to its own edge
+  // 0, which lies the same way as the edge it sits on, and again, so the
+  // chain runs straight, halving each time, toward the centre of the hexagon
+  // next door. The chain is drawn out in full at once, and takes no other rule.
+  inset: { at: insetAt, chain: true },
   // A neighbour's edge 3 is the one it shares with its parent.
   neighbour: { at: (edge) => compose(rotate(60 * edge), translate(1.5, HEX_HEIGHT)), childEdge: 3 },
   // The inverse of inset: in the bigger hexagon's frame, this one sits on
@@ -159,6 +162,20 @@ const hexRules = {
 // count, so runs stay legible.
 const MAX_HEXAGONS = 110;
 const MIN_SCALE = 25;
+// How small a chain can get.
+const CHAIN_MIN_SCALE = 1.5;
+
+// The parts of a chain that starts with an inset on `edge` of a hexagon of
+// this size: the inset, its inset on edge 0, that one's, and so on.
+function chainParts(edge, size) {
+  const parts = [];
+  let at = insetAt(edge);
+  for (let s = size / 2; s >= CHAIN_MIN_SCALE; s /= 2) {
+    parts.push({ at });
+    at = compose(at, insetAt(0));
+  }
+  return parts;
+}
 const MAX_SCALE = 100;
 
 // Where a hexagon would land, and how big.
@@ -205,8 +222,9 @@ function makePlans(random, steps) {
 // The moves a hexagon could make this step, before checking for collisions
 // with other moves in the same step.
 function candidateMoves(matched, plan, context, period) {
-  if (matched.label == null || context.shapes.length > MAX_HEXAGONS) return [];
+  if (matched.label == null) return [];
   const size = scaleOf(matched.transform);
+  if (context.shapes.length > MAX_HEXAGONS) return [];
   // A hexagon centred on the middle of the design is its own symmetric copy,
   // so it only takes a step whose plan has the design's symmetry.
   const [x, y] = apply(matched.transform, [0, 0]);
@@ -218,7 +236,7 @@ function candidateMoves(matched, plan, context, period) {
     if (ruleName === "inset" && size / 2 < MIN_SCALE - 0.01) return [];
     if (ruleName === "outset" && size * 2 > MAX_SCALE + 0.01) return [];
     const place = hexPlace(compose(matched.transform, hexRules[ruleName].at(edge)));
-    return crowded(place, context.placed) ? [] : [{ edge, key: placeKey(place) }];
+    return crowded(place, context.placed) ? [] : [{ edge, ruleName, key: placeKey(place) }];
   });
 }
 
@@ -234,9 +252,7 @@ function hexMoves(matched, plan, context, period) {
       for (const { key } of candidateMoves(s, plan, context, period)) context.wanted.set(key, (context.wanted.get(key) ?? 0) + 1);
     }
   }
-  return candidateMoves(matched, plan, context, period)
-    .filter(({ key }) => context.wanted.get(key) === 1)
-    .map(({ edge }) => edge);
+  return candidateMoves(matched, plan, context, period).filter(({ key }) => context.wanted.get(key) === 1);
 }
 
 function hexGrammar(plans) {
@@ -251,15 +267,14 @@ function hexGrammar(plans) {
       rule(
         "H",
         (matched, context) => {
-          const plan = planFor(context);
-          const edges = hexMoves(matched, plan, context, period);
-          const free = matched.data.free.filter((edge) => !edges.includes(edge));
+          const moves = hexMoves(matched, planFor(context), context, period);
+          const free = matched.data.free.filter((edge) => !moves.some((move) => move.edge === edge));
           return [
             { label: free.length ? "H" : null, data: { free } },
-            ...edges.map((edge) => {
-              const { at, childEdge, terminal } = hexRules[plan[edge]];
-              if (terminal) return { at: at(edge) };
-              return { label: "H", at: at(edge), data: { free: EDGES.filter((e) => e !== childEdge) } };
+            ...moves.flatMap(({ edge, ruleName }) => {
+              const { at, childEdge, chain } = hexRules[ruleName];
+              if (chain) return chainParts(edge, scaleOf(matched.transform));
+              return [{ label: "H", at: at(edge), data: { free: EDGES.filter((e) => e !== childEdge) } }];
             }),
           ];
         },

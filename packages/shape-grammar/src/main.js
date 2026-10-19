@@ -55,9 +55,19 @@ function drawRule(shapeRule, figure) {
 // Every run of a rule is drawn at the same scale, centred in its cell, so
 // their sizes can be compared, unless the rule asks for each to fill its cell.
 function drawGrid(shapeRule, grid) {
+  // Different plans can derive the same design, so a run that matches one
+  // already in the grid (same count and extent) is drawn again.
+  const seen = new Set();
   const runs = Array.from({ length: RUNS }, () => {
-    const shapes = shapeRule.run(Math.random);
-    return { shapes, box: bounds(shapes) };
+    for (let tries = 0; ; tries++) {
+      const shapes = shapeRule.run(Math.random);
+      const box = bounds(shapes);
+      const signature = `${shapes.length}:${Math.round(box.w)}:${Math.round(box.h)}`;
+      if (!seen.has(signature) || tries > 20) {
+        seen.add(signature);
+        return { shapes, box };
+      }
+    }
   });
   const largest = Math.max(...runs.map(({ box }) => Math.max(box.w, box.h)));
   grid.replaceChildren(
