@@ -30,8 +30,8 @@ function drawRules(figure) {
   });
   // Room above for the labels.
   const box = bounds(diagrams.flat());
-  box.y -= 30;
-  box.h += 30;
+  box.y -= 42;
+  box.h += 42;
   figure.replaceChildren(
     ...diagrams.map((shapes, i) => {
       const svg = svgElement("svg", { viewBox: viewBox(box, 0.04) });
@@ -39,7 +39,7 @@ function drawRules(figure) {
       drawShapes(g, shapes, { plain: true });
       // The label sits just above the left side's top left corner.
       const left = bounds([shapes[0]]);
-      const label = svgElement("text", { x: left.x, y: left.y - 14, class: "label" });
+      const label = svgElement("text", { x: left.x, y: left.y - 26, class: "label" });
       label.textContent = `RULE ${i + 1}`;
       svg.append(g, svgElement("path", { d: "M85,0H170M158,-8L172,0L158,8", class: "arrow" }), label);
       return svg;
