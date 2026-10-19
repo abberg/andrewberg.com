@@ -7,33 +7,18 @@
   <title>Shape Grammars — Andrew Berg</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend+Exa:wght@200;300&family=Major+Mono+Display&family=Michroma&family=Orbitron:wght@400&family=Syncopate&family=Space+Mono&display=swap">
-  <script>
-    // Title treatments to compare: ?title=1 to 6. Without it, the plain title.
-    document.documentElement.dataset.title = new URLSearchParams(location.search).get("title") ?? "0";
-  </script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Michroma&family=Share+Tech+Mono&display=swap">
   <style>
     :root { --paper: #0A0700; --ink: #FFB000; --muted: #9A6A00; }
-    html { background: var(--paper); color: var(--ink); font: 13px/1.45 ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+    html { background: var(--paper); color: var(--ink); font: 13px/1.45 "Share Tech Mono", ui-monospace, Menlo, Consolas, monospace; }
     body { box-sizing: border-box; margin: 0 auto; padding: 40px 32px 64px; max-width: 1400px; }
-    h1 { margin: 0 0 32px; font-size: 15px; font-weight: 600; letter-spacing: 0.02em; text-shadow: 0 0 6px rgba(255, 160, 0, 0.7); }
-    /* Spaced geometric titles: small, tracked out wide, softly glowing. */
-    [data-title]:not([data-title="0"]) h1 { margin-bottom: 48px; text-align: center; text-shadow: 0 0 3px rgba(255, 176, 0, 0.9), 0 0 16px rgba(255, 140, 0, 0.6); }
-    /* 1: the one you liked, Major Mono Display. */
-    [data-title="1"] h1 { font: 400 min(36px, 5.5vw)/1.2 "Major Mono Display", monospace; letter-spacing: 0.35em; text-transform: lowercase; }
-    /* 2: Syncopate, wide flat capitals. */
-    [data-title="2"] h1 { font: 400 min(30px, 4.6vw)/1.2 "Syncopate", sans-serif; letter-spacing: 0.4em; text-transform: uppercase; }
-    /* 3: Michroma, squared-off and technical. */
-    [data-title="3"] h1 { font: 400 min(28px, 4.4vw)/1.2 "Michroma", sans-serif; letter-spacing: 0.45em; text-transform: uppercase; }
-    /* 4: Lexend Exa at a hairline weight. */
-    [data-title="4"] h1 { font: 200 min(38px, 5.8vw)/1.2 "Lexend Exa", sans-serif; letter-spacing: 0.3em; text-transform: uppercase; }
-    /* 5: Orbitron, rounded-square sci-fi. */
-    [data-title="5"] h1 { font: 400 min(32px, 5vw)/1.2 "Orbitron", sans-serif; letter-spacing: 0.5em; text-transform: uppercase; }
-    /* 6: Space Mono, plainer, lower case, very wide. */
-    [data-title="6"] h1 { font: 400 min(30px, 4.6vw)/1.2 "Space Mono", monospace; letter-spacing: 0.6em; text-transform: lowercase; }
+    /* Michroma, small and tracked out wide, softly glowing. */
+    h1 { margin: 0 0 48px; text-align: center; font: 400 min(28px, 4.4vw)/1.2 "Michroma", sans-serif; letter-spacing: 0.45em; text-transform: uppercase; text-shadow: 0 0 3px rgba(255, 176, 0, 0.9), 0 0 16px rgba(255, 140, 0, 0.6); }
     header { display: flex; flex-direction: column; align-items: center; gap: 24px; margin-bottom: 56px; }
     .rule { display: flex; flex-wrap: wrap; justify-content: center; gap: 24px 64px; width: 100%; }
     .rule svg { display: block; width: min(320px, 100%); height: auto; }
+    /* Micro labels on the rules. */
+    .rule .label { font: 13px "Share Tech Mono", monospace; letter-spacing: 0.3em; fill: var(--ink); opacity: 0.8; }
     /* Pages of rows at one level of complexity, set apart by a wider gap. */
     #rows { display: flex; flex-direction: column; gap: 120px; }
     .page { display: flex; flex-direction: column; gap: 24px; }

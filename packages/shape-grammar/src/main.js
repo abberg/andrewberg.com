@@ -20,20 +20,28 @@ let rowCount = 0;
 let page = null;
 let seen = new Set();
 
-// Each rule: its left side, an arrow, and its right side, all at one scale.
+// Each rule, labelled: its left side, an arrow, and its right side, all at
+// one scale.
 function drawRules(figure) {
   const diagrams = shapeRule.diagrams.map((parts) => {
     const lhs = shapeRule.lhs(scale(100));
     const matched = shapeRule.lhs(compose(translate(270, 0), scale(100)));
     return [lhs, ...rewrite({ rhs: parts }, matched, { step: 1 })];
   });
+  // Room above for the labels.
   const box = bounds(diagrams.flat());
+  box.y -= 30;
+  box.h += 30;
   figure.replaceChildren(
-    ...diagrams.map((shapes) => {
+    ...diagrams.map((shapes, i) => {
       const svg = svgElement("svg", { viewBox: viewBox(box, 0.04) });
       const g = svgElement("g");
       drawShapes(g, shapes, { plain: true });
-      svg.append(g, svgElement("path", { d: "M85,0H170M158,-8L172,0L158,8", class: "arrow" }));
+      // The label sits just above the left side's top left corner.
+      const left = bounds([shapes[0]]);
+      const label = svgElement("text", { x: left.x, y: left.y - 14, class: "label" });
+      label.textContent = `RULE ${i + 1}`;
+      svg.append(g, svgElement("path", { d: "M85,0H170M158,-8L172,0L158,8", class: "arrow" }), label);
       return svg;
     }),
   );
