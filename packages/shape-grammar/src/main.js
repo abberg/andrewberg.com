@@ -7,6 +7,8 @@ import { bounds, drawShapes, svgElement, viewBox } from "./render.js";
 // ?rule=triangle or ?rule=diamond. Its rules sit at the top, and rows of runs
 // follow, loading as you scroll, in pages of four rows: every row in a page
 // is at the same level, and each page is a level more complex than the last.
+// Past the rule's top level, every run takes a level at random, so those
+// pages show the whole range.
 const params = new URLSearchParams(location.search);
 const shapeRule = shapeRules[params.get("rule")] ?? shapeRules.hexagon;
 const PER_ROW = 4;
@@ -48,9 +50,11 @@ function addRow() {
     rows.append(page);
     seen = new Set();
   }
-  const level = Math.floor(rowCount / ROWS_PER_PAGE);
+  const pageLevel = Math.floor(rowCount / ROWS_PER_PAGE);
+  const maxLevel = shapeRule.maxLevel ?? Infinity;
   const runs = Array.from({ length: PER_ROW }, () => {
     for (let tries = 0; ; tries++) {
+      const level = pageLevel <= maxLevel ? pageLevel : Math.floor(Math.random() * (maxLevel + 1));
       const shapes = shapeRule.run(Math.random, level);
       const box = bounds(shapes);
       const signature = `${shapes.length}:${Math.round(box.w)}:${Math.round(box.h)}`;

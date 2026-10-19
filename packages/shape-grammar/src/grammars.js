@@ -319,11 +319,13 @@ export const shapeRules = {
     ],
     // A run at complexity 0 is one step of the plain rules; each level up
     // adds a step and room for more hexagons, and from level 1 the reversed
-    // inset can join in. About a third of runs are asymmetric. Runs too
-    // sparse for their level are drawn again.
+    // inset can join in, up to level 7: eight steps and 500 hexagons. About
+    // a third of runs are asymmetric. Runs too sparse for their level are
+    // drawn again.
+    maxLevel: 7,
     run: (random, level = 3) => {
-      const steps = Math.min(1 + level, 8);
-      const limit = Math.min(12 + 30 * level, 500);
+      const steps = 1 + level;
+      const limit = Math.min(12 + 70 * level, 500);
       const least = level === 0 ? 1 : Math.min(4 + 6 * level, 80);
       const options = level === 0 ? [null, "inset", "neighbour", "neighbour"] : [null, null, "inset", "neighbour", "neighbour", "outset"];
       for (let tries = 0; ; tries++) {
