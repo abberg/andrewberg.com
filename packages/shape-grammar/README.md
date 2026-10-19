@@ -1,13 +1,13 @@
 Shape Grammars
 
-A small shape grammar engine and an endless page of a two-rule hexagon grammar, drawn in amber with a faked bloom. The rules sit at the top; below them, rows of four finished runs load as you scroll, each row a level more complex than the last. The first row is a single step of the plain rules; each level adds a step and room for more hexagons, until about the ninth row, where runs reach eight steps and 500 hexagons. About a third of runs are asymmetric. Regenerate (or R) starts again from the top.
+A small shape grammar engine and an endless page of a two-rule hexagon grammar, drawn in amber with a faked bloom. The rules sit at the top; below them, finished runs load as you scroll, four to a row, in pages of four rows set apart by a wider gap. Every run on a page is at the same level of complexity, and each page is a level up from the last. The first page is single steps of the plain rules; each level adds a step and room for more hexagons, until about the ninth page, where runs reach eight steps and 500 hexagons. About a third of runs are asymmetric. Regenerate (or R) starts again from the top.
 
 The hexagon rules: rule 1 puts a half-size hexagon centred on the midpoint of an edge, and rule 2 puts a full-size neighbour against an edge. Rule 1 also runs backwards, making a hexagon the half-size one on the edge of a hexagon twice its size. Each edge of a hexagon takes one rule, once.
 
 - Each step gives the six edges a pattern of rules that repeats every 1, 2, 3 or 6 edges, applied to every hexagon in its own frame. A first step that repeats every 1 or 2 edges makes the whole design six- or three-fold symmetric; one that repeats every 3 or 6 makes it asymmetric.
 - An inset starts a chain: rule 1 applied again and again along the same line, halving each time toward the centre of the hexagon next door. The chain is drawn out in full at once and takes no other rule.
 - Runs stay legible: three sizes at most besides the chains (the start, half it and twice it), and hexagons of one size never overlap. A spot two moves in one step both want goes to neither, so visiting order can't break the symmetry.
-- Each run fills its own cell, and a row never shows the same design twice.
+- Each run fills its own cell, and a page never shows the same design twice.
 
 Two simpler grammars are still there: `?rule=triangle`, where a triangle grows an upside-down copy of itself offset half a side along one edge, and `?rule=diamond`, where a square grows a diamond on one side, a square half its area turned 45° and centred on that side.
 

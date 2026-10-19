@@ -14,7 +14,9 @@
     header { display: flex; flex-direction: column; align-items: center; gap: 24px; margin-bottom: 56px; }
     .rule { display: flex; flex-wrap: wrap; justify-content: center; gap: 24px 64px; width: 100%; }
     .rule svg { display: block; width: min(320px, 100%); height: auto; }
-    #rows { display: flex; flex-direction: column; gap: 24px; }
+    /* Pages of rows at one level of complexity, set apart by a wider gap. */
+    #rows { display: flex; flex-direction: column; gap: 120px; }
+    .page { display: flex; flex-direction: column; gap: 24px; }
     #more { height: 1px; }
     button { font: inherit; color: inherit; background: transparent; border: 1px solid rgba(255, 176, 0, 0.45); border-radius: 4px; padding: 4px 12px; cursor: pointer; }
     button:hover { border-color: var(--ink); }

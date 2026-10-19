@@ -5,14 +5,18 @@ import { bounds, drawShapes, svgElement, viewBox } from "./render.js";
 
 // The page shows one grammar: the two-rule hexagons, or another with
 // ?rule=triangle or ?rule=diamond. Its rules sit at the top, and rows of runs
-// follow, each a level more complex than the last, loading as you scroll.
+// follow, loading as you scroll, in pages of four rows: every row in a page
+// is at the same level, and each page is a level more complex than the last.
 const params = new URLSearchParams(location.search);
 const shapeRule = shapeRules[params.get("rule")] ?? shapeRules.hexagon;
 const PER_ROW = 4;
+const ROWS_PER_PAGE = 4;
 
 const rows = document.getElementById("rows");
 const sentinel = document.getElementById("more");
-let level = 0;
+let rowCount = 0;
+let page = null;
+let seen = new Set();
 
 // Each rule: its left side, an arrow, and its right side, all at one scale.
 function drawRules(figure) {
@@ -33,12 +37,18 @@ function drawRules(figure) {
   );
 }
 
-// A row of runs at one level. Different plans can derive the same design, so
-// a run that matches one already in the row (same count and extent) is drawn
-// again. Every run is drawn at the same scale, centred in its cell, unless
+// A row of runs at its page's level. Different plans can derive the same
+// design, so a run that matches one already on the page (same count and
+// extent) is drawn again. Every run is drawn at the same scale, centred in its cell, unless
 // the rule asks for each to fill its cell.
 function addRow() {
-  const seen = new Set();
+  if (rowCount % ROWS_PER_PAGE === 0) {
+    page = document.createElement("section");
+    page.className = "page";
+    rows.append(page);
+    seen = new Set();
+  }
+  const level = Math.floor(rowCount / ROWS_PER_PAGE);
   const runs = Array.from({ length: PER_ROW }, () => {
     for (let tries = 0; ; tries++) {
       const shapes = shapeRule.run(Math.random, level);
@@ -66,8 +76,8 @@ function addRow() {
       return cell;
     }),
   );
-  rows.append(row);
-  level++;
+  page.append(row);
+  rowCount++;
 }
 
 // Add rows, one a frame, while the end of the page is in or near view.
@@ -84,7 +94,7 @@ const observer = new IntersectionObserver((entries) => {
 
 function regenerate() {
   rows.replaceChildren();
-  level = 0;
+  rowCount = 0;
   scrollTo(0, 0);
   fill();
 }
