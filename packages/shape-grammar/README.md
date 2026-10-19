@@ -7,7 +7,7 @@ The hexagon rules: rule 1 puts a half-size hexagon centred on the midpoint of an
 - Each step gives the six edges a pattern of rules that repeats every 1, 2, 3 or 6 edges, applied to every hexagon in its own frame. A first step that repeats every 1 or 2 edges makes the whole design six- or three-fold symmetric; one that repeats every 3 or 6 makes it asymmetric.
 - An inset starts a chain: rule 1 applied again and again along the same line, halving each time toward the centre of the hexagon next door. The chain is drawn out in full at once and takes no other rule.
 - Runs stay legible: three sizes at most besides the chains (the start, half it and twice it), and hexagons of one size never overlap. A spot two moves in one step both want goes to neither, so visiting order can't break the symmetry.
-- Each run fills its own cell, and a page never shows the same design twice.
+- Each run fills its own cell, and the scroll never shows the same design twice, counting turned, flipped or rescaled copies as the same.
 
 Two simpler grammars are still there: `?rule=triangle`, where a triangle grows an upside-down copy of itself offset half a side along one edge, and `?rule=diamond`, where a square grows a diamond on one side, a square half its area turned 45° and centred on that side.
 

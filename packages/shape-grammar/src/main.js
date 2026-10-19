@@ -1,4 +1,4 @@
-import { compose, scale, translate } from "./geometry.js";
+import { apply, compose, scale, scaleOf, translate } from "./geometry.js";
 import { rewrite } from "./grammar.js";
 import { shapeRules } from "./grammars.js";
 import { bounds, drawShapes, svgElement, viewBox } from "./render.js";
@@ -18,7 +18,8 @@ const rows = document.getElementById("rows");
 const sentinel = document.getElementById("more");
 let rowCount = 0;
 let page = null;
-let seen = new Set();
+// Every design shown so far, so the scroll never repeats one.
+const seen = new Set();
 
 // Each rule, labelled: its left side, an arrow, and its right side, all at
 // one scale.
@@ -47,31 +48,50 @@ function drawRules(figure) {
   );
 }
 
-// A row of runs at its page's level. Different plans can derive the same
-// design, so a run that matches one already on the page (same count and
-// extent) is drawn again. Every run is drawn at the same scale, centred in its cell, unless
-// the rule asks for each to fill its cell.
+// A key for a design that ignores where it sits, how big it's drawn, and
+// which way it's turned or flipped: the distances of its shapes from their
+// centre and their sizes, relative to its largest shape, as a sorted list.
+// Runs are drawn to fill their cells, so two runs with the same key look
+// alike on the page.
+function designKey(shapes) {
+  const places = shapes.map((s) => [...apply(s.transform, [0, 0]), scaleOf(s.transform)]);
+  const cx = places.reduce((sum, [x]) => sum + x, 0) / places.length;
+  const cy = places.reduce((sum, [, y]) => sum + y, 0) / places.length;
+  const unit = Math.max(...places.map(([, , size]) => size));
+  return places
+    .map(([x, y, size]) => `${Math.round((Math.hypot(x - cx, y - cy) / unit) * 50)}:${Math.round((size / unit) * 50)}`)
+    .sort()
+    .join(" ");
+}
+
+// One run at a level that the page hasn't shown yet. If a level runs short
+// of new designs (the first, simplest pages can), it borrows from the next.
+function freshRun(level, maxLevel) {
+  for (let tries = 0; ; tries++) {
+    const at = Math.min(level + Math.floor(tries / 200), maxLevel);
+    const shapes = shapeRule.run(Math.random, at);
+    const key = designKey(shapes);
+    if (!seen.has(key) || tries > 2000) {
+      seen.add(key);
+      return { shapes, box: bounds(shapes) };
+    }
+  }
+}
+
+// A row of runs at its page's level, none of them a design shown before.
+// Every run is drawn at the same scale, centred in its cell, unless the rule
+// asks for each to fill its cell.
 function addRow() {
   if (rowCount % ROWS_PER_PAGE === 0) {
     page = document.createElement("section");
     page.className = "page";
     rows.append(page);
-    seen = new Set();
   }
   const pageLevel = Math.floor(rowCount / ROWS_PER_PAGE);
-  const maxLevel = shapeRule.maxLevel ?? Infinity;
-  const runs = Array.from({ length: PER_ROW }, () => {
-    for (let tries = 0; ; tries++) {
-      const level = pageLevel <= maxLevel ? pageLevel : Math.floor(Math.random() * (maxLevel + 1));
-      const shapes = shapeRule.run(Math.random, level);
-      const box = bounds(shapes);
-      const signature = `${shapes.length}:${Math.round(box.w)}:${Math.round(box.h)}`;
-      if (!seen.has(signature) || tries > 20) {
-        seen.add(signature);
-        return { shapes, box };
-      }
-    }
-  });
+  const maxLevel = shapeRule.maxLevel ?? 100;
+  const runs = Array.from({ length: PER_ROW }, () =>
+    freshRun(pageLevel <= maxLevel ? pageLevel : Math.floor(Math.random() * (maxLevel + 1)), maxLevel),
+  );
   const largest = Math.max(...runs.map(({ box }) => Math.max(box.w, box.h)));
   const row = document.createElement("div");
   row.className = "grid";
@@ -92,22 +112,30 @@ function addRow() {
   rowCount++;
 }
 
-// Add rows, one a frame, while the end of the page is in or near view.
+// Add rows one at a time, letting the page paint between them, while the
+// end of the page is in or near view.
 function fill() {
   if (sentinel.getBoundingClientRect().top < innerHeight + 800) {
     addRow();
-    requestAnimationFrame(fill);
+    setTimeout(fill, 16);
+  } else {
+    filling = false;
   }
 }
 
-const observer = new IntersectionObserver((entries) => {
-  if (entries.some((entry) => entry.isIntersecting)) fill();
-}, { rootMargin: "800px 0px" });
-
+// Check again whenever the page scrolls or resizes, starting one filling
+// loop at a time.
+let filling = false;
+function check() {
+  if (filling) return;
+  filling = true;
+  fill();
+}
 
 drawRules(document.getElementById("rule"));
-fill();
-observer.observe(sentinel);
+addEventListener("scroll", check, { passive: true });
+addEventListener("resize", check);
+check();
 
 // The site's thumbnail script waits for this before taking its screenshot.
 document.documentElement.dataset.thumbnailReady = "true";
