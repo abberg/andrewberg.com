@@ -158,9 +158,8 @@ const hexRules = {
   // its edge 0, which is then taken.
   outset: { at: (edge) => compose(rotate(60 * edge), scale(2), translate(-0.75, -HEX_HEIGHT / 2)), childEdge: 0 },
 };
-// Three sizes at most (the axiom, half it, and twice it), and a cap on the
-// count, so runs stay legible.
-const MAX_HEXAGONS = 110;
+// Three sizes at most (the axiom, half it, and twice it), so runs stay
+// legible. How many hexagons a run may have grows with its complexity.
 const MIN_SCALE = 25;
 // How small a chain can get.
 const CHAIN_MIN_SCALE = 1.5;
@@ -197,34 +196,40 @@ function crowded(place, placed) {
 }
 
 // A step's plan gives each of the six edges a rule, or none. The plan
-// repeats every `period` edges: a period of 1 or 2 gives the first step six-
-// or three-fold symmetry, and since every later step applies its plan to
-// each hexagon in its own frame, the whole design keeps it.
-function makePlan(random, periods) {
+// repeats every `period` edges. A first step with a period of 1 or 2 gives
+// the design six- or three-fold symmetry, and since every later step applies
+// its plan to each hexagon in its own frame, the whole design keeps it; a
+// first step with a period of 3 or 6 gives an asymmetric design.
+function makePlan(random, periods, options) {
   const period = periods[Math.floor(random() * periods.length)];
-  const options = [null, null, "inset", "neighbour", "neighbour", "outset"];
   const motif = Array.from({ length: period }, () => options[Math.floor(random() * options.length)]);
   return EDGES.map((edge) => motif[edge % period]);
 }
 
-// Plans for a whole run, redrawn until they use rule 2 and at least one
-// direction of rule 1, and the first step isn't empty.
-function makePlans(random, steps) {
+// Plans for a whole run, redrawn until the first step does something and,
+// in runs of more than one step, both rules are used.
+function makePlans(random, steps, { symmetric, options }) {
   for (;;) {
-    const plans = Array.from({ length: steps }, (_, i) => makePlan(random, i === 0 ? [1, 2] : [1, 2, 3, 6]));
+    const plans = Array.from({ length: steps }, (_, i) =>
+      makePlan(random, i > 0 ? [1, 2, 3, 6] : symmetric ? [1, 2] : [3, 6], options),
+    );
     const used = new Set(plans.flat());
-    if (plans[0].some(Boolean) && used.has("neighbour") && (used.has("inset") || used.has("outset"))) return plans;
+    const mixed = steps === 1 || (used.has("neighbour") && (used.has("inset") || used.has("outset")));
+    if (plans[0].some(Boolean) && mixed) return plans;
   }
 }
+
+// The smallest number of edges a plan repeats over.
+const periodOf = (plan) => [1, 2, 3, 6].find((p) => plan.every((ruleName, edge) => ruleName === plan[(edge + p) % 6]));
 
 // The edges of a hexagon this step's plan can grow on: free, inside the size
 // limits, and not overlapping a hexagon of the same size.
 // The moves a hexagon could make this step, before checking for collisions
 // with other moves in the same step.
-function candidateMoves(matched, plan, context, period) {
+function candidateMoves(matched, plan, context, { period, limit }) {
   if (matched.label == null) return [];
   const size = scaleOf(matched.transform);
-  if (context.shapes.length > MAX_HEXAGONS) return [];
+  if (context.shapes.length > limit) return [];
   // A hexagon centred on the middle of the design is its own symmetric copy,
   // so it only takes a step whose plan has the design's symmetry.
   const [x, y] = apply(matched.transform, [0, 0]);
@@ -244,22 +249,22 @@ function candidateMoves(matched, plan, context, period) {
 // hexagons from earlier steps, and a spot two moves in the same step both
 // want goes to neither: picking one would depend on the order hexagons are
 // visited in, which would break the symmetry.
-function hexMoves(matched, plan, context, period) {
+function hexMoves(matched, plan, context, settings) {
   if (!context.placed) {
     context.placed = context.shapes.map((s) => hexPlace(s.transform));
     context.wanted = new Map();
     for (const s of context.shapes) {
-      for (const { key } of candidateMoves(s, plan, context, period)) context.wanted.set(key, (context.wanted.get(key) ?? 0) + 1);
+      for (const { key } of candidateMoves(s, plan, context, settings)) context.wanted.set(key, (context.wanted.get(key) ?? 0) + 1);
     }
   }
-  return candidateMoves(matched, plan, context, period).filter(({ key }) => context.wanted.get(key) === 1);
+  return candidateMoves(matched, plan, context, settings).filter(({ key }) => context.wanted.get(key) === 1);
 }
 
-function hexGrammar(plans) {
+function hexGrammar(plans, limit) {
   const planFor = (context) => plans[context.step - 1];
   // The design's symmetry is the first step's: six-fold if its plan repeats
-  // every edge, three-fold if every other edge.
-  const period = plans[0].every((ruleName, edge) => ruleName === plans[0][(edge + 1) % 6]) ? 1 : 2;
+  // every edge, three-fold if every other edge, none otherwise.
+  const settings = { period: periodOf(plans[0]), limit };
   return grammar({
     axiom: [shape(hexagon(1), { label: "H", transform: scale(50), data: { free: EDGES } })],
     steps: plans.length,
@@ -267,7 +272,7 @@ function hexGrammar(plans) {
       rule(
         "H",
         (matched, context) => {
-          const moves = hexMoves(matched, planFor(context), context, period);
+          const moves = hexMoves(matched, planFor(context), context, settings);
           const free = matched.data.free.filter((edge) => !moves.some((move) => move.edge === edge));
           return [
             { label: free.length ? "H" : null, data: { free } },
@@ -278,7 +283,7 @@ function hexGrammar(plans) {
             }),
           ];
         },
-        { when: (matched, context) => hexMoves(matched, planFor(context), context, period).length > 0 },
+        { when: (matched, context) => hexMoves(matched, planFor(context), context, settings).length > 0 },
       ),
     ],
   });
@@ -312,12 +317,19 @@ export const shapeRules = {
       [{}, { at: hexRules.inset.at(0) }],
       [{}, { at: hexRules.neighbour.at(0) }],
     ],
-    // Every run is symmetric, mixing the rules within and across steps.
-    // Runs with too few hexagons to be interesting are drawn again.
-    run: (random) => {
+    // A run at complexity 0 is one step of the plain rules; each level up
+    // adds a step and room for more hexagons, and from level 1 the reversed
+    // inset can join in. About a third of runs are asymmetric. Runs too
+    // sparse for their level are drawn again.
+    run: (random, level = 3) => {
+      const steps = Math.min(1 + level, 8);
+      const limit = Math.min(12 + 30 * level, 500);
+      const least = level === 0 ? 1 : Math.min(4 + 6 * level, 80);
+      const options = level === 0 ? [null, "inset", "neighbour", "neighbour"] : [null, null, "inset", "neighbour", "neighbour", "outset"];
       for (let tries = 0; ; tries++) {
-        const shapes = derive(hexGrammar(makePlans(random, 3 + Math.floor(random() * 3))), { random }).at(-1).shapes;
-        if (shapes.length >= 24 || tries > 20) return shapes;
+        const plans = makePlans(random, steps, { symmetric: random() < 0.65, options });
+        const shapes = derive(hexGrammar(plans, limit), { random }).at(-1).shapes;
+        if (shapes.length >= least || tries > 20) return shapes;
       }
     },
     // Each run fills its own cell: outsets make some runs far bigger than others.

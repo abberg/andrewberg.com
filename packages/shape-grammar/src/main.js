@@ -3,38 +3,19 @@ import { rewrite } from "./grammar.js";
 import { shapeRules } from "./grammars.js";
 import { bounds, drawShapes, svgElement, viewBox } from "./render.js";
 
-const RUNS = 12;
-
 // The page shows one grammar: the two-rule hexagons, or another with
-// ?rule=triangle or ?rule=diamond.
+// ?rule=triangle or ?rule=diamond. Its rules sit at the top, and rows of runs
+// follow, each a level more complex than the last, loading as you scroll.
 const params = new URLSearchParams(location.search);
-const shown = shapeRules[params.get("rule")] ?? shapeRules.hexagon;
+const shapeRule = shapeRules[params.get("rule")] ?? shapeRules.hexagon;
+const PER_ROW = 4;
 
-// The rule beside a grid of finished runs.
-const rows = [shown].map((shapeRule) => {
-  const section = document.createElement("section");
-  const header = document.createElement("header");
-  const ruleFigure = document.createElement("div");
-  ruleFigure.className = "rule";
-  const button = document.createElement("button");
-  button.textContent = "Regenerate";
-  button.title = "Regenerate (R)";
-  const grid = document.createElement("div");
-  grid.className = "grid";
-  header.append(ruleFigure, button);
-  section.append(header, grid);
-  document.getElementById("rules").append(section);
+const rows = document.getElementById("rows");
+const sentinel = document.getElementById("more");
+let level = 0;
 
-  drawRule(shapeRule, ruleFigure);
-  const regenerate = () => drawGrid(shapeRule, grid);
-  button.addEventListener("click", regenerate);
-  regenerate();
-  return regenerate;
-});
-
-// Each rule: its left side, an arrow, and its right side. A grammar with
-// several rules stacks them, all at one scale.
-function drawRule(shapeRule, figure) {
+// Each rule: its left side, an arrow, and its right side, all at one scale.
+function drawRules(figure) {
   const diagrams = shapeRule.diagrams.map((parts) => {
     const lhs = shapeRule.lhs(scale(100));
     const matched = shapeRule.lhs(compose(translate(270, 0), scale(100)));
@@ -52,15 +33,15 @@ function drawRule(shapeRule, figure) {
   );
 }
 
-// Every run of a rule is drawn at the same scale, centred in its cell, so
-// their sizes can be compared, unless the rule asks for each to fill its cell.
-function drawGrid(shapeRule, grid) {
-  // Different plans can derive the same design, so a run that matches one
-  // already in the grid (same count and extent) is drawn again.
+// A row of runs at one level. Different plans can derive the same design, so
+// a run that matches one already in the row (same count and extent) is drawn
+// again. Every run is drawn at the same scale, centred in its cell, unless
+// the rule asks for each to fill its cell.
+function addRow() {
   const seen = new Set();
-  const runs = Array.from({ length: RUNS }, () => {
+  const runs = Array.from({ length: PER_ROW }, () => {
     for (let tries = 0; ; tries++) {
-      const shapes = shapeRule.run(Math.random);
+      const shapes = shapeRule.run(Math.random, level);
       const box = bounds(shapes);
       const signature = `${shapes.length}:${Math.round(box.w)}:${Math.round(box.h)}`;
       if (!seen.has(signature) || tries > 20) {
@@ -70,7 +51,9 @@ function drawGrid(shapeRule, grid) {
     }
   });
   const largest = Math.max(...runs.map(({ box }) => Math.max(box.w, box.h)));
-  grid.replaceChildren(
+  const row = document.createElement("div");
+  row.className = "grid";
+  row.append(
     ...runs.map(({ shapes, box }) => {
       const cell = document.createElement("figure");
       const size = shapeRule.fit === "each" ? Math.max(box.w, box.h) : largest;
@@ -83,11 +66,36 @@ function drawGrid(shapeRule, grid) {
       return cell;
     }),
   );
+  rows.append(row);
+  level++;
 }
 
+// Add rows, one a frame, while the end of the page is in or near view.
+function fill() {
+  if (sentinel.getBoundingClientRect().top < innerHeight + 800) {
+    addRow();
+    requestAnimationFrame(fill);
+  }
+}
+
+const observer = new IntersectionObserver((entries) => {
+  if (entries.some((entry) => entry.isIntersecting)) fill();
+}, { rootMargin: "800px 0px" });
+
+function regenerate() {
+  rows.replaceChildren();
+  level = 0;
+  scrollTo(0, 0);
+  fill();
+}
+
+drawRules(document.getElementById("rule"));
+document.getElementById("again").addEventListener("click", regenerate);
 addEventListener("keydown", (event) => {
-  if ((event.key === "r" || event.key === "R") && !event.metaKey && !event.ctrlKey) rows.forEach((regenerate) => regenerate());
+  if ((event.key === "r" || event.key === "R") && !event.metaKey && !event.ctrlKey) regenerate();
 });
+fill();
+observer.observe(sentinel);
 
 // The site's thumbnail script waits for this before taking its screenshot.
 document.documentElement.dataset.thumbnailReady = "true";

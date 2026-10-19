@@ -11,10 +11,11 @@
     body { box-sizing: border-box; margin: 0 auto; padding: 40px 32px 64px; max-width: 1400px; }
     h1, button { text-shadow: 0 0 6px rgba(255, 160, 0, 0.7); }
     h1 { margin: 0 0 32px; font-size: 15px; font-weight: 600; letter-spacing: 0.02em; }
-    section { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(0, 3.2fr); column-gap: 56px; align-items: center; }
-    section header { display: flex; flex-direction: column; align-items: center; gap: 24px; }
-    .rule { display: flex; flex-direction: column; gap: 16px; width: 100%; max-width: 360px; }
-    .rule svg { display: block; width: 100%; height: auto; }
+    header { display: flex; flex-direction: column; align-items: center; gap: 24px; margin-bottom: 56px; }
+    .rule { display: flex; flex-wrap: wrap; justify-content: center; gap: 24px 64px; width: 100%; }
+    .rule svg { display: block; width: min(320px, 100%); height: auto; }
+    #rows { display: flex; flex-direction: column; gap: 24px; }
+    #more { height: 1px; }
     button { font: inherit; color: inherit; background: transparent; border: 1px solid rgba(255, 176, 0, 0.45); border-radius: 4px; padding: 4px 12px; cursor: pointer; }
     button:hover { border-color: var(--ink); }
     .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px; }
@@ -26,14 +27,18 @@
     .arrow { fill: none; stroke: var(--ink); stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
     @media (max-width: 760px) {
       body { padding: 24px 16px 48px; }
-      section { grid-template-columns: minmax(0, 1fr); row-gap: 24px; }
       .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
     }
   </style>
 </head>
 <body>
 <h1>Shape Grammars</h1>
-<main id="rules"></main>
+<header>
+  <div class="rule" id="rule"></div>
+  <button id="again" title="Regenerate (R)">Regenerate</button>
+</header>
+<main id="rows"></main>
+<div id="more"></div>
 <script type="module" src="./src/main.js"></script>
 </body>
 </html>
