@@ -1,0 +1,9 @@
+{
+  "title": "Shape Grammars",
+  "description": "An endless scroll of a two-rule hexagon shape grammar, from single steps at the top to dense, sometimes asymmetric designs further down, in amber.",
+  "category": "Generative",
+  "order": 35,
+  "thumbnail": {
+    "readySelector": "html[data-thumbnail-ready=\"true\"]"
+  }
+}

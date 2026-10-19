@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
+  <title>Shape Grammars — Andrew Berg</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Michroma&family=Share+Tech+Mono&display=swap">
+  <style>
+    :root { --paper: rgb(26, 18, 0); --ink: #FFB000; --muted: #9A6A00; }
+    html { background: var(--paper); color: var(--ink); font: 13px/1.45 "Share Tech Mono", ui-monospace, Menlo, Consolas, monospace; }
+    body { box-sizing: border-box; margin: 0 auto; padding: 40px 32px 64px; max-width: 1400px; }
+    /* Michroma, small and tracked out wide, softly glowing. */
+    h1 { margin: 0 0 48px; text-align: center; font: 400 min(28px, 4.4vw)/1.2 "Michroma", sans-serif; letter-spacing: 0.45em; text-transform: uppercase; text-shadow: 0 0 3px rgba(255, 176, 0, 0.9), 0 0 16px rgba(255, 140, 0, 0.6); }
+    header { display: flex; flex-direction: column; align-items: center; gap: 24px; margin-bottom: 56px; }
+    .rule { display: flex; flex-wrap: wrap; justify-content: center; gap: 24px 64px; width: 100%; }
+    .rule svg { display: block; width: min(320px, 100%); height: auto; }
+    /* Micro labels on the rules. */
+    .rule .label { font: 13px "Share Tech Mono", monospace; letter-spacing: 0.3em; fill: var(--ink); opacity: 0.8; }
+    /* Pages of rows at one level of complexity, set apart by a wider gap. */
+    #rows { display: flex; flex-direction: column; gap: 120px; }
+    .page { display: flex; flex-direction: column; gap: 24px; }
+    #more { height: 1px; }
+    .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px; }
+    figure { margin: 0; }
+    figure svg { display: block; width: 100%; height: auto; aspect-ratio: 1; }
+    /* Amber drop shadows on every drawing fake the bloom of an old amber monitor. */
+    .rule svg, figure svg { filter: drop-shadow(0 0 1px #FFC233) drop-shadow(0 0 2.5px rgba(255, 176, 0, 0.85)) drop-shadow(0 0 8px rgba(255, 160, 0, 0.65)) drop-shadow(0 0 22px rgba(255, 140, 0, 0.4)); }
+    .shape { fill: none; stroke: var(--ink); stroke-width: 1; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+    .arrow { fill: none; stroke: var(--ink); stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
+    @media (max-width: 760px) {
+      body { padding: 24px 16px 48px; }
+      .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    }
+  </style>
+</head>
+<body>
+<h1>Shape Grammars</h1>
+<header>
+  <div class="rule" id="rule"></div>
+</header>
+<main id="rows"></main>
+<div id="more"></div>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
