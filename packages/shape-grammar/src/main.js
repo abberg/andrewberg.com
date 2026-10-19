@@ -3,17 +3,22 @@ import { rewrite } from "./grammar.js";
 import { shapeRules } from "./grammars.js";
 import { bounds, drawShapes, svgElement, viewBox } from "./render.js";
 
-const RUNS = 6;
+const RUNS = 12;
 
-// One row per rule: the rule beside a grid of finished runs.
-const rows = Object.values(shapeRules).map((shapeRule) => {
+// The page shows one grammar: the two-rule hexagons, or another with
+// ?rule=triangle or ?rule=diamond.
+const params = new URLSearchParams(location.search);
+const shown = shapeRules[params.get("rule")] ?? shapeRules.hexagon;
+
+// The rule beside a grid of finished runs.
+const rows = [shown].map((shapeRule) => {
   const section = document.createElement("section");
   const header = document.createElement("header");
   const ruleFigure = document.createElement("div");
   ruleFigure.className = "rule";
   const button = document.createElement("button");
   button.textContent = "Regenerate";
-  button.title = "Regenerate (R regenerates every rule)";
+  button.title = "Regenerate (R)";
   const grid = document.createElement("div");
   grid.className = "grid";
   header.append(ruleFigure, button);

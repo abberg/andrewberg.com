@@ -1,6 +1,6 @@
 {
   "title": "Shape Grammars",
-  "description": "Shape rules, each beside a grid of finished runs: a triangle that grows offset, upside-down copies of itself, a square that grows diamonds, and hexagons with two rules, one insetting a smaller hexagon and one adding a neighbour.",
+  "description": "A two-rule hexagon shape grammar beside a grid of finished, symmetric runs: one rule insets a smaller hexagon on an edge, the other adds a neighbour.",
   "category": "Generative",
   "order": 35,
   "thumbnail": {
