@@ -45,11 +45,12 @@ const fbxLoader = new FBXLoader();
 let model = null;
 
 // Put the model at the origin, sized so its bounding sphere has radius 1,
-// and pull the camera back to fit it.
+// and pull the camera back to fit it. Only visible meshes count, so a robot is
+// framed without the weapons it's hiding.
 function show(object) {
   if (model) scene.remove(model);
   model = object;
-  const box = new THREE.Box3().setFromObject(model);
+  const box = visibleBox(model);
   const sphere = box.getBoundingSphere(new THREE.Sphere());
   model.position.sub(sphere.center);
   const holder = new THREE.Group();
@@ -62,6 +63,43 @@ function show(object) {
   camera.position.set(0, 0.35, 1).normalize().multiplyScalar(distance * 0.9);
   controls.target.set(0, 0, 0);
   controls.update();
+}
+
+function visibleBox(object) {
+  object.updateMatrixWorld(true);
+  const box = new THREE.Box3();
+  object.traverseVisible((child) => {
+    if (!child.isMesh) return;
+    child.geometry.computeBoundingBox();
+    box.union(child.geometry.boundingBox.clone().applyMatrix4(child.matrixWorld));
+  });
+  return box.isEmpty() ? new THREE.Box3().setFromObject(object) : box;
+}
+
+// A robot is several meshes on one skeleton: the body, called "model", plus
+// weapons (wp_*) and extra parts (eq_*: holstered gear, but also alternate
+// hands, wings and faces). Show just the body to begin with, and list every
+// part so any of them can be switched back on. The odd robot without a
+// "model" mesh shows everything.
+const parts = document.getElementById("parts");
+const coreMesh = /^(model|body|mode)$/;
+
+function listParts(object) {
+  const meshes = [];
+  object.traverse((child) => child.isMesh && meshes.push(child));
+  const hasCore = meshes.some((mesh) => coreMesh.test(mesh.name));
+  parts.replaceChildren(
+    ...meshes.map((mesh) => {
+      mesh.visible = !hasCore || coreMesh.test(mesh.name);
+      const label = document.createElement("label");
+      const box = document.createElement("input");
+      box.type = "checkbox";
+      box.checked = mesh.visible;
+      box.addEventListener("change", () => (mesh.visible = box.checked));
+      label.append(box, mesh.name || "(unnamed)");
+      return label;
+    }),
+  );
 }
 
 // The robot list. Typing filters it; up and down step through what's shown.
@@ -96,7 +134,9 @@ async function loadRobot(id) {
   const ticket = ++loading;
   try {
     const object = await fbxLoader.loadAsync(`./models/${id}/${id}.fbx`);
-    if (ticket === loading) show(object);
+    if (ticket !== loading) return;
+    listParts(object);
+    show(object);
   } catch (error) {
     console.error(`Couldn't load ${id}`, error);
   }
@@ -111,6 +151,11 @@ function step(by) {
 }
 
 filter.addEventListener("input", renderList);
+// Editing the hash by hand loads that robot too.
+addEventListener("hashchange", () => {
+  const id = location.hash.slice(1);
+  if (id !== current && robots.some((robot) => robot.id === id)) loadRobot(id);
+});
 addEventListener("keydown", (event) => {
   if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
   event.preventDefault();
@@ -143,7 +188,9 @@ addEventListener("drop", async (event) => {
   const file = event.dataTransfer.files[0];
   if (!file) return;
   try {
-    show((await loader.parseAsync(await file.arrayBuffer(), "")).scene);
+    const { scene: dropped } = await loader.parseAsync(await file.arrayBuffer(), "");
+    listParts(dropped);
+    show(dropped);
   } catch (error) {
     console.error(`Couldn't load ${file.name}`, error);
   }
