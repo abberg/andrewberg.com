@@ -244,7 +244,7 @@ function bakeOcclusion(figure) {
   );
   const bvh = new MeshBVH(whole);
   const size = new THREE.Box3().setFromObject(figure).getSize(new THREE.Vector3());
-  const reach = Math.max(size.x, size.y, size.z) * 0.12;
+  const reach = Math.max(size.x, size.y, size.z) * 0.16;
 
   const ray = new THREE.Ray();
   const point = new THREE.Vector3();
@@ -269,7 +269,8 @@ function bakeOcclusion(figure) {
         ray.origin.copy(point).addScaledVector(normal, reach * 0.01);
         if (!bvh.raycastFirst(ray, THREE.DoubleSide, 0, reach)) open++;
       }
-      occlusion[v] = open / rayCount;
+      // Curved, so partly hidden spots darken a little more than their share.
+      occlusion[v] = (open / rayCount) ** 1.5;
     }
     mesh.geometry.setAttribute("resinOcclusion", new THREE.BufferAttribute(occlusion, 1));
   }

@@ -52,7 +52,7 @@ const occlusion = THREE.ShaderChunk.aomap_fragment
 function withOcclusion(fragmentShader) {
   return fragmentShader
     .replace("#include <aomap_fragment>", occlusion)
-    .replace("#include <transmission_fragment>", "#include <transmission_fragment>\n\ttotalDiffuse *= mix( 1.0, ambientOcclusion, 0.6 );");
+    .replace("#include <transmission_fragment>", "#include <transmission_fragment>\n\ttotalDiffuse *= mix( 1.0, ambientOcclusion, 0.75 );");
 }
 // 1 where the resin is thin, falling towards 0 where it's thick.
 const lightThrough = `exp( - vResinDepth / ${reach.toFixed(3)} )`;
