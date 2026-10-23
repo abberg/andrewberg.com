@@ -9,13 +9,23 @@
     html, body { margin: 0; height: 100%; overflow: hidden; background: #16181c; color: #c9ccd2; font: 12px/1.4 ui-monospace, Menlo, Consolas, monospace; }
     canvas { display: block; width: 100%; height: 100%; touch-action: none; }
     #hint { position: fixed; left: 16px; bottom: 16px; opacity: 0.7; pointer-events: none; }
-    .thumbnail #hint { display: none; }
+    #panel { position: fixed; left: 16px; top: 16px; bottom: 48px; width: 220px; display: flex; flex-direction: column; gap: 8px; }
+    #filter { font: inherit; color: inherit; background: #22252b; border: 1px solid #33363d; border-radius: 4px; padding: 6px 8px; }
+    #robots { list-style: none; margin: 0; padding: 0; overflow-y: auto; flex: 1; }
+    #robots li { padding: 2px 8px; border-radius: 3px; cursor: pointer; opacity: 0.7; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #robots li:hover { opacity: 1; background: #22252b; }
+    #robots li.current { opacity: 1; background: #33363d; }
+    .thumbnail #hint, .thumbnail #panel, .no-robots #panel { display: none; }
     /* Outline the page while a file is dragged over it. */
     .dragging body { box-shadow: inset 0 0 0 2px #c9ccd2; }
   </style>
 </head>
 <body>
-<div id="hint">Drag to orbit · scroll to zoom · drop a .glb or .gltf to load it</div>
+<div id="panel">
+  <input id="filter" type="search" placeholder="Filter robots" aria-label="Filter robots" autocomplete="off">
+  <ul id="robots"></ul>
+</div>
+<div id="hint">↑ ↓ to step through robots · drag to orbit · scroll to zoom · drop a .glb or .gltf to load it</div>
 <script type="module" src="./src/main.js"></script>
 </body>
 </html>

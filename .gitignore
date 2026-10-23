@@ -8,3 +8,7 @@ apps/site/src/data/sketches.json
 output/
 .playwright-cli/
 tmp/
+
+# Bootleg Toys models are local only; keep the one sample model.
+packages/bootleg-toys/public/models/*
+!packages/bootleg-toys/public/models/DamagedHelmet.glb
