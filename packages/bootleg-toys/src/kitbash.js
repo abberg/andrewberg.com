@@ -1,4 +1,6 @@
 import * as THREE from "three";
+import { toCreasedNormals } from "three/addons/utils/BufferGeometryUtils.js";
+import { MeshBVH } from "three-mesh-bvh";
 
 // Kitbashing: build one robot from the head, body, arms and legs of others.
 //
@@ -76,7 +78,7 @@ function dominantBones(mesh) {
 
 // Cut one part out of `source` and fit it to the skeleton of `frame`.
 // Returns a mesh per material the part uses.
-function transplant(source, frame, part) {
+function transplant(source, frame, part, material) {
   const { mesh } = source;
   const geometry = mesh.geometry;
   const bones = mesh.skeleton.bones;
@@ -139,21 +141,73 @@ function transplant(source, frame, part) {
       }
     }
     if (!out.position.length) continue;
-    const piece = new THREE.BufferGeometry();
+    let piece = new THREE.BufferGeometry();
     piece.setAttribute("position", new THREE.Float32BufferAttribute(out.position, 3));
-    if (out.normal.length) piece.setAttribute("normal", new THREE.Float32BufferAttribute(out.normal, 3));
-    else piece.computeVertexNormals();
-    if (out.uv.length) piece.setAttribute("uv", new THREE.Float32BufferAttribute(out.uv, 2));
-    const result = new THREE.Mesh(piece, materials[group.materialIndex] ?? materials[0]);
+    if (material) {
+      // Cast in resin there's no texture to keep, and the game's low-poly
+      // normals look faceted, so smooth them, keeping the sculpt's hard edges.
+      piece = toCreasedNormals(piece, THREE.MathUtils.degToRad(60));
+      measureThickness(piece);
+    } else {
+      if (out.normal.length) piece.setAttribute("normal", new THREE.Float32BufferAttribute(out.normal, 3));
+      else piece.computeVertexNormals();
+      if (out.uv.length) piece.setAttribute("uv", new THREE.Float32BufferAttribute(out.uv, 2));
+    }
+    const result = new THREE.Mesh(piece, material ?? materials[group.materialIndex] ?? materials[0]);
     result.name = `${part}`;
     meshes.push(result);
   }
   return meshes;
 }
 
+// How much resin light passes through at each vertex: the distance from it,
+// straight in along the normal, to the far side. The resin material reads it
+// (see resinThickness in main.js), so fins and fingers glow pale while chests
+// go deep. Where a ray finds no far side (an open edge), use a thin default.
+function measureThickness(geometry) {
+  const bvh = new MeshBVH(geometry);
+  const position = geometry.attributes.position;
+  const normal = geometry.attributes.normal;
+  geometry.computeBoundingSphere();
+  const fallback = geometry.boundingSphere.radius * 0.05;
+  const limit = geometry.boundingSphere.radius;
+  const thickness = new Float32Array(position.count);
+  const ray = new THREE.Ray();
+  for (let v = 0; v < position.count; v++) {
+    ray.direction.fromBufferAttribute(normal, v).negate();
+    ray.origin.fromBufferAttribute(position, v).addScaledVector(ray.direction, limit * 1e-3);
+    const hit = bvh.raycastFirst(ray, THREE.DoubleSide);
+    thickness[v] = hit ? Math.min(hit.distance, limit) : fallback;
+  }
+  geometry.setAttribute("resinThickness", new THREE.BufferAttribute(thickness, 1));
+}
+
 // pick maps each slot to a prepared robot. The body robot is the frame.
-export function kitbash(pick) {
+// Every part is cast in `material` when one is given, and the figure stands
+// on a thin base of it, like a bootleg resin toy; otherwise parts keep their
+// robots' own textures.
+export function kitbash(pick, material) {
   const group = new THREE.Group();
-  for (const slot of slots) group.add(...transplant(pick[slot], pick.body, slot));
+  for (const slot of slots) {
+    for (const piece of transplant(pick[slot], pick.body, slot, material)) group.add(piece);
+  }
+  if (material) group.add(base(group, material));
   return group;
+}
+
+// A slab under the feet, sized to the legs' stance rather than wings or arms.
+function base(figure, material) {
+  const box = new THREE.Box3().setFromObject(figure);
+  const feet = new THREE.Box3();
+  for (const piece of figure.children) if (piece.name === "legs") feet.expandByObject(piece);
+  if (feet.isEmpty()) feet.copy(box);
+  const stance = feet.getSize(new THREE.Vector3());
+  const height = (box.max.y - box.min.y) * 0.03;
+  const width = Math.max(stance.x, stance.z) * 1.25;
+  const slab = new THREE.Mesh(new THREE.BoxGeometry(width, height, stance.z * 1.1 + height * 2), material);
+  const slabThickness = new Float32Array(slab.geometry.attributes.position.count).fill(height);
+  slab.geometry.setAttribute("resinThickness", new THREE.BufferAttribute(slabThickness, 1));
+  slab.position.set((feet.min.x + feet.max.x) / 2, box.min.y - height / 2, (feet.min.z + feet.max.z) / 2);
+  slab.name = "base";
+  return slab;
 }

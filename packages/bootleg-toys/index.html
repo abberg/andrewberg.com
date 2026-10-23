@@ -27,6 +27,13 @@
     [data-mode="kitbash"] #kitbash { display: flex; }
     [data-mode="kitbash"] #filter, [data-mode="kitbash"] #robots, [data-mode="kitbash"] #parts { display: none; }
     [data-mode="kitbash"] .viewer-only, html:not([data-mode="kitbash"]) .kitbash-only { display: none; }
+    #swatches { display: flex; gap: 6px; }
+    #swatches button { width: 22px; height: 22px; padding: 0; border-radius: 50%; border: 2px solid transparent; }
+    #swatches button[aria-pressed="true"] { border-color: currentColor; }
+    /* The kitbash stage is light, so the panel goes dark-on-light. */
+    [data-mode="kitbash"] body { color: #2a2c30; }
+    [data-mode="kitbash"] button, [data-mode="kitbash"] select { background: #f7f6f3; border-color: #d4d2cc; }
+    [data-mode="kitbash"] #modes button[aria-pressed="true"] { background: #dddbd5; border-color: #bdbab3; }
     #parts { position: fixed; right: 16px; top: 16px; max-height: calc(100% - 64px); width: 200px; overflow-y: auto; display: flex; flex-direction: column; }
     #parts label { display: flex; gap: 6px; align-items: center; padding: 1px 0; cursor: pointer; opacity: 0.7; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     #parts label:has(:checked), #parts label:hover { opacity: 1; }
@@ -44,6 +51,7 @@
   </div>
   <div id="kitbash">
     <div id="slots"></div>
+    <div id="swatches" aria-label="Resin colour"></div>
     <button type="button" id="shuffle">Shuffle all (R)</button>
   </div>
   <input id="filter" type="search" placeholder="Filter robots" aria-label="Filter robots" autocomplete="off">

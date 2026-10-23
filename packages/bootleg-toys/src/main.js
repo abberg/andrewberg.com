@@ -187,6 +187,8 @@ const slotPickers = {};
 function setMode(next) {
   mode = next;
   document.documentElement.dataset.mode = next;
+  // Clear resin needs something bright behind it to glow against.
+  scene.background.set(next === "kitbash" ? 0xeceae6 : 0x16181c);
   for (const button of document.querySelectorAll("[data-mode-button]")) {
     button.setAttribute("aria-pressed", button.dataset.modeButton === next);
   }
@@ -202,7 +204,62 @@ function preparedRobot(id) {
 
 const humanoids = robots.filter((robot) => robot.humanoid);
 const randomRobot = () => humanoids[Math.floor(Math.random() * humanoids.length)].id;
-const kitbashHash = () => `kitbash=${slots.map((slot) => pick[slot]).join(",")}`;
+const kitbashHash = () => `kitbash=${slots.map((slot) => pick[slot]).join(",")},${colour}`;
+
+// The kitbash is cast in clear coloured resin, like the bootleg Masters of the
+// Universe figures: one glossy candy colour that light passes through, paler
+// in thin parts and deeper where it's thick. The palette is theirs.
+const resinColours = { orange: 0xff8a1c, red: 0xff3a1a, green: 0x2fc23a, lime: 0x7ce05a, teal: 0x2a7fa8 };
+const resin = new THREE.MeshPhysicalMaterial({
+  roughness: 0.08,
+  transmission: 1,
+  thickness: 1,
+  ior: 1.5,
+  attenuationDistance: 0.28,
+  clearcoat: 1,
+  clearcoatRoughness: 0.05,
+  specularIntensity: 1,
+});
+// Thickness comes from each vertex (measured when the kitbash is built)
+// rather than one number for the whole figure.
+resin.onBeforeCompile = (shader) => {
+  shader.vertexShader = shader.vertexShader
+    .replace("#include <common>", "#include <common>\nattribute float resinThickness;\nvarying float vResinThickness;")
+    .replace("#include <begin_vertex>", "#include <begin_vertex>\nvResinThickness = resinThickness;");
+  shader.fragmentShader = shader.fragmentShader
+    .replace("#include <common>", "#include <common>\nvarying float vResinThickness;")
+    .replace("material.thickness = thickness;", "material.thickness = thickness * vResinThickness;");
+};
+let colour = null;
+const white = new THREE.Color(0xffffff);
+const swatches = document.getElementById("swatches");
+
+function setColour(name) {
+  colour = name;
+  // The surface tint is pale; the colour builds up with depth, nearly full
+  // strength through the thick parts.
+  resin.color.setHex(resinColours[name]).lerp(white, 0.45);
+  resin.attenuationColor.setHex(resinColours[name]).lerp(white, 0.1);
+  for (const swatch of swatches.children) swatch.setAttribute("aria-pressed", swatch.dataset.colour === name);
+}
+
+for (const [name, hex] of Object.entries(resinColours)) {
+  const swatch = document.createElement("button");
+  swatch.type = "button";
+  swatch.dataset.colour = name;
+  swatch.title = name;
+  swatch.setAttribute("aria-label", `${name} resin`);
+  swatch.style.background = `#${hex.toString(16).padStart(6, "0")}`;
+  swatch.addEventListener("click", () => {
+    setColour(name);
+    history.replaceState(null, "", `#${kitbashHash()}`);
+  });
+  swatches.append(swatch);
+}
+const randomColour = () => {
+  const names = Object.keys(resinColours).filter((name) => name !== colour);
+  return names[Math.floor(Math.random() * names.length)];
+};
 
 let building = 0;
 async function buildKitbash({ keepCamera = true } = {}) {
@@ -219,17 +276,19 @@ async function buildKitbash({ keepCamera = true } = {}) {
     return buildKitbash({ keepCamera });
   }
   parts.replaceChildren();
-  show(kitbash(ready), { keepCamera });
+  show(kitbash(ready, resin), { keepCamera });
 }
 
 function shuffle(only) {
   for (const slot of only ? [only] : slots) pick[slot] = randomRobot();
+  if (!only) setColour(randomColour());
   buildKitbash();
 }
 
 function openKitbash(hash = "") {
   setMode("kitbash");
   const ids = hash.replace(/^kitbash=/, "").split(",");
+  setColour(ids[4] in resinColours ? ids[4] : (colour ?? randomColour()));
   slots.forEach((slot, i) => {
     const fallback = humanoids.some((robot) => robot.id === current) ? current : randomRobot();
     pick[slot] = robots.some((robot) => robot.id === ids[i]) ? ids[i] : (pick[slot] ?? fallback);
