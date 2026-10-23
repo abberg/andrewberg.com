@@ -1,9 +1,9 @@
-Model Lab
+Bootleg Toys
 
 A workbench for playing with 3D models in plain three.js, bundled with Vite. It opens on a turntable of the Damaged Helmet glTF sample, framed to fit and lit by three's neutral `RoomEnvironment`. Drag to orbit, scroll to zoom, and drop a `.glb` (or a self-contained `.gltf`) on the page to swap it in.
 
-- `npm run dev --workspace=model-lab` serves it with hot reload at http://127.0.0.1:5196.
-- `npm run build --workspace=model-lab` writes `dist/`, which the site build copies to `/sketches/model-lab/`.
+- `npm run dev --workspace=bootleg-toys` serves it with hot reload at http://127.0.0.1:5196.
+- `npm run build --workspace=bootleg-toys` writes `dist/`, which the site build copies to `/sketches/bootleg-toys/`.
 
 Code is in `src/`; models it loads at runtime are in `public/models/`.
 
