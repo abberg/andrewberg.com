@@ -28,6 +28,9 @@
     [data-mode="kitbash"] #filter, [data-mode="kitbash"] #robots, [data-mode="kitbash"] #parts { display: none; }
     [data-mode="kitbash"] .viewer-only, html:not([data-mode="kitbash"]) .kitbash-only { display: none; }
     #swatches { display: flex; gap: 6px; }
+    #finishes { display: flex; gap: 4px; }
+    #finishes button { flex: 1; text-transform: capitalize; }
+    #finishes button[aria-pressed="true"] { background: #dddbd5; border-color: #bdbab3; }
     #swatches button { width: 22px; height: 22px; padding: 0; border-radius: 50%; border: 2px solid transparent; }
     #swatches button[aria-pressed="true"] { border-color: currentColor; }
     /* The kitbash stage is light, so the panel goes dark-on-light. */
@@ -52,6 +55,7 @@
   <div id="kitbash">
     <div id="slots"></div>
     <div id="swatches" aria-label="Resin colour"></div>
+    <div id="finishes" aria-label="Resin finish"></div>
     <button type="button" id="shuffle">Shuffle all (R)</button>
   </div>
   <input id="filter" type="search" placeholder="Filter robots" aria-label="Filter robots" autocomplete="off">

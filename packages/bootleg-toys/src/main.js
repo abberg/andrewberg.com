@@ -5,6 +5,7 @@ import { FBXLoader } from "three/addons/loaders/FBXLoader.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import robots from "virtual:robots";
 import { slots, prepare, kitbash } from "./kitbash.js";
+import { colours as resinColours, finishes, materials, setColour as setResinColour } from "./resin.js";
 
 // A scene for looking at models: one model at a time, framed to fit, lit by a
 // neutral studio environment, with orbit controls. The robots in
@@ -41,6 +42,19 @@ scene.add(new THREE.HemisphereLight(0xffffff, 0x444455, 2));
 const sun = new THREE.DirectionalLight(0xffffff, 2);
 sun.position.set(1, 2, 1.5);
 scene.add(sun);
+
+// In kitbash mode a light sits behind the figure, opposite the camera, so
+// light comes through the resin towards you; the gummy finish only glows
+// where it does.
+const rim = new THREE.DirectionalLight(0xfff4e6, 0);
+scene.add(rim, rim.target);
+const behind = new THREE.Vector3();
+function placeRim() {
+  rim.intensity = mode === "kitbash" ? 3 : 0;
+  behind.subVectors(controls.target, camera.position).setY(0).normalize();
+  rim.position.copy(controls.target).addScaledVector(behind, 3).setY(1.2);
+  rim.target.position.copy(controls.target);
+}
 
 const loader = new GLTFLoader();
 const fbxLoader = new FBXLoader();
@@ -204,43 +218,40 @@ function preparedRobot(id) {
 
 const humanoids = robots.filter((robot) => robot.humanoid);
 const randomRobot = () => humanoids[Math.floor(Math.random() * humanoids.length)].id;
-const kitbashHash = () => `kitbash=${slots.map((slot) => pick[slot]).join(",")},${colour}`;
+// #kitbash=head,body,arms,legs,colour,finish
+const kitbashHash = () => `kitbash=${slots.map((slot) => pick[slot]).join(",")},${colour},${finish}`;
 
-// The kitbash is cast in clear coloured resin, like the bootleg Masters of the
-// Universe figures: one glossy candy colour that light passes through, paler
-// in thin parts and deeper where it's thick. The palette is theirs.
-const resinColours = { orange: 0xff8a1c, red: 0xff3a1a, green: 0x2fc23a, lime: 0x7ce05a, teal: 0x2a7fa8 };
-const resin = new THREE.MeshPhysicalMaterial({
-  roughness: 0.08,
-  transmission: 1,
-  thickness: 1,
-  ior: 1.5,
-  attenuationDistance: 0.28,
-  clearcoat: 1,
-  clearcoatRoughness: 0.05,
-  specularIntensity: 1,
-});
-// Thickness comes from each vertex (measured when the kitbash is built)
-// rather than one number for the whole figure.
-resin.onBeforeCompile = (shader) => {
-  shader.vertexShader = shader.vertexShader
-    .replace("#include <common>", "#include <common>\nattribute float resinThickness;\nvarying float vResinThickness;")
-    .replace("#include <begin_vertex>", "#include <begin_vertex>\nvResinThickness = resinThickness;");
-  shader.fragmentShader = shader.fragmentShader
-    .replace("#include <common>", "#include <common>\nvarying float vResinThickness;")
-    .replace("material.thickness = thickness;", "material.thickness = thickness * vResinThickness;");
-};
+// The kitbash is cast in resin (see resin.js): a colour from the swatches and
+// a finish from the buttons below them.
 let colour = null;
-const white = new THREE.Color(0xffffff);
+let finish = "clear";
 const swatches = document.getElementById("swatches");
+const finishButtons = document.getElementById("finishes");
 
 function setColour(name) {
   colour = name;
-  // The surface tint is pale; the colour builds up with depth, nearly full
-  // strength through the thick parts.
-  resin.color.setHex(resinColours[name]).lerp(white, 0.45);
-  resin.attenuationColor.setHex(resinColours[name]).lerp(white, 0.1);
+  setResinColour(resinColours[name]);
   for (const swatch of swatches.children) swatch.setAttribute("aria-pressed", swatch.dataset.colour === name);
+}
+
+function setFinish(name) {
+  finish = name;
+  model?.traverse((child) => {
+    if (child.isMesh) child.material = materials[name];
+  });
+  for (const button of finishButtons.children) button.setAttribute("aria-pressed", button.dataset.finish === name);
+}
+
+for (const name of finishes) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.dataset.finish = name;
+  button.textContent = name;
+  button.addEventListener("click", () => {
+    setFinish(name);
+    history.replaceState(null, "", `#${kitbashHash()}`);
+  });
+  finishButtons.append(button);
 }
 
 for (const [name, hex] of Object.entries(resinColours)) {
@@ -276,7 +287,7 @@ async function buildKitbash({ keepCamera = true } = {}) {
     return buildKitbash({ keepCamera });
   }
   parts.replaceChildren();
-  show(kitbash(ready, resin), { keepCamera });
+  show(kitbash(ready, materials[finish]), { keepCamera });
 }
 
 function shuffle(only) {
@@ -289,6 +300,7 @@ function openKitbash(hash = "") {
   setMode("kitbash");
   const ids = hash.replace(/^kitbash=/, "").split(",");
   setColour(ids[4] in resinColours ? ids[4] : (colour ?? randomColour()));
+  setFinish(finishes.includes(ids[5]) ? ids[5] : finish);
   slots.forEach((slot, i) => {
     const fallback = humanoids.some((robot) => robot.id === current) ? current : randomRobot();
     pick[slot] = robots.some((robot) => robot.id === ids[i]) ? ids[i] : (pick[slot] ?? fallback);
@@ -366,5 +378,6 @@ addEventListener("resize", () => {
 
 renderer.setAnimationLoop(() => {
   controls.update();
+  placeRim();
   renderer.render(scene, camera);
 });
