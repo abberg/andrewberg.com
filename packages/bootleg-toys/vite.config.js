@@ -20,6 +20,14 @@ function isRobot(fbx) {
   return count(fbx, 'LimbNode') >= 6 || count(fbx, 'GeometryS\x04\x00\x00\x00Mesh') >= 10;
 }
 
+// Hand-picked leftovers that pass those checks but aren't robots worth
+// keeping: mobile armours, pilots, bikes, monsters and the like.
+const excluded = new Set([
+  'alphaazieru', 'nightingale', 'bug', 'masterasia', 'devilgundam', 'gaga_bo',
+  'military_bike_side', 'zmaster', 'siegfried', 'alexander_a_ins', 'jimba_r', 'ulvorful',
+  'arc2j1', 'wygar', 'ravana', 'dragon_schooner', 'strike_siegwurm_b', 'spacemonsterf',
+]);
+
 // Kitbashing needs the standard humanoid rig: a head, a spine, two arms and
 // two legs. Jets, dragons and tanks don't have one.
 const humanoidBones = ['mot_head', 'mot_spine', 'mot_arm_l', 'mot_arm_r', 'mot_upleg_l', 'mot_upleg_r'];
@@ -29,7 +37,8 @@ function robots() {
   const dir = new URL('./public/models/', import.meta.url);
   if (!existsSync(dir)) return [];
   return readdirSync(dir)
-    .filter((id) => robotFolder.test(id) && existsSync(new URL(`${id}/${id}.fbx`, dir)))
+    .filter((id) => robotFolder.test(id) && !excluded.has(id.match(robotFolder)[1]))
+    .filter((id) => existsSync(new URL(`${id}/${id}.fbx`, dir)))
     .sort()
     .map((id) => ({ id, fbx: readFileSync(new URL(`${id}/${id}.fbx`, dir)) }))
     .filter(({ fbx }) => isRobot(fbx))
