@@ -13,26 +13,47 @@ import { SubsurfaceScatteringShader } from "three/addons/shaders/SubsurfaceScatt
 //   hybrid  the clear resin with gummy's glow added on top
 //
 // The palette is the figures'.
-export const colours = { orange: 0xff8a1c, red: 0xff3a1a, green: 0x2fc23a, lime: 0x7ce05a, teal: 0x2f9ad0 };
+export const colours = { orange: 0xff8a1c, red: 0xff3a1a, green: 0x2fc23a, teal: 0x2f9ad0 };
 export const finishes = ["clear", "gummy", "hybrid"];
 
 // How far into the resin light still gets through, in scene units (the figure
 // is scaled to a radius of 1). Thin parts are well under this; chests are over.
 const reach = 0.08;
 
-// Pass the thickness on, both as measured and in scene units.
+// Pass the thickness on, both as measured and in scene units, along with the
+// ambient occlusion baked into each vertex (resinOcclusion: 1 open, 0 buried).
 function withThickness(vertexShader) {
   return vertexShader
     .replace(
       "#include <common>",
-      "#include <common>\nattribute float resinThickness;\nvarying float vResinThickness;\nvarying float vResinDepth;",
+      `#include <common>
+attribute float resinThickness;
+attribute float resinOcclusion;
+varying float vResinThickness;
+varying float vResinDepth;
+varying float vResinOcclusion;`,
     )
     .replace(
       "#include <begin_vertex>",
-      "#include <begin_vertex>\nvResinThickness = resinThickness;\nvResinDepth = resinThickness * length( modelMatrix[ 0 ].xyz );",
+      `#include <begin_vertex>
+vResinThickness = resinThickness;
+vResinDepth = resinThickness * length( modelMatrix[ 0 ].xyz );
+vResinOcclusion = resinOcclusion;`,
     );
 }
-const thicknessVaryings = "varying float vResinThickness;\nvarying float vResinDepth;\n";
+const thicknessVaryings = "varying float vResinThickness;\nvarying float vResinDepth;\nvarying float vResinOcclusion;\n";
+
+// three's own ambient occlusion step, fed from the baked vertex value rather
+// than an AO texture. Through clear resin it also dims the light that comes
+// through in the crevices.
+const occlusion = THREE.ShaderChunk.aomap_fragment
+  .replace("#ifdef USE_AOMAP", "#if 1")
+  .replace("( texture2D( aoMap, vAoMapUv ).r - 1.0 ) * aoMapIntensity + 1.0", "vResinOcclusion");
+function withOcclusion(fragmentShader) {
+  return fragmentShader
+    .replace("#include <aomap_fragment>", occlusion)
+    .replace("#include <transmission_fragment>", "#include <transmission_fragment>\n\ttotalDiffuse *= mix( 1.0, ambientOcclusion, 0.6 );");
+}
 // 1 where the resin is thin, falling towards 0 where it's thick.
 const lightThrough = `exp( - vResinDepth / ${reach.toFixed(3)} )`;
 
@@ -49,7 +70,7 @@ const clear = new THREE.MeshPhysicalMaterial({
 });
 clear.onBeforeCompile = (shader) => {
   shader.vertexShader = withThickness(shader.vertexShader);
-  shader.fragmentShader = shader.fragmentShader
+  shader.fragmentShader = withOcclusion(shader.fragmentShader)
     .replace("#include <common>", `#include <common>\n${thicknessVaryings}`)
     .replace("material.thickness = thickness;", "material.thickness = thickness * vResinThickness;");
 };
@@ -61,7 +82,7 @@ const gummy = new THREE.ShaderMaterial({
   name: "GummyResin",
   uniforms: THREE.UniformsUtils.clone(SubsurfaceScatteringShader.uniforms),
   vertexShader: withThickness(SubsurfaceScatteringShader.vertexShader),
-  fragmentShader: SubsurfaceScatteringShader.fragmentShader
+  fragmentShader: withOcclusion(SubsurfaceScatteringShader.fragmentShader)
     .replace("uniform sampler2D thicknessMap;", `uniform sampler2D thicknessMap;\n${thicknessVaryings}`)
     .replace("texture2D(thicknessMap, uv).r", lightThrough),
   lights: true,
