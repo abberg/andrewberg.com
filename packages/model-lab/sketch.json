@@ -1,0 +1,10 @@
+{
+  "title": "Model Lab",
+  "description": "A workbench for loading and looking at 3D models: drop in a glTF and orbit around it.",
+  "category": "3D study",
+  "order": 36,
+  "thumbnail": {
+    "path": "?thumbnail=1",
+    "readySelector": "html[data-thumbnail-ready=\"true\"]"
+  }
+}
