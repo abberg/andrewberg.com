@@ -38,10 +38,10 @@ controls.addEventListener("start", () => (controls.autoRotate = false));
 
 // The robots' FBX materials are Phong, which ignores the environment map, so
 // they need lights of their own.
-scene.add(new THREE.HemisphereLight(0xffffff, 0x444455, 2));
+const sky = new THREE.HemisphereLight(0xffffff, 0x444455, 2);
 const sun = new THREE.DirectionalLight(0xffffff, 2);
 sun.position.set(1, 2, 1.5);
-scene.add(sun);
+scene.add(sky, sun);
 
 // In kitbash mode a light sits behind the figure, opposite the camera, so
 // light comes through the resin towards you; the gummy finish only glows
@@ -201,8 +201,14 @@ const slotPickers = {};
 function setMode(next) {
   mode = next;
   document.documentElement.dataset.mode = next;
-  // Clear resin needs something bright behind it to glow against.
+  // Clear resin needs something bright behind it to glow against. The studio
+  // environment is turned down for it: at full strength its bright walls and
+  // lamps reflect off nearly every facet and wash the colour out to white.
   scene.background.set(next === "kitbash" ? 0xeceae6 : 0x16181c);
+  scene.environmentIntensity = next === "kitbash" ? 0.6 : 1;
+  // Likewise the white sky light, which the gummy finish takes most of its
+  // light from.
+  sky.intensity = next === "kitbash" ? 1 : 2;
   for (const button of document.querySelectorAll("[data-mode-button]")) {
     button.setAttribute("aria-pressed", button.dataset.modeButton === next);
   }

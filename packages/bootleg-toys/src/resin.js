@@ -13,7 +13,7 @@ import { SubsurfaceScatteringShader } from "three/addons/shaders/SubsurfaceScatt
 //   hybrid  the clear resin with gummy's glow added on top
 //
 // The palette is the figures'.
-export const colours = { orange: 0xff8a1c, red: 0xff3a1a, green: 0x2fc23a, lime: 0x7ce05a, teal: 0x2a7fa8 };
+export const colours = { orange: 0xff8a1c, red: 0xff3a1a, green: 0x2fc23a, lime: 0x7ce05a, teal: 0x2f9ad0 };
 export const finishes = ["clear", "gummy", "hybrid"];
 
 // How far into the resin light still gets through, in scene units (the figure
@@ -43,7 +43,7 @@ const clear = new THREE.MeshPhysicalMaterial({
   thickness: 1,
   ior: 1.5,
   attenuationDistance: 0.28,
-  clearcoat: 1,
+  clearcoat: 0.5,
   clearcoatRoughness: 0.05,
   specularIntensity: 1,
 });
@@ -112,8 +112,8 @@ const white = new THREE.Color(0xffffff);
 // depth; gummy is coloured through, glowing a lighter shade of it.
 export function setColour(hex) {
   for (const material of [clear, hybrid]) {
-    material.color.setHex(hex).lerp(white, 0.45);
-    material.attenuationColor.setHex(hex).lerp(white, 0.1);
+    material.color.setHex(hex).lerp(white, 0.5);
+    material.attenuationColor.setHex(hex).lerp(white, 0.3);
   }
   gummy.uniforms.diffuse.value.setHex(hex).multiplyScalar(0.35);
   gummy.uniforms.thicknessColor.value.setHex(hex).lerp(white, 0.1);
