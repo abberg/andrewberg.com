@@ -26,7 +26,7 @@ const excluded = new Set([
   'alphaazieru', 'nightingale', 'bug', 'masterasia', 'devilgundam', 'gaga_bo',
   'military_bike_side', 'zmaster', 'siegfried', 'alexander_a_ins', 'jimba_r', 'ulvorful',
   'arc2j1', 'wygar', 'ravana', 'dragon_schooner', 'strike_siegwurm_b', 'spacemonsterf',
-  'kantam_robo', 'ryuho_last',
+  'kantam_robo', 'ryuho_last', 'samekh', 'samekh_s', 'kisaragi_om',
 ]);
 
 // Kitbashing needs the standard humanoid rig: a head, a spine, two arms and
