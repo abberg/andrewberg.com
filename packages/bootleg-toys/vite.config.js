@@ -16,21 +16,24 @@ function count(buffer, text) {
   return n;
 }
 
-function isRobot(file) {
-  const fbx = readFileSync(file);
+function isRobot(fbx) {
   return count(fbx, 'LimbNode') >= 6 || count(fbx, 'GeometryS\x04\x00\x00\x00Mesh') >= 10;
 }
+
+// Kitbashing needs the standard humanoid rig: a head, a spine, two arms and
+// two legs. Jets, dragons and tanks don't have one.
+const humanoidBones = ['mot_head', 'mot_spine', 'mot_arm_l', 'mot_arm_r', 'mot_upleg_l', 'mot_upleg_r'];
+const isHumanoid = (fbx) => humanoidBones.every((bone) => fbx.includes(`${bone}\x00\x01Model`));
 
 function robots() {
   const dir = new URL('./public/models/', import.meta.url);
   if (!existsSync(dir)) return [];
   return readdirSync(dir)
-    .filter((id) => {
-      const fbx = new URL(`${id}/${id}.fbx`, dir);
-      return robotFolder.test(id) && existsSync(fbx) && isRobot(fbx);
-    })
+    .filter((id) => robotFolder.test(id) && existsSync(new URL(`${id}/${id}.fbx`, dir)))
     .sort()
-    .map((id) => ({ id, name: id.match(robotFolder)[1] }));
+    .map((id) => ({ id, fbx: readFileSync(new URL(`${id}/${id}.fbx`, dir)) }))
+    .filter(({ fbx }) => isRobot(fbx))
+    .map(({ id, fbx }) => ({ id, name: id.match(robotFolder)[1], humanoid: isHumanoid(fbx) }));
 }
 
 // import robots from 'virtual:robots' gives the list, read when the server starts.

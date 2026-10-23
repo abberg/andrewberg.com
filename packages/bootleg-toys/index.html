@@ -15,6 +15,18 @@
     #robots li { padding: 2px 8px; border-radius: 3px; cursor: pointer; opacity: 0.7; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     #robots li:hover { opacity: 1; background: #22252b; }
     #robots li.current { opacity: 1; background: #33363d; }
+    #modes { display: flex; gap: 4px; }
+    button, select { font: inherit; color: inherit; background: #22252b; border: 1px solid #33363d; border-radius: 4px; padding: 4px 8px; cursor: pointer; }
+    button:hover, select:hover { border-color: #4a4e57; }
+    #modes button { flex: 1; }
+    #modes button[aria-pressed="true"] { background: #33363d; border-color: #4a4e57; }
+    #kitbash { display: none; flex-direction: column; gap: 8px; }
+    .slot { display: grid; grid-template-columns: 40px 1fr auto; gap: 6px; align-items: center; }
+    .slot label { text-transform: capitalize; opacity: 0.7; }
+    .slot select { min-width: 0; }
+    [data-mode="kitbash"] #kitbash { display: flex; }
+    [data-mode="kitbash"] #filter, [data-mode="kitbash"] #robots, [data-mode="kitbash"] #parts { display: none; }
+    [data-mode="kitbash"] .viewer-only, html:not([data-mode="kitbash"]) .kitbash-only { display: none; }
     #parts { position: fixed; right: 16px; top: 16px; max-height: calc(100% - 64px); width: 200px; overflow-y: auto; display: flex; flex-direction: column; }
     #parts label { display: flex; gap: 6px; align-items: center; padding: 1px 0; cursor: pointer; opacity: 0.7; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     #parts label:has(:checked), #parts label:hover { opacity: 1; }
@@ -26,11 +38,19 @@
 </head>
 <body>
 <div id="panel">
+  <div id="modes">
+    <button type="button" data-mode-button="viewer" aria-pressed="true">Viewer</button>
+    <button type="button" data-mode-button="kitbash" aria-pressed="false">Kitbash</button>
+  </div>
+  <div id="kitbash">
+    <div id="slots"></div>
+    <button type="button" id="shuffle">Shuffle all (R)</button>
+  </div>
   <input id="filter" type="search" placeholder="Filter robots" aria-label="Filter robots" autocomplete="off">
   <ul id="robots"></ul>
 </div>
 <div id="parts" aria-label="Parts"></div>
-<div id="hint">↑ ↓ to step through robots · drag to orbit · scroll to zoom · drop a .glb or .gltf to load it</div>
+<div id="hint"><span class="viewer-only">↑ ↓ to step through robots</span><span class="kitbash-only">R to shuffle</span> · drag to orbit · scroll to zoom · drop a .glb or .gltf to load it</div>
 <script type="module" src="./src/main.js"></script>
 </body>
 </html>

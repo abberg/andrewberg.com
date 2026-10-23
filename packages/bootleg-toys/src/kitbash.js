@@ -1,0 +1,159 @@
+import * as THREE from "three";
+
+// Kitbashing: build one robot from the head, body, arms and legs of others.
+//
+// Every robot's body mesh is skinned to the same family of bones (mot_pelvis,
+// mot_spine, mot_head, mot_arm_l, mot_upleg_r, ...), so each vertex can be
+// sorted into a part by the bone that moves it most. The body robot supplies
+// the skeleton; every borrowed vertex is carried over in the space of its own
+// bone and set down on the body robot's bone of the same name, so arms land on
+// shoulders and legs on hips. Each part is scaled to the frame's proportions:
+// arms to its arm length, legs to its leg length, head and body to its torso.
+
+export const slots = ["head", "body", "arms", "legs"];
+
+// Walk up from a bone to the first one that says which part it belongs to.
+// Shoulder armour goes with the arms and skirt armour with the body.
+function partOf(bone) {
+  for (let b = bone; b?.isBone; b = b.parent) {
+    const name = b.name;
+    if (/^mot_head/.test(name)) return "head";
+    if (/^mot_(clavicle|shoulder|arm|forearm|hand)/.test(name)) return "arms";
+    if (/^mot_(upleg|leg|foot|toe|heel)/.test(name)) return "legs";
+    if (/^mot_(pelvis|spine|chest|neck)/.test(name)) return "body";
+  }
+  return "body";
+}
+
+// The bone-to-bone distances each part is measured by.
+const measures = {
+  head: ["mot_pelvis", "mot_head"],
+  body: ["mot_pelvis", "mot_head"],
+  arms: ["mot_arm_l", "mot_hand_l", "mot_forearm_l"],
+  legs: ["mot_upleg_l", "mot_foot_l", "mot_leg_l"],
+};
+
+// The distance from the first bone to the second, or to the third when a
+// robot has no second (some arms end without a hand bone).
+function measure(bones, [from, to, fallback]) {
+  const start = bones.get(from);
+  const end = bones.get(to) ?? bones.get(fallback);
+  if (!start || !end) return null;
+  const a = new THREE.Vector3().setFromMatrixPosition(start.matrixWorld);
+  return a.distanceTo(new THREE.Vector3().setFromMatrixPosition(end.matrixWorld)) || null;
+}
+
+// What a kitbash needs from a loaded robot: its body mesh, a lookup of its
+// bones by name, how tall it stands, and the size of each part.
+export function prepare(object) {
+  object.updateMatrixWorld(true);
+  let mesh = null;
+  object.traverse((child) => {
+    if (child.isSkinnedMesh && /^(model|body|mode)$/.test(child.name)) mesh = child;
+  });
+  if (!mesh) return null;
+  const bones = new Map();
+  for (const bone of mesh.skeleton.bones) if (!bones.has(bone.name)) bones.set(bone.name, bone);
+  mesh.geometry.computeBoundingBox();
+  const box = mesh.geometry.boundingBox.clone().applyMatrix4(mesh.matrixWorld);
+  const height = box.max.y - box.min.y;
+  const sizes = Object.fromEntries(slots.map((slot) => [slot, measure(bones, measures[slot])]));
+  return { mesh, bones, height, sizes };
+}
+
+// The bone each vertex follows most closely.
+function dominantBones(mesh) {
+  const index = mesh.geometry.attributes.skinIndex;
+  const weight = mesh.geometry.attributes.skinWeight;
+  const result = new Uint16Array(index.count);
+  for (let v = 0; v < index.count; v++) {
+    let best = 0;
+    for (let k = 1; k < 4; k++) if (weight.getComponent(v, k) > weight.getComponent(v, best)) best = k;
+    result[v] = index.getComponent(v, best);
+  }
+  return result;
+}
+
+// Cut one part out of `source` and fit it to the skeleton of `frame`.
+// Returns a mesh per material the part uses.
+function transplant(source, frame, part) {
+  const { mesh } = source;
+  const geometry = mesh.geometry;
+  const bones = mesh.skeleton.bones;
+  const dominant = dominantBones(mesh);
+  const parts = bones.map(partOf);
+  const scale =
+    frame.sizes[part] && source.sizes[part]
+      ? frame.sizes[part] / source.sizes[part]
+      : frame.height / source.height;
+
+  // For each source bone, the matrix taking a point from where it sits on the
+  // source robot to where it should sit on the frame: into the bone's space,
+  // scaled, and out of the frame bone it maps to (or that bone's nearest
+  // ancestor the frame has).
+  const moves = bones.map((bone) => {
+    let target = null;
+    for (let b = bone; b?.isBone && !target; b = b.parent) target = frame.bones.get(b.name) ?? null;
+    target ??= frame.bones.get("mot_pelvis") ?? frame.mesh;
+    return new THREE.Matrix4()
+      .copy(target.matrixWorld)
+      .multiply(new THREE.Matrix4().makeScale(scale, scale, scale))
+      .multiply(bone.matrixWorld.clone().invert());
+  });
+  const turns = moves.map((move) => new THREE.Matrix3().getNormalMatrix(move));
+
+  const position = geometry.attributes.position;
+  const normal = geometry.attributes.normal;
+  const uv = geometry.attributes.uv;
+  const vertexCount = geometry.index ? geometry.index.count : position.count;
+  const vertexAt = (i) => (geometry.index ? geometry.index.getX(i) : i);
+  const groups = geometry.groups.length
+    ? geometry.groups
+    : [{ start: 0, count: vertexCount, materialIndex: 0 }];
+  const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+
+  const p = new THREE.Vector3();
+  const n = new THREE.Vector3();
+  const meshes = [];
+  for (const group of groups) {
+    const out = { position: [], normal: [], uv: [] };
+    const end = Math.min(group.start + group.count, vertexCount);
+    for (let i = group.start; i + 2 < end; i += 3) {
+      const corners = [vertexAt(i), vertexAt(i + 1), vertexAt(i + 2)];
+      // A triangle goes with the part most of its corners belong to.
+      const votes = corners.filter((v) => parts[dominant[v]] === part).length;
+      if (votes < 2) continue;
+      for (const v of corners) {
+        const bone = dominant[v];
+        // Where the vertex is drawn on the source robot, then moved over.
+        p.fromBufferAttribute(position, v);
+        mesh.applyBoneTransform(v, p);
+        p.applyMatrix4(mesh.matrixWorld).applyMatrix4(moves[bone]);
+        out.position.push(p.x, p.y, p.z);
+        if (normal) {
+          n.fromBufferAttribute(normal, v).transformDirection(mesh.matrixWorld);
+          n.applyMatrix3(turns[bone]).normalize();
+          out.normal.push(n.x, n.y, n.z);
+        }
+        if (uv) out.uv.push(uv.getX(v), uv.getY(v));
+      }
+    }
+    if (!out.position.length) continue;
+    const piece = new THREE.BufferGeometry();
+    piece.setAttribute("position", new THREE.Float32BufferAttribute(out.position, 3));
+    if (out.normal.length) piece.setAttribute("normal", new THREE.Float32BufferAttribute(out.normal, 3));
+    else piece.computeVertexNormals();
+    if (out.uv.length) piece.setAttribute("uv", new THREE.Float32BufferAttribute(out.uv, 2));
+    const result = new THREE.Mesh(piece, materials[group.materialIndex] ?? materials[0]);
+    result.name = `${part}`;
+    meshes.push(result);
+  }
+  return meshes;
+}
+
+// pick maps each slot to a prepared robot. The body robot is the frame.
+export function kitbash(pick) {
+  const group = new THREE.Group();
+  for (const slot of slots) group.add(...transplant(pick[slot], pick.body, slot));
+  return group;
+}
