@@ -1,4 +1,4 @@
-import { readdirSync, existsSync } from 'node:fs';
+import { readdirSync, existsSync, readFileSync } from 'node:fs';
 import { defineConfig } from 'vite';
 
 // The models folder is full of ripped game assets: robots, but also effects,
@@ -6,11 +6,29 @@ import { defineConfig } from 'vite';
 // A110_010_gundammk2 (a series code, a number, a name) holding a matching .fbx.
 const robotFolder = /^[A-Z]\d{3}_\d{3}_(?!.*_eff)(.+)$/;
 
+// Ships, bases, bullets and stray effect pieces share that naming, but they're
+// a single rigid mesh with a handful of bones at most, where a robot is rigged
+// (the Mega Man robots have few bones but are built from many meshes). Count
+// both straight from the binary FBX rather than parsing it.
+function count(buffer, text) {
+  let n = 0;
+  for (let i = buffer.indexOf(text); i !== -1; i = buffer.indexOf(text, i + 1)) n++;
+  return n;
+}
+
+function isRobot(file) {
+  const fbx = readFileSync(file);
+  return count(fbx, 'LimbNode') >= 6 || count(fbx, 'GeometryS\x04\x00\x00\x00Mesh') >= 10;
+}
+
 function robots() {
   const dir = new URL('./public/models/', import.meta.url);
   if (!existsSync(dir)) return [];
   return readdirSync(dir)
-    .filter((id) => robotFolder.test(id) && existsSync(new URL(`${id}/${id}.fbx`, dir)))
+    .filter((id) => {
+      const fbx = new URL(`${id}/${id}.fbx`, dir);
+      return robotFolder.test(id) && existsSync(fbx) && isRobot(fbx);
+    })
     .sort()
     .map((id) => ({ id, name: id.match(robotFolder)[1] }));
 }
@@ -25,8 +43,49 @@ function robotList() {
   };
 }
 
+// Some robots (Strike Freedom, Wing Zero EW, ...) attach their meshes to nodes
+// that are also bones. three's FBXLoader then makes those nodes bare Bones and
+// never builds the mesh, so binding the skin throws "model.bind is not a
+// function". Patch it to build the mesh too, as a child of the bone, and bind
+// that. Each replacement must match, so a three upgrade that moves this code
+// fails loudly rather than quietly dropping the patch.
+const fbxPatches = [
+  [
+    'let model = this.buildSkeleton( relationships, skeletons, id, node.attrName );',
+    `let model = this.buildSkeleton( relationships, skeletons, id, node.attrName );
+			if ( model && node.attrType === 'Mesh' ) {
+				const mesh = this.createMesh( relationships, geometryMap, materialMap );
+				mesh.name = model.name;
+				model.add( mesh );
+				model.userData.fbxMesh = mesh;
+			}`,
+  ],
+  [
+    'const model = modelMap.get( geoConnParent.ID );',
+    `let model = modelMap.get( geoConnParent.ID );
+							if ( model.isBone ) model = model.userData.fbxMesh;
+							if ( ! model?.isSkinnedMesh ) return;`,
+  ],
+];
+
+function patchFbxLoader() {
+  return {
+    name: 'patch-fbx-loader',
+    transform(code, id) {
+      if (!id.split('?')[0].endsWith('/loaders/FBXLoader.js')) return null;
+      for (const [from, to] of fbxPatches) {
+        if (!code.includes(from)) throw new Error(`FBXLoader patch didn't match: ${from}`);
+        code = code.replace(from, to);
+      }
+      return code;
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [robotList()],
+  plugins: [robotList(), patchFbxLoader()],
+  // Pre-bundled dependencies skip plugin transforms, so leave FBXLoader out.
+  optimizeDeps: { exclude: ['three/addons/loaders/FBXLoader.js'] },
   // Relative URLs, so the build works wherever the site serves it (/sketches/bootleg-toys/).
   base: './',
   // A fixed address for the dev server, rather than a new port on every restart.
