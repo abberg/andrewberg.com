@@ -584,18 +584,52 @@ function runPickUp(seconds) {
 // down the left, each as it was, the part it lent in its own game textures
 // and the rest of it a white ghost drawn in outline, and named.
 const sourcesBox = document.getElementById("sources");
-const ghost = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false });
+
+// The average of the normals of every face meeting at each point, kept as
+// outlineNormal so the shading's own normals are untouched.
+function smoothNormals(geometry) {
+  const position = geometry.attributes.position;
+  const sums = new Map();
+  const key = (v) => `${Math.round(position.getX(v) * 1e4)},${Math.round(position.getY(v) * 1e4)},${Math.round(position.getZ(v) * 1e4)}`;
+  const a = new THREE.Vector3();
+  const b = new THREE.Vector3();
+  const c = new THREE.Vector3();
+  const vertexAt = (i) => (geometry.index ? geometry.index.getX(i) : i);
+  const count = geometry.index ? geometry.index.count : position.count;
+  for (let i = 0; i + 2 < count; i += 3) {
+    const corners = [vertexAt(i), vertexAt(i + 1), vertexAt(i + 2)];
+    a.fromBufferAttribute(position, corners[0]);
+    b.fromBufferAttribute(position, corners[1]);
+    c.fromBufferAttribute(position, corners[2]);
+    const face = c.sub(b).cross(a.sub(b));
+    for (const v of corners) {
+      const k = key(v);
+      if (!sums.has(k)) sums.set(k, new THREE.Vector3());
+      sums.get(k).add(face);
+    }
+  }
+  const smooth = new Float32Array(position.count * 3);
+  for (let v = 0; v < position.count; v++) {
+    const n = sums.get(key(v));
+    if (n) n.clone().normalize().toArray(smooth, v * 3);
+  }
+  geometry.setAttribute("outlineNormal", new THREE.BufferAttribute(smooth, 3));
+}
+// Pushed back a touch in depth, so the crease lines drawn on it don't flicker.
+const ghost = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
 const fade = () => ghost;
 const creases = new THREE.LineBasicMaterial({ color: 0x2a2c30, toneMapped: false });
-// The outline: the ghost's back faces, pushed out along their normals by the
-// same distance on screen everywhere (the camera's orthographic, so a
-// distance in view space is a fixed number of pixels).
+// The outline: the ghost's back faces, pushed out by the same distance on
+// screen everywhere (the camera's orthographic, so a distance in view space
+// is a fixed number of pixels). They're pushed along normals smoothed across
+// every face meeting at a point (outlineNormal, below): pushed along the
+// faces' own, hard-edged normals, the outline splits into shards.
 const outline = new THREE.MeshBasicMaterial({ color: 0x55585e, side: THREE.BackSide, toneMapped: false });
 outline.onBeforeCompile = (shader) => {
-  shader.vertexShader = shader.vertexShader.replace(
+  shader.vertexShader = shader.vertexShader.replace("#include <common>", "#include <common>\nattribute vec3 outlineNormal;").replace(
     "#include <project_vertex>",
     `vec4 mvPosition = modelViewMatrix * vec4( transformed, 1.0 );
-mvPosition.xyz += normalize( normalMatrix * normal ) * 0.02;
+mvPosition.xyz += normalize( normalMatrix * outlineNormal ) * 0.02;
 gl_Position = projectionMatrix * mvPosition;`,
   );
 };
@@ -612,8 +646,9 @@ async function showSources(pick) {
       // Everything gets an outline; the ghost also gets its sharp creases
       // drawn in, so its panel lines read.
       for (const piece of [...model.children]) {
+        smoothNormals(piece.geometry);
         piece.add(new THREE.Mesh(piece.geometry, outline));
-        if (piece.material === ghost) piece.add(new THREE.LineSegments(new THREE.EdgesGeometry(piece.geometry, 35), creases));
+        if (piece.material === ghost) piece.add(new THREE.LineSegments(new THREE.EdgesGeometry(piece.geometry, 55), creases));
       }
       const box = new THREE.Box3().setFromObject(model);
       const size = box.getSize(new THREE.Vector3());
