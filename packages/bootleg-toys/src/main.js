@@ -506,7 +506,6 @@ function settle(pick) {
     source.label.remove();
   }
   pick.sources = [];
-  highlight(pick, null);
   holder.scale.setScalar(pick.size);
   holder.quaternion.identity();
   const place = beltPlace(pick);
@@ -523,7 +522,7 @@ function pickUp(holder) {
   // Its middle, in its own units, to turn it about.
   const box = new THREE.Box3().setFromObject(holder);
   const middle = new THREE.Vector3(0, (box.max.y - box.min.y) / 2 / size, 0);
-  held = { slot: holder.userData.slot, holder, progress: 0, lifting: true, size, middle, turn: 0, tilt: 0, sources: [], lit: null };
+  held = { slot: holder.userData.slot, holder, progress: 0, lifting: true, size, middle, turn: 0, tilt: 0, sources: [] };
   holder.visible = true;
   onLayer(holder, heldLayer);
   showSources(held);
@@ -583,8 +582,7 @@ function runPickUp(seconds) {
 
 // The held figure's sources: the four robots it was built from, in a column
 // down the left, each as it was, the part it lent in its own game textures
-// and the rest of it a white ghost drawn in outline, and named. Hovering one lights up its part on
-// the figure, and hovering a part of the figure lights up its source.
+// and the rest of it a white ghost drawn in outline, and named.
 const sourcesBox = document.getElementById("sources");
 const ghost = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false });
 const fade = () => ghost;
@@ -592,25 +590,15 @@ const creases = new THREE.LineBasicMaterial({ color: 0x2a2c30, toneMapped: false
 // The outline: the ghost's back faces, pushed out along their normals by the
 // same distance on screen everywhere (the camera's orthographic, so a
 // distance in view space is a fixed number of pixels).
-const outline = new THREE.MeshBasicMaterial({ color: 0x2a2c30, side: THREE.BackSide, toneMapped: false });
+const outline = new THREE.MeshBasicMaterial({ color: 0x55585e, side: THREE.BackSide, toneMapped: false });
 outline.onBeforeCompile = (shader) => {
   shader.vertexShader = shader.vertexShader.replace(
     "#include <project_vertex>",
     `vec4 mvPosition = modelViewMatrix * vec4( transformed, 1.0 );
-mvPosition.xyz += normalize( normalMatrix * normal ) * 0.012;
+mvPosition.xyz += normalize( normalMatrix * normal ) * 0.02;
 gl_Position = projectionMatrix * mvPosition;`,
   );
 };
-// The textured parts, lit up: the same texture with a glow over it.
-const glowing = new Map();
-function glow(material) {
-  if (!glowing.has(material)) {
-    const copy = material.clone();
-    copy.emissive?.set(0x555555);
-    glowing.set(material, copy);
-  }
-  return glowing.get(material);
-}
 const robotName = (id) => robots.find((robot) => robot.id === id)?.name ?? id;
 const sourceHeight = 1.2;
 
@@ -665,44 +653,6 @@ function placeSources(pick, t) {
     label.style.left = `${((labelAt.x + 1) / 2) * innerWidth}px`;
     label.style.top = `${((1 - labelAt.y) / 2) * innerHeight}px`;
     label.style.opacity = t;
-  }
-}
-
-// Light up one part, on the figure and on its source, or none.
-const lit = new Map();
-function litResin(colour) {
-  if (!lit.has(colour)) {
-    // clone() copies userData through JSON, which would turn the glow colour
-    // uniform into a plain object; share the original's instead.
-    const material = resin(colour).clone();
-    material.onBeforeCompile = resin(colour).onBeforeCompile;
-    material.userData = resin(colour).userData;
-    // Glowing in its own colour, rather than bleached.
-    material.emissive.setHex(resinColours[colour]);
-    material.emissiveIntensity = 0.6;
-    lit.set(colour, material);
-  }
-  return lit.get(colour);
-}
-
-function highlight(pick, part) {
-  if (pick.lit === part) return;
-  pick.lit = part;
-  const colour = pick.holder.userData.colour;
-  const paint = (object) =>
-    object.traverse((child) => {
-      if (!child.isMesh) return;
-      child.material = part && child.name === part ? litResin(colour) : resin(colour);
-    });
-  paint(pick.holder);
-  for (const source of pick.sources) {
-    const on = source.part === part;
-    source.label.classList.toggle("lit", on);
-    source.view.traverse((child) => {
-      if (!child.isMesh || child.material === ghost || child.material === outline) return;
-      child.userData.texture ??= child.material;
-      child.material = on ? glow(child.userData.texture) : child.userData.texture;
-    });
   }
 }
 
@@ -767,7 +717,6 @@ function runHover() {
   if (mode !== "kitbash") return;
   if (held) {
     const over = drag?.moved ? null : partAt(lastPointer);
-    if (!drag?.moved) highlight(held, over?.part ?? null);
     renderer.domElement.style.cursor = drag?.moved ? "grabbing" : over && !over.source ? "grab" : "";
     return;
   }
