@@ -86,7 +86,9 @@ const needs = {
 export const canLend = (robot, part) => robot.shares[part] >= 0.015 && needs[part].every((bone) => robot.bones.has(bone));
 
 // A ready stance for the frame's skeleton: feet planted wide, one a little
-// ahead of the other, upper arms down and forward, forearms raised to guard.
+// ahead of the other, upper arms down and out, forearms reaching forward a
+// little below level. (Raised higher, to guard, they pointed straight at the
+// camera and a long arm read as a fist floating over the chest.)
 // Rigs stand differently at rest (arms out, arms down, legs together), so
 // rather than turn each bone by a set angle, each limb segment is turned to
 // point a set way: from its joint towards the next one down the limb. Feet
@@ -98,8 +100,8 @@ const limbs = [
   // bone, the joint it points to, where it should point (x is outwards)
   ["upleg", "leg", [0.36, -1, 0.12]],
   ["leg", "foot", [0.1, -1, -0.04]],
-  ["arm", "forearm", [0.45, -0.75, 0.45]],
-  ["forearm", "hand", [-0.2, 0.3, 1]],
+  ["arm", "forearm", [0.5, -0.8, 0.2]],
+  ["forearm", "hand", [0.05, -0.25, 1]],
 ];
 
 function stance(frame, random) {
