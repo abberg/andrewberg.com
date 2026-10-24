@@ -33,7 +33,7 @@ const excluded = new Set([
 // two legs. Jets, dragons and tanks don't have one. Some that do still have
 // nothing to recombine: Noir Getter 2 is a hooded cloak all the way down,
 // and Hekiryugo is a dragon at heart.
-const notForKitbash = new Set(['noir_getter2', 'hekiryugo', 'heybot', 'gunvarrel']);
+const notForKitbash = new Set(['noir_getter2', 'hekiryugo', 'heybot', 'gunvarrel', 'black_six']);
 const humanoidBones = ['mot_head', 'mot_spine', 'mot_arm_l', 'mot_arm_r', 'mot_upleg_l', 'mot_upleg_r'];
 const isHumanoid = (fbx) => humanoidBones.every((bone) => fbx.includes(`${bone}\x00\x01Model`));
 
