@@ -4,7 +4,7 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { FBXLoader } from "three/addons/loaders/FBXLoader.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import robots from "virtual:robots";
-import { slots, prepare, kitbash, canLend } from "./kitbash.js";
+import { slots, prepare, kitbash, canLend, donor } from "./kitbash.js";
 import { colours as resinColours, resin } from "./resin.js";
 import { bake } from "./bake.js";
 
@@ -61,8 +61,10 @@ function frameField() {
   sizeIsoCamera();
 }
 
+// Half the view's height, in scene units.
+const halfHeight = 3.2;
+
 function sizeIsoCamera() {
-  const halfHeight = 3.2;
   const aspect = innerWidth / innerHeight;
   isoCamera.left = -halfHeight * aspect;
   isoCamera.right = halfHeight * aspect;
@@ -498,6 +500,13 @@ function beltPlace(pick) {
 function settle(pick) {
   const { holder } = pick;
   onLayer(holder, 0);
+  for (const source of pick.sources) {
+    field.remove(source.view);
+    dispose(source.view);
+    source.label.remove();
+  }
+  pick.sources = [];
+  highlight(pick, null);
   holder.scale.setScalar(pick.size);
   holder.quaternion.identity();
   const place = beltPlace(pick);
@@ -514,9 +523,10 @@ function pickUp(holder) {
   // Its middle, in its own units, to turn it about.
   const box = new THREE.Box3().setFromObject(holder);
   const middle = new THREE.Vector3(0, (box.max.y - box.min.y) / 2 / size, 0);
-  held = { slot: holder.userData.slot, holder, progress: 0, lifting: true, size, middle, turn: 0, tilt: 0 };
+  held = { slot: holder.userData.slot, holder, progress: 0, lifting: true, size, middle, turn: 0, tilt: 0, sources: [], lit: null };
   holder.visible = true;
   onLayer(holder, heldLayer);
+  showSources(held);
 }
 
 function putDown() {
@@ -538,7 +548,7 @@ function runPickUp(seconds) {
   }
   const t = THREE.MathUtils.smootherstep(held.progress, 0, 1);
   const view = sight();
-  veil.material.opacity = 0.6 * t;
+  veil.material.opacity = 0.75 * t;
   veil.position.copy(lookAt).addScaledVector(view, 6);
   veil.quaternion.copy(isoCamera.quaternion);
 
@@ -556,10 +566,104 @@ function runPickUp(seconds) {
   holder.scale.setScalar(scale);
   holder.position.copy(middle).sub(held.middle.clone().multiplyScalar(scale).applyQuaternion(holder.quaternion));
 
+  placeSources(held, t);
+
   if (!held.lifting && held.progress === 0) {
     settle(held);
     held = null;
     veil.visible = false;
+  }
+}
+
+// The held figure's sources: the four robots it was built from, in a column
+// down the left, each as it was with the part it lent cast in the figure's
+// resin and the rest of it a ghost, and named. Hovering one lights up its
+// part on the figure, and hovering a part of the figure lights up its source.
+const sourcesBox = document.getElementById("sources");
+const ghost = new THREE.MeshBasicMaterial({ color: 0x8c9099, transparent: true, opacity: 0.22, depthWrite: false });
+const robotName = (id) => robots.find((robot) => robot.id === id)?.name ?? id;
+const sourceHeight = 1.2;
+
+async function showSources(pick) {
+  const spec = pick.slot.spec ?? specFor(pick.slot);
+  const colour = pick.holder.userData.colour;
+  await Promise.all(
+    slots.map(async (part, row) => {
+      const robot = await preparedRobot(spec[part]);
+      if (!robot || held !== pick) return;
+      const model = await bake(donor(robot, part, resin(colour), ghost));
+      if (held !== pick) return dispose(model);
+      const box = new THREE.Box3().setFromObject(model);
+      const size = box.getSize(new THREE.Vector3());
+      model.position.set(-(box.min.x + box.max.x) / 2, -box.min.y, -(box.min.z + box.max.z) / 2);
+      const view = new THREE.Group();
+      view.add(model);
+      view.userData = { part, size: Math.min(sourceHeight / size.y, 1.5 / Math.max(size.x, size.z)) };
+      view.scale.setScalar(0);
+      onLayer(view, heldLayer);
+      field.add(view);
+      const label = document.createElement("div");
+      label.className = "source";
+      label.innerHTML = `<b>${part}</b>${robotName(spec[part])}`;
+      sourcesBox.append(label);
+      pick.sources.push({ part, row, view, label });
+    }),
+  );
+}
+
+const screenAcross = new THREE.Vector3();
+const screenUp = new THREE.Vector3();
+const labelAt = new THREE.Vector3();
+function placeSources(pick, t) {
+  const view = sight();
+  screenAcross.setFromMatrixColumn(isoCamera.matrixWorld, 0);
+  screenUp.setFromMatrixColumn(isoCamera.matrixWorld, 1);
+  const centre = lookAt.clone().addScaledVector(view, 12);
+  const left = -halfHeight * (innerWidth / innerHeight) + 1;
+  const rowHeight = (halfHeight * 2 - 0.8) / slots.length;
+  for (const { row, view: model, label } of pick.sources) {
+    // Its row's bottom, a little up from the edge of the row.
+    const bottom = halfHeight - 0.4 - (row + 1) * rowHeight + 0.3;
+    model.position.copy(centre).addScaledVector(screenAcross, left).addScaledVector(screenUp, bottom);
+    model.scale.setScalar(model.userData.size * t);
+    model.rotation.y = 0.5;
+    labelAt.copy(model.position).addScaledVector(screenAcross, 0.85).addScaledVector(screenUp, sourceHeight / 2).project(isoCamera);
+    label.style.left = `${((labelAt.x + 1) / 2) * innerWidth}px`;
+    label.style.top = `${((1 - labelAt.y) / 2) * innerHeight}px`;
+    label.style.opacity = t;
+  }
+}
+
+// Light up one part, on the figure and on its source, or none.
+const lit = new Map();
+function litResin(colour) {
+  if (!lit.has(colour)) {
+    // clone() copies userData through JSON, which would turn the glow colour
+    // uniform into a plain object; share the original's instead.
+    const material = resin(colour).clone();
+    material.onBeforeCompile = resin(colour).onBeforeCompile;
+    material.userData = resin(colour).userData;
+    // Glowing in its own colour, rather than bleached.
+    material.emissive.setHex(resinColours[colour]);
+    material.emissiveIntensity = 0.6;
+    lit.set(colour, material);
+  }
+  return lit.get(colour);
+}
+
+function highlight(pick, part) {
+  if (pick.lit === part) return;
+  pick.lit = part;
+  const colour = pick.holder.userData.colour;
+  const paint = (object) =>
+    object.traverse((child) => {
+      if (!child.isMesh || child.material === ghost) return;
+      child.material = part && child.name === part ? litResin(colour) : resin(colour);
+    });
+  paint(pick.holder);
+  for (const source of pick.sources) {
+    paint(source.view);
+    source.label.classList.toggle("lit", source.part === part);
   }
 }
 
@@ -605,12 +709,30 @@ renderer.domElement.addEventListener("pointerup", () => {
   else drag = null;
 });
 
+// While a figure is held: the part of it, or the source, under the pointer.
+function partAt(event) {
+  pointer.set((event.clientX / innerWidth) * 2 - 1, -(event.clientY / innerHeight) * 2 + 1);
+  raycaster.setFromCamera(pointer, isoCamera);
+  const hit = raycaster.intersectObjects([held.holder, ...held.sources.map((source) => source.view)], true)[0];
+  if (!hit) return null;
+  let object = hit.object;
+  while (object && object.userData.part === undefined && !object.userData.slot) object = object.parent;
+  const source = object?.userData.part;
+  return { part: source ?? (slots.includes(hit.object.name) ? hit.object.name : null), source: !!source };
+}
+
 // Checked once a frame rather than on every pointer event.
 function runHover() {
   if (!pointerMoved || !lastPointer) return;
   pointerMoved = false;
-  const over = mode === "kitbash" && figureAt(lastPointer);
-  renderer.domElement.style.cursor = !over ? "" : held ? (drag?.moved ? "grabbing" : "grab") : "pointer";
+  if (mode !== "kitbash") return;
+  if (held) {
+    const over = drag?.moved ? null : partAt(lastPointer);
+    if (!drag?.moved) highlight(held, over?.part ?? null);
+    renderer.domElement.style.cursor = drag?.moved ? "grabbing" : over && !over.source ? "grab" : "";
+    return;
+  }
+  renderer.domElement.style.cursor = figureAt(lastPointer) ? "pointer" : "";
 }
 
 renderer.domElement.addEventListener("click", (event) => {
@@ -618,7 +740,8 @@ renderer.domElement.addEventListener("click", (event) => {
   // The end of a drag isn't a click.
   if (drag?.dragged) return void (drag = null);
   drag = null;
-  if (held) return putDown();
+  // A click on a source leaves the figure up; anywhere else puts it down.
+  if (held) return partAt(event)?.source ? undefined : putDown();
   const holder = figureAt(event);
   if (holder) pickUp(holder);
 });

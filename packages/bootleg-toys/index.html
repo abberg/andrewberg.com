@@ -22,6 +22,11 @@
     #parts label:has(:checked), #parts label:hover { opacity: 1; }
     #parts input { margin: 0; accent-color: #c9ccd2; }
     .thumbnail #hint, .thumbnail #panel, .no-robots #panel, .thumbnail #parts, .no-robots #parts { display: none; }
+    /* The held figure's sources, named beside each one. */
+    #sources { position: fixed; inset: 0; pointer-events: none; color: #2a2c30; }
+    .source { position: absolute; transform: translateY(-50%); white-space: nowrap; }
+    .source b { display: block; font-weight: normal; text-transform: uppercase; letter-spacing: 0.08em; font-size: 10px; opacity: 0.55; }
+    .source.lit { font-weight: bold; }
     /* Outline the page while a file is dragged over it. */
     .dragging body { box-shadow: inset 0 0 0 2px #c9ccd2; }
   </style>
@@ -33,6 +38,7 @@
 </div>
 <div id="parts" aria-label="Parts"></div>
 <div id="hint">↑ ↓ to step through robots · drag to orbit · scroll to zoom · drop a .glb or .gltf to load it</div>
+<div id="sources"></div>
 <script type="module" src="./src/main.js"></script>
 </body>
 </html>

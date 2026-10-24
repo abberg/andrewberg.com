@@ -261,6 +261,17 @@ export function kitbash(pick, material, random = Math.random) {
   return group;
 }
 
+// A robot as it was, showing what it lent: that part cast in `material`, the
+// rest of it a ghost in `ghost`.
+export function donor(robot, part, material, ghost) {
+  const group = new THREE.Group();
+  const asItWas = (bone) => bone.matrixWorld.clone();
+  for (const slot of slots) {
+    for (const piece of transplant(robot, robot, slot, slot === part ? material : ghost, asItWas)) group.add(piece);
+  }
+  return group;
+}
+
 // A slab under the feet, sized to the legs' stance rather than wings or arms.
 function base(figure, material) {
   const box = new THREE.Box3().setFromObject(figure);
