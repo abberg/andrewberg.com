@@ -72,6 +72,7 @@ function addHands(fbx, body) {
       position.setXYZ(v, p.x, p.y, p.z);
     }
     if (follows.includes(-1)) continue;
+    closeWrist(body, position, follows);
     // The body's attributes, the hand's where it has them.
     const piece = new THREE.BufferGeometry();
     for (const [name, attribute] of Object.entries(body.geometry.attributes)) {
@@ -88,6 +89,33 @@ function addHands(fbx, body) {
   const own = body.geometry.index ? body.geometry.toNonIndexed() : body.geometry.clone();
   own.clearGroups();
   body.geometry = mergeGeometries([own, ...pieces]);
+}
+
+// The game sets some hands a little off the wrist, leaving a gap a kitbash
+// would keep. Move the hand, as a whole, onto the nearest point of its
+// forearm.
+function closeWrist(body, position, follows) {
+  const sides = [...follows].map((n) => body.skeleton.bones[n].name.match(/_([lr])(?:_|$)/)?.[1]).filter(Boolean);
+  const side = sides.filter((s) => s === "l").length >= sides.length / 2 ? "l" : "r";
+  const forearm = new RegExp(`^mot_(forearm|arm)_${side}`);
+  const own = body.geometry.attributes.position;
+  const p = new THREE.Vector3();
+  const q = new THREE.Vector3();
+  let best = Infinity;
+  const move = new THREE.Vector3();
+  for (let v = 0; v < own.count; v++) {
+    if (!forearm.test(dominantBone(body, v).name)) continue;
+    p.fromBufferAttribute(own, v);
+    for (let h = 0; h < position.count; h += 3) {
+      const d = q.fromBufferAttribute(position, h).distanceToSquared(p);
+      if (d < best) {
+        best = d;
+        move.subVectors(p, q);
+      }
+    }
+  }
+  if (!Number.isFinite(best)) return;
+  for (let h = 0; h < position.count; h++) position.setXYZ(h, position.getX(h) + move.x, position.getY(h) + move.y, position.getZ(h) + move.z);
 }
 
 export async function convert(id) {

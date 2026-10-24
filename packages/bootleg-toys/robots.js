@@ -83,6 +83,13 @@ export const onlyLends = {
   van_1: ['head', 'arms', 'legs'],
   signo_sht: ['head', 'arms', 'legs'],
   rgun_powered: ['head', 'arms', 'legs'],
+  masspro_sp_c1: ['arms', 'legs'],
+  signo_des: ['head', 'arms', 'legs'],
+  gouka_byakuen: ['head', 'arms', 'legs'],
+  // Bodies with shoulder sockets far out from the chest, which borrowed arms
+  // can't close.
+  frareengine_imp: ['head', 'arms', 'legs'],
+  earthengine_imp: ['arms', 'legs'],
 };
 
 // The robots in public/models (local only), each with whether it can be

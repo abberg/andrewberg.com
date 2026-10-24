@@ -280,6 +280,7 @@ export function kitbash(pick, material, random = Math.random) {
   closeShoulders(group, joints, frame.height);
   seatHead(group, joints, frame.height);
   seatLegs(group, joints, frame.height);
+  for (const joint of ballJoints(group, joints, material, frame.height)) group.add(joint);
   if (material) {
     group.add(base(group, material));
   }
@@ -362,6 +363,47 @@ function seatHead(figure, joints, height) {
   for (const [name, joint] of joints) if (/^mot_head/.test(name)) joint.y -= drop;
 }
 
+// A ball joint at each socket, as on a kit, so a part always connects to
+// the body through it, however differently the two are shaped: each sized
+// to reach both, within limits.
+const ballSockets = [
+  ["mot_head", "head"],
+  ["mot_arm_l", "arms"],
+  ["mot_arm_r", "arms"],
+  ["mot_upleg_l", "legs"],
+  ["mot_upleg_r", "legs"],
+];
+
+function ballJoints(figure, joints, material, height) {
+  const p = new THREE.Vector3();
+  const nearest = (centre, name, side) => {
+    let best = Infinity;
+    for (const piece of figure.children) {
+      if (piece.name !== name) continue;
+      const position = piece.geometry.attributes.position;
+      for (let v = 0; v < position.count; v++) {
+        p.fromBufferAttribute(position, v);
+        if (side && Math.sign(p.x - joints.get("mot_pelvis").x) !== side) continue;
+        best = Math.min(best, p.distanceTo(centre));
+      }
+    }
+    return best;
+  };
+  const balls = [];
+  for (const [socket, part] of ballSockets) {
+    const centre = joints.get(socket);
+    if (!centre) continue;
+    const side = socket.endsWith("_l") ? Math.sign(centre.x - joints.get("mot_pelvis").x) || 1 : socket.endsWith("_r") ? Math.sign(centre.x - joints.get("mot_pelvis").x) || -1 : 0;
+    const reach = Math.max(nearest(centre, "body", 0), nearest(centre, part, side));
+    const radius = THREE.MathUtils.clamp(reach * 1.15, height * 0.025, height * 0.07);
+    const ball = new THREE.Mesh(new THREE.IcosahedronGeometry(radius, 2), material ?? new THREE.MeshStandardMaterial({ color: 0x888888 }));
+    ball.geometry.translate(centre.x, centre.y, centre.z);
+    ball.name = "joint";
+    balls.push(ball);
+  }
+  return balls;
+}
+
 // Legs hang from the frame's hips, but legs whose tops sit low in their own
 // hips can hang short of a frame's: if there's a gap between the tops of the
 // legs and the body above them, the legs are raised to close it.
@@ -416,10 +458,11 @@ function closeShoulders(figure, joints, height) {
     const side = point.x > centre ? "l" : "r";
     chest[side] = Math.max(chest[side], Math.abs(point.x - centre));
   });
-  // Where each arm's inner edge is, at shoulder height.
+  // Where each arm's inner edge is, at the top of the arm (some arms start
+  // a little below the shoulder joint).
   const arm = { l: Infinity, r: Infinity };
   each("arms", (point) => {
-    if (Math.abs(point.y - shoulder.y) > band) return;
+    if (point.y > shoulder.y + band || point.y < shoulder.y - band * 2.5) return;
     const side = point.x > centre ? "l" : "r";
     arm[side] = Math.min(arm[side], Math.abs(point.x - centre));
   });

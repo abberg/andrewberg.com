@@ -161,7 +161,7 @@ Series were checked against the Super Robot Wars wiki's list of X-Ω featured se
 | B401 | `B401_380_tristan_d` | Tristan Divider | コードギアス 反逆のルルーシュR2 | high | ✓ |
 | B401 | `B401_390_mordred` | Mordred | コードギアス 反逆のルルーシュR2 | high | ✓ |
 | B402 | `B402_000_byakuen` | Byakuen | コードギアス 亡国のアキト | high | ✓ |
-| B402 | `B402_020_gouka_byakuen` | Gouka Byakuen | コードギアス 亡国のアキト | high | ✓ |
+| B402 | `B402_020_gouka_byakuen` | Gouka Byakuen | コードギアス 亡国のアキト | high | ✓ (not body) |
 | B402 | `B402_505_lancelot_higrail` | Lancelot High Grail | コードギアス 亡国のアキト | high | ✓ |
 | B402 | `B402_710_white_vincent_w` | White Vincent Ward | コードギアス 亡国のアキト | high | same shape as vincent_w, left out |
 | B402 | `B402_720_white_sutherland` | White Sutherland | コードギアス 亡国のアキト | high | same shape as sutherland, left out |
@@ -328,8 +328,8 @@ Series were checked against the Super Robot Wars wiki's list of X-Ω featured se
 | L101 | `L101_300_rovebarrel` | Rove Barrel | 鉄のラインバレル | low | ✓ (not legs) |
 | L111 | `L111_000_durandal_neo` | Durandal Neo | 宇宙戦艦ティラミス | high | ✓ |
 | L111 | `L111_200_kerukeion` | Kerykeion | 宇宙戦艦ティラミス | low | ✓ |
-| L140 | `L140_000_earthengine_imp` | Earth Engine Impactor | キャプテン・アース | high | ✓ |
-| L140 | `L140_020_frareengine_imp` | Flare Engine Impactor | キャプテン・アース | low | ✓ |
+| L140 | `L140_000_earthengine_imp` | Earth Engine Impactor | キャプテン・アース | high | ✓ (not head or body) |
+| L140 | `L140_020_frareengine_imp` | Flare Engine Impactor | キャプテン・アース | low | ✓ (not body) |
 | L140 | `L140_300_amarok` | Amarok | キャプテン・アース | high | ✓ |
 | L140 | `L140_310_malkin` | Malkin | キャプテン・アース | high | ✓ |
 | L300 | `L300_000_chamber` | Chamber | 翠星のガルガンティア | high | ✓ |
@@ -390,7 +390,7 @@ Series were checked against the Super Robot Wars wiki's list of X-Ω featured se
 | X004 | `X004_156_masspro_mk2_d2` | Mass-Production Mk-II D2 | スーパーロボット大戦X-Ω | high | same shape as masspro_n_a2, left out |
 | X004 | `X004_157_masspro_mk2_d3` | Mass-Production Mk-II D3 | スーパーロボット大戦X-Ω | high | same shape as masspro_n_a3, left out |
 | X004 | `X004_160_masspro_sp_a1` | Mass-Production SP-A1 | スーパーロボット大戦X-Ω | high | ✓ |
-| X004 | `X004_170_masspro_sp_c1` | Mass-Production SP-C1 | スーパーロボット大戦X-Ω | high | ✓ |
+| X004 | `X004_170_masspro_sp_c1` | Mass-Production SP-C1 | スーパーロボット大戦X-Ω | high | ✓ (not head or body) |
 | X004 | `X004_195_masspro_sp_h1` | Mass-Production SP-H1 | スーパーロボット大戦X-Ω | high | ✓ |
 | X004 | `X004_200_rival` | Rival Unit | スーパーロボット大戦X-Ω | low | ✓ |
 | X004 | `X004_202_rival_cs` | Rival Unit (Custom) | スーパーロボット大戦X-Ω | low | ✓ |
@@ -403,7 +403,7 @@ Series were checked against the Super Robot Wars wiki's list of X-Ω featured se
 | X004 | `X004_655_signo_sht` | Signo (Shooter) | スーパーロボット大戦X-Ω | high | ✓ (not body) |
 | X004 | `X004_665_signo_fig` | Signo (Fighter) | スーパーロボット大戦X-Ω | high | ✓ |
 | X004 | `X004_675_signo_tel` | Signo (Telekinesis) | スーパーロボット大戦X-Ω | low | ✓ |
-| X004 | `X004_680_signo_des` | Signo (Destroyer) | スーパーロボット大戦X-Ω | low | ✓ |
+| X004 | `X004_680_signo_des` | Signo (Destroyer) | スーパーロボット大戦X-Ω | low | ✓ (not body) |
 | X004 | `X004_705_enemyzako_02` | Enemy Grunt 02 | スーパーロボット大戦X-Ω | high |  |
 | X004 | `X004_750_enemyzako_11` | Enemy Grunt 11 | スーパーロボット大戦X-Ω | high |  |
 | X004 | `X004_755_enemyzako_12` | Enemy Grunt 12 | スーパーロボット大戦X-Ω | high |  |
