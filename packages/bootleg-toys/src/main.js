@@ -383,7 +383,7 @@ async function buildFigure(slot) {
 }
 
 function dispose(object) {
-  object.traverse((child) => child.isMesh && child.geometry.dispose());
+  object.traverse((child) => (child.isMesh || child.isLine) && child.geometry.dispose());
 }
 
 function clear(slot) {
@@ -583,11 +583,24 @@ function runPickUp(seconds) {
 
 // The held figure's sources: the four robots it was built from, in a column
 // down the left, each as it was, the part it lent in its own game textures
-// and the rest of it a ghost, and named. Hovering one lights up its part on
+// and the rest of it a white ghost drawn in outline, and named. Hovering one lights up its part on
 // the figure, and hovering a part of the figure lights up its source.
 const sourcesBox = document.getElementById("sources");
-const ghost = new THREE.MeshBasicMaterial({ color: 0x5c606a, transparent: true, opacity: 0.4, depthWrite: false });
+const ghost = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false });
 const fade = () => ghost;
+const creases = new THREE.LineBasicMaterial({ color: 0x2a2c30, toneMapped: false });
+// The outline: the ghost's back faces, pushed out along their normals by the
+// same distance on screen everywhere (the camera's orthographic, so a
+// distance in view space is a fixed number of pixels).
+const outline = new THREE.MeshBasicMaterial({ color: 0x2a2c30, side: THREE.BackSide, toneMapped: false });
+outline.onBeforeCompile = (shader) => {
+  shader.vertexShader = shader.vertexShader.replace(
+    "#include <project_vertex>",
+    `vec4 mvPosition = modelViewMatrix * vec4( transformed, 1.0 );
+mvPosition.xyz += normalize( normalMatrix * normal ) * 0.012;
+gl_Position = projectionMatrix * mvPosition;`,
+  );
+};
 // The textured parts, lit up: the same texture with a glow over it.
 const glowing = new Map();
 function glow(material) {
@@ -608,6 +621,12 @@ async function showSources(pick) {
       const robot = await preparedRobot(spec[part]);
       if (!robot || held !== pick) return;
       const model = donor(robot, part, fade);
+      // Everything gets an outline; the ghost also gets its sharp creases
+      // drawn in, so its panel lines read.
+      for (const piece of [...model.children]) {
+        piece.add(new THREE.Mesh(piece.geometry, outline));
+        if (piece.material === ghost) piece.add(new THREE.LineSegments(new THREE.EdgesGeometry(piece.geometry, 35), creases));
+      }
       const box = new THREE.Box3().setFromObject(model);
       const size = box.getSize(new THREE.Vector3());
       model.position.set(-(box.min.x + box.max.x) / 2, -box.min.y, -(box.min.z + box.max.z) / 2);
@@ -680,7 +699,7 @@ function highlight(pick, part) {
     const on = source.part === part;
     source.label.classList.toggle("lit", on);
     source.view.traverse((child) => {
-      if (!child.isMesh || child.material === ghost) return;
+      if (!child.isMesh || child.material === ghost || child.material === outline) return;
       child.userData.texture ??= child.material;
       child.material = on ? glow(child.userData.texture) : child.userData.texture;
     });
