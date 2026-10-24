@@ -5,7 +5,8 @@ import { FBXLoader } from "three/addons/loaders/FBXLoader.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import robots from "virtual:robots";
 import { slots, prepare, kitbash } from "./kitbash.js";
-import { colours as resinColours, finishes, materials, setColour as setResinColour } from "./resin.js";
+import { colours as resinColours, finishes, resin } from "./resin.js";
+import { bake } from "./bake.js";
 
 // A scene for looking at models: one model at a time, framed to fit, lit by a
 // neutral studio environment, with orbit controls. The robots in
@@ -36,6 +37,36 @@ controls.autoRotateSpeed = 1;
 // Any drag stops the turntable.
 controls.addEventListener("start", () => (controls.autoRotate = false));
 
+// Kitbash mode looks down on its field through an orthographic camera at the
+// isometric angle: equal parts of x, y and z, so the grid's rows run off at
+// thirty degrees either side.
+const isoCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 200);
+const isoControls = new OrbitControls(isoCamera, renderer.domElement);
+isoControls.enableDamping = true;
+isoControls.enabled = false;
+// Keep it looking down; it can turn and zoom but not go under the table.
+isoControls.maxPolarAngle = THREE.MathUtils.degToRad(80);
+
+// Fit the field to the window: wide enough that the grid runs off the sides,
+// so it reads as a table full of figures rather than a diamond of them.
+function frameField() {
+  isoCamera.position.set(1, 1, 1).multiplyScalar(40);
+  isoControls.target.set(0, 0, 0);
+  isoCamera.zoom = 1;
+  sizeIsoCamera();
+  isoControls.update();
+}
+
+function sizeIsoCamera() {
+  const halfHeight = columns * spacing * 0.32;
+  const aspect = innerWidth / innerHeight;
+  isoCamera.left = -halfHeight * aspect;
+  isoCamera.right = halfHeight * aspect;
+  isoCamera.top = halfHeight;
+  isoCamera.bottom = -halfHeight;
+  isoCamera.updateProjectionMatrix();
+}
+
 // The robots' FBX materials are Phong, which ignores the environment map, so
 // they need lights of their own.
 const sky = new THREE.HemisphereLight(0xffffff, 0x444455, 2);
@@ -51,9 +82,9 @@ scene.add(rim, rim.target);
 const behind = new THREE.Vector3();
 function placeRim() {
   rim.intensity = mode === "kitbash" ? 3 : 0;
-  behind.subVectors(controls.target, camera.position).setY(0).normalize();
-  rim.position.copy(controls.target).addScaledVector(behind, 3).setY(1.2);
-  rim.target.position.copy(controls.target);
+  behind.subVectors(isoControls.target, isoCamera.position).setY(0).normalize();
+  rim.position.copy(isoControls.target).addScaledVector(behind, 3).setY(1.2);
+  rim.target.position.copy(isoControls.target);
 }
 
 const loader = new GLTFLoader();
@@ -174,7 +205,7 @@ filter.addEventListener("input", renderList);
 addEventListener("hashchange", () => {
   const hash = location.hash.slice(1);
   if (hash.startsWith("kitbash=")) {
-    if (mode !== "kitbash" || hash !== kitbashHash()) openKitbash(hash);
+    if (mode !== "kitbash" || hash !== fieldHash()) openKitbash(hash);
   } else if (hash !== current && robots.some((robot) => robot.id === hash)) loadRobot(hash);
 });
 addEventListener("keydown", (event) => {
@@ -186,15 +217,18 @@ addEventListener("keydown", (event) => {
     event.preventDefault();
     step(event.key === "ArrowDown" ? 1 : -1);
   }
-  if (mode === "kitbash" && event.key.toLowerCase() === "r" && !event.metaKey && !event.ctrlKey) shuffle();
+  if (mode === "kitbash" && event.key.toLowerCase() === "r" && !event.metaKey && !event.ctrlKey) newField();
+  if (mode === "kitbash" && event.key === "Escape") select(null);
 });
 renderList();
 
-// Kitbash mode. Each slot names the robot it borrows from; the body robot's
-// skeleton holds the rest together. The choice lives in the hash
-// (#kitbash=head,body,arms,legs) so a good one can be kept.
+// Kitbash mode: a field of kitbashed robots cast in resin, seen from above at
+// an isometric angle, like a table of bootleg figures. Each figure borrows its
+// head, body, arms and legs from four robots and comes in one resin colour.
+// The field grows from a seed, so the hash (#kitbash=seed,finish) brings the
+// same one back; figures edited by hand are added to it as
+// ;index:head,body,arms,legs,colour.
 let mode = "viewer";
-const pick = {};
 const prepared = new Map();
 const slotPickers = {};
 
@@ -209,6 +243,10 @@ function setMode(next) {
   // Likewise the white sky light, which the gummy finish takes most of its
   // light from.
   sky.intensity = next === "kitbash" ? 1 : 2;
+  field.visible = next === "kitbash";
+  if (model) model.visible = next === "viewer";
+  controls.enabled = next === "viewer";
+  isoControls.enabled = next === "kitbash";
   for (const button of document.querySelectorAll("[data-mode-button]")) {
     button.setAttribute("aria-pressed", button.dataset.modeButton === next);
   }
@@ -223,40 +261,236 @@ function preparedRobot(id) {
 }
 
 const humanoids = robots.filter((robot) => robot.humanoid);
-const randomRobot = () => humanoids[Math.floor(Math.random() * humanoids.length)].id;
-// #kitbash=head,body,arms,legs,colour,finish
-const kitbashHash = () => `kitbash=${slots.map((slot) => pick[slot]).join(",")},${colour},${finish}`;
+const colourNames = Object.keys(resinColours);
+const pickFrom = (list, random) => list[Math.floor(random() * list.length)];
+const isRobot = (id) => robots.some((robot) => robot.id === id);
 
-// The kitbash is cast in resin (see resin.js): a colour from the swatches and
-// a finish from the buttons below them.
-let colour = null;
+// A small seeded random number generator (mulberry32), so a seed always grows
+// the same field.
+function seeded(seed) {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function randomSpec(random = Math.random) {
+  const spec = Object.fromEntries(slots.map((slot) => [slot, pickFrom(humanoids, random).id]));
+  spec.colour = pickFrom(colourNames, random);
+  return spec;
+}
+
+// head,body,arms,legs,colour from a link, or null if it doesn't name robots.
+function parseSpec(values) {
+  const ids = values?.split(",") ?? [];
+  if (!slots.every((_, n) => isRobot(ids[n]))) return null;
+  const spec = Object.fromEntries(slots.map((slot, n) => [slot, ids[n]]));
+  spec.colour = ids[4] in resinColours ? ids[4] : colourNames[0];
+  return spec;
+}
+
+// The field: an 8 by 8 grid, every figure scaled to the same height and
+// standing on its base at the centre of its cell.
+const columns = 8;
+const spacing = 2.1;
+const figureHeight = 1.8;
+const field = new THREE.Group();
+field.visible = false;
+scene.add(field);
+let seed = 1;
 let finish = "clear";
-const swatches = document.getElementById("swatches");
-const finishButtons = document.getElementById("finishes");
+const overrides = new Map();
+const figures = [];
+let selected = null;
 
-function setColour(name) {
-  colour = name;
-  setResinColour(resinColours[name]);
-  for (const swatch of swatches.children) swatch.setAttribute("aria-pressed", swatch.dataset.colour === name);
+const cells = Array.from({ length: columns * columns }, (_, i) => {
+  const offset = (columns - 1) / 2;
+  return new THREE.Vector3(((i % columns) - offset) * spacing, 0, (Math.floor(i / columns) - offset) * spacing);
+});
+// Build from the middle out, so the view fills in around its centre.
+const buildOrder = cells.map((_, i) => i).sort((a, b) => cells[a].length() - cells[b].length());
+
+const specFor = (i) => overrides.get(i) ?? randomSpec(seeded(seed * 4099 + i));
+
+const fieldHash = () =>
+  `kitbash=${seed},${finish}` +
+  [...overrides].map(([i, spec]) => `;${i}:${[...slots.map((slot) => spec[slot]), spec.colour].join(",")}`).join("");
+
+let fieldTicket = 0;
+async function buildFigure(i, ticket) {
+  const spec = specFor(i);
+  const ready = Object.fromEntries(
+    await Promise.all(slots.map(async (slot) => [slot, await preparedRobot(spec[slot])])),
+  );
+  if (ticket !== fieldTicket) return;
+  // A robot without a skinned body mesh can't lend parts; leave the cell empty.
+  if (slots.some((slot) => !ready[slot])) return;
+  const figure = await bake(kitbash(ready, resin(finish, spec.colour)));
+  if (ticket !== fieldTicket) return;
+  const box = new THREE.Box3().setFromObject(figure);
+  const size = box.getSize(new THREE.Vector3());
+  figure.position.set(-(box.min.x + box.max.x) / 2, -box.min.y, -(box.min.z + box.max.z) / 2);
+  const holder = new THREE.Group();
+  holder.add(figure);
+  // As tall as the rest, unless that would spill out of the cell.
+  holder.scale.setScalar(Math.min(figureHeight / size.y, (spacing * 0.92) / Math.max(size.x, size.z)));
+  holder.position.copy(cells[i]);
+  holder.userData = { index: i, colour: spec.colour };
+  removeFigure(i);
+  figures[i] = holder;
+  field.add(holder);
+}
+
+function removeFigure(i) {
+  const old = figures[i];
+  if (!old) return;
+  field.remove(old);
+  old.traverse((child) => child.isMesh && child.geometry.dispose());
+  figures[i] = null;
+}
+
+// Let the page draw before carrying on. A message rather than a timeout,
+// which browsers slow to once a second in a background tab.
+function nextTask() {
+  return new Promise((resolve) => {
+    const channel = new MessageChannel();
+    channel.port1.onmessage = resolve;
+    channel.port2.postMessage(null);
+  });
+}
+
+// Rebuild everything, a pause after each figure so the page keeps drawing
+// while the field fills up.
+async function buildField() {
+  const ticket = ++fieldTicket;
+  history.replaceState(null, "", `#${fieldHash()}`);
+  for (let i = 0; i < cells.length; i++) removeFigure(i);
+  select(null);
+  // Start every robot loading at once; each figure waits for its own.
+  for (const i of buildOrder) for (const slot of slots) preparedRobot(specFor(i)[slot]);
+  // A few at a time, so the bake workers all have something to do.
+  const queue = [...buildOrder];
+  const started = performance.now();
+  await Promise.all(
+    Array.from({ length: 8 }, async () => {
+      while (queue.length && ticket === fieldTicket) {
+        await buildFigure(queue.shift(), ticket);
+        await nextTask();
+      }
+    }),
+  );
+  if (ticket === fieldTicket) console.info(`Field built in ${Math.round(performance.now() - started)} ms`);
+}
+
+function newField() {
+  seed = Math.floor(Math.random() * 1e9);
+  overrides.clear();
+  buildField();
 }
 
 function setFinish(name) {
   finish = name;
-  model?.traverse((child) => {
-    if (child.isMesh) child.material = materials[name];
-  });
+  for (const holder of figures) {
+    holder?.traverse((child) => {
+      if (child.isMesh) child.material = resin(name, holder.userData.colour);
+    });
+  }
   for (const button of finishButtons.children) button.setAttribute("aria-pressed", button.dataset.finish === name);
+  history.replaceState(null, "", `#${fieldHash()}`);
 }
+
+// Clicking a figure (rather than dragging the view) selects it, ringed on the
+// table; the panel's slots and swatches then edit just that one.
+const selection = new THREE.Mesh(
+  new THREE.RingGeometry(0.93, 1, 64).rotateX(-Math.PI / 2),
+  new THREE.MeshBasicMaterial({ color: 0x2a2c30 }),
+);
+selection.scale.setScalar(spacing / 2);
+selection.visible = false;
+field.add(selection);
+
+function select(i) {
+  selected = i;
+  selection.visible = i !== null;
+  document.documentElement.classList.toggle("figure-selected", i !== null);
+  if (i === null) return;
+  selection.position.copy(cells[i]).setY(0.002);
+  const spec = specFor(i);
+  for (const slot of slots) slotPickers[slot].value = spec[slot];
+  for (const swatch of swatches.children) swatch.setAttribute("aria-pressed", swatch.dataset.colour === spec.colour);
+}
+
+async function editSelected(change) {
+  if (selected === null) return;
+  const i = selected;
+  const spec = { ...specFor(i), ...change };
+  overrides.set(i, spec);
+  history.replaceState(null, "", `#${fieldHash()}`);
+  select(i);
+  if (Object.keys(change).every((key) => key === "colour") && figures[i]) {
+    // A new colour only needs a new material.
+    figures[i].userData.colour = spec.colour;
+    figures[i].traverse((child) => {
+      if (child.isMesh) child.material = resin(finish, spec.colour);
+    });
+    return;
+  }
+  await buildFigure(i, fieldTicket);
+}
+
+const pointer = new THREE.Vector2();
+const raycaster = new THREE.Raycaster();
+let pressedAt = null;
+renderer.domElement.addEventListener("pointerdown", (event) => (pressedAt = [event.clientX, event.clientY]));
+renderer.domElement.addEventListener("pointerup", (event) => {
+  if (mode !== "kitbash" || !pressedAt) return;
+  const moved = Math.hypot(event.clientX - pressedAt[0], event.clientY - pressedAt[1]);
+  pressedAt = null;
+  if (moved > 4) return;
+  pointer.set((event.clientX / innerWidth) * 2 - 1, -(event.clientY / innerHeight) * 2 + 1);
+  raycaster.setFromCamera(pointer, isoCamera);
+  let holder = raycaster.intersectObjects(figures.filter(Boolean), true)[0]?.object;
+  while (holder && holder.userData.index === undefined) holder = holder.parent;
+  select(holder ? holder.userData.index : null);
+});
+
+function openKitbash(hash = "") {
+  setMode("kitbash");
+  const [head, ...edits] = hash.replace(/^kitbash=/, "").split(";");
+  const values = head.split(",");
+  overrides.clear();
+  if (/^\d+$/.test(values[0])) {
+    seed = Number(values[0]);
+    if (finishes.includes(values[1])) finish = values[1];
+    for (const edit of edits) {
+      const [index, spec] = edit.split(":");
+      const parsed = parseSpec(spec);
+      if (cells[index] && parsed) overrides.set(Number(index), parsed);
+    }
+  } else {
+    // An older link to a single kitbash: grow a field around it.
+    seed = Math.floor(Math.random() * 1e9);
+    if (finishes.includes(values[5])) finish = values[5];
+    const parsed = parseSpec(head);
+    if (parsed) overrides.set(buildOrder[0], parsed);
+  }
+  for (const button of finishButtons.children) button.setAttribute("aria-pressed", button.dataset.finish === finish);
+  frameField();
+  buildField();
+}
+
+const swatches = document.getElementById("swatches");
+const finishButtons = document.getElementById("finishes");
 
 for (const name of finishes) {
   const button = document.createElement("button");
   button.type = "button";
   button.dataset.finish = name;
   button.textContent = name;
-  button.addEventListener("click", () => {
-    setFinish(name);
-    history.replaceState(null, "", `#${kitbashHash()}`);
-  });
+  button.addEventListener("click", () => setFinish(name));
   finishButtons.append(button);
 }
 
@@ -267,51 +501,8 @@ for (const [name, hex] of Object.entries(resinColours)) {
   swatch.title = name;
   swatch.setAttribute("aria-label", `${name} resin`);
   swatch.style.background = `#${hex.toString(16).padStart(6, "0")}`;
-  swatch.addEventListener("click", () => {
-    setColour(name);
-    history.replaceState(null, "", `#${kitbashHash()}`);
-  });
+  swatch.addEventListener("click", () => editSelected({ colour: name }));
   swatches.append(swatch);
-}
-const randomColour = () => {
-  const names = Object.keys(resinColours).filter((name) => name !== colour);
-  return names[Math.floor(Math.random() * names.length)];
-};
-
-let building = 0;
-async function buildKitbash({ keepCamera = true } = {}) {
-  history.replaceState(null, "", `#${kitbashHash()}`);
-  for (const slot of slots) slotPickers[slot].value = pick[slot];
-  const ticket = ++building;
-  const entries = await Promise.all(slots.map(async (slot) => [slot, await preparedRobot(pick[slot])]));
-  if (ticket !== building) return;
-  const ready = Object.fromEntries(entries);
-  // A robot without a skinned body mesh can't lend parts; swap it out.
-  const missing = slots.filter((slot) => !ready[slot]);
-  if (missing.length) {
-    for (const slot of missing) pick[slot] = randomRobot();
-    return buildKitbash({ keepCamera });
-  }
-  parts.replaceChildren();
-  show(kitbash(ready, materials[finish]), { keepCamera });
-}
-
-function shuffle(only) {
-  for (const slot of only ? [only] : slots) pick[slot] = randomRobot();
-  if (!only) setColour(randomColour());
-  buildKitbash();
-}
-
-function openKitbash(hash = "") {
-  setMode("kitbash");
-  const ids = hash.replace(/^kitbash=/, "").split(",");
-  setColour(ids[4] in resinColours ? ids[4] : (colour ?? randomColour()));
-  setFinish(finishes.includes(ids[5]) ? ids[5] : finish);
-  slots.forEach((slot, i) => {
-    const fallback = humanoids.some((robot) => robot.id === current) ? current : randomRobot();
-    pick[slot] = robots.some((robot) => robot.id === ids[i]) ? ids[i] : (pick[slot] ?? fallback);
-  });
-  buildKitbash({ keepCamera: false });
 }
 
 for (const slot of slots) {
@@ -319,26 +510,29 @@ for (const slot of slots) {
   row.className = "slot";
   const label = document.createElement("label");
   label.textContent = slot;
-  const select = document.createElement("select");
-  select.setAttribute("aria-label", `${slot} from`);
-  select.append(...humanoids.map((robot) => new Option(robot.name, robot.id)));
-  select.addEventListener("change", () => {
-    pick[slot] = select.value;
-    buildKitbash();
-  });
+  const picker = document.createElement("select");
+  picker.setAttribute("aria-label", `${slot} from`);
+  picker.append(...humanoids.map((robot) => new Option(robot.name, robot.id)));
+  picker.addEventListener("change", () => editSelected({ [slot]: picker.value }));
   const dice = document.createElement("button");
   dice.type = "button";
   dice.textContent = "⚄";
   dice.title = `Random ${slot}`;
-  dice.addEventListener("click", () => shuffle(slot));
-  label.htmlFor = select.id = `slot-${slot}`;
-  row.append(label, select, dice);
-  slotPickers[slot] = select;
+  dice.addEventListener("click", () => editSelected({ [slot]: pickFrom(humanoids, Math.random).id }));
+  label.htmlFor = picker.id = `slot-${slot}`;
+  row.append(label, picker, dice);
+  slotPickers[slot] = picker;
   document.getElementById("slots").append(row);
 }
-document.getElementById("shuffle").addEventListener("click", () => shuffle());
-document.querySelector('[data-mode-button="viewer"]').addEventListener("click", () => loadRobot(current ?? pick.body ?? robots[0].id));
-document.querySelector('[data-mode-button="kitbash"]').addEventListener("click", () => openKitbash());
+document.getElementById("shuffle").addEventListener("click", () => newField());
+document.getElementById("shuffle-figure").addEventListener("click", () => editSelected(randomSpec()));
+document.querySelector('[data-mode-button="viewer"]').addEventListener("click", () => loadRobot(current ?? robots[0].id));
+document.querySelector('[data-mode-button="kitbash"]').addEventListener("click", () => {
+  // Back to the field already built, or a fresh one the first time.
+  if (!fieldTicket) return openKitbash(`kitbash=${Math.floor(Math.random() * 1e9)},${finish}`);
+  setMode("kitbash");
+  history.replaceState(null, "", `#${fieldHash()}`);
+});
 
 const hash = location.hash.slice(1);
 const start = robots.find((robot) => robot.id === hash) ?? robots[0];
@@ -379,11 +573,13 @@ addEventListener("drop", async (event) => {
 addEventListener("resize", () => {
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
+  sizeIsoCamera();
   renderer.setSize(innerWidth, innerHeight);
 });
 
 renderer.setAnimationLoop(() => {
-  controls.update();
+  const iso = mode === "kitbash";
+  (iso ? isoControls : controls).update();
   placeRim();
-  renderer.render(scene, camera);
+  renderer.render(scene, iso ? isoCamera : camera);
 });

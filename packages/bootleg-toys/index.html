@@ -28,6 +28,10 @@
     [data-mode="kitbash"] #filter, [data-mode="kitbash"] #robots, [data-mode="kitbash"] #parts { display: none; }
     [data-mode="kitbash"] .viewer-only, html:not([data-mode="kitbash"]) .kitbash-only { display: none; }
     #swatches { display: flex; gap: 6px; }
+    #figure { display: none; flex-direction: column; gap: 8px; padding-top: 8px; border-top: 1px solid #d4d2cc; }
+    .figure-selected #figure { display: flex; }
+    .figure-selected #pick-hint { display: none; }
+    .note { margin: 0; opacity: 0.7; }
     #finishes { display: flex; gap: 4px; }
     #finishes button { flex: 1; text-transform: capitalize; }
     #finishes button[aria-pressed="true"] { background: #dddbd5; border-color: #bdbab3; }
@@ -35,6 +39,8 @@
     #swatches button[aria-pressed="true"] { border-color: currentColor; }
     /* The kitbash stage is light, so the panel goes dark-on-light. */
     [data-mode="kitbash"] body { color: #2a2c30; }
+    /* Over a field of figures the panel needs a card behind it. */
+    [data-mode="kitbash"] #panel { bottom: auto; padding: 10px; margin: -10px; background: rgb(236 234 230 / 0.92); border-radius: 8px; }
     [data-mode="kitbash"] button, [data-mode="kitbash"] select { background: #f7f6f3; border-color: #d4d2cc; }
     [data-mode="kitbash"] #modes button[aria-pressed="true"] { background: #dddbd5; border-color: #bdbab3; }
     #parts { position: fixed; right: 16px; top: 16px; max-height: calc(100% - 64px); width: 200px; overflow-y: auto; display: flex; flex-direction: column; }
@@ -53,16 +59,21 @@
     <button type="button" data-mode-button="kitbash" aria-pressed="false">Kitbash</button>
   </div>
   <div id="kitbash">
-    <div id="slots"></div>
-    <div id="swatches" aria-label="Resin colour"></div>
     <div id="finishes" aria-label="Resin finish"></div>
-    <button type="button" id="shuffle">Shuffle all (R)</button>
+    <button type="button" id="shuffle">New field (R)</button>
+    <div id="figure">
+      <p class="note">Selected figure</p>
+      <div id="slots"></div>
+      <div id="swatches" aria-label="Resin colour"></div>
+      <button type="button" id="shuffle-figure">Shuffle this figure</button>
+    </div>
+    <p class="note" id="pick-hint">Click a figure to change its parts or colour.</p>
   </div>
   <input id="filter" type="search" placeholder="Filter robots" aria-label="Filter robots" autocomplete="off">
   <ul id="robots"></ul>
 </div>
 <div id="parts" aria-label="Parts"></div>
-<div id="hint"><span class="viewer-only">↑ ↓ to step through robots</span><span class="kitbash-only">R to shuffle</span> · drag to orbit · scroll to zoom · drop a .glb or .gltf to load it</div>
+<div id="hint"><span class="viewer-only">↑ ↓ to step through robots</span><span class="kitbash-only">click a figure to edit it · R for a new field · esc to deselect</span> · drag to orbit · scroll to zoom · drop a .glb or .gltf to load it</div>
 <script type="module" src="./src/main.js"></script>
 </body>
 </html>

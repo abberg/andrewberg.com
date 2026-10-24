@@ -1,6 +1,5 @@
 import * as THREE from "three";
-import { mergeGeometries, toCreasedNormals } from "three/addons/utils/BufferGeometryUtils.js";
-import { MeshBVH } from "three-mesh-bvh";
+import { toCreasedNormals } from "three/addons/utils/BufferGeometryUtils.js";
 
 // Kitbashing: build one robot from the head, body, arms and legs of others.
 //
@@ -147,7 +146,6 @@ function transplant(source, frame, part, material) {
       // Cast in resin there's no texture to keep, and the game's low-poly
       // normals look faceted, so smooth them, keeping the sculpt's hard edges.
       piece = toCreasedNormals(piece, THREE.MathUtils.degToRad(60));
-      measureThickness(piece);
     } else {
       if (out.normal.length) piece.setAttribute("normal", new THREE.Float32BufferAttribute(out.normal, 3));
       else piece.computeVertexNormals();
@@ -160,32 +158,11 @@ function transplant(source, frame, part, material) {
   return meshes;
 }
 
-// How much resin light passes through at each vertex: the distance from it,
-// straight in along the normal, to the far side. The resin material reads it
-// (see resinThickness in main.js), so fins and fingers glow pale while chests
-// go deep. Where a ray finds no far side (an open edge), use a thin default.
-function measureThickness(geometry) {
-  const bvh = new MeshBVH(geometry);
-  const position = geometry.attributes.position;
-  const normal = geometry.attributes.normal;
-  geometry.computeBoundingSphere();
-  const fallback = geometry.boundingSphere.radius * 0.05;
-  const limit = geometry.boundingSphere.radius;
-  const thickness = new Float32Array(position.count);
-  const ray = new THREE.Ray();
-  for (let v = 0; v < position.count; v++) {
-    ray.direction.fromBufferAttribute(normal, v).negate();
-    ray.origin.fromBufferAttribute(position, v).addScaledVector(ray.direction, limit * 1e-3);
-    const hit = bvh.raycastFirst(ray, THREE.DoubleSide);
-    thickness[v] = hit ? Math.min(hit.distance, limit) : fallback;
-  }
-  geometry.setAttribute("resinThickness", new THREE.BufferAttribute(thickness, 1));
-}
-
 // pick maps each slot to a prepared robot. The body robot is the frame.
 // Every part is cast in `material` when one is given, and the figure stands
 // on a thin base of it, like a bootleg resin toy; otherwise parts keep their
-// robots' own textures.
+// robots' own textures. A resin figure still needs baking (see bake.js)
+// before it's drawn.
 export function kitbash(pick, material) {
   const group = new THREE.Group();
   for (const slot of slots) {
@@ -193,7 +170,6 @@ export function kitbash(pick, material) {
   }
   if (material) {
     group.add(base(group, material));
-    bakeOcclusion(group);
   }
   return group;
 }
@@ -207,7 +183,8 @@ function base(figure, material) {
   const stance = feet.getSize(new THREE.Vector3());
   const height = (box.max.y - box.min.y) * 0.03;
   const width = Math.max(stance.x, stance.z) * 1.25;
-  // Divided up so the feet's ambient occlusion has vertices to land on.
+  // Divided up so the feet's ambient occlusion has vertices to land on. Its
+  // thickness is simply its height.
   const slab = new THREE.Mesh(
     new THREE.BoxGeometry(width, height, stance.z * 1.1 + height * 2, 32, 1, 32),
     material,
@@ -217,61 +194,4 @@ function base(figure, material) {
   slab.position.set((feet.min.x + feet.max.x) / 2, box.min.y - height / 2, (feet.min.z + feet.max.z) / 2);
   slab.name = "base";
   return slab;
-}
-
-// Ambient occlusion, baked into each vertex as resinOcclusion: from every
-// vertex, a fan of short rays out over its normal's hemisphere, against the
-// whole figure, so parts shade each other (armpits, gaps between plates, the
-// base under the feet). The share that get away is how open it is.
-const rayCount = 16;
-const fan = Array.from({ length: rayCount }, (_, i) => {
-  // Cosine-weighted directions about +z, spread on a golden-angle spiral.
-  const r = Math.sqrt((i + 0.5) / rayCount);
-  const angle = i * Math.PI * (3 - Math.sqrt(5));
-  return new THREE.Vector3(r * Math.cos(angle), r * Math.sin(angle), Math.sqrt(1 - r * r));
-});
-
-function bakeOcclusion(figure) {
-  figure.updateMatrixWorld(true);
-  const meshes = figure.children.filter((child) => child.isMesh);
-  const whole = mergeGeometries(
-    meshes.map((mesh) => {
-      const copy = new THREE.BufferGeometry();
-      copy.setAttribute("position", mesh.geometry.attributes.position.clone());
-      copy.setIndex(mesh.geometry.index?.clone() ?? null);
-      return copy.applyMatrix4(mesh.matrixWorld).toNonIndexed();
-    }),
-  );
-  const bvh = new MeshBVH(whole);
-  const size = new THREE.Box3().setFromObject(figure).getSize(new THREE.Vector3());
-  const reach = Math.max(size.x, size.y, size.z) * 0.16;
-
-  const ray = new THREE.Ray();
-  const point = new THREE.Vector3();
-  const normal = new THREE.Vector3();
-  const basis = new THREE.Matrix4();
-  const tangent = new THREE.Vector3();
-  const bitangent = new THREE.Vector3();
-  const normalMatrix = new THREE.Matrix3();
-  for (const mesh of meshes) {
-    const { position, normal: normals } = mesh.geometry.attributes;
-    normalMatrix.getNormalMatrix(mesh.matrixWorld);
-    const occlusion = new Float32Array(position.count);
-    for (let v = 0; v < position.count; v++) {
-      point.fromBufferAttribute(position, v).applyMatrix4(mesh.matrixWorld);
-      normal.fromBufferAttribute(normals, v).applyMatrix3(normalMatrix).normalize();
-      tangent.set(Math.abs(normal.x) < 0.9 ? 1 : 0, Math.abs(normal.x) < 0.9 ? 0 : 1, 0).cross(normal).normalize();
-      bitangent.crossVectors(normal, tangent);
-      basis.makeBasis(tangent, bitangent, normal);
-      let open = 0;
-      for (const direction of fan) {
-        ray.direction.copy(direction).transformDirection(basis);
-        ray.origin.copy(point).addScaledVector(normal, reach * 0.01);
-        if (!bvh.raycastFirst(ray, THREE.DoubleSide, 0, reach)) open++;
-      }
-      // Curved, so partly hidden spots darken a little more than their share.
-      occlusion[v] = (open / rayCount) ** 1.5;
-    }
-    mesh.geometry.setAttribute("resinOcclusion", new THREE.BufferAttribute(occlusion, 1));
-  }
 }
