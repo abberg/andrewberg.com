@@ -45,7 +45,7 @@ function measure(bones, [from, to, fallback]) {
 }
 
 // What a kitbash needs from a loaded robot: its body mesh, a lookup of its
-// bones by name, how tall it stands, and the size of each part.
+// bones by name, how tall it stands, and how much it has of each part.
 export function prepare(object) {
   object.updateMatrixWorld(true);
   let mesh = null;
@@ -60,7 +60,6 @@ export function prepare(object) {
   mesh.computeBoundingBox();
   const box = mesh.boundingBox.clone().applyMatrix4(mesh.matrixWorld);
   const height = box.max.y - box.min.y;
-  const sizes = Object.fromEntries(slots.map((slot) => [slot, measure(bones, measures[slot])]));
   // The share of the body mesh's vertices in each part. Some robots keep a
   // part outside the body mesh (Noir Getter 2's arms are separate extras), so
   // they've little or nothing to lend for it.
@@ -68,7 +67,7 @@ export function prepare(object) {
   const partOfBone = mesh.skeleton.bones.map(partOf);
   const shares = Object.fromEntries(slots.map((slot) => [slot, 0]));
   for (const bone of dominant) shares[partOfBone[bone]] += 1 / dominant.length;
-  return { mesh, bones, height, sizes, shares };
+  return { mesh, bones, height, shares };
 }
 
 // Whether a prepared robot has enough of a part to lend it.
@@ -180,22 +179,27 @@ function transplant(source, frame, part, material, pose) {
   const bones = mesh.skeleton.bones;
   const dominant = dominantBones(mesh);
   const parts = bones.map(partOf);
-  const scale =
-    frame.sizes[part] && source.sizes[part]
-      ? frame.sizes[part] / source.sizes[part]
-      : frame.height / source.height;
+  // Both measured between the same bones: a frame whose legs end at the
+  // knee (Dybuster's) is measured hip to knee, and so is the part.
+  const [from, to, fallback] = measures[part];
+  const end = frame.bones.has(to) && source.bones.has(to) ? to : fallback;
+  const frameSize = measure(frame.bones, [from, end]);
+  const sourceSize = measure(source.bones, [from, end]);
+  const scale = frameSize && sourceSize ? frameSize / sourceSize : frame.height / source.height;
 
   // For each source bone, the matrix taking a point from where it sits on the
-  // source robot to where it should sit on the frame: into the bone's space,
-  // scaled, and out of the frame bone it maps to (or that bone's nearest
-  // ancestor the frame has).
+  // source robot to where it should sit on the frame: into the space of the
+  // bone, or of its nearest ancestor the frame has a bone of the same name
+  // for, scaled, and out of that frame bone. So where the frame has no foot
+  // bone, the part's foot rides on its shin, where it was.
   const moves = bones.map((bone) => {
-    let target = null;
-    for (let b = bone; b?.isBone && !target; b = b.parent) target = frame.bones.get(b.name) ?? null;
-    target ??= frame.bones.get("mot_pelvis") ?? frame.mesh;
+    let matched = bone;
+    while (matched?.isBone && !frame.bones.has(matched.name)) matched = matched.parent;
+    const target = matched?.isBone ? frame.bones.get(matched.name) : (frame.bones.get("mot_pelvis") ?? frame.mesh);
+    const from = matched?.isBone ? matched : (source.bones.get("mot_pelvis") ?? bone);
     return pose(target)
       .multiply(new THREE.Matrix4().makeScale(scale, scale, scale))
-      .multiply(bone.matrixWorld.clone().invert());
+      .multiply(from.matrixWorld.clone().invert());
   });
   const turns = moves.map((move) => new THREE.Matrix3().getNormalMatrix(move));
 
@@ -269,6 +273,8 @@ export function kitbash(pick, material, random = Math.random) {
   if (material) {
     group.add(base(group, material));
   }
+  // Where the frame's joints ended up, for pinning things to.
+  group.userData.joints = new Map([...pick.body.bones].map(([name, bone]) => [name, new THREE.Vector3().setFromMatrixPosition(pose(bone))]));
   return group;
 }
 

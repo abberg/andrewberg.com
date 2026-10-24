@@ -813,6 +813,12 @@ function anchorsOf(figure) {
     }
     anchors[part] = sides.filter((box) => !box.isEmpty()).map((box) => box.getCenter(new THREE.Vector3()));
   }
+  // Arms are pinned at the upper arm, between shoulder and elbow: their boxes
+  // can reach well below, with a shield or a long claw.
+  const joints = figure.userData.joints;
+  const upperArm = (side) => joints?.get(`mot_arm_${side}`) && joints.get(`mot_arm_${side}`).clone().lerp(joints.get(`mot_forearm_${side}`) ?? joints.get(`mot_arm_${side}`), 0.5);
+  const arms = ["l", "r"].map(upperArm).filter(Boolean);
+  if (arms.length) anchors.arms = arms;
   return anchors;
 }
 
