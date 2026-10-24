@@ -210,7 +210,8 @@ addEventListener("hashchange", () => {
   const hash = location.hash.slice(1);
   if (hash.startsWith("kitbash=")) {
     if (mode !== "kitbash" || hash !== fieldHash()) openKitbash(hash);
-  } else if (hash !== current && robots.some((robot) => robot.id === hash)) loadRobot(hash);
+  } else if (hash === "viewer") loadRobot(current ?? robots[0].id);
+  else if (hash !== current && robots.some((robot) => robot.id === hash)) loadRobot(hash);
 });
 addEventListener("keydown", (event) => {
   if (event.target.matches("input, select")) {
@@ -222,7 +223,7 @@ addEventListener("keydown", (event) => {
     step(event.key === "ArrowDown" ? 1 : -1);
   }
   if (mode === "kitbash" && event.key.toLowerCase() === "r" && !event.metaKey && !event.ctrlKey) newField();
-  if (mode === "kitbash" && event.key === "Escape") select(null);
+  if (mode === "kitbash" && event.key === "Escape") putDown();
 });
 renderList();
 
@@ -233,7 +234,6 @@ renderList();
 // back.
 let mode = "viewer";
 const prepared = new Map();
-const slotPickers = {};
 
 function setMode(next) {
   mode = next;
@@ -246,9 +246,6 @@ function setMode(next) {
   field.visible = next === "kitbash";
   if (model) model.visible = next === "viewer";
   controls.enabled = next === "viewer";
-  for (const button of document.querySelectorAll("[data-mode-button]")) {
-    button.setAttribute("aria-pressed", button.dataset.modeButton === next);
-  }
 }
 
 // Load a robot once and keep what the kitbash needs from it.
@@ -308,7 +305,6 @@ field.visible = false;
 scene.add(field);
 let seed = 1;
 let travelled = 0;
-let selected = null;
 // Hand edits, by slot and lap; they last until that figure leaves.
 const overrides = new Map();
 
@@ -421,31 +417,35 @@ function buildSoon() {
   }
 }
 
-// Each frame: move the belt along (unless a figure is selected for editing),
-// send slots that came round to the back off for a new figure, and draw only
-// the figures on screen.
+// Each frame: move the belt along, send slots that came round to the back off
+// for a new figure, and draw only the figures on screen. A figure that's been
+// picked up is left to the pick-up below, and not thrown away if its slot
+// comes round meanwhile.
 function runBelt(seconds) {
-  if (selected === null) travelled += speed * Math.min(seconds, 0.1);
+  travelled += speed * Math.min(seconds, 0.1);
   for (const slot of belt) {
     const lap = place(slot);
     if (lap !== slot.lap) {
       slot.lap = lap;
       slot.spec = null;
-      clear(slot);
+      if (slot.holder && slot.holder === held?.holder) slot.holder = null;
+      else clear(slot);
     }
-    if (slot.holder) {
+    if (slot.holder && slot.holder !== held?.holder) {
       slot.holder.position.copy(slot.position);
       // Measured from its middle, so with room for its top, bottom and sides.
       slot.holder.visible = fromCentre(slot.position) < 1.4;
     }
   }
   buildSoon();
+  runPickUp(Math.min(seconds, 0.1));
 }
 
 function buildField() {
   fieldTicket++;
   history.replaceState(null, "", `#${fieldHash()}`);
-  select(null);
+  if (held && held.slot.holder !== held.holder) dispose(held.holder);
+  held = null;
   travelled = 0;
   for (const slot of belt) {
     clear(slot);
@@ -461,62 +461,110 @@ function newField() {
   buildField();
 }
 
-// Clicking a figure selects it, ringed on the belt, and stops the belt; the
-// panel's slots and swatches then edit just that one. Esc or clicking off
-// it lets the belt roll again.
-const selection = new THREE.Mesh(
-  new THREE.RingGeometry(0.93, 1, 64).rotateX(-Math.PI / 2),
-  new THREE.MeshBasicMaterial({ color: 0x2a2c30 }),
-);
-selection.scale.setScalar(spacing / 2);
-selection.visible = false;
-field.add(selection);
+// Picking a figure up. Hovering one shows a pointer; clicking lifts it off
+// the belt and flies it up in front of the camera, large and slowly turning,
+// while the belt carries on behind. Clicking it again, clicking off it or Esc
+// sets it back down in its slot, wherever the belt has taken that by then;
+// if the slot has already come round to the back, the figure rides back down
+// onto its old place and off the front of the belt.
+const liftTime = 0.7;
+const heldSize = 2.4;
+let held = null;
 
-function select(slot) {
-  selected = slot;
-  selection.visible = slot !== null;
-  document.documentElement.classList.toggle("figure-selected", slot !== null);
-  if (slot === null) return;
-  selection.position.copy(slot.position).setY(0.002);
-  const spec = specFor(slot);
-  for (const part of slots) slotPickers[part].value = spec[part];
-  for (const swatch of swatches.children) swatch.setAttribute("aria-pressed", swatch.dataset.colour === spec.colour);
+const up = new THREE.Vector3(0, 1, 0);
+function heldPlace(holder) {
+  // Towards the camera from the middle of the view, its own middle on the
+  // middle of the screen.
+  // Along the line of sight, so it stays put on screen however near it comes.
+  const height = figureHeight * heldSize;
+  const sight = isoCamera.position.clone().sub(lookAt).normalize();
+  return lookAt.clone().addScaledVector(sight, 12).addScaledVector(up, -height / 2 + 0.2);
 }
 
-async function editSelected(change) {
-  if (selected === null) return;
-  const slot = selected;
-  const spec = { ...specFor(slot), ...change };
-  overrides.set(keyOf(slot), spec);
-  slot.spec = spec;
-  select(slot);
-  if (Object.keys(change).every((key) => key === "colour") && slot.holder) {
-    // A new colour only needs a new material.
-    slot.holder.userData.colour = spec.colour;
-    slot.holder.traverse((child) => {
-      if (child.isMesh) child.material = resin(spec.colour);
-    });
-    return;
+function beltPlace(pick) {
+  const { slot, holder } = pick;
+  // Still its slot's figure: back to the slot. Otherwise the slot came round
+  // without it, and its old place is a tile further on, off the front.
+  return slot.holder === holder ? slot.position.clone() : slot.position.clone().addScaledVector(facing, tile);
+}
+
+// Put a figure straight back where it belongs, mid-flight or not.
+function settle(pick) {
+  const { holder } = pick;
+  holder.scale.setScalar(pick.size);
+  holder.rotation.y = 0;
+  if (pick.slot.holder === holder) holder.position.copy(pick.slot.position);
+  else {
+    field.remove(holder);
+    dispose(holder);
   }
-  await buildFigure(slot);
-  if (selected === slot) select(slot);
 }
 
+function pickUp(holder) {
+  if (held) settle(held);
+  held = { slot: holder.userData.slot, holder, progress: 0, lifting: true, size: holder.scale.x, turn: 0 };
+  holder.visible = true;
+}
+
+function putDown() {
+  if (held) held.lifting = false;
+}
+
+function runPickUp(seconds) {
+  if (!held) return;
+  const { holder } = held;
+  held.progress = THREE.MathUtils.clamp(held.progress + (held.lifting ? 1 : -1) * (seconds / liftTime), 0, 1);
+  // Turns slowly while held, and back round to face the front on the way down.
+  if (held.lifting) held.turn += seconds * 0.6;
+  else held.turn = THREE.MathUtils.lerp(held.turn, Math.round(held.turn / (Math.PI * 2)) * Math.PI * 2, Math.min(1, seconds * 6));
+  const t = THREE.MathUtils.smootherstep(held.progress, 0, 1);
+  const from = beltPlace(held);
+  holder.position.lerpVectors(from, heldPlace(holder), t).addScaledVector(up, Math.sin(Math.PI * t) * 1.2);
+  holder.scale.setScalar(held.size * THREE.MathUtils.lerp(1, heldSize, t));
+  holder.rotation.y = held.turn;
+  if (!held.lifting && held.progress === 0) {
+    holder.rotation.y = 0;
+    // Back on the belt, or gone off the front with its old lap.
+    if (held.slot.holder !== holder) {
+      field.remove(holder);
+      dispose(holder);
+    }
+    held = null;
+  }
+}
+
+// Which figure, if any, is under the pointer: the one held first, then any
+// on screen.
 const pointer = new THREE.Vector2();
 const raycaster = new THREE.Raycaster();
-let pressedAt = null;
-renderer.domElement.addEventListener("pointerdown", (event) => (pressedAt = [event.clientX, event.clientY]));
-renderer.domElement.addEventListener("pointerup", (event) => {
-  if (mode !== "kitbash" || !pressedAt) return;
-  const moved = Math.hypot(event.clientX - pressedAt[0], event.clientY - pressedAt[1]);
-  pressedAt = null;
-  if (moved > 4) return;
+let pointerMoved = false;
+function figureAt(event) {
   pointer.set((event.clientX / innerWidth) * 2 - 1, -(event.clientY / innerHeight) * 2 + 1);
   raycaster.setFromCamera(pointer, isoCamera);
-  const holders = belt.map((slot) => slot.holder).filter((holder) => holder?.visible);
-  let holder = raycaster.intersectObjects(holders, true)[0]?.object;
-  while (holder && !holder.userData.slot) holder = holder.parent;
-  select(holder ? holder.userData.slot : null);
+  const holders = belt.map((slot) => slot.holder).filter((holder) => holder?.visible && holder !== held?.holder);
+  if (held) holders.unshift(held.holder);
+  let hit = raycaster.intersectObjects(holders, true)[0]?.object;
+  while (hit && !hit.userData.slot) hit = hit.parent;
+  return hit ?? null;
+}
+
+let lastPointer = null;
+renderer.domElement.addEventListener("pointermove", (event) => {
+  lastPointer = event;
+  pointerMoved = true;
+});
+// Checked once a frame rather than on every pointer event.
+function runHover() {
+  if (!pointerMoved || !lastPointer) return;
+  pointerMoved = false;
+  renderer.domElement.style.cursor = mode === "kitbash" && figureAt(lastPointer) ? "pointer" : "";
+}
+
+renderer.domElement.addEventListener("click", (event) => {
+  if (mode !== "kitbash") return;
+  const holder = figureAt(event);
+  if (!holder || holder === held?.holder) putDown();
+  else pickUp(holder);
 });
 
 function openKitbash(hash = "") {
@@ -538,53 +586,13 @@ function openKitbash(hash = "") {
   buildField();
 }
 
-const swatches = document.getElementById("swatches");
-
-for (const [name, hex] of Object.entries(resinColours)) {
-  const swatch = document.createElement("button");
-  swatch.type = "button";
-  swatch.dataset.colour = name;
-  swatch.title = name;
-  swatch.setAttribute("aria-label", `${name} resin`);
-  swatch.style.background = `#${hex.toString(16).padStart(6, "0")}`;
-  swatch.addEventListener("click", () => editSelected({ colour: name }));
-  swatches.append(swatch);
-}
-
-for (const slot of slots) {
-  const row = document.createElement("div");
-  row.className = "slot";
-  const label = document.createElement("label");
-  label.textContent = slot;
-  const picker = document.createElement("select");
-  picker.setAttribute("aria-label", `${slot} from`);
-  picker.append(...humanoids.map((robot) => new Option(robot.name, robot.id)));
-  picker.addEventListener("change", () => editSelected({ [slot]: picker.value }));
-  const dice = document.createElement("button");
-  dice.type = "button";
-  dice.textContent = "⚄";
-  dice.title = `Random ${slot}`;
-  dice.addEventListener("click", () => editSelected({ [slot]: pickFrom(humanoids, Math.random).id }));
-  label.htmlFor = picker.id = `slot-${slot}`;
-  row.append(label, picker, dice);
-  slotPickers[slot] = picker;
-  document.getElementById("slots").append(row);
-}
-document.getElementById("shuffle").addEventListener("click", () => newField());
-document.getElementById("shuffle-figure").addEventListener("click", () => editSelected(randomSpec()));
-document.querySelector('[data-mode-button="viewer"]').addEventListener("click", () => loadRobot(current ?? robots[0].id));
-document.querySelector('[data-mode-button="kitbash"]').addEventListener("click", () => {
-  // Back to the field already built, or a fresh one the first time.
-  if (!fieldTicket) return openKitbash(`kitbash=${Math.floor(Math.random() * 1e9)}`);
-  setMode("kitbash");
-  history.replaceState(null, "", `#${fieldHash()}`);
-});
-
+// The belt is the page. The viewer is still there for looking at one robot
+// at a time: #viewer, or a robot's name, opens it.
 const hash = location.hash.slice(1);
 const start = robots.find((robot) => robot.id === hash) ?? robots[0];
 if (start && !thumbnailMode) {
-  if (hash.startsWith("kitbash=")) openKitbash(hash);
-  else loadRobot(start.id);
+  if (hash === "viewer" || robots.some((robot) => robot.id === hash)) loadRobot(start.id);
+  else openKitbash(hash.startsWith("kitbash=") ? hash : `kitbash=${Math.floor(Math.random() * 1e9)}`);
 } else document.documentElement.classList.add("no-robots");
 
 if (!start || thumbnailMode) loader.loadAsync("./models/DamagedHelmet.glb").then((gltf) => {
@@ -604,6 +612,7 @@ addEventListener("dragover", (event) => {
 addEventListener("dragleave", () => document.documentElement.classList.remove("dragging"));
 addEventListener("drop", async (event) => {
   event.preventDefault();
+  if (mode !== "viewer") return;
   document.documentElement.classList.remove("dragging");
   const file = event.dataTransfer.files[0];
   if (!file) return;
@@ -627,7 +636,10 @@ const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
   const seconds = clock.getDelta();
   const belted = mode === "kitbash";
-  if (belted) runBelt(seconds);
+  if (belted) {
+    runBelt(seconds);
+    runHover();
+  }
   else controls.update();
   placeRim();
   renderer.render(scene, belted ? isoCamera : camera);
