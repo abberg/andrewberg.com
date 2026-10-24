@@ -548,7 +548,7 @@ function runPickUp(seconds) {
   }
   const t = THREE.MathUtils.smootherstep(held.progress, 0, 1);
   const view = sight();
-  veil.material.opacity = 0.75 * t;
+  veil.material.opacity = 0.9 * t;
   veil.position.copy(lookAt).addScaledVector(view, 6);
   veil.quaternion.copy(isoCamera.quaternion);
 
@@ -586,7 +586,7 @@ function runPickUp(seconds) {
 // and the rest of it a ghost, and named. Hovering one lights up its part on
 // the figure, and hovering a part of the figure lights up its source.
 const sourcesBox = document.getElementById("sources");
-const ghost = new THREE.MeshBasicMaterial({ color: 0x8c9099, transparent: true, opacity: 0.22, depthWrite: false });
+const ghost = new THREE.MeshBasicMaterial({ color: 0x5c606a, transparent: true, opacity: 0.4, depthWrite: false });
 const fade = () => ghost;
 // The textured parts, lit up: the same texture with a glow over it.
 const glowing = new Map();
