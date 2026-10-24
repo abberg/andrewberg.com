@@ -1,10 +1,95 @@
 import * as THREE from "three";
 import { FBXLoader } from "three/addons/loaders/FBXLoader.js";
 import { GLTFExporter } from "three/addons/exporters/GLTFExporter.js";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 
 // The browser half of convert-kitbash.mjs: load a robot's FBX, through the
 // patched FBXLoader the sketch uses, and export what a kitbash needs of it as
 // a GLB, along with a fingerprint of its shape.
+// Hand meshes, by preference: a fist, then the first of a numbered set, then
+// a plain one, then an open hand. Some are filed as weapons (wp_hand_l).
+const handKinds = [/close|fist|grip/, /_01/, /^(eq|wp)_hand(_[lr])?$/, /open|_02/];
+const isHand = (name) => /^(eq|wp)_hand/.test(name);
+const pick = (meshes) => handKinds.map((kind) => meshes.find((mesh) => kind.test(mesh.name))).find(Boolean) ?? meshes[0];
+
+// The bone each vertex follows most.
+function dominantBone(mesh, v) {
+  const index = mesh.geometry.attributes.skinIndex;
+  const weight = mesh.geometry.attributes.skinWeight;
+  let best = 0;
+  for (let k = 1; k < 4; k++) if (weight.getComponent(v, k) > weight.getComponent(v, best)) best = k;
+  return mesh.skeleton.bones[index.getComponent(v, best)];
+}
+
+function handVertices(body) {
+  let count = 0;
+  for (let v = 0; v < body.geometry.attributes.position.count; v++) if (/^mot_hand/.test(dominantBone(body, v).name)) count++;
+  return count;
+}
+
+// When the body has next to no hands of its own, add its hand meshes to it:
+// one per side (or one holding both), each vertex skinned wholly to the body's
+// bone of the name it follows (or, for a rigid mesh, its nearest bone's), and
+// placed so the body draws it where it's drawn now.
+function addHands(fbx, body) {
+  if (handVertices(body) >= 20) return;
+  const meshes = [];
+  fbx.traverse((object) => object.isMesh && isHand(object.name) && meshes.push(object));
+  const sided = ["l", "r"].map((side) => pick(meshes.filter((mesh) => mesh.name.endsWith(`_${side}`)))).filter(Boolean);
+  const hands = sided.length ? sided : [pick(meshes.filter((mesh) => !/_[lr]$/.test(mesh.name)))].filter(Boolean);
+  const bones = new Map(body.skeleton.bones.map((bone, n) => [bone.name, n]));
+  // world = body.matrixWorld · bindMatrixInverse · bone · boneInverse ·
+  // bindMatrix · vertex, so vertex = that chain, inverted, applied to world.
+  const chains = new Map();
+  const chain = (n) => {
+    if (!chains.has(n)) {
+      chains.set(n, body.matrixWorld.clone()
+        .multiply(body.bindMatrixInverse)
+        .multiply(body.skeleton.bones[n].matrixWorld)
+        .multiply(body.skeleton.boneInverses[n])
+        .multiply(body.bindMatrix)
+        .invert());
+    }
+    return chains.get(n);
+  };
+  const pieces = [];
+  for (const hand of hands) {
+    const geometry = hand.geometry.index ? hand.geometry.toNonIndexed() : hand.geometry.clone();
+    const position = geometry.attributes.position;
+    let rigidBone = null;
+    if (!hand.isSkinnedMesh) for (let up = hand.parent; up && !rigidBone; up = up.parent) if (up.isBone) rigidBone = up.name;
+    const follows = new Int32Array(position.count);
+    const p = new THREE.Vector3();
+    for (let v = 0; v < position.count; v++) {
+      p.fromBufferAttribute(position, v);
+      if (hand.isSkinnedMesh) hand.applyBoneTransform(v, p);
+      p.applyMatrix4(hand.matrixWorld);
+      const name = hand.isSkinnedMesh ? dominantBone(hand, v).name : rigidBone;
+      const side = /_l(_|$)/.test(hand.name) || (!/_r(_|$)/.test(hand.name) && p.x > 0) ? "l" : "r";
+      const n = bones.get(name) ?? bones.get(`mot_hand_${side}`);
+      follows[v] = n ?? -1;
+      if (n !== undefined) p.applyMatrix4(chain(n));
+      position.setXYZ(v, p.x, p.y, p.z);
+    }
+    if (follows.includes(-1)) continue;
+    // The body's attributes, the hand's where it has them.
+    const piece = new THREE.BufferGeometry();
+    for (const [name, attribute] of Object.entries(body.geometry.attributes)) {
+      const array = new attribute.array.constructor(position.count * attribute.itemSize);
+      if (name === "skinIndex") follows.forEach((n, v) => (array[v * 4] = n));
+      else if (name === "skinWeight") for (let v = 0; v < position.count; v++) array[v * 4] = 1;
+      else if (geometry.attributes[name]?.itemSize === attribute.itemSize) array.set(geometry.attributes[name].array.subarray(0, array.length));
+      piece.setAttribute(name, new THREE.BufferAttribute(array, attribute.itemSize, attribute.normalized));
+    }
+    if (piece.attributes.normal) piece.computeVertexNormals();
+    pieces.push(piece);
+  }
+  if (!pieces.length) return;
+  const own = body.geometry.index ? body.geometry.toNonIndexed() : body.geometry.clone();
+  own.clearGroups();
+  body.geometry = mergeGeometries([own, ...pieces]);
+}
+
 export async function convert(id) {
   const fbx = await new FBXLoader().loadAsync(`./models/${id}/${id}.fbx`);
   fbx.updateMatrixWorld(true);
@@ -14,13 +99,17 @@ export async function convert(id) {
   });
   if (!body) throw new Error("no body mesh");
 
-  // Only the body mesh, which is all a kitbash uses, and no textures: a plain
-  // material in each of its material slots.
+  // Some robots keep their hands out of the body, as equipment to swap
+  // (open, closed...). Fold one of each into it.
+  addHands(fbx, body);
+
+  // Only the body mesh, which is all a kitbash uses, and no textures: one
+  // plain material.
   const others = [];
   fbx.traverse((object) => object.isMesh && object !== body && others.push(object));
   for (const object of others) object.removeFromParent();
-  const plain = new THREE.MeshStandardMaterial();
-  body.material = Array.isArray(body.material) ? body.material.map(() => plain) : plain;
+  body.geometry.clearGroups();
+  body.material = new THREE.MeshStandardMaterial();
 
   // The rig nests each bone in copies of itself, one run per mesh. In glTF the
   // copies would be plain nodes, which the stance can't pose through, so hang

@@ -137,7 +137,7 @@ Series were checked against the Super Robot Wars wiki's list of X-Ω featured se
 | B220 | `B220_500_ei02` | EI-02 | 勇者王ガオガイガー | high | ✓ |
 | B221 | `B221_080_tenryujin` | Tenryujin | 勇者王ガオガイガーFINAL | high | ✓ |
 | B221 | `B221_510_palparepa_prajna` | Palparepa Plajna | 勇者王ガオガイガーFINAL | high | ✓ |
-| B241 | `B241_500_big_duo` | Big Duo | THEビッグオー | high | ✓ |
+| B241 | `B241_500_big_duo` | Big Duo | THEビッグオー | high | not a good biped match, left out |
 | B280 | `B280_010_ryupaladin_lordzephyr` | Ryu Paladin Lord Zephyr | 覇王大系リューナイト | high | ✓ |
 | B320 | `B320_000_gosaurer` | Gosaurer | 熱血最強ゴウザウラー | high | ✓ |
 | B400 | `B400_010_burai` | Burai | コードギアス 反逆のルルーシュ | high | ✓ |
@@ -180,7 +180,7 @@ Series were checked against the Super Robot Wars wiki's list of X-Ω featured se
 | B490 | `B490_510_alseides` | Alseides | 天空のエスカフローネ | high | ✓ |
 | B500 | `B500_005_kinggainer_oh` | King Gainer (Overheat) | OVERMANキングゲイナー | high | ✓ |
 | B500 | `B500_520_goleam` | Goleam | OVERMANキングゲイナー | high | ✓ |
-| B500 | `B500_591_blackdomi` | Black Dominator | OVERMANキングゲイナー | high | ✓ |
+| B500 | `B500_591_blackdomi` | Black Dominator | OVERMANキングゲイナー | high | not a good biped match, left out |
 | B500 | `B500_620_overdevil` | Overdevil | OVERMANキングゲイナー | high |  |
 | B500 | `B500_630_xan` | Xan | OVERMANキングゲイナー | high | ✓ |
 | B510 | `B510_004_altair_t` | Altair | ゼーガペイン | low |  |
@@ -324,7 +324,7 @@ Series were checked against the Super Robot Wars wiki's list of X-Ω featured se
 | L050 | `L050_010_vandread_d` | Vandread Dita | ヴァンドレッド | high | ✓ |
 | L050 | `L050_500_cube` | Cube | ヴァンドレッド | high |  |
 | L061 | `L061_020_ult_gravion` | Ultimate Gravion | 超重神グラヴィオン Zwei | high | ✓ |
-| L101 | `L101_125_painkiller_enigma` | Painkiller Enigma | 鉄のラインバレル | low | ✓ |
+| L101 | `L101_125_painkiller_enigma` | Painkiller Enigma | 鉄のラインバレル | low | not a good biped match, left out |
 | L101 | `L101_300_rovebarrel` | Rove Barrel | 鉄のラインバレル | low | ✓ |
 | L111 | `L111_000_durandal_neo` | Durandal Neo | 宇宙戦艦ティラミス | high | ✓ |
 | L111 | `L111_200_kerukeion` | Kerykeion | 宇宙戦艦ティラミス | low | ✓ |
@@ -360,7 +360,7 @@ Series were checked against the Super Robot Wars wiki's list of X-Ω featured se
 | W411 | `W411_060_tsf_t00a_yoroi` | Type-00A Takemikazuchi (Yoroi) | マブラヴ オルタネイティヴ | low | same shape as tsf_t00a_tamase, left out |
 | W411 | `W411_100_xg_70d_susanoh_4` | XG-70d Susanoo IV | マブラヴ オルタネイティヴ | high |  |
 | W411 | `W411_500_beta_gravis` | BETA Fort Class | マブラヴ オルタネイティヴ | high |  |
-| W411 | `W411_530_beta_equuspedis` | BETA Destroyer Class | マブラヴ オルタネイティヴ | high | ✓ |
+| W411 | `W411_530_beta_equuspedis` | BETA Destroyer Class | マブラヴ オルタネイティヴ | high | not a good biped match, left out |
 | W440 | `W440_000_new_arhan` | New Arhan | 楽園追放 -Expelled from Paradise- | high | ✓ |
 | W600 | `W600_005_bruse` | Blues | ロックマン | high |  |
 | W600 | `W600_010_forte` | Forte | ロックマン | high |  |
@@ -428,7 +428,7 @@ Series were checked against the Super Robot Wars wiki's list of X-Ω featured se
 | X015 | `X015_200_ialdabaoth` | Ialdabaoth | スーパーロボット大戦 オリジナル | high | ✓ |
 | X015 | `X015_312_blanche_neige` | Blanche Neige | スーパーロボット大戦 オリジナル | high | ✓ |
 | X015 | `X015_510_shiva_volclus` | Shiva Volclus | スーパーロボット大戦 オリジナル | high |  |
-| X015 | `X015_520_megillot` | Megillot | スーパーロボット大戦 オリジナル | high | ✓ |
+| X015 | `X015_520_megillot` | Megillot | スーパーロボット大戦 オリジナル | high | not a good biped match, left out |
 | Z080 | `Z080_000_metabee` | Metabee | メダロット | high | ✓ |
 | Z080 | `Z080_200_rokusho` | Rokusho | メダロット | high | ✓ |
 | Z110 | `Z110_000_bismark` | Bismarck | 星銃士ビスマルク | high | ✓ |

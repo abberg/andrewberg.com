@@ -74,7 +74,16 @@ export function prepare(object) {
 // Whether a prepared robot has enough of a part to lend it.
 // Small heads (Qubeley's) are around 3%; the robots with nothing for a part
 // are at or near zero.
-export const canLend = (robot, part) => robot.shares[part] >= 0.015;
+// It also needs the bones the part is set on: a body, as the frame, needs
+// somewhere for every other part to go (Big Duo's has no arms or legs, so
+// borrowed arms would end up at its hips).
+const needs = {
+  head: ["mot_head"],
+  body: ["mot_pelvis", "mot_head", "mot_arm_l", "mot_arm_r", "mot_upleg_l", "mot_upleg_r"],
+  arms: ["mot_arm_l", "mot_arm_r"],
+  legs: ["mot_upleg_l", "mot_upleg_r"],
+};
+export const canLend = (robot, part) => robot.shares[part] >= 0.015 && needs[part].every((bone) => robot.bones.has(bone));
 
 // A ready stance for the frame's skeleton: feet planted wide, one a little
 // ahead of the other, upper arms down and forward, forearms raised to guard.
