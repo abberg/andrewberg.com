@@ -37,28 +37,32 @@ controls.autoRotateSpeed = 1;
 // Any drag stops the turntable.
 controls.addEventListener("start", () => (controls.autoRotate = false));
 
-// Kitbash mode looks down on its field through an orthographic camera at the
-// isometric angle: equal parts of x, y and z, so the grid's rows run off at
-// thirty degrees either side.
+// Kitbash mode looks down on its belt of figures through a fixed orthographic
+// camera, turned off the grid's axes so the rows run away diagonally, lower
+// than the true isometric angle and close in, so the figures are big.
 const isoCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 200);
-const isoControls = new OrbitControls(isoCamera, renderer.domElement);
-isoControls.enableDamping = true;
-isoControls.enabled = false;
-// Keep it looking down; it can turn and zoom but not go under the table.
-isoControls.maxPolarAngle = THREE.MathUtils.degToRad(80);
+const lookAt = new THREE.Vector3(0, 0.6, 0);
+const elevation = THREE.MathUtils.degToRad(28);
+const azimuth = THREE.MathUtils.degToRad(30);
+// Along the ground towards the camera: the way the belt runs.
+const towardsCamera = new THREE.Vector3(Math.sin(azimuth), 0, Math.cos(azimuth));
 
-// Fit the field to the window: wide enough that the grid runs off the sides,
-// so it reads as a table full of figures rather than a diamond of them.
 function frameField() {
-  isoCamera.position.set(1, 1, 1).multiplyScalar(40);
-  isoControls.target.set(0, 0, 0);
-  isoCamera.zoom = 1;
+  isoCamera.position
+    .copy(towardsCamera)
+    .multiplyScalar(Math.cos(elevation))
+    .setY(Math.sin(elevation))
+    .multiplyScalar(40)
+    .add(lookAt);
+  isoCamera.lookAt(lookAt);
+  // Now, rather than at the next render: the belt works out what's on
+  // screen from it straight away.
+  isoCamera.updateMatrixWorld();
   sizeIsoCamera();
-  isoControls.update();
 }
 
 function sizeIsoCamera() {
-  const halfHeight = columns * spacing * 0.32;
+  const halfHeight = 3.2;
   const aspect = innerWidth / innerHeight;
   isoCamera.left = -halfHeight * aspect;
   isoCamera.right = halfHeight * aspect;
@@ -82,9 +86,9 @@ scene.add(rim, rim.target);
 const behind = new THREE.Vector3();
 function placeRim() {
   rim.intensity = mode === "kitbash" ? 3 : 0;
-  behind.subVectors(isoControls.target, isoCamera.position).setY(0).normalize();
-  rim.position.copy(isoControls.target).addScaledVector(behind, 3).setY(1.2);
-  rim.target.position.copy(isoControls.target);
+  behind.subVectors(lookAt, isoCamera.position).setY(0).normalize();
+  rim.position.copy(lookAt).addScaledVector(behind, 3).setY(1.2);
+  rim.target.position.copy(lookAt);
 }
 
 const loader = new GLTFLoader();
@@ -222,12 +226,11 @@ addEventListener("keydown", (event) => {
 });
 renderList();
 
-// Kitbash mode: a field of kitbashed robots cast in resin, seen from above at
-// an isometric angle, like a table of bootleg figures. Each figure borrows its
-// head, body, arms and legs from four robots and comes in one resin colour.
-// The field grows from a seed, so the hash (#kitbash=seed) brings the
-// same one back; figures edited by hand are added to it as
-// ;index:head,body,arms,legs,colour.
+// Kitbash mode: an endless conveyor belt of kitbashed robots cast in resin,
+// like bootleg figures coming off the line. Each figure borrows its head,
+// body, arms and legs from four robots and comes in one resin colour. The
+// belt grows from a seed, so the hash (#kitbash=seed) brings the same one
+// back.
 let mode = "viewer";
 const prepared = new Map();
 const slotPickers = {};
@@ -243,7 +246,6 @@ function setMode(next) {
   field.visible = next === "kitbash";
   if (model) model.visible = next === "viewer";
   controls.enabled = next === "viewer";
-  isoControls.enabled = next === "kitbash";
   for (const button of document.querySelectorAll("[data-mode-button]")) {
     button.setAttribute("aria-pressed", button.dataset.modeButton === next);
   }
@@ -289,116 +291,166 @@ function parseSpec(values) {
   return spec;
 }
 
-// The field: an 8 by 8 grid, every figure scaled to the same height and
-// standing on its base at the centre of its cell.
-const columns = 8;
-const spacing = 2.1;
+// The belt: a square tile of slots, 14 a side, every figure scaled to the
+// same height and standing on its base in the middle of its slot. The whole
+// tile slides towards the camera, straight down the screen; a slot that runs off the front comes round
+// again at the back, out of sight, with a new figure in it. Only slots on
+// screen are drawn, and only those on or near it are built.
+const across = 14;
+const spacing = 2.4;
 const figureHeight = 1.8;
+const tile = across * spacing;
+const speed = 0.35;
 const field = new THREE.Group();
 field.visible = false;
 scene.add(field);
 let seed = 1;
-const overrides = new Map();
-const figures = [];
+let travelled = 0;
 let selected = null;
+// Hand edits, by slot and lap; they last until that figure leaves.
+const overrides = new Map();
 
-const cells = Array.from({ length: columns * columns }, (_, i) => {
-  const offset = (columns - 1) / 2;
-  return new THREE.Vector3(((i % columns) - offset) * spacing, 0, (Math.floor(i / columns) - offset) * spacing);
-});
-// Build from the middle out, so the view fills in around its centre.
-const buildOrder = cells.map((_, i) => i).sort((a, b) => cells[a].length() - cells[b].length());
+const belt = Array.from({ length: across * across }, (_, i) => ({
+  index: i,
+  home: new THREE.Vector3(((i % across) - (across - 1) / 2) * spacing, 0, (Math.floor(i / across) - (across - 1) / 2) * spacing),
+  position: new THREE.Vector3(),
+  lap: 0,
+  holder: null,
+  building: false,
+  spec: null,
+}));
 
-// Figures whose robots were swapped for ones that can lend their parts.
-const resolved = new Map();
-const specFor = (i) => overrides.get(i) ?? resolved.get(i) ?? randomSpec(seeded(seed * 4099 + i));
+// Where a slot is after the tile has travelled so far, wrapped back into the
+// tile, and how many times it's come round (a new figure each time).
+const wrap = (value) => [THREE.MathUtils.euclideanModulo(value + tile / 2, tile) - tile / 2, Math.floor((value + tile / 2) / tile)];
+function place(slot) {
+  const [x, lapX] = wrap(slot.home.x + towardsCamera.x * travelled);
+  const [z, lapZ] = wrap(slot.home.z + towardsCamera.z * travelled);
+  slot.position.set(x, 0, z);
+  return lapX + lapZ;
+}
 
-const fieldHash = () =>
-  `kitbash=${seed}` +
-  [...overrides].map(([i, spec]) => `;${i}:${[...slots.map((slot) => spec[slot]), spec.colour].join(",")}`).join("");
+// A figure's robots and colour follow from the seed, its slot and its lap.
+const mix = (a, b, c) => Math.imul(a ^ Math.imul(b + 1, 0x9e3779b1) ^ Math.imul(c + 1, 0x85ebca6b), 0xc2b2ae35) >>> 0;
+const keyOf = (slot) => `${slot.index}:${slot.lap}`;
+const specFor = (slot) => overrides.get(keyOf(slot)) ?? slot.spec ?? randomSpec(seeded(mix(seed, slot.index, slot.lap)));
+
+const fieldHash = () => `kitbash=${seed}`;
 
 let fieldTicket = 0;
 // Load the robots a figure borrows from. One that can't lend the part asked
 // of it (no skinned body mesh, or that part kept outside it) is swapped for
-// another, drawn from the same seed so the field still comes back the same.
-async function lenders(i, spec) {
-  const random = seeded(seed * 4099 + i + 0x5eed);
+// another, drawn from the same seed so the belt still comes back the same.
+async function lenders(slot, spec) {
+  const random = seeded(mix(seed, slot.index, slot.lap) ^ 0x5eed);
   const ready = {};
   await Promise.all(
-    slots.map(async (slot) => {
+    slots.map(async (part) => {
       for (let tries = 0; tries < 12; tries++) {
-        const robot = await preparedRobot(spec[slot]);
-        if (robot && canLend(robot, slot)) return (ready[slot] = robot);
-        spec[slot] = pickFrom(humanoids, random).id;
+        const robot = await preparedRobot(spec[part]);
+        if (robot && canLend(robot, part)) return (ready[part] = robot);
+        spec[part] = pickFrom(humanoids, random).id;
       }
     }),
   );
   return ready;
 }
 
-async function buildFigure(i, ticket) {
-  const spec = { ...specFor(i) };
-  const ready = await lenders(i, spec);
-  if (ticket !== fieldTicket) return;
-  if (slots.some((slot) => !ready[slot])) return;
+async function buildFigure(slot) {
+  const ticket = fieldTicket;
+  const lap = slot.lap;
+  const stale = () => ticket !== fieldTicket || lap !== slot.lap;
+  const spec = { ...specFor(slot) };
+  const ready = await lenders(slot, spec);
+  if (stale() || slots.some((part) => !ready[part])) return;
   // Remember any swaps, so the panel shows what's really there.
-  (overrides.has(i) ? overrides : resolved).set(i, spec);
+  slot.spec = spec;
+  if (overrides.has(keyOf(slot))) overrides.set(keyOf(slot), spec);
   const figure = await bake(kitbash(ready, resin(spec.colour)));
-  if (ticket !== fieldTicket) return;
+  if (stale()) return dispose(figure);
   const box = new THREE.Box3().setFromObject(figure);
   const size = box.getSize(new THREE.Vector3());
   figure.position.set(-(box.min.x + box.max.x) / 2, -box.min.y, -(box.min.z + box.max.z) / 2);
   const holder = new THREE.Group();
   holder.add(figure);
-  // As tall as the rest, unless that would spill out of the cell.
+  // As tall as the rest, unless that would spill out of the slot.
   holder.scale.setScalar(Math.min(figureHeight / size.y, (spacing * 0.92) / Math.max(size.x, size.z)));
-  holder.position.copy(cells[i]);
-  holder.userData = { index: i, colour: spec.colour };
-  removeFigure(i);
-  figures[i] = holder;
+  holder.position.copy(slot.position);
+  holder.userData = { slot, colour: spec.colour };
+  clear(slot);
+  slot.holder = holder;
   field.add(holder);
 }
 
-function removeFigure(i) {
-  const old = figures[i];
-  if (!old) return;
-  field.remove(old);
-  old.traverse((child) => child.isMesh && child.geometry.dispose());
-  figures[i] = null;
+function dispose(object) {
+  object.traverse((child) => child.isMesh && child.geometry.dispose());
 }
 
-// Let the page draw before carrying on. A message rather than a timeout,
-// which browsers slow to once a second in a background tab.
-function nextTask() {
-  return new Promise((resolve) => {
-    const channel = new MessageChannel();
-    channel.port1.onmessage = resolve;
-    channel.port2.postMessage(null);
-  });
+function clear(slot) {
+  if (!slot.holder) return;
+  field.remove(slot.holder);
+  dispose(slot.holder);
+  slot.holder = null;
 }
 
-// Rebuild everything, a pause after each figure so the page keeps drawing
-// while the field fills up.
-async function buildField() {
-  const ticket = ++fieldTicket;
+// How far a point is from the middle of the screen, in screen halves: under
+// 1 is on screen.
+const projected = new THREE.Vector3();
+function fromCentre(position, height = figureHeight / 2) {
+  projected.copy(position).setY(height).project(isoCamera);
+  return Math.max(Math.abs(projected.x), Math.abs(projected.y));
+}
+
+// Builds run a few at a time so the bake workers all have something to do,
+// nearest the screen first. A slot is built once it's within half a screen
+// of the edge, which on the belt is well before it comes into view.
+const building = new Set();
+function buildSoon() {
+  const waiting = belt
+    .filter((slot) => !slot.holder && !building.has(slot) && fromCentre(slot.position) < 1.5)
+    .sort((a, b) => fromCentre(a.position) - fromCentre(b.position));
+  for (const slot of waiting) {
+    if (building.size >= 8) break;
+    building.add(slot);
+    buildFigure(slot).finally(() => {
+      building.delete(slot);
+      buildSoon();
+    });
+  }
+}
+
+// Each frame: move the belt along (unless a figure is selected for editing),
+// send slots that came round to the back off for a new figure, and draw only
+// the figures on screen.
+function runBelt(seconds) {
+  if (selected === null) travelled += speed * Math.min(seconds, 0.1);
+  for (const slot of belt) {
+    const lap = place(slot);
+    if (lap !== slot.lap) {
+      slot.lap = lap;
+      slot.spec = null;
+      clear(slot);
+    }
+    if (slot.holder) {
+      slot.holder.position.copy(slot.position);
+      // Measured from its middle, so with room for its top, bottom and sides.
+      slot.holder.visible = fromCentre(slot.position) < 1.4;
+    }
+  }
+  buildSoon();
+}
+
+function buildField() {
+  fieldTicket++;
   history.replaceState(null, "", `#${fieldHash()}`);
-  for (let i = 0; i < cells.length; i++) removeFigure(i);
-  resolved.clear();
   select(null);
-  // Start every robot loading at once; each figure waits for its own.
-  for (const i of buildOrder) for (const slot of slots) preparedRobot(specFor(i)[slot]);
-  // A few at a time, so the bake workers all have something to do.
-  const queue = [...buildOrder];
-  const started = performance.now();
-  await Promise.all(
-    Array.from({ length: 8 }, async () => {
-      while (queue.length && ticket === fieldTicket) {
-        await buildFigure(queue.shift(), ticket);
-        await nextTask();
-      }
-    }),
-  );
-  if (ticket === fieldTicket) console.info(`Field built in ${Math.round(performance.now() - started)} ms`);
+  travelled = 0;
+  for (const slot of belt) {
+    clear(slot);
+    slot.spec = null;
+    slot.lap = place(slot);
+  }
+  buildSoon();
 }
 
 function newField() {
@@ -407,8 +459,9 @@ function newField() {
   buildField();
 }
 
-// Clicking a figure (rather than dragging the view) selects it, ringed on the
-// table; the panel's slots and swatches then edit just that one.
+// Clicking a figure selects it, ringed on the belt, and stops the belt; the
+// panel's slots and swatches then edit just that one. Esc or clicking off
+// it lets the belt roll again.
 const selection = new THREE.Mesh(
   new THREE.RingGeometry(0.93, 1, 64).rotateX(-Math.PI / 2),
   new THREE.MeshBasicMaterial({ color: 0x2a2c30 }),
@@ -417,34 +470,34 @@ selection.scale.setScalar(spacing / 2);
 selection.visible = false;
 field.add(selection);
 
-function select(i) {
-  selected = i;
-  selection.visible = i !== null;
-  document.documentElement.classList.toggle("figure-selected", i !== null);
-  if (i === null) return;
-  selection.position.copy(cells[i]).setY(0.002);
-  const spec = specFor(i);
-  for (const slot of slots) slotPickers[slot].value = spec[slot];
+function select(slot) {
+  selected = slot;
+  selection.visible = slot !== null;
+  document.documentElement.classList.toggle("figure-selected", slot !== null);
+  if (slot === null) return;
+  selection.position.copy(slot.position).setY(0.002);
+  const spec = specFor(slot);
+  for (const part of slots) slotPickers[part].value = spec[part];
   for (const swatch of swatches.children) swatch.setAttribute("aria-pressed", swatch.dataset.colour === spec.colour);
 }
 
 async function editSelected(change) {
   if (selected === null) return;
-  const i = selected;
-  const spec = { ...specFor(i), ...change };
-  overrides.set(i, spec);
-  history.replaceState(null, "", `#${fieldHash()}`);
-  select(i);
-  if (Object.keys(change).every((key) => key === "colour") && figures[i]) {
+  const slot = selected;
+  const spec = { ...specFor(slot), ...change };
+  overrides.set(keyOf(slot), spec);
+  slot.spec = spec;
+  select(slot);
+  if (Object.keys(change).every((key) => key === "colour") && slot.holder) {
     // A new colour only needs a new material.
-    figures[i].userData.colour = spec.colour;
-    figures[i].traverse((child) => {
+    slot.holder.userData.colour = spec.colour;
+    slot.holder.traverse((child) => {
       if (child.isMesh) child.material = resin(spec.colour);
     });
     return;
   }
-  await buildFigure(i, fieldTicket);
-  if (selected === i) select(i);
+  await buildFigure(slot);
+  if (selected === slot) select(slot);
 }
 
 const pointer = new THREE.Vector2();
@@ -458,29 +511,26 @@ renderer.domElement.addEventListener("pointerup", (event) => {
   if (moved > 4) return;
   pointer.set((event.clientX / innerWidth) * 2 - 1, -(event.clientY / innerHeight) * 2 + 1);
   raycaster.setFromCamera(pointer, isoCamera);
-  let holder = raycaster.intersectObjects(figures.filter(Boolean), true)[0]?.object;
-  while (holder && holder.userData.index === undefined) holder = holder.parent;
-  select(holder ? holder.userData.index : null);
+  const holders = belt.map((slot) => slot.holder).filter((holder) => holder?.visible);
+  let holder = raycaster.intersectObjects(holders, true)[0]?.object;
+  while (holder && !holder.userData.slot) holder = holder.parent;
+  select(holder ? holder.userData.slot : null);
 });
 
 function openKitbash(hash = "") {
   setMode("kitbash");
-  const [head, ...edits] = hash.replace(/^kitbash=/, "").split(";");
+  const [head] = hash.replace(/^kitbash=/, "").split(";");
   const values = head.split(",");
   overrides.clear();
-  if (/^\d+$/.test(values[0])) {
-    // Older links may carry a finish after the seed; there's only one now.
-    seed = Number(values[0]);
-    for (const edit of edits) {
-      const [index, spec] = edit.split(":");
-      const parsed = parseSpec(spec);
-      if (cells[index] && parsed) overrides.set(Number(index), parsed);
-    }
-  } else {
-    // An older link to a single kitbash: grow a field around it.
+  // Older links may carry a finish or hand edits after the seed; the belt
+  // only keeps the seed. An older link to a single kitbash starts a belt
+  // with it in the middle.
+  if (/^\d+$/.test(values[0])) seed = Number(values[0]);
+  else {
     seed = Math.floor(Math.random() * 1e9);
     const parsed = parseSpec(head);
-    if (parsed) overrides.set(buildOrder[0], parsed);
+    const middle = belt.reduce((best, slot) => (slot.home.length() < best.home.length() ? slot : best));
+    if (parsed) overrides.set(`${middle.index}:0`, parsed);
   }
   frameField();
   buildField();
@@ -571,9 +621,12 @@ addEventListener("resize", () => {
   renderer.setSize(innerWidth, innerHeight);
 });
 
+const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
-  const iso = mode === "kitbash";
-  (iso ? isoControls : controls).update();
+  const seconds = clock.getDelta();
+  const belted = mode === "kitbash";
+  if (belted) runBelt(seconds);
+  else controls.update();
   placeRim();
-  renderer.render(scene, iso ? isoCamera : camera);
+  renderer.render(scene, belted ? isoCamera : camera);
 });

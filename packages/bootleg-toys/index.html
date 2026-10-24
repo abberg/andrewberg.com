@@ -56,20 +56,20 @@
     <button type="button" data-mode-button="kitbash" aria-pressed="false">Kitbash</button>
   </div>
   <div id="kitbash">
-    <button type="button" id="shuffle">New field (R)</button>
+    <button type="button" id="shuffle">New belt (R)</button>
     <div id="figure">
       <p class="note">Selected figure</p>
       <div id="slots"></div>
       <div id="swatches" aria-label="Resin colour"></div>
       <button type="button" id="shuffle-figure">Shuffle this figure</button>
     </div>
-    <p class="note" id="pick-hint">Click a figure to change its parts or colour.</p>
+    <p class="note" id="pick-hint">Click a figure to stop the belt and change its parts or colour.</p>
   </div>
   <input id="filter" type="search" placeholder="Filter robots" aria-label="Filter robots" autocomplete="off">
   <ul id="robots"></ul>
 </div>
 <div id="parts" aria-label="Parts"></div>
-<div id="hint"><span class="viewer-only">↑ ↓ to step through robots</span><span class="kitbash-only">click a figure to edit it · R for a new field · esc to deselect</span> · drag to orbit · scroll to zoom · drop a .glb or .gltf to load it</div>
+<div id="hint"><span class="viewer-only">↑ ↓ to step through robots</span><span class="kitbash-only">click a figure to stop the belt and edit it · esc to let it roll · R for a new belt</span><span class="viewer-only"> · drag to orbit · scroll to zoom · drop a .glb or .gltf to load it</span></div>
 <script type="module" src="./src/main.js"></script>
 </body>
 </html>
