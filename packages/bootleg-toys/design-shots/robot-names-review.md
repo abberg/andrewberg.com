@@ -114,7 +114,7 @@ Series were checked against the Super Robot Wars wiki's list of X-Ω featured se
 | A800 | `A800_060_black_six` | Black Six | 銀河機攻隊 マジェスティックプリンス | high |  |
 | A800 | `A800_500_pre_exes` | Pre-EXES | 銀河機攻隊 マジェスティックプリンス | high | ✓ |
 | B010 | `B010_010_scopedog` | Scopedog | 装甲騎兵ボトムズ | high | ✓ |
-| B010 | `B010_050_scopedog_rsc` | Scopedog (Red Shoulder Custom) | 装甲騎兵ボトムズ | high | ✓ |
+| B010 | `B010_050_scopedog_rsc` | Scopedog (Red Shoulder Custom) | 装甲騎兵ボトムズ | high | ✓ (not body) |
 | B010 | `B010_120_rabidlydog` | Rabidly Dog | 装甲騎兵ボトムズ | high | ✓ |
 | B010 | `B010_410_burglarydog` | Burglary Dog | 装甲騎兵ボトムズ | high | ✓ |
 | B050 | `B050_000_dunbine` | Dunbine | 聖戦士ダンバイン | high | ✓ |
@@ -124,7 +124,7 @@ Series were checked against the Super Robot Wars wiki's list of X-Ω featured se
 | B051 | `B051_000_sirbine` | Sirbine | New Story of Aura Battler DUNBINE | high | ✓ |
 | B051 | `B051_100_zwauth` | Zwauth | New Story of Aura Battler DUNBINE | high | ✓ |
 | B070 | `B070_000_lgaim` | L-Gaim | 重戦機エルガイム | high | ✓ |
-| B070 | `B070_010_lgaimmk2` | L-Gaim Mk-II | 重戦機エルガイム | high | ✓ |
+| B070 | `B070_010_lgaimmk2` | L-Gaim Mk-II | 重戦機エルガイム | high | ✓ (not body) |
 | B080 | `B080_080_wingal` | Wingal | 蒼き流星SPTレイズナー | low | ✓ |
 | B080 | `B080_090_wingal_zee_h` | Wingal Zee | 蒼き流星SPTレイズナー | low | ✓ |
 | B110 | `B110_535_falguenmaffu` | Falguen Mafu | リーンの翼 | high | ✓ |

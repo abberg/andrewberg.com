@@ -218,10 +218,11 @@ function transplant(source, part, material, move) {
       // A corner that follows a bone of another part (where an arm meets the
       // chest, say) moves with the part instead, as its other corners do:
       // moved by its own bone, it would be pulled off to wherever that bone
-      // goes, stretching the triangle into a long spike.
+      // goes, stretching the triangle into a long spike. (The body stays on
+      // its own skeleton, so its corners can follow their own bones.)
       const lead = corners.find((v) => parts[dominant[v]] === part);
       for (const v of corners) {
-        const bone = parts[dominant[v]] === part ? dominant[v] : dominant[lead];
+        const bone = parts[dominant[v]] === part || part === "body" ? dominant[v] : dominant[lead];
         // Where the vertex is drawn on the source robot, then moved over.
         p.fromBufferAttribute(position, v);
         mesh.applyBoneTransform(v, p);

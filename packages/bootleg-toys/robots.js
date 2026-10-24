@@ -87,6 +87,8 @@ export const onlyLends = {
   masspro_sp_c1: ['arms', 'legs'],
   signo_des: ['head', 'arms', 'legs'],
   gouka_byakuen: ['head', 'arms', 'legs'],
+  scopedog_rsc: ['head', 'arms', 'legs'],
+  lgaimmk2: ['head', 'arms', 'legs'],
   // Bodies with shoulder sockets far out from the chest, which borrowed arms
   // can't close.
   frareengine_imp: ['head', 'arms', 'legs'],
