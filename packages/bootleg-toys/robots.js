@@ -72,6 +72,17 @@ export const onlyLends = {
   znark_shooter: ['head'],
   znark_tank: ['head', 'arms'],
   shingetter3: ['head', 'arms'],
+  // Parts made of pieces that float apart, left out so every figure is one
+  // connected piece.
+  powered723: ['head', 'body', 'legs'],
+  primavera: ['head', 'body', 'legs'],
+  arvak: ['head', 'legs'],
+  kazuma_2: ['head', 'body', 'legs'],
+  gomin: ['head', 'body', 'legs'],
+  rovebarrel: ['head', 'body', 'arms'],
+  van_1: ['head', 'arms', 'legs'],
+  signo_sht: ['head', 'arms', 'legs'],
+  rgun_powered: ['head', 'arms', 'legs'],
 };
 
 // The robots in public/models (local only), each with whether it can be

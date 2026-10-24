@@ -174,7 +174,7 @@ Series were checked against the Super Robot Wars wiki's list of X-Ω featured se
 | B450 | `B450_000_vg_einwald` | VG Einwald | 無限のリヴァイアス | low | ✓ |
 | B460 | `B460_050_oger` | Knight Gear Oger | GEAR戦士電童 | high | ✓ |
 | B470 | `B470_030_keroro_uc_d` | Keroro Robo UC | ケロロ軍曹 | high |  |
-| B470 | `B470_100_powered723` | Powered Suit 723 | ケロロ軍曹 | high | ✓ |
+| B470 | `B470_100_powered723` | Powered Suit 723 | ケロロ軍曹 | high | ✓ (not arms) |
 | B490 | `B490_000_escaflowne` | Escaflowne | 天空のエスカフローネ | high | ✓ |
 | B490 | `B490_100_scherezade` | Scherazade | 天空のエスカフローネ | high | ✓ |
 | B490 | `B490_510_alseides` | Alseides | 天空のエスカフローネ | high | ✓ |
@@ -188,15 +188,15 @@ Series were checked against the Super Robot Wars wiki's list of X-Ω featured se
 | B510 | `B510_505_mindi` | Mindi | ゼーガペイン | low | ✓ |
 | B530 | `B530_005_imber_fs_h` | Imber | アイドルマスター XENOGLOSSIA | high |  |
 | B530 | `B530_035_nubilum_sb` | Nubilum | アイドルマスター XENOGLOSSIA | high |  |
-| B540 | `B540_110_primavera` | Primavera | バディ・コンプレックス | low | ✓ |
-| B540 | `B540_150_arvak` | Arvak | バディ・コンプレックス | low | ✓ |
+| B540 | `B540_110_primavera` | Primavera | バディ・コンプレックス | low | ✓ (not arms) |
+| B540 | `B540_150_arvak` | Arvak | バディ・コンプレックス | low | ✓ (not arms or body) |
 | B560 | `B560_000_valvrave1` | Valvrave I | 革命機ヴァルヴレイヴ | high | ✓ |
 | B580 | `B580_200_enryugo` | Enryugo | クロスアンジュ 天使と竜の輪舞 | high | ✓ |
 | B580 | `B580_220_hekiryugo` | Hekiryugo | クロスアンジュ 天使と竜の輪舞 | high |  |
 | B580 | `B580_500_hysterica` | Hysterica | クロスアンジュ 天使と竜の輪舞 | high | ✓ |
 | B580 | `B580_510_cleopatra` | Cleopatra | クロスアンジュ 天使と竜の輪舞 | high | ✓ |
 | B580 | `B580_540_theodra` | Theodora | クロスアンジュ 天使と竜の輪舞 | high | ✓ |
-| B620 | `B620_005_kazuma_2` | Kazuma (Shell Bullet, 2nd Form) | スクライド | high | ✓ |
+| B620 | `B620_005_kazuma_2` | Kazuma (Shell Bullet, 2nd Form) | スクライド | high | ✓ (not arms) |
 | B620 | `B620_025_zetsuei_2` | Zetsuei (2nd Form) | スクライド | high |  |
 | B700 | `B700_000_gunhed507` | Gunhed 507 | ガンヘッド | high |  |
 | B900 | `B900_510_homer` | Homer | — | low | ✓ |
@@ -249,7 +249,7 @@ Series were checked against the Super Robot Wars wiki's list of X-Ω featured se
 | E834 | `E834_000_gokaio` | Gokai-Oh | 海賊戦隊ゴーカイジャー | high |  |
 | E834 | `E834_080_kanzen_gokaio` | Kanzen Gokai-Oh | 海賊戦隊ゴーカイジャー | high |  |
 | E834 | `E834_100_gozyuzin` | Gozyujin | 海賊戦隊ゴーカイジャー | high | ✓ |
-| E834 | `E834_500_gomin` | Gormin | 海賊戦隊ゴーカイジャー | low | ✓ |
+| E834 | `E834_500_gomin` | Gormin | 海賊戦隊ゴーカイジャー | low | ✓ (not arms) |
 | F020 | `F020_010_dybastar` | Dybuster | トップをねらえ2! | high | ✓ |
 | F020 | `F020_025_busterm19` | Buster Machine No. 19 | トップをねらえ2! | high | ✓ |
 | F110 | `F110_005_eva00` | Evangelion Unit-00 | ヱヴァンゲリヲン新劇場版 | high |  |
@@ -325,7 +325,7 @@ Series were checked against the Super Robot Wars wiki's list of X-Ω featured se
 | L050 | `L050_500_cube` | Cube | ヴァンドレッド | high |  |
 | L061 | `L061_020_ult_gravion` | Ultimate Gravion | 超重神グラヴィオン Zwei | high | ✓ |
 | L101 | `L101_125_painkiller_enigma` | Painkiller Enigma | 鉄のラインバレル | low | not a good biped match, left out |
-| L101 | `L101_300_rovebarrel` | Rove Barrel | 鉄のラインバレル | low | ✓ |
+| L101 | `L101_300_rovebarrel` | Rove Barrel | 鉄のラインバレル | low | ✓ (not legs) |
 | L111 | `L111_000_durandal_neo` | Durandal Neo | 宇宙戦艦ティラミス | high | ✓ |
 | L111 | `L111_200_kerukeion` | Kerykeion | 宇宙戦艦ティラミス | low | ✓ |
 | L140 | `L140_000_earthengine_imp` | Earth Engine Impactor | キャプテン・アース | high | ✓ |
@@ -369,7 +369,7 @@ Series were checked against the Super Robot Wars wiki's list of X-Ω featured se
 | X004 | `X004_015_protagonist_cs` | Varlion (Custom) | スーパーロボット大戦X-Ω | low | ✓ |
 | X004 | `X004_020_protagonist2` | Protagonist Unit II | スーパーロボット大戦X-Ω | low | ✓ |
 | X004 | `X004_022_protagonist2_cs1` | Protagonist Unit II (Custom) | スーパーロボット大戦X-Ω | low | same shape as protagonist2, left out |
-| X004 | `X004_030_van_1` | Van I | スーパーロボット大戦X-Ω | low | ✓ |
+| X004 | `X004_030_van_1` | Van I | スーパーロボット大戦X-Ω | low | ✓ (not body) |
 | X004 | `X004_035_van_2` | Van II | スーパーロボット大戦X-Ω | low | ✓ |
 | X004 | `X004_045_van_omega` | Van Omega | スーパーロボット大戦X-Ω | low | ✓ |
 | X004 | `X004_106_masspro_b_sht` | Mass-Production Type B (Shooter) | スーパーロボット大戦X-Ω | high | ✓ |
@@ -400,7 +400,7 @@ Series were checked against the Super Robot Wars wiki's list of X-Ω featured se
 | X004 | `X004_610_howler_itd` | Howler | スーパーロボット大戦X-Ω | low |  |
 | X004 | `X004_635_aura` | Aura | スーパーロボット大戦X-Ω | low | ✓ |
 | X004 | `X004_650_signo_atk` | Signo (Attacker) | スーパーロボット大戦X-Ω | high | ✓ |
-| X004 | `X004_655_signo_sht` | Signo (Shooter) | スーパーロボット大戦X-Ω | high | ✓ |
+| X004 | `X004_655_signo_sht` | Signo (Shooter) | スーパーロボット大戦X-Ω | high | ✓ (not body) |
 | X004 | `X004_665_signo_fig` | Signo (Fighter) | スーパーロボット大戦X-Ω | high | ✓ |
 | X004 | `X004_675_signo_tel` | Signo (Telekinesis) | スーパーロボット大戦X-Ω | low | ✓ |
 | X004 | `X004_680_signo_des` | Signo (Destroyer) | スーパーロボット大戦X-Ω | low | ✓ |
@@ -421,7 +421,7 @@ Series were checked against the Super Robot Wars wiki's list of X-Ω featured se
 | X015 | `X015_046_grenveil` | Grenveil | スーパーロボット大戦 オリジナル | low | ✓ |
 | X015 | `X015_054_zamzeed` | Zamzeed | スーパーロボット大戦 オリジナル | high | ✓ |
 | X015 | `X015_058_nols_rei` | Nols-Rei | スーパーロボット大戦 オリジナル | low | ✓ |
-| X015 | `X015_082_rgun_powered` | R-GUN Powered | スーパーロボット大戦 オリジナル | high | ✓ |
+| X015 | `X015_082_rgun_powered` | R-GUN Powered | スーパーロボット大戦 オリジナル | high | ✓ (not body) |
 | X015 | `X015_090_srx` | SRX | スーパーロボット大戦 オリジナル | high | ✓ |
 | X015 | `X015_096_huckebein_mk3` | Huckebein Mk-III | スーパーロボット大戦 オリジナル | high | ✓ |
 | X015 | `X015_170_gespenst_haken` | Gespenst Haken | スーパーロボット大戦 オリジナル | high | ✓ |

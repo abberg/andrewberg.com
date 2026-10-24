@@ -279,6 +279,7 @@ export function kitbash(pick, material, random = Math.random) {
   }
   closeShoulders(group, joints, frame.height);
   seatHead(group, joints, frame.height);
+  seatLegs(group, joints, frame.height);
   if (material) {
     group.add(base(group, material));
   }
@@ -359,6 +360,35 @@ function seatHead(figure, joints, height) {
     piece.geometry.translate(0, -drop, 0);
   }
   for (const [name, joint] of joints) if (/^mot_head/.test(name)) joint.y -= drop;
+}
+
+// Legs hang from the frame's hips, but legs whose tops sit low in their own
+// hips can hang short of a frame's: if there's a gap between the tops of the
+// legs and the body above them, the legs are raised to close it.
+function seatLegs(figure, joints, height) {
+  const p = new THREE.Vector3();
+  let gap = 0;
+  for (const side of ["l", "r"]) {
+    const hip = joints.get(`mot_upleg_${side}`);
+    if (!hip) continue;
+    const near = (point) => Math.abs(point.x - hip.x) < height * 0.06 && Math.abs(point.z - hip.z) < height * 0.06;
+    let top = -Infinity;
+    let bottom = Infinity;
+    for (const piece of figure.children) {
+      if (piece.name !== "legs" && piece.name !== "body") continue;
+      const position = piece.geometry.attributes.position;
+      for (let v = 0; v < position.count; v++) {
+        p.fromBufferAttribute(position, v);
+        if (!near(p)) continue;
+        if (piece.name === "legs") top = Math.max(top, p.y);
+        else if (p.y > hip.y - height * 0.15) bottom = Math.min(bottom, p.y);
+      }
+    }
+    if (Number.isFinite(top) && Number.isFinite(bottom)) gap = Math.max(gap, bottom - top + height * 0.01);
+  }
+  if (gap <= 0) return;
+  for (const piece of figure.children) if (piece.name === "legs") piece.geometry.translate(0, gap, 0);
+  for (const [name, joint] of joints) if (/^mot_(upleg|leg|foot|toe|heel)/.test(name)) joint.y += gap;
 }
 
 // A frame's shoulder joints sit where its own shoulders reach, often well out
