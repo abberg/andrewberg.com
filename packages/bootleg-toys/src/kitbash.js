@@ -383,32 +383,71 @@ const ballSockets = [
 
 function ballJoints(figure, joints, material, height) {
   const p = new THREE.Vector3();
+  const centreX = joints.get("mot_pelvis").x;
+  const sideOfPoint = (point) => Math.sign(point.x - centreX);
+  // The nearest point of a part (of one side of it, for a pair) to a point.
   const nearest = (centre, name, side) => {
     let best = Infinity;
+    const at = new THREE.Vector3();
     for (const piece of figure.children) {
       if (piece.name !== name) continue;
       const position = piece.geometry.attributes.position;
       for (let v = 0; v < position.count; v++) {
         p.fromBufferAttribute(position, v);
-        if (side && Math.sign(p.x - joints.get("mot_pelvis").x) !== side) continue;
-        best = Math.min(best, p.distanceTo(centre));
+        if (side && sideOfPoint(p) !== side) continue;
+        const d = p.distanceTo(centre);
+        if (d < best) {
+          best = d;
+          at.copy(p);
+        }
       }
     }
-    return best;
+    return { distance: best, at };
   };
   const balls = [];
   for (const [socket, part, largest] of ballSockets) {
     const centre = joints.get(socket);
     if (!centre) continue;
-    const side = socket.endsWith("_l") ? Math.sign(centre.x - joints.get("mot_pelvis").x) || 1 : socket.endsWith("_r") ? Math.sign(centre.x - joints.get("mot_pelvis").x) || -1 : 0;
-    const reach = Math.max(nearest(centre, "body", 0), nearest(centre, part, side));
-    const radius = THREE.MathUtils.clamp(reach * 1.1, height * 0.02, height * largest);
+    const side = socket.endsWith("_l") || socket.endsWith("_r") ? sideOfPoint(centre) || (socket.endsWith("_l") ? 1 : -1) : 0;
+    const limit = height * largest;
+    // Where the body is further than the largest ball reaches, the part and
+    // its socket move towards it until it's within reach, rather than the
+    // ball growing.
+    const body = nearest(centre, "body", 0);
+    if (Number.isFinite(body.distance) && body.distance > limit / 1.1) {
+      const move = body.at.clone().sub(centre).multiplyScalar(1 - limit / 1.1 / body.distance);
+      for (const piece of figure.children) {
+        if (piece.name !== part) continue;
+        const position = piece.geometry.attributes.position;
+        for (let v = 0; v < position.count; v++) {
+          p.fromBufferAttribute(position, v);
+          if (side && sideOfPoint(p) !== side) continue;
+          position.setXYZ(v, p.x + move.x, p.y + move.y, p.z + move.z);
+        }
+        position.needsUpdate = true;
+      }
+      for (const [name, joint] of joints) {
+        if (name !== socket && partOfName(name) !== part) continue;
+        if (side && sideOfPoint(joint) !== side) continue;
+        joint.add(move);
+      }
+    }
+    const reach = Math.max(nearest(centre, "body", 0).distance, nearest(centre, part, side).distance);
+    const radius = THREE.MathUtils.clamp(reach * 1.1, height * 0.02, limit);
     const ball = new THREE.Mesh(new THREE.IcosahedronGeometry(radius, 2), material ?? new THREE.MeshStandardMaterial({ color: 0x888888 }));
     ball.geometry.translate(centre.x, centre.y, centre.z);
     ball.name = "joint";
     balls.push(ball);
   }
   return balls;
+}
+
+// The part a bone belongs to, by its name alone.
+function partOfName(name) {
+  if (/^mot_head/.test(name)) return "head";
+  if (/^mot_(clavicle|shoulder|arm|forearm|hand)/.test(name)) return "arms";
+  if (/^mot_(upleg|leg|foot|toe|heel)/.test(name)) return "legs";
+  return "body";
 }
 
 // Legs hang from the frame's hips, but legs whose tops sit low in their own
