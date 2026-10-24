@@ -26,11 +26,13 @@ const excluded = new Set([
   'alphaazieru', 'nightingale', 'bug', 'masterasia', 'devilgundam', 'gaga_bo',
   'military_bike_side', 'zmaster', 'siegfried', 'alexander_a_ins', 'jimba_r', 'ulvorful',
   'arc2j1', 'wygar', 'ravana', 'dragon_schooner', 'strike_siegwurm_b', 'spacemonsterf',
-  'kantam_robo', 'ryuho_last', 'samekh', 'samekh_s', 'kisaragi_om', 'noir_getter2', 'noir_getter3',
+  'kantam_robo', 'ryuho_last', 'samekh', 'samekh_s', 'kisaragi_om',
 ]);
 
 // Kitbashing needs the standard humanoid rig: a head, a spine, two arms and
-// two legs. Jets, dragons and tanks don't have one.
+// two legs. Jets, dragons and tanks don't have one. Some that do still have
+// nothing to recombine: Noir Getter 2 is a hooded cloak all the way down.
+const notForKitbash = new Set(['noir_getter2']);
 const humanoidBones = ['mot_head', 'mot_spine', 'mot_arm_l', 'mot_arm_r', 'mot_upleg_l', 'mot_upleg_r'];
 const isHumanoid = (fbx) => humanoidBones.every((bone) => fbx.includes(`${bone}\x00\x01Model`));
 
@@ -43,7 +45,10 @@ function robots() {
     .sort()
     .map((id) => ({ id, fbx: readFileSync(new URL(`${id}/${id}.fbx`, dir)) }))
     .filter(({ fbx }) => isRobot(fbx))
-    .map(({ id, fbx }) => ({ id, name: id.match(robotFolder)[1], humanoid: isHumanoid(fbx) }));
+    .map(({ id, fbx }) => {
+      const name = id.match(robotFolder)[1];
+      return { id, name, humanoid: isHumanoid(fbx) && !notForKitbash.has(name) };
+    });
 }
 
 // import robots from 'virtual:robots' gives the list, read when the server starts.

@@ -59,8 +59,20 @@ export function prepare(object) {
   const box = mesh.geometry.boundingBox.clone().applyMatrix4(mesh.matrixWorld);
   const height = box.max.y - box.min.y;
   const sizes = Object.fromEntries(slots.map((slot) => [slot, measure(bones, measures[slot])]));
-  return { mesh, bones, height, sizes };
+  // The share of the body mesh's vertices in each part. Some robots keep a
+  // part outside the body mesh (Noir Getter 2's arms are separate extras), so
+  // they've little or nothing to lend for it.
+  const dominant = dominantBones(mesh);
+  const partOfBone = mesh.skeleton.bones.map(partOf);
+  const shares = Object.fromEntries(slots.map((slot) => [slot, 0]));
+  for (const bone of dominant) shares[partOfBone[bone]] += 1 / dominant.length;
+  return { mesh, bones, height, sizes, shares };
 }
+
+// Whether a prepared robot has enough of a part to lend it.
+// Small heads (Qubeley's) are around 3%; the robots with nothing for a part
+// are at or near zero.
+export const canLend = (robot, part) => robot.shares[part] >= 0.015;
 
 // The bone each vertex follows most closely.
 function dominantBones(mesh) {

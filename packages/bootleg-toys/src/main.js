@@ -4,7 +4,7 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { FBXLoader } from "three/addons/loaders/FBXLoader.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import robots from "virtual:robots";
-import { slots, prepare, kitbash } from "./kitbash.js";
+import { slots, prepare, kitbash, canLend } from "./kitbash.js";
 import { colours as resinColours, finishes, resin } from "./resin.js";
 import { bake } from "./bake.js";
 
@@ -313,21 +313,40 @@ const cells = Array.from({ length: columns * columns }, (_, i) => {
 // Build from the middle out, so the view fills in around its centre.
 const buildOrder = cells.map((_, i) => i).sort((a, b) => cells[a].length() - cells[b].length());
 
-const specFor = (i) => overrides.get(i) ?? randomSpec(seeded(seed * 4099 + i));
+// Figures whose robots were swapped for ones that can lend their parts.
+const resolved = new Map();
+const specFor = (i) => overrides.get(i) ?? resolved.get(i) ?? randomSpec(seeded(seed * 4099 + i));
 
 const fieldHash = () =>
   `kitbash=${seed},${finish}` +
   [...overrides].map(([i, spec]) => `;${i}:${[...slots.map((slot) => spec[slot]), spec.colour].join(",")}`).join("");
 
 let fieldTicket = 0;
-async function buildFigure(i, ticket) {
-  const spec = specFor(i);
-  const ready = Object.fromEntries(
-    await Promise.all(slots.map(async (slot) => [slot, await preparedRobot(spec[slot])])),
+// Load the robots a figure borrows from. One that can't lend the part asked
+// of it (no skinned body mesh, or that part kept outside it) is swapped for
+// another, drawn from the same seed so the field still comes back the same.
+async function lenders(i, spec) {
+  const random = seeded(seed * 4099 + i + 0x5eed);
+  const ready = {};
+  await Promise.all(
+    slots.map(async (slot) => {
+      for (let tries = 0; tries < 12; tries++) {
+        const robot = await preparedRobot(spec[slot]);
+        if (robot && canLend(robot, slot)) return (ready[slot] = robot);
+        spec[slot] = pickFrom(humanoids, random).id;
+      }
+    }),
   );
+  return ready;
+}
+
+async function buildFigure(i, ticket) {
+  const spec = { ...specFor(i) };
+  const ready = await lenders(i, spec);
   if (ticket !== fieldTicket) return;
-  // A robot without a skinned body mesh can't lend parts; leave the cell empty.
   if (slots.some((slot) => !ready[slot])) return;
+  // Remember any swaps, so the panel shows what's really there.
+  (overrides.has(i) ? overrides : resolved).set(i, spec);
   const figure = await bake(kitbash(ready, resin(finish, spec.colour)));
   if (ticket !== fieldTicket) return;
   const box = new THREE.Box3().setFromObject(figure);
@@ -368,6 +387,7 @@ async function buildField() {
   const ticket = ++fieldTicket;
   history.replaceState(null, "", `#${fieldHash()}`);
   for (let i = 0; i < cells.length; i++) removeFigure(i);
+  resolved.clear();
   select(null);
   // Start every robot loading at once; each figure waits for its own.
   for (const i of buildOrder) for (const slot of slots) preparedRobot(specFor(i)[slot]);
@@ -439,6 +459,7 @@ async function editSelected(change) {
     return;
   }
   await buildFigure(i, fieldTicket);
+  if (selected === i) select(i);
 }
 
 const pointer = new THREE.Vector2();
