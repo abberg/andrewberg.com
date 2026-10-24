@@ -261,13 +261,16 @@ export function kitbash(pick, material, random = Math.random) {
   return group;
 }
 
-// A robot as it was, showing what it lent: that part cast in `material`, the
-// rest of it a ghost in `ghost`.
-export function donor(robot, part, material, ghost) {
+// A robot as it was, in its own textures, showing what it lent: the rest of
+// it is drawn in whatever fade() makes of its materials.
+export function donor(robot, part, fade) {
   const group = new THREE.Group();
   const asItWas = (bone) => bone.matrixWorld.clone();
   for (const slot of slots) {
-    for (const piece of transplant(robot, robot, slot, slot === part ? material : ghost, asItWas)) group.add(piece);
+    for (const piece of transplant(robot, robot, slot, null, asItWas)) {
+      if (slot !== part) piece.material = fade(piece.material);
+      group.add(piece);
+    }
   }
   return group;
 }

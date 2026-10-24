@@ -582,23 +582,32 @@ function runPickUp(seconds) {
 }
 
 // The held figure's sources: the four robots it was built from, in a column
-// down the left, each as it was with the part it lent cast in the figure's
-// resin and the rest of it a ghost, and named. Hovering one lights up its
-// part on the figure, and hovering a part of the figure lights up its source.
+// down the left, each as it was, the part it lent in its own game textures
+// and the rest of it a ghost, and named. Hovering one lights up its part on
+// the figure, and hovering a part of the figure lights up its source.
 const sourcesBox = document.getElementById("sources");
 const ghost = new THREE.MeshBasicMaterial({ color: 0x8c9099, transparent: true, opacity: 0.22, depthWrite: false });
+const fade = () => ghost;
+// The textured parts, lit up: the same texture with a glow over it.
+const glowing = new Map();
+function glow(material) {
+  if (!glowing.has(material)) {
+    const copy = material.clone();
+    copy.emissive?.set(0x555555);
+    glowing.set(material, copy);
+  }
+  return glowing.get(material);
+}
 const robotName = (id) => robots.find((robot) => robot.id === id)?.name ?? id;
 const sourceHeight = 1.2;
 
 async function showSources(pick) {
   const spec = pick.slot.spec ?? specFor(pick.slot);
-  const colour = pick.holder.userData.colour;
   await Promise.all(
     slots.map(async (part, row) => {
       const robot = await preparedRobot(spec[part]);
       if (!robot || held !== pick) return;
-      const model = await bake(donor(robot, part, resin(colour), ghost));
-      if (held !== pick) return dispose(model);
+      const model = donor(robot, part, fade);
       const box = new THREE.Box3().setFromObject(model);
       const size = box.getSize(new THREE.Vector3());
       model.position.set(-(box.min.x + box.max.x) / 2, -box.min.y, -(box.min.z + box.max.z) / 2);
@@ -663,13 +672,18 @@ function highlight(pick, part) {
   const colour = pick.holder.userData.colour;
   const paint = (object) =>
     object.traverse((child) => {
-      if (!child.isMesh || child.material === ghost) return;
+      if (!child.isMesh) return;
       child.material = part && child.name === part ? litResin(colour) : resin(colour);
     });
   paint(pick.holder);
   for (const source of pick.sources) {
-    paint(source.view);
-    source.label.classList.toggle("lit", source.part === part);
+    const on = source.part === part;
+    source.label.classList.toggle("lit", on);
+    source.view.traverse((child) => {
+      if (!child.isMesh || child.material === ghost) return;
+      child.userData.texture ??= child.material;
+      child.material = on ? glow(child.userData.texture) : child.userData.texture;
+    });
   }
 }
 
