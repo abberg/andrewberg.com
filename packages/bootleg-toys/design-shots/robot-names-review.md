@@ -267,7 +267,7 @@ Series were checked against the Super Robot Wars wiki's list of X-Ω featured se
 | F202 | `F202_610_granzeboma` | Granzeboma | 天元突破グレンラガン | high | ✓ |
 | G200 | `G200_000_solaraquarion` | Solar Aquarion | 創聖のアクエリオン | high | ✓ |
 | G200 | `G200_550_cherubic` | Cherubim | 創聖のアクエリオン | high | ✓ |
-| G210 | `G210_010_aquarion_gepard` | Aquarion Gepard | アクエリオンEVOL | high | ✓ |
+| G210 | `G210_010_aquarion_gepard` | Aquarion Gepard | アクエリオンEVOL | high | not a good biped match, left out |
 | G210 | `G210_500_misra_gnis` | Misra Gnis | アクエリオンEVOL | low | ✓ |
 | G300 | `G300_000_nirvasht0` | Nirvash typeZERO | 交響詩篇エウレカセブン | high |  |
 | G300 | `G300_010_nirvasht0_sp2` | Nirvash typeZERO spec2 | 交響詩篇エウレカセブン | high |  |

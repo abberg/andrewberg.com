@@ -36,6 +36,7 @@ const notForKitbash = new Set([
   'noir_getter2', 'hekiryugo', 'heybot', 'gunvarrel', 'black_six', 'beargguy3', 'kisei_kushiki_bunker',
   // Not good biped matches, picked out by eye.
   'big_duo', 'blackdomi', 'painkiller_enigma', 'beta_equuspedis', 'megillot',
+  'aquarion_gepard',
 ]);
 const humanoidBones = ['mot_head', 'mot_spine', 'mot_arm_l', 'mot_arm_r', 'mot_upleg_l', 'mot_upleg_r'];
 const isHumanoid = (fbx) => humanoidBones.every((bone) => fbx.includes(`${bone}\x00\x01Model`));
