@@ -282,9 +282,67 @@ function seeded(seed) {
   };
 }
 
-function randomSpec(random = Math.random) {
-  const spec = Object.fromEntries(slots.map((slot) => [slot, pickFrom(humanoids, random).id]));
-  spec.colour = pickFrom(colourNames, random);
+// The robots that may lend each part, as listed (robots.js can limit a robot
+// to some parts; whether its rig can lend a part is only known once loaded,
+// see lenders).
+const pools = Object.fromEntries(slots.map((part) => [part, humanoids.filter((robot) => !robot.lends || robot.lends.includes(part))]));
+
+// Each part is dealt from its own deck: the pool, shuffled from the seed, so
+// every robot lends a part once before any lends it again. A deck that runs
+// out is shuffled again, from the seed and how many times round it is.
+const decks = new Map();
+function deck(part, round) {
+  const key = `${seed}:${part}:${round}`;
+  if (!decks.has(key)) {
+    const random = seeded(mix(seed, slots.indexOf(part), round));
+    const cards = pools[part].map((robot) => robot.id);
+    for (let i = cards.length - 1; i > 0; i--) {
+      const j = Math.floor(random() * (i + 1));
+      [cards[i], cards[j]] = [cards[j], cards[i]];
+    }
+    decks.set(key, cards);
+  }
+  return decks.get(key);
+}
+// The nth card dealt for a part. Each part's deck is cut a different way,
+// a quarter apart, so a figure's four cards come from far-apart places in
+// the decks' order.
+function dealCard(part, n) {
+  const size = pools[part].length;
+  const cut = Math.floor((size * slots.indexOf(part)) / slots.length);
+  return deck(part, Math.floor(n / size))[(n + cut) % size];
+}
+
+// Figures are dealt in the order they reach the belt: a lap of the whole
+// tile at a time, slot by slot.
+const dealt = (slot) => slot.lap * belt.length + slot.index;
+
+// Figures are dealt in pairs, so where one would take two parts from the same
+// robot, it can swap that card with its partner's and neither repeats a card.
+const pairs = new Map();
+function dealPair(first) {
+  const key = `${seed}:${first}`;
+  if (pairs.has(key)) return pairs.get(key);
+  const specs = [{}, {}];
+  const has = (spec, id) => Object.values(spec).includes(id);
+  for (const part of slots) {
+    let cards = [dealCard(part, first), dealCard(part, first + 1)];
+    if ((has(specs[0], cards[0]) || has(specs[1], cards[1])) && !has(specs[0], cards[1]) && !has(specs[1], cards[0])) cards = [cards[1], cards[0]];
+    specs.forEach((spec, i) => {
+      // Still clashing, rarely: the card a lap on.
+      let k = 0;
+      while (has(spec, k ? dealCard(part, first + i + k * belt.length) : cards[i])) k++;
+      spec[part] = k ? dealCard(part, first + i + k * belt.length) : cards[i];
+    });
+  }
+  pairs.set(key, specs);
+  return specs;
+}
+
+function specAt(slot) {
+  const n = dealt(slot);
+  const spec = { ...dealPair(n - (n % 2))[n % 2] };
+  spec.colour = pickFrom(colourNames, seeded(mix(seed, slot.index, slot.lap)));
   return spec;
 }
 
@@ -340,7 +398,7 @@ function place(slot) {
 // A figure's robots and colour follow from the seed, its slot and its lap.
 const mix = (a, b, c) => Math.imul(a ^ Math.imul(b + 1, 0x9e3779b1) ^ Math.imul(c + 1, 0x85ebca6b), 0xc2b2ae35) >>> 0;
 const keyOf = (slot) => `${slot.index}:${slot.lap}`;
-const specFor = (slot) => overrides.get(keyOf(slot)) ?? slot.spec ?? randomSpec(seeded(mix(seed, slot.index, slot.lap)));
+const specFor = (slot) => overrides.get(keyOf(slot)) ?? slot.spec ?? specAt(slot);
 
 const fieldHash = () => `kitbash=${seed}`;
 
@@ -349,15 +407,17 @@ let fieldTicket = 0;
 // of it (no skinned body mesh, or that part kept outside it) is swapped for
 // another, drawn from the same seed so the belt still comes back the same.
 async function lenders(slot, spec) {
-  const random = seeded(mix(seed, slot.index, slot.lap) ^ 0x5eed);
   const ready = {};
   await Promise.all(
     slots.map(async (part) => {
-      for (let tries = 0; tries < 12; tries++) {
+      for (let tries = 1; tries <= 12; tries++) {
         const robot = await preparedRobot(spec[part]);
         const lends = humanoids.find((each) => each.id === spec[part])?.lends;
         if (robot && canLend(robot, part) && (!lends || lends.includes(part))) return (ready[part] = robot);
-        spec[part] = pickFrom(humanoids, random).id;
+        // The next card along that no other part of the figure has.
+        let next = dealt(slot) + tries * 7;
+        while (slots.some((other) => other !== part && spec[other] === dealCard(part, next))) next++;
+        spec[part] = dealCard(part, next);
       }
     }),
   );
