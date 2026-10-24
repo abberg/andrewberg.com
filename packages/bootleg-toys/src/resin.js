@@ -1,20 +1,16 @@
 import * as THREE from "three";
-import { SubsurfaceScatteringShader } from "three/addons/shaders/SubsurfaceScatteringShader.js";
 
-// The materials a kitbash is cast in, like the bootleg Masters of the
-// Universe clear figures: one candy colour, paler where the resin is thin and
-// deeper where it's thick. Every finish reads the per-vertex thickness the
-// kitbash measures (the resinThickness attribute) instead of one number for
-// the whole figure.
-//
-//   clear   physical transmission: see-through, refracting what's behind it
-//   gummy   three's SubsurfaceScatteringShader: milky, lit from within where
-//           a light shines through from behind
-//   hybrid  the clear resin with gummy's glow added on top
+// The resin a kitbash is cast in, like the bootleg Masters of the Universe
+// clear figures: one candy colour, paler where the resin is thin and deeper
+// where it's thick. It's physical transmission, so it's see-through and
+// refracts what's behind it, with thin parts glowing where a light shines
+// through from behind: the "fast translucency" term from three's
+// SubsurfaceScatteringShader, added on top. Both read the per-vertex thickness
+// the kitbash measures (the resinThickness attribute) instead of one number
+// for the whole figure.
 //
 // The palette is the figures'.
 export const colours = { orange: 0xff8a1c, red: 0xff3a1a, green: 0x2fc23a, teal: 0x2f9ad0 };
-export const finishes = ["clear", "gummy", "hybrid"];
 
 // How far into the resin light still gets through, in scene units (the figure
 // is scaled to a radius of 1). Thin parts are well under this; chests are over.
@@ -59,70 +55,15 @@ const lightThrough = `exp( - vResinDepth / ${reach.toFixed(3)} )`;
 
 const white = new THREE.Color(0xffffff);
 
-// Clear: physical transmission, with its thickness taken from each vertex.
-// The surface tint is pale and the colour builds up with depth.
-function clearHook(shader) {
+function resinShader(shader) {
+  shader.uniforms.glowColour = this.userData.glowColour;
   shader.vertexShader = withThickness(shader.vertexShader);
   shader.fragmentShader = withOcclusion(shader.fragmentShader)
     .replace("#include <common>", `#include <common>\n${thicknessVaryings}`)
-    .replace("material.thickness = thickness;", "material.thickness = thickness * vResinThickness;");
-}
-
-function makeClear(hex) {
-  const material = new THREE.MeshPhysicalMaterial({
-    roughness: 0.08,
-    transmission: 1,
-    thickness: 1,
-    ior: 1.5,
-    attenuationDistance: 0.28,
-    clearcoat: 0.5,
-    clearcoatRoughness: 0.05,
-    specularIntensity: 1,
-  });
-  material.color.setHex(hex).lerp(white, 0.5);
-  material.attenuationColor.setHex(hex).lerp(white, 0.3);
-  material.onBeforeCompile = clearHook;
-  return material;
-}
-
-// Gummy: three's subsurface scattering shader as it comes, except that how
-// much light gets through is worked out from the thickness rather than read
-// from a texture (the kitbash's parts don't share a UV layout to paint one in).
-// Coloured through, glowing a lighter shade of it.
-const gummyVertex = withThickness(SubsurfaceScatteringShader.vertexShader);
-const gummyFragment = withOcclusion(SubsurfaceScatteringShader.fragmentShader)
-  .replace("uniform sampler2D thicknessMap;", `uniform sampler2D thicknessMap;\n${thicknessVaryings}`)
-  .replace("texture2D(thicknessMap, uv).r", lightThrough);
-
-function makeGummy(hex) {
-  const material = new THREE.ShaderMaterial({
-    name: "GummyResin",
-    uniforms: THREE.UniformsUtils.clone(SubsurfaceScatteringShader.uniforms),
-    vertexShader: gummyVertex,
-    fragmentShader: gummyFragment,
-    lights: true,
-  });
-  Object.assign(material.uniforms, {
-    shininess: { value: 120 },
-    thicknessDistortion: { value: 0.25 },
-    thicknessAmbient: { value: 0.03 },
-    thicknessAttenuation: { value: 0.5 },
-    thicknessPower: { value: 2.5 },
-    thicknessScale: { value: 3 },
-  });
-  material.uniforms.specular.value.set(0x808080);
-  material.uniforms.diffuse.value.setHex(hex).multiplyScalar(0.35);
-  material.uniforms.thicknessColor.value.setHex(hex).lerp(white, 0.1);
-  return material;
-}
-
-// Hybrid: the clear resin plus the gummy glow. The same scattering term as
-// the shader above, but added as specular light, because full transmission
-// replaces the diffuse light the shader would otherwise add it to.
-function hybridHook(shader) {
-  clearHook(shader);
-  shader.uniforms.glowColour = this.userData.glowColour;
-  shader.fragmentShader = shader.fragmentShader
+    // Transmission through as much resin as each vertex measured.
+    .replace("material.thickness = thickness;", "material.thickness = thickness * vResinThickness;")
+    // The glow. Added as specular light, because full transmission replaces
+    // the diffuse light the scattering shader would otherwise add it to.
     .replace(
       "#include <lights_physical_pars_fragment>",
       `#include <lights_physical_pars_fragment>
@@ -142,20 +83,28 @@ void resinGlow( const in IncidentLight directLight, const in vec3 geometryNormal
     );
 }
 
-function makeHybrid(hex) {
-  const material = makeClear(hex);
-  material.userData.glowColour = { value: new THREE.Color(hex) };
-  material.onBeforeCompile = hybridHook;
-  return material;
-}
-
-const makers = { clear: makeClear, gummy: makeGummy, hybrid: makeHybrid };
 const made = new Map();
 
-// The material for a finish in a named colour, made once and shared by every
-// figure cast in it.
-export function resin(finish, colour) {
-  const key = `${finish} ${colour}`;
-  if (!made.has(key)) made.set(key, makers[finish](colours[colour]));
-  return made.get(key);
+// The resin in a named colour, made once and shared by every figure cast in
+// it. The surface tint is pale and the colour builds up with depth.
+export function resin(colour) {
+  if (!made.has(colour)) {
+    const hex = colours[colour];
+    const material = new THREE.MeshPhysicalMaterial({
+      roughness: 0.08,
+      transmission: 1,
+      thickness: 1,
+      ior: 1.5,
+      attenuationDistance: 0.28,
+      clearcoat: 0.5,
+      clearcoatRoughness: 0.05,
+      specularIntensity: 1,
+    });
+    material.color.setHex(hex).lerp(white, 0.5);
+    material.attenuationColor.setHex(hex).lerp(white, 0.3);
+    material.userData.glowColour = { value: new THREE.Color(hex) };
+    material.onBeforeCompile = resinShader;
+    made.set(colour, material);
+  }
+  return made.get(colour);
 }

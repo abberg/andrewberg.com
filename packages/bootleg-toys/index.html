@@ -32,9 +32,6 @@
     .figure-selected #figure { display: flex; }
     .figure-selected #pick-hint { display: none; }
     .note { margin: 0; opacity: 0.7; }
-    #finishes { display: flex; gap: 4px; }
-    #finishes button { flex: 1; text-transform: capitalize; }
-    #finishes button[aria-pressed="true"] { background: #dddbd5; border-color: #bdbab3; }
     #swatches button { width: 22px; height: 22px; padding: 0; border-radius: 50%; border: 2px solid transparent; }
     #swatches button[aria-pressed="true"] { border-color: currentColor; }
     /* The kitbash stage is light, so the panel goes dark-on-light. */
@@ -59,7 +56,6 @@
     <button type="button" data-mode-button="kitbash" aria-pressed="false">Kitbash</button>
   </div>
   <div id="kitbash">
-    <div id="finishes" aria-label="Resin finish"></div>
     <button type="button" id="shuffle">New field (R)</button>
     <div id="figure">
       <p class="note">Selected figure</p>

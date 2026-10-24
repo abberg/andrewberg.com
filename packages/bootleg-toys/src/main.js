@@ -5,7 +5,7 @@ import { FBXLoader } from "three/addons/loaders/FBXLoader.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import robots from "virtual:robots";
 import { slots, prepare, kitbash, canLend } from "./kitbash.js";
-import { colours as resinColours, finishes, resin } from "./resin.js";
+import { colours as resinColours, resin } from "./resin.js";
 import { bake } from "./bake.js";
 
 // A scene for looking at models: one model at a time, framed to fit, lit by a
@@ -75,8 +75,8 @@ sun.position.set(1, 2, 1.5);
 scene.add(sky, sun);
 
 // In kitbash mode a light sits behind the figure, opposite the camera, so
-// light comes through the resin towards you; the gummy finish only glows
-// where it does.
+// light comes through the resin towards you; thin parts only glow where it
+// does.
 const rim = new THREE.DirectionalLight(0xfff4e6, 0);
 scene.add(rim, rim.target);
 const behind = new THREE.Vector3();
@@ -225,7 +225,7 @@ renderList();
 // Kitbash mode: a field of kitbashed robots cast in resin, seen from above at
 // an isometric angle, like a table of bootleg figures. Each figure borrows its
 // head, body, arms and legs from four robots and comes in one resin colour.
-// The field grows from a seed, so the hash (#kitbash=seed,finish) brings the
+// The field grows from a seed, so the hash (#kitbash=seed) brings the
 // same one back; figures edited by hand are added to it as
 // ;index:head,body,arms,legs,colour.
 let mode = "viewer";
@@ -240,9 +240,6 @@ function setMode(next) {
   // lamps reflect off nearly every facet and wash the colour out to white.
   scene.background.set(next === "kitbash" ? 0xeceae6 : 0x16181c);
   scene.environmentIntensity = next === "kitbash" ? 0.6 : 1;
-  // Likewise the white sky light, which the gummy finish takes most of its
-  // light from.
-  sky.intensity = next === "kitbash" ? 1 : 2;
   field.visible = next === "kitbash";
   if (model) model.visible = next === "viewer";
   controls.enabled = next === "viewer";
@@ -301,7 +298,6 @@ const field = new THREE.Group();
 field.visible = false;
 scene.add(field);
 let seed = 1;
-let finish = "clear";
 const overrides = new Map();
 const figures = [];
 let selected = null;
@@ -318,7 +314,7 @@ const resolved = new Map();
 const specFor = (i) => overrides.get(i) ?? resolved.get(i) ?? randomSpec(seeded(seed * 4099 + i));
 
 const fieldHash = () =>
-  `kitbash=${seed},${finish}` +
+  `kitbash=${seed}` +
   [...overrides].map(([i, spec]) => `;${i}:${[...slots.map((slot) => spec[slot]), spec.colour].join(",")}`).join("");
 
 let fieldTicket = 0;
@@ -347,7 +343,7 @@ async function buildFigure(i, ticket) {
   if (slots.some((slot) => !ready[slot])) return;
   // Remember any swaps, so the panel shows what's really there.
   (overrides.has(i) ? overrides : resolved).set(i, spec);
-  const figure = await bake(kitbash(ready, resin(finish, spec.colour)));
+  const figure = await bake(kitbash(ready, resin(spec.colour)));
   if (ticket !== fieldTicket) return;
   const box = new THREE.Box3().setFromObject(figure);
   const size = box.getSize(new THREE.Vector3());
@@ -411,17 +407,6 @@ function newField() {
   buildField();
 }
 
-function setFinish(name) {
-  finish = name;
-  for (const holder of figures) {
-    holder?.traverse((child) => {
-      if (child.isMesh) child.material = resin(name, holder.userData.colour);
-    });
-  }
-  for (const button of finishButtons.children) button.setAttribute("aria-pressed", button.dataset.finish === name);
-  history.replaceState(null, "", `#${fieldHash()}`);
-}
-
 // Clicking a figure (rather than dragging the view) selects it, ringed on the
 // table; the panel's slots and swatches then edit just that one.
 const selection = new THREE.Mesh(
@@ -454,7 +439,7 @@ async function editSelected(change) {
     // A new colour only needs a new material.
     figures[i].userData.colour = spec.colour;
     figures[i].traverse((child) => {
-      if (child.isMesh) child.material = resin(finish, spec.colour);
+      if (child.isMesh) child.material = resin(spec.colour);
     });
     return;
   }
@@ -484,8 +469,8 @@ function openKitbash(hash = "") {
   const values = head.split(",");
   overrides.clear();
   if (/^\d+$/.test(values[0])) {
+    // Older links may carry a finish after the seed; there's only one now.
     seed = Number(values[0]);
-    if (finishes.includes(values[1])) finish = values[1];
     for (const edit of edits) {
       const [index, spec] = edit.split(":");
       const parsed = parseSpec(spec);
@@ -494,26 +479,14 @@ function openKitbash(hash = "") {
   } else {
     // An older link to a single kitbash: grow a field around it.
     seed = Math.floor(Math.random() * 1e9);
-    if (finishes.includes(values[5])) finish = values[5];
     const parsed = parseSpec(head);
     if (parsed) overrides.set(buildOrder[0], parsed);
   }
-  for (const button of finishButtons.children) button.setAttribute("aria-pressed", button.dataset.finish === finish);
   frameField();
   buildField();
 }
 
 const swatches = document.getElementById("swatches");
-const finishButtons = document.getElementById("finishes");
-
-for (const name of finishes) {
-  const button = document.createElement("button");
-  button.type = "button";
-  button.dataset.finish = name;
-  button.textContent = name;
-  button.addEventListener("click", () => setFinish(name));
-  finishButtons.append(button);
-}
 
 for (const [name, hex] of Object.entries(resinColours)) {
   const swatch = document.createElement("button");
@@ -550,7 +523,7 @@ document.getElementById("shuffle-figure").addEventListener("click", () => editSe
 document.querySelector('[data-mode-button="viewer"]').addEventListener("click", () => loadRobot(current ?? robots[0].id));
 document.querySelector('[data-mode-button="kitbash"]').addEventListener("click", () => {
   // Back to the field already built, or a fresh one the first time.
-  if (!fieldTicket) return openKitbash(`kitbash=${Math.floor(Math.random() * 1e9)},${finish}`);
+  if (!fieldTicket) return openKitbash(`kitbash=${Math.floor(Math.random() * 1e9)}`);
   setMode("kitbash");
   history.replaceState(null, "", `#${fieldHash()}`);
 });
