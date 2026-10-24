@@ -366,12 +366,13 @@ function seatHead(figure, joints, height) {
 // A ball joint at each socket, as on a kit, so a part always connects to
 // the body through it, however differently the two are shaped: each sized
 // to reach both, within limits.
+// The largest each may be, as a share of the figure's height.
 const ballSockets = [
-  ["mot_head", "head"],
-  ["mot_arm_l", "arms"],
-  ["mot_arm_r", "arms"],
-  ["mot_upleg_l", "legs"],
-  ["mot_upleg_r", "legs"],
+  ["mot_head", "head", 0.045],
+  ["mot_arm_l", "arms", 0.04],
+  ["mot_arm_r", "arms", 0.04],
+  ["mot_upleg_l", "legs", 0.06],
+  ["mot_upleg_r", "legs", 0.06],
 ];
 
 function ballJoints(figure, joints, material, height) {
@@ -390,12 +391,12 @@ function ballJoints(figure, joints, material, height) {
     return best;
   };
   const balls = [];
-  for (const [socket, part] of ballSockets) {
+  for (const [socket, part, largest] of ballSockets) {
     const centre = joints.get(socket);
     if (!centre) continue;
     const side = socket.endsWith("_l") ? Math.sign(centre.x - joints.get("mot_pelvis").x) || 1 : socket.endsWith("_r") ? Math.sign(centre.x - joints.get("mot_pelvis").x) || -1 : 0;
     const reach = Math.max(nearest(centre, "body", 0), nearest(centre, part, side));
-    const radius = THREE.MathUtils.clamp(reach * 1.15, height * 0.025, height * 0.07);
+    const radius = THREE.MathUtils.clamp(reach * 1.1, height * 0.02, height * largest);
     const ball = new THREE.Mesh(new THREE.IcosahedronGeometry(radius, 2), material ?? new THREE.MeshStandardMaterial({ color: 0x888888 }));
     ball.geometry.translate(centre.x, centre.y, centre.z);
     ball.name = "joint";
