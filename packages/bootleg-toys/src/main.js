@@ -562,7 +562,13 @@ function runPickUp(seconds) {
   // Tilting is about the screen's horizontal, so up and down drags tip it
   // towards and away from you.
   const across = new THREE.Vector3().crossVectors(up, view).normalize();
-  holder.quaternion.copy(pitch.setFromAxisAngle(across, held.tilt)).multiply(yaw.setFromAxisAngle(up, held.turn));
+  // Turned to face the camera square on as it comes up: round by the
+  // camera's turn off the belt (the figures face +z) and tipped back by its
+  // height, so its front looks straight out of the screen. Dragging turns it
+  // from there.
+  holder.quaternion
+    .copy(pitch.setFromAxisAngle(across, held.tilt - elevation * t))
+    .multiply(yaw.setFromAxisAngle(up, held.turn + azimuth * t));
   holder.scale.setScalar(scale);
   holder.position.copy(middle).sub(held.middle.clone().multiplyScalar(scale).applyQuaternion(holder.quaternion));
 
