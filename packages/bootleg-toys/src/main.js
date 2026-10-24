@@ -44,7 +44,7 @@ const isoCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 200);
 const lookAt = new THREE.Vector3(0, 0.6, 0);
 const elevation = THREE.MathUtils.degToRad(28);
 const azimuth = THREE.MathUtils.degToRad(30);
-// Along the ground towards the camera: the way the belt runs.
+// Along the ground towards the camera.
 const towardsCamera = new THREE.Vector3(Math.sin(azimuth), 0, Math.cos(azimuth));
 
 function frameField() {
@@ -293,13 +293,15 @@ function parseSpec(values) {
 
 // The belt: a square tile of slots, 14 a side, every figure scaled to the
 // same height and standing on its base in the middle of its slot. The whole
-// tile slides towards the camera, straight down the screen; a slot that runs off the front comes round
+// tile slides the way the figures face, towards the camera; a slot that runs off the front comes round
 // again at the back, out of sight, with a new figure in it. Only slots on
 // screen are drawn, and only those on or near it are built.
 const across = 14;
 const spacing = 2.4;
 const figureHeight = 1.8;
 const tile = across * spacing;
+// The robots all face +z.
+const facing = new THREE.Vector3(0, 0, 1);
 const speed = 0.35;
 const field = new THREE.Group();
 field.visible = false;
@@ -324,8 +326,8 @@ const belt = Array.from({ length: across * across }, (_, i) => ({
 // tile, and how many times it's come round (a new figure each time).
 const wrap = (value) => [THREE.MathUtils.euclideanModulo(value + tile / 2, tile) - tile / 2, Math.floor((value + tile / 2) / tile)];
 function place(slot) {
-  const [x, lapX] = wrap(slot.home.x + towardsCamera.x * travelled);
-  const [z, lapZ] = wrap(slot.home.z + towardsCamera.z * travelled);
+  const [x, lapX] = wrap(slot.home.x + facing.x * travelled);
+  const [z, lapZ] = wrap(slot.home.z + facing.z * travelled);
   slot.position.set(x, 0, z);
   return lapX + lapZ;
 }
