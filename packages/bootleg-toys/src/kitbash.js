@@ -273,12 +273,61 @@ export function kitbash(pick, material, random = Math.random) {
   for (const slot of slots) {
     for (const piece of transplant(pick[slot], pick.body, slot, material, pose)) group.add(piece);
   }
+  // Where the frame's joints ended up, for pinning things to.
+  const joints = new Map([...pick.body.bones].map(([name, bone]) => [name, new THREE.Vector3().setFromMatrixPosition(pose(bone))]));
+  closeShoulders(group, joints, pick.body.height);
   if (material) {
     group.add(base(group, material));
   }
-  // Where the frame's joints ended up, for pinning things to.
-  group.userData.joints = new Map([...pick.body.bones].map(([name, bone]) => [name, new THREE.Vector3().setFromMatrixPosition(pose(bone))]));
+  group.userData.joints = joints;
   return group;
+}
+
+// A frame's shoulder joints sit where its own shoulders reach, often well out
+// past its chest on big shoulder armour, which goes with its arms. Borrowed
+// arms without such armour would hang in the air beside the chest, so each
+// side's arm is slid in until it meets the chest, at shoulder height.
+function closeShoulders(figure, joints, height) {
+  const shoulder = joints.get("mot_arm_l");
+  const pelvis = joints.get("mot_pelvis");
+  if (!shoulder || !pelvis) return;
+  const centre = pelvis.x;
+  const band = height * 0.08;
+  const p = new THREE.Vector3();
+  const each = (name, visit) => {
+    for (const piece of figure.children) {
+      if (piece.name !== name) continue;
+      const position = piece.geometry.attributes.position;
+      for (let v = 0; v < position.count; v++) visit(p.fromBufferAttribute(position, v), position, v);
+    }
+  };
+  // How far out the chest reaches, either side, at shoulder height.
+  const chest = { l: 0, r: 0 };
+  each("body", (point) => {
+    if (Math.abs(point.y - shoulder.y) > band) return;
+    const side = point.x > centre ? "l" : "r";
+    chest[side] = Math.max(chest[side], Math.abs(point.x - centre));
+  });
+  // Where each arm's inner edge is, at shoulder height.
+  const arm = { l: Infinity, r: Infinity };
+  each("arms", (point) => {
+    if (Math.abs(point.y - shoulder.y) > band) return;
+    const side = point.x > centre ? "l" : "r";
+    arm[side] = Math.min(arm[side], Math.abs(point.x - centre));
+  });
+  const shift = {};
+  for (const side of ["l", "r"]) {
+    const gap = arm[side] - chest[side] - height * 0.01;
+    shift[side] = chest[side] && Number.isFinite(gap) && gap > 0 ? gap * (side === "l" ? -1 : 1) : 0;
+  }
+  if (!shift.l && !shift.r) return;
+  each("arms", (point, position, v) => position.setX(v, point.x + shift[point.x > centre ? "l" : "r"]));
+  for (const piece of figure.children) if (piece.name === "arms") piece.geometry.computeBoundingBox();
+  // The arms' joints move with them.
+  for (const [name, joint] of joints) {
+    const side = name.match(/^mot_(?:clavicle|shoulder|arm|forearm|hand)\w*_([lr])$/)?.[1];
+    if (side) joint.x += shift[joint.x > centre ? "l" : "r"];
+  }
 }
 
 // A robot as it was, in its own textures, showing what it lent: the rest of
