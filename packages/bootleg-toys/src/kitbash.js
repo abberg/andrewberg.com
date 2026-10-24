@@ -67,7 +67,16 @@ export function prepare(object) {
   const partOfBone = mesh.skeleton.bones.map(partOf);
   const shares = Object.fromEntries(slots.map((slot) => [slot, 0]));
   for (const bone of dominant) shares[partOfBone[bone]] += 1 / dominant.length;
-  return { mesh, bones, height, shares };
+  // How tall its head is, from the head's own vertices.
+  const head = new THREE.Box3();
+  const p = new THREE.Vector3();
+  for (let v = 0; v < dominant.length; v++) {
+    if (partOfBone[dominant[v]] !== "head") continue;
+    p.fromBufferAttribute(mesh.geometry.attributes.position, v);
+    head.expandByPoint(mesh.applyBoneTransform(v, p).applyMatrix4(mesh.matrixWorld));
+  }
+  const headHeight = head.isEmpty() ? null : head.max.y - head.min.y;
+  return { mesh, bones, height, shares, headHeight };
 }
 
 // Whether a prepared robot has enough of a part to lend it.
@@ -100,7 +109,7 @@ const limbs = [
   // bone, the joint it points to, where it should point (x is outwards)
   ["upleg", "leg", [0.36, -1, 0.12]],
   ["leg", "foot", [0.1, -1, -0.04]],
-  ["arm", "forearm", [0.5, -0.8, 0.2]],
+  ["arm", "forearm", [0.35, -0.9, 0.2]],
   ["forearm", "hand", [0.05, -0.25, 1]],
 ];
 
@@ -269,6 +278,7 @@ export function kitbash(pick, material, random = Math.random) {
     }
   }
   closeShoulders(group, joints, frame.height);
+  seatHead(group, joints, frame.height);
   if (material) {
     group.add(base(group, material));
   }
@@ -313,11 +323,42 @@ function fitting(source, frame, part, pose, joints) {
 // within a fifth either way.
 function partScale(source, frame, part) {
   const overall = frame.height / source.height;
-  if (part === "head") return overall;
+  // A head, the size of the frame's own head: a squat robot's head is big
+  // for its height, and scaled by height alone would loom.
+  if (part === "head") {
+    if (!frame.headHeight || !source.headHeight) return overall;
+    return overall * THREE.MathUtils.clamp(frame.headHeight / source.headHeight / overall, 0.6, 1.4);
+  }
   const own = measure(source.bones, measures[part]);
   const theirs = measure(frame.bones, measures[part]);
   if (!own || !theirs) return overall;
   return overall * THREE.MathUtils.clamp(theirs / own / overall, 0.8, 1.2);
+}
+
+// The head sits at the frame's neck, but a head built to sit low in its own
+// collar can float above a frame's chest: if so, it's lowered onto it.
+function seatHead(figure, joints, height) {
+  const head = new THREE.Box3();
+  for (const piece of figure.children) if (piece.name === "head") head.union(new THREE.Box3().setFromBufferAttribute(piece.geometry.attributes.position));
+  if (head.isEmpty()) return;
+  // The top of the chest under the head.
+  let top = -Infinity;
+  const p = new THREE.Vector3();
+  for (const piece of figure.children) {
+    if (piece.name !== "body") continue;
+    const position = piece.geometry.attributes.position;
+    for (let v = 0; v < position.count; v++) {
+      p.fromBufferAttribute(position, v);
+      if (p.x > head.min.x && p.x < head.max.x && p.z > head.min.z && p.z < head.max.z && p.y < head.min.y + height * 0.2) top = Math.max(top, p.y);
+    }
+  }
+  const drop = head.min.y - top - height * 0.01;
+  if (!Number.isFinite(drop) || drop <= 0) return;
+  for (const piece of figure.children) {
+    if (piece.name !== "head") continue;
+    piece.geometry.translate(0, -drop, 0);
+  }
+  for (const [name, joint] of joints) if (/^mot_head/.test(name)) joint.y -= drop;
 }
 
 // A frame's shoulder joints sit where its own shoulders reach, often well out
@@ -393,7 +434,7 @@ function base(figure, material) {
   // Divided up so the feet's ambient occlusion has vertices to land on. Its
   // thickness is simply its height.
   const slab = new THREE.Mesh(
-    new THREE.BoxGeometry(width, height, stance.z * 1.1 + height * 2, 32, 1, 32),
+    new THREE.BoxGeometry(width, height, stance.z * 1.25 + height * 2, 32, 1, 32),
     material,
   );
   const slabThickness = new Float32Array(slab.geometry.attributes.position.count).fill(height);

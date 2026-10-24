@@ -527,9 +527,11 @@ const seriesName = (id) => robotSeries[robotName(id)] ?? seriesNames[id.slice(0,
 
 // A bootleg's name: the front of its head's name run into the back of its
 // body's.
+// Variants in brackets (pilots, modes) are left out of it.
 function bootlegName(spec) {
-  const head = displayName(spec.head);
-  const body = displayName(spec.body);
+  const plain = (id) => displayName(id).replace(/\s*\(.*?\)/g, "");
+  const head = plain(spec.head);
+  const body = plain(spec.body);
   return `${head.slice(0, Math.ceil(head.length / 2))}${body.slice(Math.floor(body.length / 2))}`.toUpperCase();
 }
 
