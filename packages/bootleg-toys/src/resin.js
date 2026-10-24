@@ -10,7 +10,7 @@ import * as THREE from "three";
 // for the whole figure.
 //
 // The palette is the figures'.
-export const colours = { orange: 0xff8a1c, red: 0xff3a1a, green: 0x2fc23a, teal: 0x2f9ad0 };
+export const colours = { orange: 0xff8a1c, red: 0xff2e72, green: 0x2fc23a, teal: 0x2f9ad0 };
 
 // How far into the resin light still gets through, in scene units (the figure
 // is scaled to a radius of 1). Thin parts are well under this; chests are over.
