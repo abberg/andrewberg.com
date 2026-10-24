@@ -74,6 +74,80 @@ export function prepare(object) {
 // are at or near zero.
 export const canLend = (robot, part) => robot.shares[part] >= 0.015;
 
+// A ready stance for the frame's skeleton: feet planted wide, one a little
+// ahead of the other, upper arms down and forward, forearms raised to guard.
+// Rigs stand differently at rest (arms out, arms down, legs together), so
+// rather than turn each bone by a set angle, each limb segment is turned to
+// point a set way: from its joint towards the next one down the limb. Feet
+// keep their rest orientation, so they stay flat. The robots face +z.
+//
+// Returns the frame's bones' matrices in that pose, worked out on the side:
+// the robots' own skeletons are shared and left as they are.
+const limbs = [
+  // bone, the joint it points to, where it should point (x is outwards)
+  ["upleg", "leg", [0.36, -1, 0.12]],
+  ["leg", "foot", [0.1, -1, -0.04]],
+  ["arm", "forearm", [0.45, -0.75, 0.45]],
+  ["forearm", "hand", [-0.2, 0.3, 1]],
+];
+
+function stance(frame, random) {
+  const at = (name) => {
+    const bone = frame.bones.get(name);
+    return bone && new THREE.Vector3().setFromMatrixPosition(bone.matrixWorld);
+  };
+  // Which way is the robot's left?
+  const left = at("mot_arm_l") && at("mot_arm_r") ? Math.sign(at("mot_arm_l").x - at("mot_arm_r").x) || 1 : 1;
+  const wobble = () => (random() - 0.5) * 0.25;
+  const aims = new Map();
+  for (const side of ["l", "r"]) {
+    const outwards = side === "l" ? left : -left;
+    // The right foot steps back where the left steps forward, and the right
+    // arm guards a little higher.
+    const lead = side === "l" ? 1 : -0.8;
+    for (const [name, next, [x, y, z]] of limbs) {
+      const from = at(`mot_${name}_${side}`);
+      const to = at(`mot_${next}_${side}`);
+      if (!from || !to) continue;
+      const leg = name.endsWith("leg");
+      const aim = new THREE.Vector3(
+        x * outwards + wobble(),
+        y + (leg ? 0 : side === "r" ? 0.15 : 0) + wobble(),
+        (leg ? z * lead : z) + wobble(),
+      ).normalize();
+      aims.set(`mot_${name}_${side}`, { rest: to.sub(from).normalize(), aim });
+    }
+    aims.set(`mot_foot_${side}`, { flat: true });
+  }
+
+  // Each bone's move from rest to the pose, built down from the root: its
+  // parent's move, then (for the limbs above) a turn about its own joint.
+  const moves = new Map();
+  const turn = new THREE.Quaternion();
+  function moveOf(bone) {
+    if (moves.has(bone)) return moves.get(bone);
+    const parent = bone.parent?.isBone ? moveOf(bone.parent) : new THREE.Matrix4();
+    let move = parent;
+    // A bone can appear as a run of nested copies; pose only the outermost.
+    const aim = bone.parent?.name !== bone.name ? aims.get(bone.name) : null;
+    if (aim) {
+      const pivot = new THREE.Vector3().setFromMatrixPosition(bone.matrixWorld);
+      const moved = pivot.clone().applyMatrix4(parent);
+      const carried = new THREE.Quaternion().setFromRotationMatrix(parent);
+      const rotation = aim.flat
+        ? new THREE.Quaternion()
+        : turn.setFromUnitVectors(aim.rest.clone().applyQuaternion(carried), aim.aim).clone().multiply(carried);
+      move = new THREE.Matrix4()
+        .makeTranslation(moved.x, moved.y, moved.z)
+        .multiply(new THREE.Matrix4().makeRotationFromQuaternion(rotation))
+        .multiply(new THREE.Matrix4().makeTranslation(-pivot.x, -pivot.y, -pivot.z));
+    }
+    moves.set(bone, move);
+    return move;
+  }
+  return (bone) => (bone.isBone ? moveOf(bone).clone().multiply(bone.matrixWorld) : bone.matrixWorld.clone());
+}
+
 // The bone each vertex follows most closely.
 function dominantBones(mesh) {
   const index = mesh.geometry.attributes.skinIndex;
@@ -89,7 +163,7 @@ function dominantBones(mesh) {
 
 // Cut one part out of `source` and fit it to the skeleton of `frame`.
 // Returns a mesh per material the part uses.
-function transplant(source, frame, part, material) {
+function transplant(source, frame, part, material, pose) {
   const { mesh } = source;
   const geometry = mesh.geometry;
   const bones = mesh.skeleton.bones;
@@ -108,8 +182,7 @@ function transplant(source, frame, part, material) {
     let target = null;
     for (let b = bone; b?.isBone && !target; b = b.parent) target = frame.bones.get(b.name) ?? null;
     target ??= frame.bones.get("mot_pelvis") ?? frame.mesh;
-    return new THREE.Matrix4()
-      .copy(target.matrixWorld)
+    return pose(target)
       .multiply(new THREE.Matrix4().makeScale(scale, scale, scale))
       .multiply(bone.matrixWorld.clone().invert());
   });
@@ -175,10 +248,12 @@ function transplant(source, frame, part, material) {
 // on a thin base of it, like a bootleg resin toy; otherwise parts keep their
 // robots' own textures. A resin figure still needs baking (see bake.js)
 // before it's drawn.
-export function kitbash(pick, material) {
+// random varies the pose a little from figure to figure.
+export function kitbash(pick, material, random = Math.random) {
   const group = new THREE.Group();
+  const pose = stance(pick.body, random);
   for (const slot of slots) {
-    for (const piece of transplant(pick[slot], pick.body, slot, material)) group.add(piece);
+    for (const piece of transplant(pick[slot], pick.body, slot, material, pose)) group.add(piece);
   }
   if (material) {
     group.add(base(group, material));

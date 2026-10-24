@@ -368,7 +368,7 @@ async function buildFigure(slot) {
   // Remember any swaps, so the panel shows what's really there.
   slot.spec = spec;
   if (overrides.has(keyOf(slot))) overrides.set(keyOf(slot), spec);
-  const figure = await bake(kitbash(ready, resin(spec.colour)));
+  const figure = await bake(kitbash(ready, resin(spec.colour), seeded(mix(seed, slot.index, slot.lap) ^ 0x9053)));
   if (stale()) return dispose(figure);
   const box = new THREE.Box3().setFromObject(figure);
   const size = box.getSize(new THREE.Vector3());
