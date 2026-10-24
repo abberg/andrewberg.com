@@ -487,6 +487,9 @@ veil.renderOrder = 1;
 veil.visible = false;
 field.add(veil);
 const heldLayer = 1;
+// The parts the sources lent, drawn over the rest of the sources so their
+// ghosts can't hide them.
+const lentLayer = 2;
 const onLayer = (object, layer) => object.traverse((child) => child.layers.set(layer));
 
 function beltPlace(pick) {
@@ -658,6 +661,7 @@ async function showSources(pick) {
       view.userData = { part, size: Math.min(sourceHeight / size.y, 1.5 / Math.max(size.x, size.z)) };
       view.scale.setScalar(0);
       onLayer(view, heldLayer);
+      for (const piece of model.children) if (piece.material !== ghost) onLayer(piece, lentLayer);
       field.add(view);
       const label = document.createElement("div");
       label.className = "source";
@@ -835,7 +839,10 @@ addEventListener("resize", () => {
 });
 
 // Lights shine on the held figure's layer too.
-for (const light of [sky, sun, rim]) light.layers.enable(heldLayer);
+for (const light of [sky, sun, rim]) {
+  light.layers.enable(heldLayer);
+  light.layers.enable(lentLayer);
+}
 
 const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
@@ -857,6 +864,9 @@ renderer.setAnimationLoop(() => {
   renderer.autoClear = false;
   renderer.clearDepth();
   isoCamera.layers.set(heldLayer);
+  renderer.render(scene, isoCamera);
+  renderer.clearDepth();
+  isoCamera.layers.set(lentLayer);
   renderer.render(scene, isoCamera);
   isoCamera.layers.set(0);
   renderer.autoClear = true;
