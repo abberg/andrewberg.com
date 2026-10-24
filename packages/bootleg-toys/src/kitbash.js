@@ -174,36 +174,15 @@ function dominantBones(mesh) {
   return result;
 }
 
-// Cut one part out of `source` and fit it to the skeleton of `frame`.
-// Returns a mesh per material the part uses.
-function transplant(source, frame, part, material, pose) {
+// Cut one part out of `source`, each vertex moved by move(bone) for the bone
+// it follows most. Returns a mesh per material the part uses.
+function transplant(source, part, material, move) {
   const { mesh } = source;
   const geometry = mesh.geometry;
   const bones = mesh.skeleton.bones;
   const dominant = dominantBones(mesh);
   const parts = bones.map(partOf);
-  // Both measured between the same bones: a frame whose legs end at the
-  // knee (Dybuster's) is measured hip to knee, and so is the part.
-  const [from, to, fallback] = measures[part];
-  const end = frame.bones.has(to) && source.bones.has(to) ? to : fallback;
-  const frameSize = measure(frame.bones, [from, end]);
-  const sourceSize = measure(source.bones, [from, end]);
-  const scale = frameSize && sourceSize ? frameSize / sourceSize : frame.height / source.height;
-
-  // For each source bone, the matrix taking a point from where it sits on the
-  // source robot to where it should sit on the frame: into the space of the
-  // bone, or of its nearest ancestor the frame has a bone of the same name
-  // for, scaled, and out of that frame bone. So where the frame has no foot
-  // bone, the part's foot rides on its shin, where it was.
-  const moves = bones.map((bone) => {
-    let matched = bone;
-    while (matched?.isBone && !frame.bones.has(matched.name)) matched = matched.parent;
-    const target = matched?.isBone ? frame.bones.get(matched.name) : (frame.bones.get("mot_pelvis") ?? frame.mesh);
-    const from = matched?.isBone ? matched : (source.bones.get("mot_pelvis") ?? bone);
-    return pose(target)
-      .multiply(new THREE.Matrix4().makeScale(scale, scale, scale))
-      .multiply(from.matrixWorld.clone().invert());
-  });
+  const moves = bones.map(move);
   const turns = moves.map((move) => new THREE.Matrix3().getNormalMatrix(move));
 
   const position = geometry.attributes.position;
@@ -267,20 +246,78 @@ function transplant(source, frame, part, material, pose) {
 // robots' own textures. A resin figure still needs baking (see bake.js)
 // before it's drawn.
 // random varies the pose a little from figure to figure.
+//
+// Each part is built like a kit part: it keeps its own robot's proportions,
+// posed on its own skeleton, and is fitted to the frame at one socket (the
+// neck for a head, each shoulder for an arm, each hip for a leg), scaled as
+// one piece. A limb can't come apart inside itself, however differently its
+// robot is built from the frame.
 export function kitbash(pick, material, random = Math.random) {
   const group = new THREE.Group();
-  const pose = stance(pick.body, random);
+  const frame = pick.body;
+  const framePose = stance(frame, random);
+  const joints = new Map([...frame.bones].map(([name, bone]) => [name, at(framePose(bone))]));
   for (const slot of slots) {
-    for (const piece of transplant(pick[slot], pick.body, slot, material, pose)) group.add(piece);
+    const source = pick[slot];
+    const pose = slot === "body" ? framePose : stance(source, random);
+    const fit = fitting(source, frame, slot, pose, joints);
+    const move = (bone) => fit(bone).multiply(pose(bone)).multiply(bone.matrixWorld.clone().invert());
+    for (const piece of transplant(source, slot, material, move)) group.add(piece);
+    // Where the part's own joints ended up, for pinning things to.
+    if (slot !== "body") {
+      for (const [name, bone] of source.bones) if (partOf(bone) === slot) joints.set(name, at(fit(bone).multiply(pose(bone))));
+    }
   }
-  // Where the frame's joints ended up, for pinning things to.
-  const joints = new Map([...pick.body.bones].map(([name, bone]) => [name, new THREE.Vector3().setFromMatrixPosition(pose(bone))]));
-  closeShoulders(group, joints, pick.body.height);
+  closeShoulders(group, joints, frame.height);
   if (material) {
     group.add(base(group, material));
   }
   group.userData.joints = joints;
   return group;
+}
+
+const at = (matrix) => new THREE.Vector3().setFromMatrixPosition(matrix);
+
+// The socket each part fits the frame at, by side.
+const sockets = { head: { "": "mot_head" }, arms: { l: "mot_arm_l", r: "mot_arm_r" }, legs: { l: "mot_upleg_l", r: "mot_upleg_r" } };
+
+// Which side of the robot a bone's on, from its name or its ancestors'.
+function sideOf(bone) {
+  for (let b = bone; b?.isBone; b = b.parent) {
+    const side = b.name.match(/_([lr])(?:_|$)/)?.[1];
+    if (side) return side;
+  }
+  return "";
+}
+
+// How one part of `source`, posed by its own pose, is fitted to the frame:
+// for each bone, the matrix scaling the part about its socket and moving it
+// to the frame's socket on that side. The body is the frame, and stays put.
+function fitting(source, frame, part, pose, joints) {
+  if (part === "body") return () => new THREE.Matrix4();
+  const scale = partScale(source, frame, part);
+  const fits = {};
+  for (const [side, name] of Object.entries(sockets[part])) {
+    const from = at(pose(source.bones.get(name)));
+    const to = joints.get(name);
+    fits[side] = new THREE.Matrix4()
+      .makeTranslation(to.x, to.y, to.z)
+      .multiply(new THREE.Matrix4().makeScale(scale, scale, scale))
+      .multiply(new THREE.Matrix4().makeTranslation(-from.x, -from.y, -from.z));
+  }
+  return (bone) => (fits[sideOf(bone)] ?? fits.l ?? fits[""]).clone();
+}
+
+// One scale for the whole part: the frame's size against its robot's, nudged
+// towards the frame's own length for the limb, so long limbs stay long, but
+// within a fifth either way.
+function partScale(source, frame, part) {
+  const overall = frame.height / source.height;
+  if (part === "head") return overall;
+  const own = measure(source.bones, measures[part]);
+  const theirs = measure(frame.bones, measures[part]);
+  if (!own || !theirs) return overall;
+  return overall * THREE.MathUtils.clamp(theirs / own / overall, 0.8, 1.2);
 }
 
 // A frame's shoulder joints sit where its own shoulders reach, often well out
@@ -334,9 +371,9 @@ function closeShoulders(figure, joints, height) {
 // it is drawn in whatever fade() makes of its materials.
 export function donor(robot, part, fade) {
   const group = new THREE.Group();
-  const asItWas = (bone) => bone.matrixWorld.clone();
+  const asItWas = () => new THREE.Matrix4();
   for (const slot of slots) {
-    for (const piece of transplant(robot, robot, slot, null, asItWas)) {
+    for (const piece of transplant(robot, slot, null, asItWas)) {
       if (slot !== part) piece.material = fade(piece.material);
       group.add(piece);
     }
