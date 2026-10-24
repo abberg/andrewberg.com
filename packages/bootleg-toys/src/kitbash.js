@@ -55,8 +55,10 @@ export function prepare(object) {
   if (!mesh) return null;
   const bones = new Map();
   for (const bone of mesh.skeleton.bones) if (!bones.has(bone.name)) bones.set(bone.name, bone);
-  mesh.geometry.computeBoundingBox();
-  const box = mesh.geometry.boundingBox.clone().applyMatrix4(mesh.matrixWorld);
+  // Measured posed, from the skinned vertices: the converted robots' positions
+  // are stored compressed, scaled up into the bones' bind matrices.
+  mesh.computeBoundingBox();
+  const box = mesh.boundingBox.clone().applyMatrix4(mesh.matrixWorld);
   const height = box.max.y - box.min.y;
   const sizes = Object.fromEntries(slots.map((slot) => [slot, measure(bones, measures[slot])]));
   // The share of the body mesh's vertices in each part. Some robots keep a

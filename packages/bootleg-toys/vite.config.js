@@ -1,55 +1,16 @@
-import { readdirSync, existsSync, readFileSync } from 'node:fs';
+import { readdirSync, existsSync } from 'node:fs';
 import { defineConfig } from 'vite';
+import { fbxRobots, robotFolder } from './robots.js';
 
-// The models folder is full of ripped game assets: robots, but also effects,
-// characters, backgrounds and banners. Robots are the folders named like
-// A110_010_gundammk2 (a series code, a number, a name) holding a matching .fbx.
-const robotFolder = /^[A-Z]\d{3}_\d{3}_(?!.*_eff)(.+)$/;
-
-// Ships, bases, bullets and stray effect pieces share that naming, but they're
-// a single rigid mesh with a handful of bones at most, where a robot is rigged
-// (the Mega Man robots have few bones but are built from many meshes). Count
-// both straight from the binary FBX rather than parsing it.
-function count(buffer, text) {
-  let n = 0;
-  for (let i = buffer.indexOf(text); i !== -1; i = buffer.indexOf(text, i + 1)) n++;
-  return n;
-}
-
-function isRobot(fbx) {
-  return count(fbx, 'LimbNode') >= 6 || count(fbx, 'GeometryS\x04\x00\x00\x00Mesh') >= 10;
-}
-
-// Hand-picked leftovers that pass those checks but aren't robots worth
-// keeping: mobile armours, pilots, bikes, monsters and the like.
-const excluded = new Set([
-  'alphaazieru', 'nightingale', 'bug', 'masterasia', 'devilgundam', 'gaga_bo',
-  'military_bike_side', 'zmaster', 'siegfried', 'alexander_a_ins', 'jimba_r', 'ulvorful',
-  'arc2j1', 'wygar', 'ravana', 'dragon_schooner', 'strike_siegwurm_b', 'spacemonsterf',
-  'kantam_robo', 'ryuho_last', 'samekh', 'samekh_s', 'kisaragi_om',
-]);
-
-// Kitbashing needs the standard humanoid rig: a head, a spine, two arms and
-// two legs. Jets, dragons and tanks don't have one. Some that do still have
-// nothing to recombine: Noir Getter 2 is a hooded cloak all the way down,
-// and Hekiryugo is a dragon at heart.
-const notForKitbash = new Set(['noir_getter2', 'hekiryugo', 'heybot', 'gunvarrel', 'black_six', 'beargguy3', 'kisei_kushiki_bunker']);
-const humanoidBones = ['mot_head', 'mot_spine', 'mot_arm_l', 'mot_arm_r', 'mot_upleg_l', 'mot_upleg_r'];
-const isHumanoid = (fbx) => humanoidBones.every((bone) => fbx.includes(`${bone}\x00\x01Model`));
-
+// The robots: those in public/models (local only, for the viewer) and the
+// kitbash set converted from them into public/kitbash (committed, so the
+// published belt has them; see scripts/convert-kitbash.mjs).
 function robots() {
-  const dir = new URL('./public/models/', import.meta.url);
-  if (!existsSync(dir)) return [];
-  return readdirSync(dir)
-    .filter((id) => robotFolder.test(id) && !excluded.has(id.match(robotFolder)[1]))
-    .filter((id) => existsSync(new URL(`${id}/${id}.fbx`, dir)))
-    .sort()
-    .map((id) => ({ id, fbx: readFileSync(new URL(`${id}/${id}.fbx`, dir)) }))
-    .filter(({ fbx }) => isRobot(fbx))
-    .map(({ id, fbx }) => {
-      const name = id.match(robotFolder)[1];
-      return { id, name, humanoid: isHumanoid(fbx) && !notForKitbash.has(name) };
-    });
+  const kitbash = new URL('./public/kitbash/', import.meta.url);
+  const converted = existsSync(kitbash) ? readdirSync(kitbash).filter((file) => file.endsWith('.glb')).map((file) => file.slice(0, -4)) : [];
+  const list = new Map(fbxRobots().map(({ id, name }) => [id, { id, name, fbx: true, kitbash: false }]));
+  for (const id of converted) list.set(id, { id, name: id.match(robotFolder)[1], fbx: list.has(id), kitbash: true });
+  return [...list.values()].sort((a, b) => a.id.localeCompare(b.id));
 }
 
 // import robots from 'virtual:robots' gives the list, read when the server starts.

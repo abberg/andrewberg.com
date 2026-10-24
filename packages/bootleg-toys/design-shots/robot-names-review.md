@@ -1,7 +1,7 @@
 # Bootleg Toys robot names, for review
 
 Every robot in the models folder, sorted by series code. Names live in `src/names.js`; edit them there.
-"low" means a guess: the English name, the series, or both. "kit" marks the ones the kitbash belt draws from.
+"low" means a guess: the English name, the series, or both. "Kit" ✓ marks the ones the kitbash belt draws from; robots the same shape as another are left out of it.
 Series were checked against the Super Robot Wars wiki's list of X-Ω featured series, which these models appear to come from.
 
 | Code | Folder | English name | Series | Confidence | Kit |
@@ -18,10 +18,10 @@ Series were checked against the Super Robot Wars wiki's list of X-Ω featured se
 | A123 | `A123_020_zzgundam_fa` | Full Armor ZZ Gundam | 機動戦士ガンダムΖΖ | high | ✓ |
 | A123 | `A123_550_dreissen` | Dreissen | 機動戦士ガンダムΖΖ | high | ✓ |
 | A123 | `A123_560_bawoo` | Bawoo | 機動戦士ガンダムΖΖ | high | ✓ |
-| A123 | `A123_565_bawoo_g` | Bawoo (Glemy) | 機動戦士ガンダムΖΖ | low | ✓ |
+| A123 | `A123_565_bawoo_g` | Bawoo (Glemy) | 機動戦士ガンダムΖΖ | low | same shape as bawoo, left out |
 | A123 | `A123_570_zaku3` | Zaku III | 機動戦士ガンダムΖΖ | high | ✓ |
 | A123 | `A123_700_qubeley` | Qubeley | 機動戦士ガンダムΖΖ | high | ✓ |
-| A123 | `A123_710_qubeleymk2_p1` | Qubeley Mk-II (Puru) | 機動戦士ガンダムΖΖ | high | ✓ |
+| A123 | `A123_710_qubeleymk2_p1` | Qubeley Mk-II (Puru) | 機動戦士ガンダムΖΖ | high | same shape as qubeley, left out |
 | A123 | `A123_750_quinmantha` | Quin Mantha | 機動戦士ガンダムΖΖ | high | ✓ |
 | A130 | `A130_010_nugundam` | Nu Gundam | 機動戦士ガンダム 逆襲のシャア | high | ✓ |
 | A130 | `A130_020_regz` | Re-GZ | 機動戦士ガンダム 逆襲のシャア | high | ✓ |
@@ -44,7 +44,7 @@ Series were checked against the Super Robot Wars wiki's list of X-Ω featured se
 | A491 | `A491_210_kampfer_amazing` | Kämpfer Amazing | ガンダムビルドファイターズ | high | ✓ |
 | A500 | `A500_005_shininggundam_sp` | Shining Gundam (Super Mode) | 機動武闘伝Gガンダム | high | ✓ |
 | A500 | `A500_030_godgundam` | God Gundam | 機動武闘伝Gガンダム | high | ✓ |
-| A500 | `A500_035_godgundam_hp` | God Gundam (Hyper Mode) | 機動武闘伝Gガンダム | high | ✓ |
+| A500 | `A500_035_godgundam_hp` | God Gundam (Hyper Mode) | 機動武闘伝Gガンダム | high | same shape as godgundam, left out |
 | A500 | `A500_090_gundamrose` | Gundam Rose | 機動武闘伝Gガンダム | high | ✓ |
 | A500 | `A500_110_gundamspigel` | Gundam Spiegel | 機動武闘伝Gガンダム | high | ✓ |
 | A500 | `A500_505_mastergundam_hp` | Master Gundam (Hyper Mode) | 機動武闘伝Gガンダム | high | ✓ |
@@ -74,7 +74,7 @@ Series were checked against the Super Robot Wars wiki's list of X-Ω featured se
 | A541 | `A541_105_akatsuki_s` | Akatsuki (Shiranui) | 機動戦士ガンダムSEED DESTINY | high | ✓ |
 | A541 | `A541_220_destiny` | Destiny Gundam | 機動戦士ガンダムSEED DESTINY | high | ✓ |
 | A541 | `A541_265_zakuwarrior_g_l` | Gunner ZAKU Warrior (Lunamaria) | 機動戦士ガンダムSEED DESTINY | high | ✓ |
-| A541 | `A541_268_zakuwarrior_g_d` | Gunner ZAKU Warrior (Dearka) | 機動戦士ガンダムSEED DESTINY | low | ✓ |
+| A541 | `A541_268_zakuwarrior_g_d` | Gunner ZAKU Warrior (Dearka) | 機動戦士ガンダムSEED DESTINY | low | same shape as zakuwarrior_g_l, left out |
 | A541 | `A541_520_chaos` | Chaos Gundam | 機動戦士ガンダムSEED DESTINY | high | ✓ |
 | A541 | `A541_540_destroy` | Destroy Gundam | 機動戦士ガンダムSEED DESTINY | high | ✓ |
 | A541 | `A541_555_windam` | Windam | 機動戦士ガンダムSEED DESTINY | high | ✓ |
@@ -119,7 +119,7 @@ Series were checked against the Super Robot Wars wiki's list of X-Ω featured se
 | B010 | `B010_410_burglarydog` | Burglary Dog | 装甲騎兵ボトムズ | high | ✓ |
 | B050 | `B050_000_dunbine` | Dunbine | 聖戦士ダンバイン | high | ✓ |
 | B050 | `B050_040_billvine` | Billbine | 聖戦士ダンバイン | high | ✓ |
-| B050 | `B050_050_billvine_dp` | Billbine (Night Fighter) | 聖戦士ダンバイン | low | ✓ |
+| B050 | `B050_050_billvine_dp` | Billbine (Night Fighter) | 聖戦士ダンバイン | low | same shape as billvine, left out |
 | B050 | `B050_580_zwarth` | Zwarth | 聖戦士ダンバイン | high | ✓ |
 | B051 | `B051_000_sirbine` | Sirbine | New Story of Aura Battler DUNBINE | high | ✓ |
 | B051 | `B051_100_zwauth` | Zwauth | New Story of Aura Battler DUNBINE | high | ✓ |
@@ -147,9 +147,9 @@ Series were checked against the Super Robot Wars wiki's list of X-Ω featured se
 | B400 | `B400_110_gekka` | Gekka | コードギアス 反逆のルルーシュ | high | ✓ |
 | B400 | `B400_200_gawain` | Gawain | コードギアス 反逆のルルーシュ | high | ✓ |
 | B400 | `B400_300_lancelot` | Lancelot | コードギアス 反逆のルルーシュ | high | ✓ |
-| B400 | `B400_305_lancelot_z` | Lancelot (Air Cavalry) | コードギアス 反逆のルルーシュ | low | ✓ |
+| B400 | `B400_305_lancelot_z` | Lancelot (Air Cavalry) | コードギアス 反逆のルルーシュ | low | same shape as lancelot, left out |
 | B400 | `B400_510_glasgow` | Glasgow | コードギアス 反逆のルルーシュ | high | ✓ |
-| B400 | `B400_520_glasgow_k` | Glasgow (Kallen) | コードギアス 反逆のルルーシュ | high | ✓ |
+| B400 | `B400_520_glasgow_k` | Glasgow (Kallen) | コードギアス 反逆のルルーシュ | high | same shape as glasgow, left out |
 | B400 | `B400_530_sutherland` | Sutherland | コードギアス 反逆のルルーシュ | high | ✓ |
 | B400 | `B400_560_gloucester_c` | Gloucester (Cornelia) | コードギアス 反逆のルルーシュ | high | ✓ |
 | B400 | `B400_565_gloucester_d` | Gloucester (Darlton) | コードギアス 反逆のルルーシュ | high | ✓ |
@@ -163,8 +163,8 @@ Series were checked against the Super Robot Wars wiki's list of X-Ω featured se
 | B402 | `B402_000_byakuen` | Byakuen | コードギアス 亡国のアキト | high | ✓ |
 | B402 | `B402_020_gouka_byakuen` | Gouka Byakuen | コードギアス 亡国のアキト | high | ✓ |
 | B402 | `B402_505_lancelot_higrail` | Lancelot High Grail | コードギアス 亡国のアキト | high | ✓ |
-| B402 | `B402_710_white_vincent_w` | White Vincent Ward | コードギアス 亡国のアキト | high | ✓ |
-| B402 | `B402_720_white_sutherland` | White Sutherland | コードギアス 亡国のアキト | high | ✓ |
+| B402 | `B402_710_white_vincent_w` | White Vincent Ward | コードギアス 亡国のアキト | high | same shape as vincent_w, left out |
+| B402 | `B402_720_white_sutherland` | White Sutherland | コードギアス 亡国のアキト | high | same shape as sutherland, left out |
 | B403 | `B403_000_alexander_a` | Alexander (Akito) | コードギアス 亡国のアキト | high | ✓ |
 | B403 | `B403_100_liberte` | Liberté | コードギアス 亡国のアキト | high | ✓ |
 | B405 | `B405_050_guren_sp` | Guren Tokushiki | コードギアス 復活のルルーシュ | high | ✓ |
@@ -208,7 +208,7 @@ Series were checked against the Super Robot Wars wiki's list of X-Ω featured se
 | C100 | `C100_040_bossborot` | Boss Borot | マジンガーZ | high |  |
 | C100 | `C100_505_garadak7` | Garada K7 | マジンガーZ | high | ✓ |
 | C120 | `C120_600_gordon` | Hell King Gordon | マジンカイザー | high | ✓ |
-| C120 | `C120_600_gordon_a` | Hell King Gordon (A) | マジンカイザー | low | ✓ |
+| C120 | `C120_600_gordon_a` | Hell King Gordon (A) | マジンカイザー | low | same shape as gordon, left out |
 | C132 | `C132_000_mazinger_zero` | Mazinger ZERO | マジンガーZERO | high | ✓ |
 | C132 | `C132_050_g_mazinkaiser` | God Mazinkaiser | マジンガーZERO | low | ✓ |
 | C132 | `C132_150_artemis_a` | Artemis A | マジンガーZERO | high | ✓ |
@@ -300,7 +300,7 @@ Series were checked against the Super Robot Wars wiki's list of X-Ω featured se
 | H300 | `H300_010_demonbane_hw` | Demonbane | 機神咆吼デモンベイン | high | ✓ |
 | H300 | `H300_200_liber_legis` | Liber Legis | 機神咆吼デモンベイン | high | ✓ |
 | I410 | `I410_300_black_shinkalion` | Black Shinkalion | 新幹線変形ロボ シンカリオン | high | ✓ |
-| I410 | `I410_310_black_shinkalion_kurenai` | Black Shinkalion Kurenai | 新幹線変形ロボ シンカリオン | high | ✓ |
+| I410 | `I410_310_black_shinkalion_kurenai` | Black Shinkalion Kurenai | 新幹線変形ロボ シンカリオン | high | same shape as black_shinkalion, left out |
 | J200 | `J200_000_pipimi_mecha` | Pipimi Mecha | ポプテピピック | high | ✓ |
 | K200 | `K200_040_dahlia_wednesday` | Dahlia of Wednesday | ガン×ソード | high | ✓ |
 | K200 | `K200_100_brownie` | Brownie | ガン×ソード | low | ✓ |
@@ -357,7 +357,7 @@ Series were checked against the Super Robot Wars wiki's list of X-Ω featured se
 | W411 | `W411_010_tsf_t00r_mitsurugi` | Type-00R Takemikazuchi (Mitsurugi) | マブラヴ オルタネイティヴ | high | ✓ |
 | W411 | `W411_030_tsf_t00f_sakaki` | Type-00F Takemikazuchi (Sakaki) | マブラヴ オルタネイティヴ | high | ✓ |
 | W411 | `W411_040_tsf_t00a_tamase` | Type-00A Takemikazuchi (Tamase) | マブラヴ オルタネイティヴ | high | ✓ |
-| W411 | `W411_060_tsf_t00a_yoroi` | Type-00A Takemikazuchi (Yoroi) | マブラヴ オルタネイティヴ | low | ✓ |
+| W411 | `W411_060_tsf_t00a_yoroi` | Type-00A Takemikazuchi (Yoroi) | マブラヴ オルタネイティヴ | low | same shape as tsf_t00a_tamase, left out |
 | W411 | `W411_100_xg_70d_susanoh_4` | XG-70d Susanoo IV | マブラヴ オルタネイティヴ | high |  |
 | W411 | `W411_500_beta_gravis` | BETA Fort Class | マブラヴ オルタネイティヴ | high |  |
 | W411 | `W411_530_beta_equuspedis` | BETA Destroyer Class | マブラヴ オルタネイティヴ | high | ✓ |
@@ -368,27 +368,27 @@ Series were checked against the Super Robot Wars wiki's list of X-Ω featured se
 | W600 | `W600_020_metalman` | Metal Man | ロックマン | high |  |
 | X004 | `X004_015_protagonist_cs` | Varlion (Custom) | スーパーロボット大戦X-Ω | low | ✓ |
 | X004 | `X004_020_protagonist2` | Protagonist Unit II | スーパーロボット大戦X-Ω | low | ✓ |
-| X004 | `X004_022_protagonist2_cs1` | Protagonist Unit II (Custom) | スーパーロボット大戦X-Ω | low | ✓ |
+| X004 | `X004_022_protagonist2_cs1` | Protagonist Unit II (Custom) | スーパーロボット大戦X-Ω | low | same shape as protagonist2, left out |
 | X004 | `X004_030_van_1` | Van I | スーパーロボット大戦X-Ω | low | ✓ |
 | X004 | `X004_035_van_2` | Van II | スーパーロボット大戦X-Ω | low | ✓ |
 | X004 | `X004_045_van_omega` | Van Omega | スーパーロボット大戦X-Ω | low | ✓ |
 | X004 | `X004_106_masspro_b_sht` | Mass-Production Type B (Shooter) | スーパーロボット大戦X-Ω | high | ✓ |
-| X004 | `X004_107_masspro_b_def` | Mass-Production Type B (Defender) | スーパーロボット大戦X-Ω | high | ✓ |
-| X004 | `X004_111_masspro_c_atk` | Mass-Production Type C (Attacker) | スーパーロボット大戦X-Ω | high | ✓ |
+| X004 | `X004_107_masspro_b_def` | Mass-Production Type B (Defender) | スーパーロボット大戦X-Ω | high | same shape as masspro_b_sht, left out |
+| X004 | `X004_111_masspro_c_atk` | Mass-Production Type C (Attacker) | スーパーロボット大戦X-Ω | high | same shape as masspro_b_sht, left out |
 | X004 | `X004_120_masspro_n_a1` | Mass-Production N-A1 | スーパーロボット大戦X-Ω | high | ✓ |
 | X004 | `X004_121_masspro_n_a2` | Mass-Production N-A2 | スーパーロボット大戦X-Ω | high | ✓ |
 | X004 | `X004_122_masspro_n_a3` | Mass-Production N-A3 | スーパーロボット大戦X-Ω | high | ✓ |
-| X004 | `X004_126_masspro_n_b2` | Mass-Production N-B2 | スーパーロボット大戦X-Ω | high | ✓ |
-| X004 | `X004_130_masspro_n_c1` | Mass-Production N-C1 | スーパーロボット大戦X-Ω | high | ✓ |
-| X004 | `X004_131_masspro_n_c2` | Mass-Production N-C2 | スーパーロボット大戦X-Ω | high | ✓ |
-| X004 | `X004_135_masspro_n_d1` | Mass-Production N-D1 | スーパーロボット大戦X-Ω | high | ✓ |
-| X004 | `X004_136_masspro_n_d2` | Mass-Production N-D2 | スーパーロボット大戦X-Ω | high | ✓ |
-| X004 | `X004_141_masspro_mk2_a2` | Mass-Production Mk-II A2 | スーパーロボット大戦X-Ω | high | ✓ |
-| X004 | `X004_145_masspro_mk2_b1` | Mass-Production Mk-II B1 | スーパーロボット大戦X-Ω | high | ✓ |
-| X004 | `X004_151_masspro_mk2_c2` | Mass-Production Mk-II C2 | スーパーロボット大戦X-Ω | high | ✓ |
-| X004 | `X004_155_masspro_mk2_d1` | Mass-Production Mk-II D1 | スーパーロボット大戦X-Ω | high | ✓ |
-| X004 | `X004_156_masspro_mk2_d2` | Mass-Production Mk-II D2 | スーパーロボット大戦X-Ω | high | ✓ |
-| X004 | `X004_157_masspro_mk2_d3` | Mass-Production Mk-II D3 | スーパーロボット大戦X-Ω | high | ✓ |
+| X004 | `X004_126_masspro_n_b2` | Mass-Production N-B2 | スーパーロボット大戦X-Ω | high | same shape as masspro_n_a2, left out |
+| X004 | `X004_130_masspro_n_c1` | Mass-Production N-C1 | スーパーロボット大戦X-Ω | high | same shape as masspro_n_a1, left out |
+| X004 | `X004_131_masspro_n_c2` | Mass-Production N-C2 | スーパーロボット大戦X-Ω | high | same shape as masspro_n_a2, left out |
+| X004 | `X004_135_masspro_n_d1` | Mass-Production N-D1 | スーパーロボット大戦X-Ω | high | same shape as masspro_n_a1, left out |
+| X004 | `X004_136_masspro_n_d2` | Mass-Production N-D2 | スーパーロボット大戦X-Ω | high | same shape as masspro_n_a2, left out |
+| X004 | `X004_141_masspro_mk2_a2` | Mass-Production Mk-II A2 | スーパーロボット大戦X-Ω | high | same shape as masspro_n_a2, left out |
+| X004 | `X004_145_masspro_mk2_b1` | Mass-Production Mk-II B1 | スーパーロボット大戦X-Ω | high | same shape as masspro_n_a1, left out |
+| X004 | `X004_151_masspro_mk2_c2` | Mass-Production Mk-II C2 | スーパーロボット大戦X-Ω | high | same shape as masspro_n_a2, left out |
+| X004 | `X004_155_masspro_mk2_d1` | Mass-Production Mk-II D1 | スーパーロボット大戦X-Ω | high | same shape as masspro_n_a1, left out |
+| X004 | `X004_156_masspro_mk2_d2` | Mass-Production Mk-II D2 | スーパーロボット大戦X-Ω | high | same shape as masspro_n_a2, left out |
+| X004 | `X004_157_masspro_mk2_d3` | Mass-Production Mk-II D3 | スーパーロボット大戦X-Ω | high | same shape as masspro_n_a3, left out |
 | X004 | `X004_160_masspro_sp_a1` | Mass-Production SP-A1 | スーパーロボット大戦X-Ω | high | ✓ |
 | X004 | `X004_170_masspro_sp_c1` | Mass-Production SP-C1 | スーパーロボット大戦X-Ω | high | ✓ |
 | X004 | `X004_195_masspro_sp_h1` | Mass-Production SP-H1 | スーパーロボット大戦X-Ω | high | ✓ |

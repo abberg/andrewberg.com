@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { FBXLoader } from "three/addons/loaders/FBXLoader.js";
+import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import robots from "virtual:robots";
 import { slots, prepare, kitbash, canLend, donor } from "./kitbash.js";
@@ -11,7 +12,7 @@ import { robotNames, robotSeries, seriesNames } from "./names.js";
 
 // A scene for looking at models: one model at a time, framed to fit, lit by a
 // neutral studio environment, with orbit controls. The robots in
-// public/models are listed on the left; pick one, or step through them with
+// public/models (kept locally, not published) are listed on the left; pick one, or step through them with
 // the arrow keys. Kitbash mode builds a robot from four others' parts. Drop a
 // .glb (or a self-contained .gltf) on the page to swap it in. ?thumbnail=1
 // holds the camera still and flags the page ready once the first frame is
@@ -96,7 +97,7 @@ function placeRim() {
   rim.target.position.copy(lookAt);
 }
 
-const loader = new GLTFLoader();
+const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
 const fbxLoader = new FBXLoader();
 let model = null;
 
@@ -160,7 +161,9 @@ function listParts(object) {
   );
 }
 
-// The robot list. Typing filters it; up and down step through what's shown.
+// The robot list: those with their FBX here. Typing filters it; up and down
+// step through what's shown.
+const viewable = robots.filter((robot) => robot.fbx);
 const list = document.getElementById("robots");
 const filter = document.getElementById("filter");
 let current = null;
@@ -169,7 +172,7 @@ let loading = 0;
 function renderList() {
   const query = filter.value.trim().toLowerCase();
   list.replaceChildren(
-    ...robots
+    ...viewable
       .filter((robot) => robot.id.toLowerCase().includes(query))
       .map((robot) => {
         const item = document.createElement("li");
@@ -215,8 +218,8 @@ addEventListener("hashchange", () => {
   const hash = location.hash.slice(1);
   if (hash.startsWith("kitbash=")) {
     if (mode !== "kitbash" || hash !== fieldHash()) openKitbash(hash);
-  } else if (hash === "viewer") loadRobot(current ?? robots[0].id);
-  else if (hash !== current && robots.some((robot) => robot.id === hash)) loadRobot(hash);
+  } else if (hash === "viewer" && viewable.length) loadRobot(current ?? viewable[0].id);
+  else if (hash !== current && viewable.some((robot) => robot.id === hash)) loadRobot(hash);
 });
 addEventListener("keydown", (event) => {
   if (event.target.matches("input, select")) {
@@ -253,18 +256,19 @@ function setMode(next) {
   controls.enabled = next === "viewer";
 }
 
-// Load a robot once and keep what the kitbash needs from it.
+// Load a robot once and keep what the kitbash needs from it: its body and
+// skeleton, converted from the FBX into public/kitbash.
 function preparedRobot(id) {
   if (!prepared.has(id)) {
-    prepared.set(id, fbxLoader.loadAsync(`./models/${id}/${id}.fbx`).then(prepare));
+    prepared.set(id, loader.loadAsync(`./kitbash/${id}.glb`).then((gltf) => prepare(gltf.scene)));
   }
   return prepared.get(id);
 }
 
-const humanoids = robots.filter((robot) => robot.humanoid);
+const humanoids = robots.filter((robot) => robot.kitbash);
 const colourNames = Object.keys(resinColours);
 const pickFrom = (list, random) => list[Math.floor(random() * list.length)];
-const isRobot = (id) => robots.some((robot) => robot.id === id);
+const isRobot = (id) => humanoids.some((robot) => robot.id === id);
 
 // A small seeded random number generator (mulberry32), so a seed always grows
 // the same field.
@@ -1077,13 +1081,13 @@ function openKitbash(hash = "") {
 // The belt is the page. The viewer is still there for looking at one robot
 // at a time: #viewer, or a robot's name, opens it.
 const hash = location.hash.slice(1);
-const start = robots.find((robot) => robot.id === hash) ?? robots[0];
-if (start && !thumbnailMode) {
-  if (hash === "viewer" || robots.some((robot) => robot.id === hash)) loadRobot(start.id);
-  else openKitbash(hash.startsWith("kitbash=") ? hash : `kitbash=${Math.floor(Math.random() * 1e9)}`);
-} else document.documentElement.classList.add("no-robots");
+const start = viewable.find((robot) => robot.id === hash) ?? viewable[0];
+const robotsHere = !thumbnailMode && (humanoids.length || start);
+if (start && !thumbnailMode && (hash === "viewer" || hash === start.id || !humanoids.length)) loadRobot(start.id);
+else if (robotsHere) openKitbash(hash.startsWith("kitbash=") ? hash : `kitbash=${Math.floor(Math.random() * 1e9)}`);
+if (!viewable.length) document.documentElement.classList.add("no-robots");
 
-if (!start || thumbnailMode) loader.loadAsync("./models/DamagedHelmet.glb").then((gltf) => {
+if (!robotsHere) loader.loadAsync("./models/DamagedHelmet.glb").then((gltf) => {
   show(gltf.scene);
   if (thumbnailMode) {
     renderer.render(scene, camera);
