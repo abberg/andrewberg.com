@@ -64,6 +64,16 @@ export const duplicates = {
 };
 const duplicate = new Set(Object.values(duplicates).flat());
 
+// Robots that only lend some parts. The Znarks are hovering pods and Shin
+// Getter-3 is a tank: their rigs have no knees (so kitbash.js won't take
+// their legs either), and Getter-3's body is the tank, but their heads, and
+// the tank's and Getter-3's arms, make good robot parts.
+export const onlyLends = {
+  znark_shooter: ['head'],
+  znark_tank: ['head', 'arms'],
+  shingetter3: ['head', 'arms'],
+};
+
 // The robots in public/models (local only), each with whether it can be
 // kitbashed.
 export function fbxRobots() {

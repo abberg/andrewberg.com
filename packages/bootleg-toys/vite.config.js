@@ -1,6 +1,6 @@
 import { readdirSync, existsSync } from 'node:fs';
 import { defineConfig } from 'vite';
-import { fbxRobots, robotFolder } from './robots.js';
+import { fbxRobots, onlyLends, robotFolder } from './robots.js';
 
 // The robots: those in public/models (local only, for the viewer) and the
 // kitbash set converted from them into public/kitbash (committed, so the
@@ -9,7 +9,10 @@ function robots() {
   const kitbash = new URL('./public/kitbash/', import.meta.url);
   const converted = existsSync(kitbash) ? readdirSync(kitbash).filter((file) => file.endsWith('.glb')).map((file) => file.slice(0, -4)) : [];
   const list = new Map(fbxRobots().map(({ id, name }) => [id, { id, name, fbx: true, kitbash: false }]));
-  for (const id of converted) list.set(id, { id, name: id.match(robotFolder)[1], fbx: list.has(id), kitbash: true });
+  for (const id of converted) {
+    const name = id.match(robotFolder)[1];
+    list.set(id, { id, name, fbx: list.has(id), kitbash: true, lends: onlyLends[name] ?? null });
+  }
   return [...list.values()].sort((a, b) => a.id.localeCompare(b.id));
 }
 

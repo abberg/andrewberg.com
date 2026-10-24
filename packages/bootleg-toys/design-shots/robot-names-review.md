@@ -223,7 +223,7 @@ Series were checked against the Super Robot Wars wiki's list of X-Ω featured se
 | C300 | `C300_505_goda` | Goda | ゲッターロボ | low |  |
 | C310 | `C310_000_getterdragon` | Getter Dragon | ゲッターロボG | high | ✓ |
 | C330 | `C330_050_shingetter1` | Shin Getter-1 | 真ゲッターロボ | high | ✓ |
-| C330 | `C330_070_shingetter3` | Shin Getter-3 | 真ゲッターロボ | high | ✓ |
+| C330 | `C330_070_shingetter3` | Shin Getter-3 | 真ゲッターロボ | high | head and arms only |
 | C330 | `C330_130_shingetterdragon` | Shin Getter Dragon | 真ゲッターロボ | high | ✓ |
 | C330 | `C330_710_noir_getter2` | Getter Noir 2 | ダイナミック企画オリジナル | high |  |
 | C330 | `C330_720_noir_getter3` | Getter Noir 3 | ダイナミック企画オリジナル | high |  |
@@ -409,8 +409,8 @@ Series were checked against the Super Robot Wars wiki's list of X-Ω featured se
 | X004 | `X004_755_enemyzako_12` | Enemy Grunt 12 | スーパーロボット大戦X-Ω | high |  |
 | X004 | `X004_760_enemyzako_13` | Enemy Grunt 13 | スーパーロボット大戦X-Ω | high |  |
 | X004 | `X004_770_enemyzako_15` | Enemy Grunt 15 | スーパーロボット大戦X-Ω | high |  |
-| X004 | `X004_810_znark_tank` | Znark Tank | スーパーロボット大戦X-Ω | low | ✓ |
-| X004 | `X004_830_znark_shooter` | Znark Shooter | スーパーロボット大戦X-Ω | low | ✓ |
+| X004 | `X004_810_znark_tank` | Znark Tank | スーパーロボット大戦X-Ω | low | head and arms only |
+| X004 | `X004_830_znark_shooter` | Znark Shooter | スーパーロボット大戦X-Ω | low | head only |
 | X005 | `X005_060_granzon` | Granzon | スーパーロボット大戦OG | high | ✓ |
 | X005 | `X005_075_valsione_r_db` | Valsione R | スーパーロボット大戦OG | high | ✓ |
 | X005 | `X005_080_diablo` | Diablo | スーパーロボット大戦OG | low | ✓ |

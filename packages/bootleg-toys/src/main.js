@@ -355,7 +355,8 @@ async function lenders(slot, spec) {
     slots.map(async (part) => {
       for (let tries = 0; tries < 12; tries++) {
         const robot = await preparedRobot(spec[part]);
-        if (robot && canLend(robot, part)) return (ready[part] = robot);
+        const lends = humanoids.find((each) => each.id === spec[part])?.lends;
+        if (robot && canLend(robot, part) && (!lends || lends.includes(part))) return (ready[part] = robot);
         spec[part] = pickFrom(humanoids, random).id;
       }
     }),

@@ -80,7 +80,8 @@ const needs = {
   head: ["mot_head"],
   body: ["mot_pelvis", "mot_head", "mot_arm_l", "mot_arm_r", "mot_upleg_l", "mot_upleg_r"],
   arms: ["mot_arm_l", "mot_arm_r"],
-  legs: ["mot_upleg_l", "mot_upleg_r"],
+  // Knees too: without them a rig's "legs" are pods or treads.
+  legs: ["mot_upleg_l", "mot_upleg_r", "mot_leg_l", "mot_leg_r"],
 };
 export const canLend = (robot, part) => robot.shares[part] >= 0.015 && needs[part].every((bone) => robot.bones.has(bone));
 
