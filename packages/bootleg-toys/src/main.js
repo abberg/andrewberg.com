@@ -417,12 +417,12 @@ function buildSoon() {
   }
 }
 
-// Each frame: move the belt along, send slots that came round to the back off
-// for a new figure, and draw only the figures on screen. A figure that's been
-// picked up is left to the pick-up below, and not thrown away if its slot
-// comes round meanwhile.
+// Each frame: move the belt along (it stops while a figure is held), send
+// slots that came round to the back off for a new figure, and draw only the
+// figures on screen. A figure that's been picked up is left to the pick-up
+// below.
 function runBelt(seconds) {
-  travelled += speed * Math.min(seconds, 0.1);
+  if (!held) travelled += speed * Math.min(seconds, 0.1);
   for (const slot of belt) {
     const lap = place(slot);
     if (lap !== slot.lap) {
@@ -462,38 +462,40 @@ function newField() {
 }
 
 // Picking a figure up. Hovering one shows a pointer; clicking lifts it off
-// the belt and flies it up in front of the camera, large and slowly turning,
-// while the belt carries on behind. Clicking it again, clicking off it or Esc
-// sets it back down in its slot, wherever the belt has taken that by then;
-// if the slot has already come round to the back, the figure rides back down
-// onto its old place and off the front of the belt.
+// the belt and flies it up in front of the camera, large, while the belt
+// stops and dims behind it. Dragging turns it to look it over. Clicking it
+// (without dragging), clicking off it or Esc sets it back down in its slot,
+// and the belt rolls on.
 const liftTime = 0.7;
-const heldSize = 2.4;
+const heldSize = 2.1;
 let held = null;
 
 const up = new THREE.Vector3(0, 1, 0);
-function heldPlace(holder) {
-  // Towards the camera from the middle of the view, its own middle on the
-  // middle of the screen.
-  // Along the line of sight, so it stays put on screen however near it comes.
-  const height = figureHeight * heldSize;
-  const sight = isoCamera.position.clone().sub(lookAt).normalize();
-  return lookAt.clone().addScaledVector(sight, 12).addScaledVector(up, -height / 2 + 0.2);
-}
+// Along the line of sight, so things stay put on screen however near they come.
+const sight = () => isoCamera.position.clone().sub(lookAt).normalize();
+
+// A veil over the belt, between it and the held figure.
+const veil = new THREE.Mesh(
+  new THREE.PlaneGeometry(200, 200),
+  new THREE.MeshBasicMaterial({ color: 0x16181c, transparent: true, opacity: 0, depthWrite: false, toneMapped: false }),
+);
+veil.visible = false;
+field.add(veil);
 
 function beltPlace(pick) {
   const { slot, holder } = pick;
   // Still its slot's figure: back to the slot. Otherwise the slot came round
-  // without it, and its old place is a tile further on, off the front.
-  return slot.holder === holder ? slot.position.clone() : slot.position.clone().addScaledVector(facing, tile);
+  // without it (a new belt), and it's simply put away.
+  return slot.holder === holder ? slot.position.clone() : null;
 }
 
 // Put a figure straight back where it belongs, mid-flight or not.
 function settle(pick) {
   const { holder } = pick;
   holder.scale.setScalar(pick.size);
-  holder.rotation.y = 0;
-  if (pick.slot.holder === holder) holder.position.copy(pick.slot.position);
+  holder.quaternion.identity();
+  const place = beltPlace(pick);
+  if (place) holder.position.copy(place);
   else {
     field.remove(holder);
     dispose(holder);
@@ -502,7 +504,11 @@ function settle(pick) {
 
 function pickUp(holder) {
   if (held) settle(held);
-  held = { slot: holder.userData.slot, holder, progress: 0, lifting: true, size: holder.scale.x, turn: 0 };
+  const size = holder.scale.x;
+  // Its middle, in its own units, to turn it about.
+  const box = new THREE.Box3().setFromObject(holder);
+  const middle = new THREE.Vector3(0, (box.max.y - box.min.y) / 2 / size, 0);
+  held = { slot: holder.userData.slot, holder, progress: 0, lifting: true, size, middle, turn: 0, tilt: 0 };
   holder.visible = true;
 }
 
@@ -510,26 +516,43 @@ function putDown() {
   if (held) held.lifting = false;
 }
 
+const yaw = new THREE.Quaternion();
+const pitch = new THREE.Quaternion();
 function runPickUp(seconds) {
+  veil.visible = !!held;
   if (!held) return;
   const { holder } = held;
   held.progress = THREE.MathUtils.clamp(held.progress + (held.lifting ? 1 : -1) * (seconds / liftTime), 0, 1);
-  // Turns slowly while held, and back round to face the front on the way down.
-  if (held.lifting) held.turn += seconds * 0.6;
-  else held.turn = THREE.MathUtils.lerp(held.turn, Math.round(held.turn / (Math.PI * 2)) * Math.PI * 2, Math.min(1, seconds * 6));
+  // On the way down it turns back to face the front.
+  if (!held.lifting) {
+    const ease = Math.min(1, seconds * 6);
+    held.turn = THREE.MathUtils.lerp(held.turn, Math.round(held.turn / (Math.PI * 2)) * Math.PI * 2, ease);
+    held.tilt = THREE.MathUtils.lerp(held.tilt, 0, ease);
+  }
   const t = THREE.MathUtils.smootherstep(held.progress, 0, 1);
-  const from = beltPlace(held);
-  holder.position.lerpVectors(from, heldPlace(holder), t).addScaledVector(up, Math.sin(Math.PI * t) * 1.2);
-  holder.scale.setScalar(held.size * THREE.MathUtils.lerp(1, heldSize, t));
-  holder.rotation.y = held.turn;
+  const view = sight();
+  veil.material.opacity = 0.45 * t;
+  veil.position.copy(lookAt).addScaledVector(view, 6);
+  veil.quaternion.copy(isoCamera.quaternion);
+
+  // Fly its middle from the belt to the middle of the view, in an arc, and
+  // turn it about that middle.
+  const scale = held.size * THREE.MathUtils.lerp(1, heldSize, t);
+  const from = beltPlace(held) ?? holder.position.clone();
+  const fromMiddle = from.addScaledVector(up, held.middle.y * held.size);
+  const toMiddle = lookAt.clone().addScaledVector(view, 12);
+  const middle = fromMiddle.lerp(toMiddle, t).addScaledVector(up, Math.sin(Math.PI * t) * 1.2);
+  // Tilting is about the screen's horizontal, so up and down drags tip it
+  // towards and away from you.
+  const across = new THREE.Vector3().crossVectors(up, view).normalize();
+  holder.quaternion.copy(pitch.setFromAxisAngle(across, held.tilt)).multiply(yaw.setFromAxisAngle(up, held.turn));
+  holder.scale.setScalar(scale);
+  holder.position.copy(middle).sub(held.middle.clone().multiplyScalar(scale).applyQuaternion(holder.quaternion));
+
   if (!held.lifting && held.progress === 0) {
-    holder.rotation.y = 0;
-    // Back on the belt, or gone off the front with its old lap.
-    if (held.slot.holder !== holder) {
-      field.remove(holder);
-      dispose(holder);
-    }
+    settle(held);
     held = null;
+    veil.visible = false;
   }
 }
 
@@ -537,34 +560,59 @@ function runPickUp(seconds) {
 // on screen.
 const pointer = new THREE.Vector2();
 const raycaster = new THREE.Raycaster();
-let pointerMoved = false;
 function figureAt(event) {
   pointer.set((event.clientX / innerWidth) * 2 - 1, -(event.clientY / innerHeight) * 2 + 1);
   raycaster.setFromCamera(pointer, isoCamera);
-  const holders = belt.map((slot) => slot.holder).filter((holder) => holder?.visible && holder !== held?.holder);
-  if (held) holders.unshift(held.holder);
+  const holders = held ? [held.holder] : belt.map((slot) => slot.holder).filter((holder) => holder?.visible);
   let hit = raycaster.intersectObjects(holders, true)[0]?.object;
   while (hit && !hit.userData.slot) hit = hit.parent;
   return hit ?? null;
 }
 
+// Dragging while a figure is held turns it; a press that doesn't move is a
+// click.
+let drag = null;
 let lastPointer = null;
+let pointerMoved = false;
+renderer.domElement.addEventListener("pointerdown", (event) => {
+  if (mode !== "kitbash" || !held?.lifting) return;
+  drag = { x: event.clientX, y: event.clientY, moved: false };
+  renderer.domElement.setPointerCapture(event.pointerId);
+});
 renderer.domElement.addEventListener("pointermove", (event) => {
   lastPointer = event;
   pointerMoved = true;
+  if (!drag || !held) return;
+  const dx = event.clientX - drag.x;
+  const dy = event.clientY - drag.y;
+  if (!drag.moved && Math.hypot(dx, dy) < 4) return;
+  drag.moved = true;
+  held.turn += dx * 0.01;
+  held.tilt = THREE.MathUtils.clamp(held.tilt + dy * 0.01, -0.9, 0.9);
+  drag.x = event.clientX;
+  drag.y = event.clientY;
 });
+renderer.domElement.addEventListener("pointerup", () => {
+  if (drag?.moved) drag.dragged = true;
+  else drag = null;
+});
+
 // Checked once a frame rather than on every pointer event.
 function runHover() {
   if (!pointerMoved || !lastPointer) return;
   pointerMoved = false;
-  renderer.domElement.style.cursor = mode === "kitbash" && figureAt(lastPointer) ? "pointer" : "";
+  const over = mode === "kitbash" && figureAt(lastPointer);
+  renderer.domElement.style.cursor = !over ? "" : held ? (drag?.moved ? "grabbing" : "grab") : "pointer";
 }
 
 renderer.domElement.addEventListener("click", (event) => {
   if (mode !== "kitbash") return;
+  // The end of a drag isn't a click.
+  if (drag?.dragged) return void (drag = null);
+  drag = null;
+  if (held) return putDown();
   const holder = figureAt(event);
-  if (!holder || holder === held?.holder) putDown();
-  else pickUp(holder);
+  if (holder) pickUp(holder);
 });
 
 function openKitbash(hash = "") {
