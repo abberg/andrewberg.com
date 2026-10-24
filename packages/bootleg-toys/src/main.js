@@ -474,13 +474,18 @@ const up = new THREE.Vector3(0, 1, 0);
 // Along the line of sight, so things stay put on screen however near they come.
 const sight = () => isoCamera.position.clone().sub(lookAt).normalize();
 
-// A veil over the belt, between it and the held figure.
+// A white veil over the whole belt. It's drawn last and through everything,
+// and the held figure is drawn after it on a layer of its own (see the
+// render loop), so no figure on the belt, however near, comes out in front.
 const veil = new THREE.Mesh(
   new THREE.PlaneGeometry(200, 200),
-  new THREE.MeshBasicMaterial({ color: 0x16181c, transparent: true, opacity: 0, depthWrite: false, toneMapped: false }),
+  new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthTest: false, depthWrite: false, toneMapped: false }),
 );
+veil.renderOrder = 1;
 veil.visible = false;
 field.add(veil);
+const heldLayer = 1;
+const onLayer = (object, layer) => object.traverse((child) => child.layers.set(layer));
 
 function beltPlace(pick) {
   const { slot, holder } = pick;
@@ -492,6 +497,7 @@ function beltPlace(pick) {
 // Put a figure straight back where it belongs, mid-flight or not.
 function settle(pick) {
   const { holder } = pick;
+  onLayer(holder, 0);
   holder.scale.setScalar(pick.size);
   holder.quaternion.identity();
   const place = beltPlace(pick);
@@ -510,6 +516,7 @@ function pickUp(holder) {
   const middle = new THREE.Vector3(0, (box.max.y - box.min.y) / 2 / size, 0);
   held = { slot: holder.userData.slot, holder, progress: 0, lifting: true, size, middle, turn: 0, tilt: 0 };
   holder.visible = true;
+  onLayer(holder, heldLayer);
 }
 
 function putDown() {
@@ -531,7 +538,7 @@ function runPickUp(seconds) {
   }
   const t = THREE.MathUtils.smootherstep(held.progress, 0, 1);
   const view = sight();
-  veil.material.opacity = 0.45 * t;
+  veil.material.opacity = 0.6 * t;
   veil.position.copy(lookAt).addScaledVector(view, 6);
   veil.quaternion.copy(isoCamera.quaternion);
 
@@ -560,6 +567,7 @@ function runPickUp(seconds) {
 // on screen.
 const pointer = new THREE.Vector2();
 const raycaster = new THREE.Raycaster();
+raycaster.layers.enableAll();
 function figureAt(event) {
   pointer.set((event.clientX / innerWidth) * 2 - 1, -(event.clientY / innerHeight) * 2 + 1);
   raycaster.setFromCamera(pointer, isoCamera);
@@ -680,6 +688,9 @@ addEventListener("resize", () => {
   renderer.setSize(innerWidth, innerHeight);
 });
 
+// Lights shine on the held figure's layer too.
+for (const light of [sky, sun, rim]) light.layers.enable(heldLayer);
+
 const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
   const seconds = clock.getDelta();
@@ -687,8 +698,21 @@ renderer.setAnimationLoop(() => {
   if (belted) {
     runBelt(seconds);
     runHover();
-  }
-  else controls.update();
+  } else controls.update();
   placeRim();
-  renderer.render(scene, belted ? isoCamera : camera);
+  if (!belted || !held) return renderer.render(scene, belted ? isoCamera : camera);
+  // A figure is held: the belt and its veil, then the figure over the top.
+  renderer.render(scene, isoCamera);
+  // A colour background would paint over the belt, so it's left out; the
+  // clear colour matches it, for the figure's transmission to see through to.
+  const background = scene.background;
+  scene.background = null;
+  renderer.setClearColor(background);
+  renderer.autoClear = false;
+  renderer.clearDepth();
+  isoCamera.layers.set(heldLayer);
+  renderer.render(scene, isoCamera);
+  isoCamera.layers.set(0);
+  renderer.autoClear = true;
+  scene.background = background;
 });
