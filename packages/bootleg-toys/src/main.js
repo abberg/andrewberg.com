@@ -7,6 +7,7 @@ import robots from "virtual:robots";
 import { slots, prepare, kitbash, canLend, donor } from "./kitbash.js";
 import { colours as resinColours, resin } from "./resin.js";
 import { bake } from "./bake.js";
+import { robotNames, robotSeries, seriesNames } from "./names.js";
 
 // A scene for looking at models: one model at a time, framed to fit, lit by a
 // neutral studio environment, with orbit controls. The robots in
@@ -18,7 +19,9 @@ import { bake } from "./bake.js";
 const thumbnailMode = new URLSearchParams(location.search).has("thumbnail");
 if (thumbnailMode) document.documentElement.classList.add("thumbnail");
 
-const renderer = new THREE.WebGLRenderer({ antialias: true });
+// With alpha, so the canvas can be cleared to show the card under it, and a
+// stencil buffer for the hover outline.
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, stencil: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -464,33 +467,81 @@ function newField() {
 }
 
 // Picking a figure up. Hovering one shows a pointer; clicking lifts it off
-// the belt and flies it up in front of the camera, large, while the belt
-// stops and dims behind it. Dragging turns it to look it over. Clicking it
+// the belt onto a sheet of card laid over it, like a page from a kit's
+// manual, with the belt blurred behind. The four parts it was built from are
+// called out round it, two a side, each drawn on its own with a leader line to
+// where it went. Dragging turns the figure to look it over. Clicking it
 // (without dragging), clicking off it or Esc sets it back down in its slot,
 // and the belt rolls on.
 const liftTime = 0.7;
-const heldSize = 2.1;
 let held = null;
 
 const up = new THREE.Vector3(0, 1, 0);
 // Along the line of sight, so things stay put on screen however near they come.
 const sight = () => isoCamera.position.clone().sub(lookAt).normalize();
 
-// A white veil over the whole belt. It's drawn last and through everything,
-// and the held figure is drawn after it on a layer of its own (see the
-// render loop), so no figure on the belt, however near, comes out in front.
-const veil = new THREE.Mesh(
-  new THREE.PlaneGeometry(200, 200),
-  new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthTest: false, depthWrite: false, toneMapped: false }),
-);
-veil.renderOrder = 1;
-veil.visible = false;
-field.add(veil);
 const heldLayer = 1;
-// The parts the sources lent, drawn over the rest of the sources so their
-// ghosts can't hide them.
-const lentLayer = 2;
 const onLayer = (object, layer) => object.traverse((child) => child.layers.set(layer));
+
+// The card is HTML, under the canvas: while a figure is held the canvas is
+// cleared to transparent and only the figure and its parts are drawn on it.
+// The belt behind is copied, blurred, into a canvas of its own under the card.
+const card = document.getElementById("card");
+const stage = document.getElementById("stage");
+const blurred = document.getElementById("blurred");
+const blurredContext = blurred.getContext("2d");
+let blurredAt = -1;
+
+function blurBelt(t) {
+  // Half the page's size is plenty for something this blurred.
+  const width = Math.ceil(innerWidth / 2);
+  const height = Math.ceil(innerHeight / 2);
+  if (blurred.width !== width || blurred.height !== height) {
+    blurred.width = width;
+    blurred.height = height;
+  }
+  blurredContext.filter = `blur(${(t * 9).toFixed(2)}px)`;
+  blurredContext.drawImage(renderer.domElement, 0, 0, width, height);
+  blurredAt = t;
+}
+
+// The parts, in the order they're called out, and what the manual calls them.
+const callouts = {
+  head: { kanji: "頭部" },
+  arms: { kanji: "腕部" },
+  body: { kanji: "胴体" },
+  legs: { kanji: "脚部" },
+};
+for (const part of slots) callouts[part].box = card.querySelector(`.callout[data-part="${part}"]`);
+const colourCodes = { orange: "OR", red: "RD", green: "GR", teal: "TL" };
+const robotName = (id) => robots.find((robot) => robot.id === id)?.name ?? id;
+// Its tidied English name from names.js, or its folder's name as a fallback,
+// and its series' Japanese title, if known.
+const displayName = (id) => robotNames[robotName(id)] ?? robotName(id).replace(/_/g, " ");
+const seriesName = (id) => robotSeries[robotName(id)] ?? seriesNames[id.slice(0, 4)] ?? "";
+
+// A bootleg's name: the front of its head's name run into the back of its
+// body's.
+function bootlegName(spec) {
+  const head = displayName(spec.head);
+  const body = displayName(spec.body);
+  return `${head.slice(0, Math.ceil(head.length / 2))}${body.slice(Math.floor(body.length / 2))}`.toUpperCase();
+}
+
+function fillCard(pick, spec) {
+  const code = `BT-${String(pick.slot.index + 1).padStart(3, "0")}/${colourCodes[spec.colour] ?? "XX"}`;
+  card.style.setProperty("--accent", `#${new THREE.Color(resinColours[spec.colour] ?? 0x1d1e21).multiplyScalar(0.8).getHexString()}`);
+  card.querySelector(".code").textContent = code;
+  card.querySelector("h1").textContent = bootlegName(spec);
+  card.querySelector(".watermark").textContent = code;
+  card.querySelector("footer").textContent = `Cast in ${spec.colour} resin · 4 parts from 4 kits · not an official product`;
+  for (const part of slots) {
+    const { box, kanji } = callouts[part];
+    box.querySelector("h2").innerHTML = `<i></i>${kanji}`;
+    box.querySelector("p").innerHTML = "";
+    box.querySelector("p").append(displayName(spec[part]), Object.assign(document.createElement("small"), { textContent: seriesName(spec[part]) }));
+  }
+}
 
 function beltPlace(pick) {
   const { slot, holder } = pick;
@@ -502,11 +553,14 @@ function beltPlace(pick) {
 // Put a figure straight back where it belongs, mid-flight or not.
 function settle(pick) {
   const { holder } = pick;
+  highlight(pick, null);
+  pick.fade = 0;
+  fadeRest(pick, 0);
+  leaders.replaceChildren();
   onLayer(holder, 0);
   for (const source of pick.sources) {
     field.remove(source.view);
     dispose(source.view);
-    source.label.remove();
   }
   pick.sources = [];
   holder.scale.setScalar(pick.size);
@@ -522,23 +576,55 @@ function settle(pick) {
 function pickUp(holder) {
   if (held) settle(held);
   const size = holder.scale.x;
-  // Its middle, in its own units, to turn it about.
+  // Its middle and size, in its own units, to turn it about and fit it to the
+  // card.
   const box = new THREE.Box3().setFromObject(holder);
-  const middle = new THREE.Vector3(0, (box.max.y - box.min.y) / 2 / size, 0);
-  held = { slot: holder.userData.slot, holder, progress: 0, lifting: true, size, middle, turn: 0, tilt: 0, sources: [] };
+  const extent = box.getSize(new THREE.Vector3()).divideScalar(size);
+  const middle = new THREE.Vector3(0, extent.y / 2, 0);
+  const figure = holder.children[0];
+  held = { slot: holder.userData.slot, holder, figure, progress: 0, lifting: true, size, middle, extent, turn: 0, tilt: 0, sources: [], anchors: anchorsOf(figure), hovered: null };
   holder.visible = true;
   onLayer(holder, heldLayer);
-  showSources(held);
+  const spec = held.slot.spec ?? specFor(held.slot);
+  fillCard(held, spec);
+  showSources(held, spec);
+  blurredAt = -1;
 }
 
 function putDown() {
   if (held) held.lifting = false;
 }
 
+// A point on the page, in pixels, as a point in the scene in the plane the
+// held figure is flown to.
+const screenAcross = new THREE.Vector3();
+const screenUp = new THREE.Vector3();
+const perPixel = () => (halfHeight * 2) / innerHeight;
+function onPage(x, y) {
+  screenAcross.setFromMatrixColumn(isoCamera.matrixWorld, 0);
+  screenUp.setFromMatrixColumn(isoCamera.matrixWorld, 1);
+  return lookAt
+    .clone()
+    .addScaledVector(sight(), 12)
+    .addScaledVector(screenAcross, (x - innerWidth / 2) * perPixel())
+    .addScaledVector(screenUp, (innerHeight / 2 - y) * perPixel());
+}
+
 const yaw = new THREE.Quaternion();
 const pitch = new THREE.Quaternion();
+// Faced square on to the camera: round by the camera's turn off the belt (the
+// figures face +z) and tipped back by its height, then turned by `turn` and
+// tipped by `tilt`, both about the screen's axes.
+function faceCamera(quaternion, turn, tilt, t = 1) {
+  const view = sight();
+  const across = new THREE.Vector3().crossVectors(up, view).normalize();
+  return quaternion
+    .copy(pitch.setFromAxisAngle(across, tilt - elevation * t))
+    .multiply(yaw.setFromAxisAngle(up, turn + azimuth * t));
+}
+
 function runPickUp(seconds) {
-  veil.visible = !!held;
+  document.documentElement.classList.toggle("holding", !!held);
   if (!held) return;
   const { holder } = held;
   held.progress = THREE.MathUtils.clamp(held.progress + (held.lifting ? 1 : -1) * (seconds / liftTime), 0, 1);
@@ -549,44 +635,36 @@ function runPickUp(seconds) {
     held.tilt = THREE.MathUtils.lerp(held.tilt, 0, ease);
   }
   const t = THREE.MathUtils.smootherstep(held.progress, 0, 1);
-  const view = sight();
-  veil.material.opacity = 0.9 * t;
-  veil.position.copy(lookAt).addScaledVector(view, 6);
-  veil.quaternion.copy(isoCamera.quaternion);
+  card.style.opacity = t;
+  card.style.transform = `translateY(${((1 - t) * 24).toFixed(1)}px)`;
+  blurred.style.opacity = Math.min(1, t * 3);
 
-  // Fly its middle from the belt to the middle of the view, in an arc, and
-  // turn it about that middle.
-  const scale = held.size * THREE.MathUtils.lerp(1, heldSize, t);
+  // Fly its middle from the belt to the middle of the card's stage, in an
+  // arc, growing to fill it, and turn it about that middle.
+  const area = stage.getBoundingClientRect();
+  const fit = Math.min((area.height * perPixel() * 0.94) / held.extent.y, (area.width * perPixel() * 0.94) / Math.max(held.extent.x, held.extent.z));
+  const scale = THREE.MathUtils.lerp(held.size, fit, t);
   const from = beltPlace(held) ?? holder.position.clone();
   const fromMiddle = from.addScaledVector(up, held.middle.y * held.size);
-  const toMiddle = lookAt.clone().addScaledVector(view, 12);
+  const toMiddle = onPage(area.left + area.width / 2, area.top + area.height / 2);
   const middle = fromMiddle.lerp(toMiddle, t).addScaledVector(up, Math.sin(Math.PI * t) * 1.2);
-  // Tilting is about the screen's horizontal, so up and down drags tip it
-  // towards and away from you.
-  const across = new THREE.Vector3().crossVectors(up, view).normalize();
-  // Turned to face the camera square on as it comes up: round by the
-  // camera's turn off the belt (the figures face +z) and tipped back by its
-  // height, so its front looks straight out of the screen. Dragging turns it
-  // from there.
-  holder.quaternion
-    .copy(pitch.setFromAxisAngle(across, held.tilt - elevation * t))
-    .multiply(yaw.setFromAxisAngle(up, held.turn + azimuth * t));
+  faceCamera(holder.quaternion, held.turn, held.tilt, t);
   holder.scale.setScalar(scale);
   holder.position.copy(middle).sub(held.middle.clone().multiplyScalar(scale).applyQuaternion(holder.quaternion));
 
+  holder.updateMatrixWorld(true);
   placeSources(held, t);
+  fadeRest(held, seconds);
 
   if (!held.lifting && held.progress === 0) {
     settle(held);
     held = null;
-    veil.visible = false;
+    document.documentElement.classList.remove("holding");
   }
 }
 
-// The held figure's sources: the four robots it was built from, in a column
-// down the left, each as it was, the part it lent in its own game textures
-// and the rest of it a white ghost drawn in outline, and named.
-const sourcesBox = document.getElementById("sources");
+// The parts, each drawn on its own as line art: a light grey fill, its sharp
+// creases drawn in, and a dark grey outline.
 
 // The average of the normals of every face meeting at each point, kept as
 // outlineNormal so the shading's own normals are untouched.
@@ -619,80 +697,289 @@ function smoothNormals(geometry) {
   geometry.setAttribute("outlineNormal", new THREE.BufferAttribute(smooth, 3));
 }
 // Pushed back a touch in depth, so the crease lines drawn on it don't flicker.
-const ghost = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
-const fade = () => ghost;
-const creases = new THREE.LineBasicMaterial({ color: 0x2a2c30, toneMapped: false });
-// The outline: the ghost's back faces, pushed out by the same distance on
-// screen everywhere (the camera's orthographic, so a distance in view space
-// is a fixed number of pixels). They're pushed along normals smoothed across
-// every face meeting at a point (outlineNormal, below): pushed along the
-// faces' own, hard-edged normals, the outline splits into shards.
-const outline = new THREE.MeshBasicMaterial({ color: 0x55585e, side: THREE.BackSide, toneMapped: false });
-outline.onBeforeCompile = (shader) => {
-  shader.vertexShader = shader.vertexShader.replace("#include <common>", "#include <common>\nattribute vec3 outlineNormal;").replace(
-    "#include <project_vertex>",
-    `vec4 mvPosition = modelViewMatrix * vec4( transformed, 1.0 );
-mvPosition.xyz += normalize( normalMatrix * outlineNormal ) * 0.02;
+const paper = new THREE.MeshBasicMaterial({ color: 0xdedcd7, toneMapped: false, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
+const unlent = new THREE.MeshBasicMaterial({ visible: false });
+const creases = new THREE.LineBasicMaterial({ color: 0x5a5c62, toneMapped: false });
+// The outline: the back faces, pushed out by the same distance on screen
+// everywhere (the camera's orthographic, so a distance in view space is a
+// fixed number of pixels). They're pushed along normals smoothed across every
+// face meeting at a point (outlineNormal, above): pushed along the faces' own,
+// hard-edged normals, the outline splits into shards.
+function outlineMaterial(width, color) {
+  const material = new THREE.MeshBasicMaterial({ color, side: THREE.BackSide, toneMapped: false });
+  material.onBeforeCompile = (shader) => {
+    shader.vertexShader = shader.vertexShader.replace("#include <common>", "#include <common>\nattribute vec3 outlineNormal;").replace(
+      "#include <project_vertex>",
+      `vec4 mvPosition = modelViewMatrix * vec4( transformed, 1.0 );
+mvPosition.xyz += normalize( normalMatrix * outlineNormal ) * ${width.toFixed(3)};
 gl_Position = projectionMatrix * mvPosition;`,
-  );
-};
-const robotName = (id) => robots.find((robot) => robot.id === id)?.name ?? id;
-const sourceHeight = 1.2;
+    );
+  };
+  // Each width compiles its own program: three would otherwise share one
+  // between every outline, the hook's source being the same.
+  material.customProgramCacheKey = () => `outline-${width}`;
+  return material;
+}
+const outline = outlineMaterial(0.014, 0x4a4c52);
 
-async function showSources(pick) {
-  const spec = pick.slot.spec ?? specFor(pick.slot);
+async function showSources(pick, spec) {
   await Promise.all(
-    slots.map(async (part, row) => {
+    slots.map(async (part) => {
       const robot = await preparedRobot(spec[part]);
       if (!robot || held !== pick) return;
-      const model = donor(robot, part, fade);
-      // Everything gets an outline; the ghost also gets its sharp creases
-      // drawn in, so its panel lines read.
+      // Just the part it lent; the rest of the robot is left out.
+      const model = donor(robot, part, () => unlent);
       for (const piece of [...model.children]) {
+        if (piece.material === unlent) {
+          model.remove(piece);
+          piece.geometry.dispose();
+          continue;
+        }
+        piece.material = paper;
         smoothNormals(piece.geometry);
         piece.add(new THREE.Mesh(piece.geometry, outline));
-        if (piece.material === ghost) piece.add(new THREE.LineSegments(new THREE.EdgesGeometry(piece.geometry, 55), creases));
+        piece.add(new THREE.LineSegments(new THREE.EdgesGeometry(piece.geometry, 40), creases));
       }
+      // Centred on its own middle, to turn about and frame.
       const box = new THREE.Box3().setFromObject(model);
-      const size = box.getSize(new THREE.Vector3());
-      model.position.set(-(box.min.x + box.max.x) / 2, -box.min.y, -(box.min.z + box.max.z) / 2);
+      model.position.copy(box.getCenter(new THREE.Vector3())).negate();
       const view = new THREE.Group();
       view.add(model);
-      view.userData = { part, size: Math.min(sourceHeight / size.y, 1.5 / Math.max(size.x, size.z)) };
+      view.userData = { part, extent: box.getSize(new THREE.Vector3()) };
       view.scale.setScalar(0);
       onLayer(view, heldLayer);
-      for (const piece of model.children) if (piece.material !== ghost) onLayer(piece, lentLayer);
       field.add(view);
-      const label = document.createElement("div");
-      label.className = "source";
-      label.innerHTML = `<b>${part}</b>${robotName(spec[part])}`;
-      sourcesBox.append(label);
-      pick.sources.push({ part, row, view, label });
+      pick.sources.push({ part, view, box: callouts[part].box });
     }),
   );
 }
 
-const screenAcross = new THREE.Vector3();
-const screenUp = new THREE.Vector3();
-const labelAt = new THREE.Vector3();
+// Each part in its callout's window, turned three-quarters on like the
+// drawings in a manual, framed to fit.
 function placeSources(pick, t) {
-  const view = sight();
-  screenAcross.setFromMatrixColumn(isoCamera.matrixWorld, 0);
-  screenUp.setFromMatrixColumn(isoCamera.matrixWorld, 1);
-  const centre = lookAt.clone().addScaledVector(view, 12);
-  const left = -halfHeight * (innerWidth / innerHeight) + 1;
-  const rowHeight = (halfHeight * 2 - 0.8) / slots.length;
-  for (const { row, view: model, label } of pick.sources) {
-    // Its row's bottom, a little up from the edge of the row.
-    const bottom = halfHeight - 0.4 - (row + 1) * rowHeight + 0.3;
-    model.position.copy(centre).addScaledVector(screenAcross, left).addScaledVector(screenUp, bottom);
-    model.scale.setScalar(model.userData.size * t);
-    model.rotation.y = 0.5;
-    labelAt.copy(model.position).addScaledVector(screenAcross, 0.85).addScaledVector(screenUp, sourceHeight / 2).project(isoCamera);
-    label.style.left = `${((labelAt.x + 1) / 2) * innerWidth}px`;
-    label.style.top = `${((1 - labelAt.y) / 2) * innerHeight}px`;
-    label.style.opacity = t;
+  for (const source of pick.sources) {
+    const { view: model, box } = source;
+    const window = box.querySelector(".window").getBoundingClientRect();
+    model.position.copy(onPage(window.left + window.width / 2, window.top + window.height / 2));
+    faceCamera(model.quaternion, 0.55, 0);
+    // Turned, its width on screen is somewhere between its width and depth.
+    const { x, y, z } = model.userData.extent;
+    const across = Math.abs(Math.cos(0.55)) * x + Math.abs(Math.sin(0.55)) * z;
+    const fit = Math.min((window.height * perPixel() * 0.82) / y, (window.width * perPixel() * 0.86) / across);
+    model.scale.setScalar(fit * t);
+    model.updateMatrixWorld(true);
   }
+  drawLeaders(pick.sources.map((source) => route(pick, source)).filter(Boolean), t);
+}
+
+// Leader lines, from each callout to the part on the held figure. Each leaves
+// its callout level with the part where it can (sliding along the callout's
+// edge), runs straight out, and finishes on a 45° diagonal, so lines from
+// callouts on the same side keep to their own lanes as the figure turns. Each
+// part is pinned at the middle of its box, worked out once in the figure's
+// own space and projected every frame, so the lines follow the figure as it
+// flies up and turns. Arms and legs come in pairs: each side gets its own
+// point, and the line goes to whichever is nearer. The two callouts on a side
+// leave from separate edges of the page, so their straight runs never meet;
+// if turning the figure swaps their parts over, the line to the further part
+// runs on past the nearer one before it turns, so the two still don't cross.
+const leaders = document.getElementById("leaders");
+const paired = new Set(["arms", "legs"]);
+
+function anchorsOf(figure) {
+  // In the figure's own space, where the pieces' vertices are.
+  const middle = new THREE.Box3();
+  for (const piece of figure.children) {
+    if (piece.name !== "body") continue;
+    piece.geometry.computeBoundingBox();
+    middle.union(piece.geometry.boundingBox);
+  }
+  const centreX = middle.isEmpty() ? 0 : (middle.min.x + middle.max.x) / 2;
+  const anchors = {};
+  const p = new THREE.Vector3();
+  for (const part of slots) {
+    const sides = paired.has(part) ? [new THREE.Box3(), new THREE.Box3()] : [new THREE.Box3()];
+    for (const piece of figure.children) {
+      if (piece.name !== part) continue;
+      const position = piece.geometry.attributes.position;
+      for (let v = 0; v < position.count; v++) {
+        p.fromBufferAttribute(position, v);
+        sides[sides.length > 1 && p.x < centreX ? 1 : 0].expandByPoint(p);
+      }
+    }
+    anchors[part] = sides.filter((box) => !box.isEmpty()).map((box) => box.getCenter(new THREE.Vector3()));
+  }
+  return anchors;
+}
+
+const anchorAt = new THREE.Vector3();
+function route(pick, source) {
+  const points = pick.anchors[source.part];
+  if (!points?.length) return null;
+  // Out of the callout's side facing the stage: left or right on a wide page,
+  // top or bottom when the callouts sit above and below.
+  const from = source.box.getBoundingClientRect();
+  const area = stage.getBoundingClientRect();
+  const sideways = from.right <= area.left + 1 || from.left >= area.right - 1;
+  // Measured along the way the line leaves (out) and across it, so one
+  // routing does both layouts.
+  const out = sideways ? "x" : "y";
+  const across = sideways ? "y" : "x";
+  const [low, high] = sideways ? [from.top, from.bottom] : [from.left, from.right];
+  const outwards = sideways ? (from.right <= area.left + 1 ? 1 : -1) : from.bottom <= area.top + 1 ? 1 : -1;
+  const edge = sideways ? (outwards > 0 ? from.right : from.left) : outwards > 0 ? from.bottom : from.top;
+  const middle = { [out]: edge, [across]: (low + high) / 2 };
+  let end = null;
+  for (const point of points) {
+    anchorAt.copy(point).applyMatrix4(pick.figure.matrixWorld).project(isoCamera);
+    const x = ((anchorAt.x + 1) / 2) * innerWidth;
+    const y = ((1 - anchorAt.y) / 2) * innerHeight;
+    if (!end || Math.hypot(x - middle.x, y - middle.y) < Math.hypot(end.x - middle.x, end.y - middle.y)) end = { x, y };
+  }
+  const inset = 16;
+  const start = { [out]: edge, [across]: THREE.MathUtils.clamp(end[across], low + inset, high - inset) };
+  // The knee: where the straight run turns onto the diagonal. When the part
+  // is too far off to the side for 45° to reach it, the diagonal steepens.
+  const knee = { [across]: start[across], [out]: end[out] - outwards * Math.abs(end[across] - start[across]) };
+  if (outwards * (knee[out] - edge) < 12) knee[out] = edge + outwards * 12;
+  return { source, out, across, outwards, edge, low, start, knee, end };
+}
+
+const laneGap = 14;
+function drawLeaders(routes, t) {
+  // Pairs on the same side of the stage, the one nearer the page's top or
+  // left first.
+  for (const route of routes) {
+    const partner = routes.find((other) => other !== route && other.out === route.out && other.outwards === route.outwards && other.low > route.low);
+    if (!partner) continue;
+    const { out, across, outwards } = route;
+    // In order, the first's part is before the second's: nothing to do.
+    if (route.end[across] < partner.end[across] - laneGap / 2) continue;
+    const reach = (r) => outwards * (r.end[out] - r.edge);
+    const [near, far] = reach(route) <= reach(partner) ? [route, partner] : [partner, route];
+    // The further line runs on past the nearer one's end before turning, as
+    // far as its own end allows.
+    const past = near.end[out] + outwards * laneGap;
+    if (outwards * (past - far.knee[out]) > 0) far.knee[out] = outwards * (past - far.end[out]) > 0 ? far.end[out] : past;
+  }
+  const pointsOf = ({ start, knee, end }) => `${start.x},${start.y} ${knee.x},${knee.y} ${end.x},${end.y}`;
+  routes.forEach((route, n) => {
+    const { source, end } = route;
+    if (!source.line) {
+      // Each line is masked by the lines drawn after it, so where two cross
+      // the earlier one has a clear gap, showing whatever's behind.
+      source.mask = document.createElementNS("http://www.w3.org/2000/svg", "mask");
+      source.mask.id = `leader-gap-${source.part}`;
+      source.mask.setAttribute("maskUnits", "userSpaceOnUse");
+      source.mask.innerHTML = "<rect width='100%' height='100%' fill='white'></rect><g class='gaps'></g>";
+      source.line = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      source.line.innerHTML = "<polyline></polyline><circle r='3'></circle>";
+      source.line.dataset.part = source.part;
+      source.line.setAttribute("mask", `url(#${source.mask.id})`);
+      leaders.append(source.mask, source.line);
+    }
+    source.mask.lastChild.innerHTML = routes
+      .slice(n + 1)
+      .map((later) => `<polyline points="${pointsOf(later)}"></polyline>`)
+      .join("");
+    const [line, dot] = source.line.children;
+    line.setAttribute("points", pointsOf(route));
+    dot.setAttribute("cx", end.x);
+    dot.setAttribute("cy", end.y);
+    source.line.style.opacity = t;
+  });
+}
+
+// Hovering a callout outlines its part on the figure in white and darkens its
+// line. The outline is drawn the same way as the parts' line art, but after
+// the figure, in a pass of its own (see the render loop), and over everything,
+// so it shows through any part in front. The part itself is first marked in
+// the stencil buffer, and the outline only drawn outside it, each pixel once.
+const outlineLayer = 2;
+const partMask = new THREE.MeshBasicMaterial({
+  colorWrite: false, depthTest: false, depthWrite: false,
+  stencilWrite: true, stencilRef: 1, stencilFunc: THREE.AlwaysStencilFunc, stencilZPass: THREE.ReplaceStencilOp,
+});
+const partOutline = Object.assign(outlineMaterial(0.026, 0xffffff), {
+  depthTest: false, depthWrite: false,
+  stencilWrite: true, stencilRef: 1, stencilFunc: THREE.NotEqualStencilFunc, stencilZPass: THREE.ReplaceStencilOp,
+});
+
+function outlineOf(piece) {
+  smoothNormals(piece.geometry);
+  const mask = new THREE.Mesh(piece.geometry, partMask);
+  const outline = new THREE.Mesh(piece.geometry, partOutline);
+  outline.renderOrder = 1;
+  return new THREE.Group().add(mask, outline);
+}
+
+function highlight(pick, part) {
+  if (pick.hovered === part) return;
+  pick.hovered = part;
+  for (const piece of pick.figure.children) {
+    if (piece.name === part && !piece.userData.outline) {
+      piece.userData.outline = outlineOf(piece);
+      onLayer(piece.userData.outline, outlineLayer);
+      piece.add(piece.userData.outline);
+    }
+    if (piece.userData.outline) piece.userData.outline.visible = piece.name === part;
+  }
+  for (const { part: each, box, line } of pick.sources) {
+    box.classList.toggle("active", each === part);
+    line?.classList.toggle("active", each === part);
+  }
+  card.classList.toggle("hovering", !!part);
+}
+
+// While a callout's hovered, the rest of the figure washes out, easing in and
+// out: its parts stay solid but lose their colour, towards the card's. The
+// hovered part is drawn over them, on a layer of its own after the rest (see
+// the render loop), rather than hidden where they're in front of it.
+const fadeTime = 0.18;
+const focusLayer = 4;
+const cardColour = new THREE.Color(0xe9e5dd);
+const white = new THREE.Color(0xffffff);
+const washed = new Map();
+
+// The resin as the rest of the figure is drawn while washed out, one per
+// resin, its settings eased by fadeRest.
+function washedResin(resin) {
+  if (!washed.has(resin)) {
+    const copy = resin.clone();
+    copy.onBeforeCompile = resin.onBeforeCompile;
+    copy.userData.glowColour = { value: resin.userData.glowColour.value.clone() };
+    washed.set(resin, copy);
+  }
+  return washed.get(resin);
+}
+
+function fadeRest(pick, seconds) {
+  if (pick.hovered) pick.focus = pick.hovered;
+  pick.fade = THREE.MathUtils.clamp((pick.fade ?? 0) + (pick.hovered ? 1 : -1) * (seconds / fadeTime), 0, 1);
+  const f = THREE.MathUtils.smoothstep(pick.fade, 0, 1);
+  for (const piece of pick.figure.children) {
+    const resin = (piece.userData.resin ??= piece.material);
+    const focused = piece.name === pick.focus;
+    piece.material = f > 0 && !focused ? washedResin(resin) : resin;
+    piece.layers.set(f > 0 && focused ? focusLayer : heldLayer);
+  }
+  for (const [resin, copy] of washed) {
+    // Towards clear, colourless resin: tinted toward the card, and no longer
+    // soaking up colour with depth.
+    copy.color.copy(resin.color).lerp(cardColour, f);
+    copy.attenuationColor.copy(resin.attenuationColor).lerp(white, f);
+    copy.attenuationDistance = THREE.MathUtils.lerp(resin.attenuationDistance, 20, f);
+    copy.userData.glowColour.value.copy(resin.userData.glowColour.value).multiplyScalar(1 - f);
+  }
+}
+
+// The callout under the pointer, if any.
+function calloutAt(event) {
+  for (const part of slots) {
+    const rect = callouts[part].box.getBoundingClientRect();
+    if (event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom) return part;
+  }
+  return null;
 }
 
 // Which figure, if any, is under the pointer: the one held first, then any
@@ -737,16 +1024,11 @@ renderer.domElement.addEventListener("pointerup", () => {
   else drag = null;
 });
 
-// While a figure is held: the part of it, or the source, under the pointer.
-function partAt(event) {
+// While a figure is held: whether it's under the pointer.
+function heldAt(event) {
   pointer.set((event.clientX / innerWidth) * 2 - 1, -(event.clientY / innerHeight) * 2 + 1);
   raycaster.setFromCamera(pointer, isoCamera);
-  const hit = raycaster.intersectObjects([held.holder, ...held.sources.map((source) => source.view)], true)[0];
-  if (!hit) return null;
-  let object = hit.object;
-  while (object && object.userData.part === undefined && !object.userData.slot) object = object.parent;
-  const source = object?.userData.part;
-  return { part: source ?? (slots.includes(hit.object.name) ? hit.object.name : null), source: !!source };
+  return raycaster.intersectObject(held.holder, true).length > 0;
 }
 
 // Checked once a frame rather than on every pointer event.
@@ -755,8 +1037,8 @@ function runHover() {
   pointerMoved = false;
   if (mode !== "kitbash") return;
   if (held) {
-    const over = drag?.moved ? null : partAt(lastPointer);
-    renderer.domElement.style.cursor = drag?.moved ? "grabbing" : over && !over.source ? "grab" : "";
+    highlight(held, drag?.moved ? null : calloutAt(lastPointer));
+    renderer.domElement.style.cursor = drag?.moved ? "grabbing" : heldAt(lastPointer) ? "grab" : "";
     return;
   }
   renderer.domElement.style.cursor = figureAt(lastPointer) ? "pointer" : "";
@@ -767,8 +1049,8 @@ renderer.domElement.addEventListener("click", (event) => {
   // The end of a drag isn't a click.
   if (drag?.dragged) return void (drag = null);
   drag = null;
-  // A click on a source leaves the figure up; anywhere else puts it down.
-  if (held) return partAt(event)?.source ? undefined : putDown();
+  // A click on a callout leaves the figure up; anywhere else puts it down.
+  if (held) return calloutAt(event) ? undefined : putDown();
   const holder = figureAt(event);
   if (holder) pickUp(holder);
 });
@@ -836,12 +1118,13 @@ addEventListener("resize", () => {
   camera.updateProjectionMatrix();
   sizeIsoCamera();
   renderer.setSize(innerWidth, innerHeight);
+  blurredAt = -1;
 });
 
 // Lights shine on the held figure's layer too.
 for (const light of [sky, sun, rim]) {
   light.layers.enable(heldLayer);
-  light.layers.enable(lentLayer);
+  light.layers.enable(focusLayer);
 }
 
 const clock = new THREE.Clock();
@@ -854,21 +1137,31 @@ renderer.setAnimationLoop(() => {
   } else controls.update();
   placeRim();
   if (!belted || !held) return renderer.render(scene, belted ? isoCamera : camera);
-  // A figure is held: the belt and its veil, then the figure over the top.
-  renderer.render(scene, isoCamera);
-  // A colour background would paint over the belt, so it's left out; the
-  // clear colour matches it, for the figure's transmission to see through to.
+  // A figure is held: the belt, copied blurred under the card while it's
+  // changing, then the canvas cleared and the figure and its parts drawn on
+  // their own, over the card.
+  if (blurredAt !== held.progress) {
+    renderer.render(scene, isoCamera);
+    blurBelt(held.progress);
+  }
   const background = scene.background;
   scene.background = null;
-  renderer.setClearColor(background);
-  renderer.autoClear = false;
-  renderer.clearDepth();
+  renderer.setClearColor(0x000000, 0);
   isoCamera.layers.set(heldLayer);
   renderer.render(scene, isoCamera);
-  renderer.clearDepth();
-  isoCamera.layers.set(lentLayer);
-  renderer.render(scene, isoCamera);
-  isoCamera.layers.set(0);
+  renderer.autoClear = false;
+  // A hovered part brought to the front.
+  if (held.fade > 0) {
+    renderer.clearDepth();
+    isoCamera.layers.set(focusLayer);
+    renderer.render(scene, isoCamera);
+  }
+  if (held.hovered) {
+    renderer.clearStencil();
+    isoCamera.layers.set(outlineLayer);
+    renderer.render(scene, isoCamera);
+  }
   renderer.autoClear = true;
+  isoCamera.layers.set(0);
   scene.background = background;
 });
