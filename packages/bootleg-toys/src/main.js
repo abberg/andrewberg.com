@@ -558,7 +558,6 @@ const card = document.getElementById("card");
 const stage = document.getElementById("stage");
 const blurred = document.getElementById("blurred");
 const closeButton = document.getElementById("close");
-const shadow = stage.querySelector(".shadow");
 const blurredContext = blurred.getContext("2d");
 let blurredAt = -1;
 
@@ -728,11 +727,6 @@ function runPickUp(seconds) {
   holder.position.copy(middle).sub(held.middle.clone().multiplyScalar(scale).applyQuaternion(holder.quaternion));
 
   holder.updateMatrixWorld(true);
-  // The shadow on the card goes under the figure's base, a little below it.
-  anchorAt.copy(holder.position).project(isoCamera);
-  shadow.style.left = `${((anchorAt.x + 1) / 2) * innerWidth - area.left}px`;
-  shadow.style.top = `${((1 - anchorAt.y) / 2) * innerHeight - area.top + 6}px`;
-  shadow.style.width = `${(Math.max(held.extent.x, held.extent.z) * scale * 0.8) / perPixel()}px`;
   placeSources(held, t);
   fadeRest(held, seconds);
 

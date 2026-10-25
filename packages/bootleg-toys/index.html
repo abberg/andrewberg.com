@@ -59,8 +59,6 @@
     /* A hazard stripe under the name. */
     #card header i { width: 403px; max-width: 100%; height: 12px; margin: 9px 0 6px; background: repeating-linear-gradient(-45deg, var(--accent) 0 7px, transparent 7px 14px); }
     #stage { position: absolute; left: 17%; width: 66%; top: 8%; height: 90%; }
-    /* The figure's shadow on the paper, kept under its base; see runPickUp. */
-    #stage .shadow { position: absolute; aspect-ratio: 12 / 1; transform: translate(-50%, -50%); border-radius: 50%; background: rgba(23, 24, 27, 0.18); }
     .callout { position: absolute; z-index: 1; width: 232px; max-width: 30%; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
     .callout[data-side="right"] { align-items: flex-end; text-align: right; }
     /* Drawn in close round the figure, which lies over them where they meet. */
@@ -128,7 +126,7 @@
 <div id="card" role="dialog" aria-modal="true" aria-labelledby="kit-name">
   <div class="watermark" aria-hidden="true"></div>
   <header><span class="code"></span><h1 id="kit-name"></h1><i aria-hidden="true"></i></header>
-  <div id="stage"><div class="shadow"></div></div>
+  <div id="stage"></div>
   <i class="probe"></i>
   <section class="callout" data-part="head" data-side="left"><div class="window" tabindex="0"></div><h2></h2><p></p></section>
   <section class="callout" data-part="body" data-side="left"><div class="window" tabindex="0"></div><h2></h2><p></p></section>
