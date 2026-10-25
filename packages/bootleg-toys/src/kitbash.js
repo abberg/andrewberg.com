@@ -471,7 +471,11 @@ function partOfName(name) {
 
 // Legs hang from the frame's hips, but legs whose tops sit low in their own
 // hips can hang short of a frame's: if there's a gap between the tops of the
-// legs and the body above them, the legs are raised to close it.
+// legs and the body above them, the legs are raised to close it. Only the
+// body around the hips counts: a frame whose hips stick out past its waist
+// has nothing just above them, and its shoulders, further up, aren't what
+// the legs should meet. And they rise no more than a tenth of the figure's
+// height; any gap left is the ball joints' to bridge.
 function seatLegs(figure, joints, height) {
   const p = new THREE.Vector3();
   let gap = 0;
@@ -488,11 +492,12 @@ function seatLegs(figure, joints, height) {
         p.fromBufferAttribute(position, v);
         if (!near(p)) continue;
         if (piece.name === "legs") top = Math.max(top, p.y);
-        else if (p.y > hip.y - height * 0.15) bottom = Math.min(bottom, p.y);
+        else if (Math.abs(p.y - hip.y) < height * 0.15) bottom = Math.min(bottom, p.y);
       }
     }
     if (Number.isFinite(top) && Number.isFinite(bottom)) gap = Math.max(gap, bottom - top + height * 0.01);
   }
+  gap = Math.min(gap, height * 0.1);
   if (gap <= 0) return;
   for (const piece of figure.children) if (piece.name === "legs") piece.geometry.translate(0, gap, 0);
   for (const [name, joint] of joints) if (/^mot_(upleg|leg|foot|toe|heel)/.test(name)) joint.y += gap;
