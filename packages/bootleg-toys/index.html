@@ -63,10 +63,11 @@
     #stage .shadow { position: absolute; aspect-ratio: 12 / 1; transform: translate(-50%, -50%); border-radius: 50%; background: rgba(23, 24, 27, 0.18); }
     .callout { position: absolute; z-index: 1; width: 232px; max-width: 26%; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
     .callout[data-side="right"] { align-items: flex-end; text-align: right; }
-    .callout[data-part="head"] { left: 8%; top: 21%; }
-    .callout[data-part="body"] { left: 8%; top: 59%; }
-    .callout[data-part="arms"] { right: 8%; top: 9%; }
-    .callout[data-part="legs"] { right: 8%; top: 45%; }
+    /* Drawn in close round the figure, which lies over them where they meet. */
+    .callout[data-part="head"] { left: 17%; top: 19%; }
+    .callout[data-part="body"] { left: 15%; top: 55%; }
+    .callout[data-part="arms"] { right: 16%; top: 12%; }
+    .callout[data-part="legs"] { right: 18%; top: 47%; }
     /* The part's drawing, in a box sized to it; see placeSources. The probe
        measures --window for it. */
     #card .probe { position: absolute; visibility: hidden; width: var(--window); }

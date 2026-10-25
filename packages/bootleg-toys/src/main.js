@@ -535,8 +535,8 @@ function newField() {
 // the belt onto a sheet of card laid over it, like a page from a kit's
 // manual, with the belt blurred behind. The four parts it was built from are
 // called out round it, two a side, each drawn on its own with a leader line to
-// where it went. Dragging turns the figure to look it over. Clicking it
-// (without dragging), clicking off it or Esc sets it back down in its slot,
+// where it went. Dragging turns the figure to look it over. The close
+// button, clicking off the card or Esc sets it back down in its slot,
 // and the belt rolls on.
 const liftTime = 0.7;
 let held = null;
@@ -546,6 +546,9 @@ const up = new THREE.Vector3(0, 1, 0);
 const sight = () => isoCamera.position.clone().sub(lookAt).normalize();
 
 const heldLayer = 1;
+// The parts' drawings in their callouts, drawn before the figure so the
+// figure always lies over them where they meet.
+const sourcesLayer = 3;
 const onLayer = (object, layer) => object.traverse((child) => child.layers.set(layer));
 
 // The card is HTML, under the canvas: while a figure is held the canvas is
@@ -825,7 +828,7 @@ async function showSources(pick, spec) {
       view.add(model);
       view.userData = { part, extent: box.getSize(new THREE.Vector3()) };
       view.scale.setScalar(0);
-      onLayer(view, heldLayer);
+      onLayer(view, sourcesLayer);
       field.add(view);
       pick.sources.push({ part, view, box: callouts[part].box });
     }),
@@ -1107,8 +1110,13 @@ renderer.domElement.addEventListener("click", (event) => {
   // The end of a drag isn't a click.
   if (drag?.dragged) return void (drag = null);
   drag = null;
-  // A click on a callout leaves the figure up; anywhere else puts it down.
-  if (held) return calloutAt(event) ? undefined : putDown();
+  // A click on the card leaves the figure up; off it puts it down. So does
+  // the close button.
+  if (held) {
+    const rect = card.getBoundingClientRect();
+    const onCard = event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom;
+    return onCard ? undefined : putDown();
+  }
   const holder = figureAt(event);
   if (holder) pickUp(holder);
 });
@@ -1205,9 +1213,12 @@ renderer.setAnimationLoop(() => {
   const background = scene.background;
   scene.background = null;
   renderer.setClearColor(0x000000, 0);
-  isoCamera.layers.set(heldLayer);
+  isoCamera.layers.set(sourcesLayer);
   renderer.render(scene, isoCamera);
   renderer.autoClear = false;
+  renderer.clearDepth();
+  isoCamera.layers.set(heldLayer);
+  renderer.render(scene, isoCamera);
   // A hovered part brought to the front.
   if (held.fade > 0) {
     renderer.clearDepth();
