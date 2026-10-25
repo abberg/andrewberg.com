@@ -272,6 +272,8 @@ export function kitbash(pick, material, random = Math.random) {
   const frame = pick.body;
   const framePose = stance(frame, random);
   const joints = new Map([...frame.bones].map(([name, bone]) => [name, at(framePose(bone))]));
+  // Taken now: the borrowed arms bring their own collarbones' joints.
+  const collarbones = collarboneLines(frame, joints);
   for (const slot of slots) {
     const source = pick[slot];
     const pose = slot === "body" ? framePose : stance(source, random);
@@ -283,7 +285,7 @@ export function kitbash(pick, material, random = Math.random) {
       for (const [name, bone] of source.bones) if (partOf(bone) === slot) joints.set(name, at(fit(bone).multiply(pose(bone))));
     }
   }
-  closeShoulders(group, joints, frame.height);
+  closeShoulders(group, joints, frame.height, collarbones);
   seatHead(group, joints, frame.height);
   seatLegs(group, joints, frame.height);
   for (const joint of ballJoints(group, joints, material, frame.height)) group.add(joint);
@@ -479,11 +481,38 @@ function seatLegs(figure, joints, height) {
   for (const [name, joint] of joints) if (/^mot_(upleg|leg|foot|toe|heel)/.test(name)) joint.y += gap;
 }
 
+// Which way each of the frame's collarbones runs, in its stance: from the
+// shoulder socket back in towards the spine, along the bones between them
+// (a clavicle, a shoulder bone or both). A frame whose upper arms hang
+// straight off its spine or chest has none, and nor does one whose
+// collarbone runs too steeply to slide an arm along.
+function collarboneLines(frame, joints) {
+  const lines = {};
+  const centre = joints.get("mot_pelvis")?.x ?? 0;
+  for (const side of ["l", "r"]) {
+    const arm = frame.bones.get(`mot_arm_${side}`);
+    if (!arm) continue;
+    let root = arm;
+    while (root.parent?.isBone && partOf(root.parent) === "arms") root = root.parent;
+    const from = joints.get(arm.name);
+    const to = joints.get(root.name);
+    if (root === arm || !from || !to) continue;
+    const line = to.clone().sub(from).normalize();
+    // It has to run in towards the middle, and mostly across.
+    if (Math.sign(line.x) !== Math.sign(centre - from.x) || Math.abs(line.x) < 0.35) continue;
+    lines[side] = line;
+  }
+  return lines;
+}
+
 // A frame's shoulder joints sit where its own shoulders reach, often well out
 // past its chest on big shoulder armour, which goes with its arms. Borrowed
 // arms without such armour would hang in the air beside the chest, so each
-// side's arm is slid in until it meets the chest, at shoulder height.
-function closeShoulders(figure, joints, height) {
+// side's arm is slid in until it meets the chest, at shoulder height. It
+// slides back along the frame's collarbone on that side, the way its own
+// shoulder would come in, so it tucks into the shoulder line; with no
+// collarbone to follow, it slides straight across.
+function closeShoulders(figure, joints, height, collarbones = {}) {
   const shoulder = joints.get("mot_arm_l");
   const pelvis = joints.get("mot_pelvis");
   if (!shoulder || !pelvis) return;
@@ -512,18 +541,32 @@ function closeShoulders(figure, joints, height) {
     const side = point.x > centre ? "l" : "r";
     arm[side] = Math.min(arm[side], Math.abs(point.x - centre));
   });
+  // The gap is measured across; the slide covers it across, along the
+  // collarbone where there is one.
   const shift = {};
   for (const side of ["l", "r"]) {
     const gap = arm[side] - chest[side] - height * 0.01;
-    shift[side] = chest[side] && Number.isFinite(gap) && gap > 0 ? gap * (side === "l" ? -1 : 1) : 0;
+    if (!chest[side] || !Number.isFinite(gap) || gap <= 0) continue;
+    const line = collarbones[side];
+    shift[side] = line ? line.clone().multiplyScalar(gap / Math.abs(line.x)) : new THREE.Vector3(gap * (side === "l" ? -1 : 1), 0, 0);
   }
   if (!shift.l && !shift.r) return;
-  each("arms", (point, position, v) => position.setX(v, point.x + shift[point.x > centre ? "l" : "r"]));
-  for (const piece of figure.children) if (piece.name === "arms") piece.geometry.computeBoundingBox();
+  // Sorted by side before anything moves.
+  const sideOf = (x) => (x > centre ? "l" : "r");
+  each("arms", (point, position, v) => {
+    const move = shift[sideOf(point.x)];
+    if (move) position.setXYZ(v, point.x + move.x, point.y + move.y, point.z + move.z);
+  });
+  for (const piece of figure.children) {
+    if (piece.name !== "arms") continue;
+    piece.geometry.attributes.position.needsUpdate = true;
+    piece.geometry.computeBoundingBox();
+  }
   // The arms' joints move with them.
   for (const [name, joint] of joints) {
-    const side = name.match(/^mot_(?:clavicle|shoulder|arm|forearm|hand)\w*_([lr])$/)?.[1];
-    if (side) joint.x += shift[joint.x > centre ? "l" : "r"];
+    if (!/^mot_(?:clavicle|shoulder|arm|forearm|hand)\w*_([lr])$/.test(name)) continue;
+    const move = shift[sideOf(joint.x)];
+    if (move) joint.add(move);
   }
 }
 
