@@ -412,12 +412,12 @@ function ballJoints(figure, joints, material, height) {
     if (!centre) continue;
     const side = socket.endsWith("_l") || socket.endsWith("_r") ? sideOfPoint(centre) || (socket.endsWith("_l") ? 1 : -1) : 0;
     const limit = height * largest;
-    // Where the body is further than the largest ball reaches, the part and
-    // its socket move towards it until it's within reach, rather than the
-    // ball growing.
-    const body = nearest(centre, "body", 0);
-    if (Number.isFinite(body.distance) && body.distance > limit / 1.1) {
-      const move = body.at.clone().sub(centre).multiplyScalar(1 - limit / 1.1 / body.distance);
+    // Move the part (one side of it, for a pair) and its joints, socket
+    // included, towards a point on the body, to within `within` of it.
+    const slideTo = (target, within) => {
+      const gap = target.distanceTo(centre);
+      if (gap <= within) return;
+      const move = target.clone().sub(centre).multiplyScalar(1 - within / gap);
       for (const piece of figure.children) {
         if (piece.name !== part) continue;
         const position = piece.geometry.attributes.position;
@@ -433,9 +433,23 @@ function ballJoints(figure, joints, material, height) {
         if (side && sideOfPoint(joint) !== side) continue;
         joint.add(move);
       }
-    }
+    };
+    // Where the body is further than the largest ball reaches, the part and
+    // its socket move towards it until it's within reach, rather than the
+    // ball growing.
+    const body = nearest(centre, "body", 0);
+    if (Number.isFinite(body.distance)) slideTo(body.at, limit / 1.1);
     const reach = Math.max(nearest(centre, "body", 0).distance, nearest(centre, part, side).distance);
     const radius = THREE.MathUtils.clamp(reach * 1.1, height * 0.02, limit);
+    // Sized only to reach the body, a ball would just touch it, a part
+    // hanging off one point. So it's sunk into the body like a kit's ball in
+    // its socket: the part and socket move in until the body comes within a
+    // fifth of the ball's radius of its middle, burying most of it. Measured
+    // again after the first move, as the nearest point of the body changes.
+    for (let i = 0; i < 2; i++) {
+      const sunk = nearest(centre, "body", 0);
+      if (Number.isFinite(sunk.distance)) slideTo(sunk.at, radius * 0.2);
+    }
     const ball = new THREE.Mesh(new THREE.IcosahedronGeometry(radius, 2), material ?? new THREE.MeshStandardMaterial({ color: 0x888888 }));
     ball.geometry.translate(centre.x, centre.y, centre.z);
     ball.name = "joint";
