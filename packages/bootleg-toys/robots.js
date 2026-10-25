@@ -37,6 +37,7 @@ const notForKitbash = new Set([
   // Not good biped matches, picked out by eye.
   'big_duo', 'blackdomi', 'painkiller_enigma', 'beta_equuspedis', 'megillot',
   'aquarion_gepard',
+  'godzilla', // an open shell, every part
 ]);
 const humanoidBones = ['mot_head', 'mot_spine', 'mot_arm_l', 'mot_arm_r', 'mot_upleg_l', 'mot_upleg_r'];
 const isHumanoid = (fbx) => humanoidBones.every((bone) => fbx.includes(`${bone}\x00\x01Model`));
@@ -75,12 +76,8 @@ export const onlyLends = {
   shingetter3: ['head', 'arms'],
   // Parts made of pieces that float apart, left out so every figure is one
   // connected piece.
-  powered723: ['head', 'body', 'legs'],
   primavera: ['head', 'body', 'legs'],
   arvak: ['head', 'legs'],
-  kazuma_2: ['head', 'body', 'legs'],
-  gomin: ['head', 'body', 'legs'],
-  rovebarrel: ['head', 'body', 'arms'],
   van_1: ['head', 'arms', 'legs'],
   signo_sht: ['head', 'arms', 'legs'],
   rgun_powered: ['head', 'arms', 'legs'],
@@ -93,6 +90,38 @@ export const onlyLends = {
   // can't close.
   frareengine_imp: ['head', 'arms', 'legs'],
   earthengine_imp: ['arms', 'legs'],
+  // Open, thin shells (clothes-like bodies with ragged edges whose insides
+  // show), found by how much of each part's inside can be seen.
+  pre_exes: ['legs'],
+  zambot3: ['head', 'legs'],
+  liger_thunder: ['head'],
+  vg_einwald: ['head', 'arms'],
+  powered723: ['head'],
+  alseides: ['arms', 'legs'],
+  goleam: ['arms'],
+  kazuma_2: ['head'],
+  gomin: ['head'],
+  dybastar: ['head', 'arms'],
+  busterm19: ['head', 'legs'],
+  rovebarrel: ['head'],
+  hackadoll_robo1: ['head', 'arms', 'legs'],
+  // Bodies that hold together only through their own arms (shoulder pieces
+  // with nothing joining them to the chest), so come apart with others'.
+  burglarydog: ['head', 'arms', 'legs'],
+  mindi: ['head', 'arms', 'legs'],
+  nirvash_gb: ['head', 'arms', 'legs'],
+  nirvash_t: ['head', 'arms', 'legs'],
+  tawburn_com: ['head', 'arms', 'legs'],
+  yf19_b: ['head', 'arms', 'legs'],
+  yf21_b: ['head', 'arms', 'legs'],
+  fei_yen_kn: ['head', 'arms', 'legs'],
+  van_2: ['head', 'arms', 'legs'],
+  van_omega: ['head', 'arms', 'legs'],
+  masspro_sp_a1: ['head', 'arms', 'legs'],
+  rival_cs: ['head', 'arms', 'legs'],
+  signo_atk: ['head', 'arms', 'legs'],
+  signo_fig: ['head', 'arms', 'legs'],
+  diablo: ['head', 'arms', 'legs'],
 };
 
 // The robots in public/models (local only), each with whether it can be
