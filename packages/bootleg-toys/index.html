@@ -91,7 +91,7 @@
     #leaders .active :is(rect, circle) { fill: var(--accent); }
     @media (prefers-reduced-motion: reduce) { .callout .window { transition: none; } }
     /* On a narrow page the card fills it, the figure takes the middle, and the
-       callouts sit above and below it, still staggered. */
+       callouts sit level in pairs above and below it. */
     @media (max-width: 760px) {
       :root { --card-w: calc(100vw - 20px); --card-h: calc(100vh - 20px); }
       #card { --window: clamp(64px, 13vh, 110px); border-radius: 14px; }
@@ -105,10 +105,10 @@
       .callout h2 { font-size: 14px; }
       .callout p { font-size: 10px; }
       .callout p small { font-size: 10px; }
-      .callout[data-part="head"] { left: 14px; top: 13%; }
-      .callout[data-part="arms"] { right: 14px; top: 18%; }
-      .callout[data-part="body"] { left: 14px; top: auto; bottom: 7%; }
-      .callout[data-part="legs"] { right: 14px; top: auto; bottom: 2%; }
+      .callout[data-part="head"] { left: 14px; top: 14%; }
+      .callout[data-part="arms"] { right: 14px; top: 14%; }
+      .callout[data-part="body"] { left: 14px; top: auto; bottom: 3%; }
+      .callout[data-part="legs"] { right: 14px; top: auto; bottom: 3%; }
       #close { left: calc(50% + var(--card-w) / 2 - 52px); top: calc(50% - var(--card-h) / 2 + 10px); }
     }
     /* Outline the page while a file is dragged over it. */
