@@ -541,7 +541,8 @@ export function donor(robot, part, fade) {
   return group;
 }
 
-// A slab under the feet, sized to the legs' stance rather than wings or arms.
+// A round stand under the feet, sized to the legs' stance rather than wings
+// or arms: an ellipse round the feet with a margin, its rim rounded off.
 function base(figure, material) {
   const box = new THREE.Box3().setFromObject(figure);
   const feet = new THREE.Box3();
@@ -549,13 +550,30 @@ function base(figure, material) {
   if (feet.isEmpty()) feet.copy(box);
   const stance = feet.getSize(new THREE.Vector3());
   const height = (box.max.y - box.min.y) * 0.03;
-  const width = Math.max(stance.x, stance.z) * 1.25;
-  // Divided up so the feet's ambient occlusion has vertices to land on. Its
-  // thickness is simply its height.
-  const slab = new THREE.Mesh(
-    new THREE.BoxGeometry(width, height, stance.z * 1.25 + height * 2, 32, 1, 32),
-    material,
-  );
+  // An ellipse through the corners of the feet's footprint, and a little out.
+  const across = (stance.x / 2) * Math.SQRT2 * 1.1 + height;
+  const deep = (stance.z / 2) * Math.SQRT2 * 1.1 + height;
+  const radius = Math.max(across, deep);
+  // A disc, its rim rounded with a quarter circle top and bottom, lathed in
+  // enough segments for the feet's ambient occlusion to have vertices to
+  // land on, then squashed into the ellipse.
+  const bevel = height * 0.45;
+  const profile = [new THREE.Vector2(0, -height / 2)];
+  for (let i = 0; i <= 6; i++) {
+    const a = -Math.PI / 2 + (i / 6) * (Math.PI / 2);
+    profile.push(new THREE.Vector2(radius - bevel + Math.cos(a) * bevel, -height / 2 + bevel + Math.sin(a) * bevel));
+  }
+  for (let i = 0; i <= 6; i++) {
+    const a = (i / 6) * (Math.PI / 2);
+    profile.push(new THREE.Vector2(radius - bevel + Math.cos(a) * bevel, height / 2 - bevel + Math.sin(a) * bevel));
+  }
+  for (let r = radius - bevel; r > 0; r -= radius / 16) profile.push(new THREE.Vector2(r, height / 2));
+  profile.push(new THREE.Vector2(0, height / 2));
+  const geometry = new THREE.LatheGeometry(profile, 64);
+  geometry.scale(across / radius, 1, deep / radius);
+  geometry.computeVertexNormals();
+  const slab = new THREE.Mesh(geometry, material);
+  // Its thickness is simply its height.
   const slabThickness = new Float32Array(slab.geometry.attributes.position.count).fill(height);
   slab.geometry.setAttribute("resinThickness", new THREE.BufferAttribute(slabThickness, 1));
   slab.position.set((feet.min.x + feet.max.x) / 2, box.min.y - height / 2, (feet.min.z + feet.max.z) / 2);

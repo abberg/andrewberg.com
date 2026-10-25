@@ -189,7 +189,7 @@ Series were checked against the Super Robot Wars wiki's list of X-Ω featured se
 | B530 | `B530_005_imber_fs_h` | Imber | アイドルマスター XENOGLOSSIA | high |  |
 | B530 | `B530_035_nubilum_sb` | Nubilum | アイドルマスター XENOGLOSSIA | high |  |
 | B540 | `B540_110_primavera` | Primavera | バディ・コンプレックス | low | ✓ (not arms) |
-| B540 | `B540_150_arvak` | Arvak | バディ・コンプレックス | low | ✓ (not arms or body) |
+| B540 | `B540_150_arvak` | Arvak | バディ・コンプレックス | low | left out |
 | B560 | `B560_000_valvrave1` | Valvrave I | 革命機ヴァルヴレイヴ | high | ✓ |
 | B580 | `B580_200_enryugo` | Enryugo | クロスアンジュ 天使と竜の輪舞 | high | ✓ |
 | B580 | `B580_220_hekiryugo` | Hekiryugo | クロスアンジュ 天使と竜の輪舞 | high |  |

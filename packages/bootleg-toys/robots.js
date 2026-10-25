@@ -37,6 +37,7 @@ const notForKitbash = new Set([
   // Not good biped matches, picked out by eye.
   'big_duo', 'blackdomi', 'painkiller_enigma', 'beta_equuspedis', 'megillot',
   'aquarion_gepard',
+  'arvak',
   'godzilla', // an open shell, every part
 ]);
 const humanoidBones = ['mot_head', 'mot_spine', 'mot_arm_l', 'mot_arm_r', 'mot_upleg_l', 'mot_upleg_r'];
@@ -77,7 +78,6 @@ export const onlyLends = {
   // Parts made of pieces that float apart, left out so every figure is one
   // connected piece.
   primavera: ['head', 'body', 'legs'],
-  arvak: ['head', 'legs'],
   van_1: ['head', 'arms', 'legs'],
   signo_sht: ['head', 'arms', 'legs'],
   rgun_powered: ['head', 'arms', 'legs'],
