@@ -437,8 +437,11 @@ function ballJoints(figure, joints, material, height) {
     // Where the body is further than the largest ball reaches, the part and
     // its socket move towards it until it's within reach, rather than the
     // ball growing.
+    // A head stays where seatHead set it, centred on the chest: pulled
+    // towards the nearest point of the body, it would go off to one side.
+    const slides = part !== "head";
     const body = nearest(centre, "body", 0);
-    if (Number.isFinite(body.distance)) slideTo(body.at, limit / 1.1);
+    if (slides && Number.isFinite(body.distance)) slideTo(body.at, limit / 1.1);
     const reach = Math.max(nearest(centre, "body", 0).distance, nearest(centre, part, side).distance);
     const radius = THREE.MathUtils.clamp(reach * 1.1, height * 0.02, limit);
     // Sized only to reach the body, a ball would just touch it, a part
@@ -446,7 +449,7 @@ function ballJoints(figure, joints, material, height) {
     // its socket: the part and socket move in until the body comes within a
     // fifth of the ball's radius of its middle, burying most of it. Measured
     // again after the first move, as the nearest point of the body changes.
-    for (let i = 0; i < 2; i++) {
+    for (let i = 0; slides && i < 2; i++) {
       const sunk = nearest(centre, "body", 0);
       if (Number.isFinite(sunk.distance)) slideTo(sunk.at, radius * 0.2);
     }
