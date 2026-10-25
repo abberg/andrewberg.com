@@ -1019,10 +1019,11 @@ function fadeRest(pick, seconds) {
   }
 }
 
-// The callout under the pointer, if any.
+// The callout whose part's picture is under the pointer, if any. Its label
+// below doesn't count.
 function calloutAt(event) {
   for (const part of slots) {
-    const rect = callouts[part].box.getBoundingClientRect();
+    const rect = callouts[part].box.querySelector(".window").getBoundingClientRect();
     if (event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom) return part;
   }
   return null;
