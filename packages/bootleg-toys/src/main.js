@@ -554,6 +554,8 @@ const onLayer = (object, layer) => object.traverse((child) => child.layers.set(l
 const card = document.getElementById("card");
 const stage = document.getElementById("stage");
 const blurred = document.getElementById("blurred");
+const closeButton = document.getElementById("close");
+const shadow = stage.querySelector(".shadow");
 const blurredContext = blurred.getContext("2d");
 let blurredAt = -1;
 
@@ -597,11 +599,11 @@ function bootlegName(spec) {
 
 function fillCard(pick, spec) {
   const code = `BT-${String(pick.slot.index + 1).padStart(3, "0")}/${colourCodes[spec.colour] ?? "XX"}`;
-  card.style.setProperty("--accent", `#${new THREE.Color(resinColours[spec.colour] ?? 0x1d1e21).multiplyScalar(0.8).getHexString()}`);
+  // On the page, not the card: the leader lines and close button use it too.
+  document.documentElement.style.setProperty("--accent", `#${new THREE.Color(resinColours[spec.colour] ?? 0x1d1e21).multiplyScalar(0.8).getHexString()}`);
   card.querySelector(".code").textContent = code;
   card.querySelector("h1").textContent = bootlegName(spec);
   card.querySelector(".watermark").textContent = code;
-  card.querySelector("footer").textContent = `Cast in ${spec.colour} resin · 4 parts from 4 kits · not an official product`;
   for (const part of slots) {
     const { box, kanji } = callouts[part];
     box.querySelector("h2").innerHTML = `<i></i>${kanji}`;
@@ -656,6 +658,8 @@ function pickUp(holder) {
   fillCard(held, spec);
   showSources(held, spec);
   blurredAt = -1;
+  document.documentElement.classList.add("holding");
+  closeButton.focus({ preventScroll: true });
 }
 
 function putDown() {
@@ -704,6 +708,7 @@ function runPickUp(seconds) {
   const t = THREE.MathUtils.smootherstep(held.progress, 0, 1);
   card.style.opacity = t;
   card.style.transform = `translateY(${((1 - t) * 24).toFixed(1)}px)`;
+  closeButton.style.opacity = t;
   blurred.style.opacity = Math.min(1, t * 3);
 
   // Fly its middle from the belt to the middle of the card's stage, in an
@@ -720,6 +725,11 @@ function runPickUp(seconds) {
   holder.position.copy(middle).sub(held.middle.clone().multiplyScalar(scale).applyQuaternion(holder.quaternion));
 
   holder.updateMatrixWorld(true);
+  // The shadow on the card goes under the figure's base, a little below it.
+  anchorAt.copy(holder.position).project(isoCamera);
+  shadow.style.left = `${((anchorAt.x + 1) / 2) * innerWidth - area.left}px`;
+  shadow.style.top = `${((1 - anchorAt.y) / 2) * innerHeight - area.top + 6}px`;
+  shadow.style.width = `${(Math.max(held.extent.x, held.extent.z) * scale * 0.8) / perPixel()}px`;
   placeSources(held, t);
   fadeRest(held, seconds);
 
@@ -727,6 +737,7 @@ function runPickUp(seconds) {
     settle(held);
     held = null;
     document.documentElement.classList.remove("holding");
+    if (card.contains(document.activeElement) || document.activeElement === closeButton) document.activeElement.blur();
   }
 }
 
@@ -822,34 +833,39 @@ async function showSources(pick, spec) {
 }
 
 // Each part in its callout's window, turned three-quarters on like the
-// drawings in a manual, framed to fit.
+// drawings in a manual. The window is cut to the part's shape, within a
+// square the card sets (--window): a tall part gets a tall, narrow box and a
+// wide one a wide, short one.
 function placeSources(pick, t) {
+  const most = card.querySelector(".probe").offsetWidth || 120;
   for (const source of pick.sources) {
     const { view: model, box } = source;
-    const window = box.querySelector(".window").getBoundingClientRect();
-    model.position.copy(onPage(window.left + window.width / 2, window.top + window.height / 2));
-    faceCamera(model.quaternion, 0.55, 0);
+    const frame = box.querySelector(".window");
     // Turned, its width on screen is somewhere between its width and depth.
     const { x, y, z } = model.userData.extent;
     const across = Math.abs(Math.cos(0.55)) * x + Math.abs(Math.sin(0.55)) * z;
-    const fit = Math.min((window.height * perPixel() * 0.82) / y, (window.width * perPixel() * 0.86) / across);
+    const width = `${Math.round(across > y ? most : Math.max(most * 0.55, (most * across) / y))}px`;
+    const height = `${Math.round(y > across ? most : Math.max(most * 0.55, (most * y) / across))}px`;
+    if (frame.style.width !== width) frame.style.width = width;
+    if (frame.style.height !== height) frame.style.height = height;
+    // Inside its padding.
+    const window = frame.getBoundingClientRect();
+    const inner = { width: parseFloat(width), height: parseFloat(height) };
+    model.position.copy(onPage(window.left + window.width / 2, window.top + window.height / 2));
+    faceCamera(model.quaternion, 0.55, 0);
+    const fit = Math.min((inner.height * perPixel()) / y, (inner.width * perPixel()) / across);
     model.scale.setScalar(fit * t);
     model.updateMatrixWorld(true);
   }
   drawLeaders(pick.sources.map((source) => route(pick, source)).filter(Boolean), t);
 }
 
-// Leader lines, from each callout to the part on the held figure. Each leaves
-// its callout level with the part where it can (sliding along the callout's
-// edge), runs straight out, and finishes on a 45° diagonal, so lines from
-// callouts on the same side keep to their own lanes as the figure turns. Each
-// part is pinned at the middle of its box, worked out once in the figure's
-// own space and projected every frame, so the lines follow the figure as it
-// flies up and turns. Arms and legs come in pairs: each side gets its own
-// point, and the line goes to whichever is nearer. The two callouts on a side
-// leave from separate edges of the page, so their straight runs never meet;
-// if turning the figure swaps their parts over, the line to the further part
-// runs on past the nearer one before it turns, so the two still don't cross.
+// Leader lines, dotted, straight from the middle of the edge of each part's
+// box facing the figure to a pin on the part. Each part is pinned at the
+// middle of its box, worked out once in the figure's own space and projected
+// every frame, so the pins follow the figure as it flies up and turns. Arms
+// and legs come in pairs: each side gets its own point, and the line goes to
+// whichever is nearer.
 const leaders = document.getElementById("leaders");
 const paired = new Set(["arms", "legs"]);
 
@@ -889,78 +905,38 @@ const anchorAt = new THREE.Vector3();
 function route(pick, source) {
   const points = pick.anchors[source.part];
   if (!points?.length) return null;
-  // Out of the callout's side facing the stage: left or right on a wide page,
-  // top or bottom when the callouts sit above and below.
-  const from = source.box.getBoundingClientRect();
-  const area = stage.getBoundingClientRect();
-  const sideways = from.right <= area.left + 1 || from.left >= area.right - 1;
-  // Measured along the way the line leaves (out) and across it, so one
-  // routing does both layouts.
-  const out = sideways ? "x" : "y";
-  const across = sideways ? "y" : "x";
-  const [low, high] = sideways ? [from.top, from.bottom] : [from.left, from.right];
-  const outwards = sideways ? (from.right <= area.left + 1 ? 1 : -1) : from.bottom <= area.top + 1 ? 1 : -1;
-  const edge = sideways ? (outwards > 0 ? from.right : from.left) : outwards > 0 ? from.bottom : from.top;
-  const middle = { [out]: edge, [across]: (low + high) / 2 };
+  const from = source.box.querySelector(".window").getBoundingClientRect();
+  const left = source.box.dataset.side === "left";
+  const start = { x: left ? from.right : from.left, y: from.top + from.height / 2 };
   let end = null;
   for (const point of points) {
     anchorAt.copy(point).applyMatrix4(pick.figure.matrixWorld).project(isoCamera);
     const x = ((anchorAt.x + 1) / 2) * innerWidth;
     const y = ((1 - anchorAt.y) / 2) * innerHeight;
-    if (!end || Math.hypot(x - middle.x, y - middle.y) < Math.hypot(end.x - middle.x, end.y - middle.y)) end = { x, y };
+    if (!end || Math.hypot(x - start.x, y - start.y) < Math.hypot(end.x - start.x, end.y - start.y)) end = { x, y };
   }
-  const inset = 16;
-  const start = { [out]: edge, [across]: THREE.MathUtils.clamp(end[across], low + inset, high - inset) };
-  // The knee: where the straight run turns onto the diagonal. When the part
-  // is too far off to the side for 45° to reach it, the diagonal steepens.
-  const knee = { [across]: start[across], [out]: end[out] - outwards * Math.abs(end[across] - start[across]) };
-  if (outwards * (knee[out] - edge) < 12) knee[out] = edge + outwards * 12;
-  return { source, out, across, outwards, edge, low, start, knee, end };
+  return { source, start, end };
 }
 
-const laneGap = 14;
 function drawLeaders(routes, t) {
-  // Pairs on the same side of the stage, the one nearer the page's top or
-  // left first.
-  for (const route of routes) {
-    const partner = routes.find((other) => other !== route && other.out === route.out && other.outwards === route.outwards && other.low > route.low);
-    if (!partner) continue;
-    const { out, across, outwards } = route;
-    // In order, the first's part is before the second's: nothing to do.
-    if (route.end[across] < partner.end[across] - laneGap / 2) continue;
-    const reach = (r) => outwards * (r.end[out] - r.edge);
-    const [near, far] = reach(route) <= reach(partner) ? [route, partner] : [partner, route];
-    // The further line runs on past the nearer one's end before turning, as
-    // far as its own end allows.
-    const past = near.end[out] + outwards * laneGap;
-    if (outwards * (past - far.knee[out]) > 0) far.knee[out] = outwards * (past - far.end[out]) > 0 ? far.end[out] : past;
-  }
-  const pointsOf = ({ start, knee, end }) => `${start.x},${start.y} ${knee.x},${knee.y} ${end.x},${end.y}`;
-  routes.forEach((route, n) => {
-    const { source, end } = route;
+  for (const { source, start, end } of routes) {
     if (!source.line) {
-      // Each line is masked by the lines drawn after it, so where two cross
-      // the earlier one has a clear gap, showing whatever's behind.
-      source.mask = document.createElementNS("http://www.w3.org/2000/svg", "mask");
-      source.mask.id = `leader-gap-${source.part}`;
-      source.mask.setAttribute("maskUnits", "userSpaceOnUse");
-      source.mask.innerHTML = "<rect width='100%' height='100%' fill='white'></rect><g class='gaps'></g>";
       source.line = document.createElementNS("http://www.w3.org/2000/svg", "g");
-      source.line.innerHTML = "<polyline></polyline><circle r='3'></circle>";
+      source.line.innerHTML = "<line></line><rect width='8' height='8'></rect><circle r='5.5'></circle>";
       source.line.dataset.part = source.part;
-      source.line.setAttribute("mask", `url(#${source.mask.id})`);
-      leaders.append(source.mask, source.line);
+      leaders.append(source.line);
     }
-    source.mask.lastChild.innerHTML = routes
-      .slice(n + 1)
-      .map((later) => `<polyline points="${pointsOf(later)}"></polyline>`)
-      .join("");
-    const [line, dot] = source.line.children;
-    line.setAttribute("points", pointsOf(route));
-    dot.setAttribute("cx", end.x);
-    dot.setAttribute("cy", end.y);
+    const [line, square, pin] = source.line.children;
+    line.setAttribute("x1", start.x);
+    line.setAttribute("y1", start.y);
+    line.setAttribute("x2", end.x);
+    line.setAttribute("y2", end.y);
+    square.setAttribute("x", start.x - 4);
+    square.setAttribute("y", start.y - 4);
+    pin.setAttribute("cx", end.x);
+    pin.setAttribute("cy", end.y);
     source.line.style.opacity = t;
-  });
+  }
 }
 
 // Hovering a callout outlines its part on the figure in white and darkens its
@@ -1010,7 +986,7 @@ function highlight(pick, part) {
 // the render loop), rather than hidden where they're in front of it.
 const fadeTime = 0.18;
 const focusLayer = 4;
-const cardColour = new THREE.Color(0xe9e5dd);
+const cardColour = new THREE.Color(0xeeeeec);
 const white = new THREE.Color(0xffffff);
 const washed = new Map();
 
@@ -1115,6 +1091,15 @@ function runHover() {
     return;
   }
   renderer.domElement.style.cursor = figureAt(lastPointer) ? "pointer" : "";
+}
+
+// The close button puts the figure down; tabbing to a part's box picks it out
+// as hovering does.
+closeButton.addEventListener("click", () => putDown());
+for (const part of slots) {
+  const frame = callouts[part].box.querySelector(".window");
+  frame.addEventListener("focus", () => held && highlight(held, part));
+  frame.addEventListener("blur", () => held && highlight(held, null));
 }
 
 renderer.domElement.addEventListener("click", (event) => {
