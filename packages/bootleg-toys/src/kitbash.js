@@ -207,8 +207,13 @@ function transplant(source, part, material, move) {
   const p = new THREE.Vector3();
   const n = new THREE.Vector3();
   const meshes = [];
+  // A pair (arms, legs) is cut as a piece a side, so each side can be told
+  // apart by its bones rather than by where it ends up: a broad shoulder
+  // pad can reach past the middle of a narrow chest.
+  const paired = part === "arms" || part === "legs";
+  const sides = bones.map(sideOf);
   for (const group of groups) {
-    const out = { position: [], normal: [], uv: [] };
+    const outs = new Map();
     const end = Math.min(group.start + group.count, vertexCount);
     for (let i = group.start; i + 2 < end; i += 3) {
       const corners = [vertexAt(i), vertexAt(i + 1), vertexAt(i + 2)];
@@ -221,6 +226,9 @@ function transplant(source, part, material, move) {
       // goes, stretching the triangle into a long spike. (The body stays on
       // its own skeleton, so its corners can follow their own bones.)
       const lead = corners.find((v) => parts[dominant[v]] === part);
+      const key = paired ? sides[dominant[lead]] : "";
+      if (!outs.has(key)) outs.set(key, { position: [], normal: [], uv: [] });
+      const out = outs.get(key);
       for (const v of corners) {
         const bone = parts[dominant[v]] === part || part === "body" ? dominant[v] : dominant[lead];
         // Where the vertex is drawn on the source robot, then moved over.
@@ -236,21 +244,23 @@ function transplant(source, part, material, move) {
         if (uv) out.uv.push(uv.getX(v), uv.getY(v));
       }
     }
-    if (!out.position.length) continue;
-    let piece = new THREE.BufferGeometry();
-    piece.setAttribute("position", new THREE.Float32BufferAttribute(out.position, 3));
-    if (material) {
-      // Cast in resin there's no texture to keep, and the game's low-poly
-      // normals look faceted, so smooth them, keeping the sculpt's hard edges.
-      piece = toCreasedNormals(piece, THREE.MathUtils.degToRad(60));
-    } else {
-      if (out.normal.length) piece.setAttribute("normal", new THREE.Float32BufferAttribute(out.normal, 3));
-      else piece.computeVertexNormals();
-      if (out.uv.length) piece.setAttribute("uv", new THREE.Float32BufferAttribute(out.uv, 2));
+    for (const [side, out] of outs) {
+      let piece = new THREE.BufferGeometry();
+      piece.setAttribute("position", new THREE.Float32BufferAttribute(out.position, 3));
+      if (material) {
+        // Cast in resin there's no texture to keep, and the game's low-poly
+        // normals look faceted, so smooth them, keeping the sculpt's hard edges.
+        piece = toCreasedNormals(piece, THREE.MathUtils.degToRad(60));
+      } else {
+        if (out.normal.length) piece.setAttribute("normal", new THREE.Float32BufferAttribute(out.normal, 3));
+        else piece.computeVertexNormals();
+        if (out.uv.length) piece.setAttribute("uv", new THREE.Float32BufferAttribute(out.uv, 2));
+      }
+      const result = new THREE.Mesh(piece, material ?? materials[group.materialIndex] ?? materials[0]);
+      result.name = `${part}`;
+      if (side) result.userData.side = side;
+      meshes.push(result);
     }
-    const result = new THREE.Mesh(piece, material ?? materials[group.materialIndex] ?? materials[0]);
-    result.name = `${part}`;
-    meshes.push(result);
   }
   return meshes;
 }
@@ -386,9 +396,9 @@ const ballSockets = [
 function ballJoints(figure, joints, material, height) {
   const p = new THREE.Vector3();
   const centreX = joints.get("mot_pelvis").x;
-  const sideOfPoint = (point) => Math.sign(point.x - centreX);
-  // The nearest point of a part (of one side of it, for a pair) to a point.
-  const nearest = (centre, name, side) => {
+  // The nearest point of a part, of those pieces and points `keep` allows, to
+  // a point.
+  const nearest = (centre, name, keep = () => true) => {
     let best = Infinity;
     const at = new THREE.Vector3();
     for (const piece of figure.children) {
@@ -396,7 +406,7 @@ function ballJoints(figure, joints, material, height) {
       const position = piece.geometry.attributes.position;
       for (let v = 0; v < position.count; v++) {
         p.fromBufferAttribute(position, v);
-        if (side && sideOfPoint(p) !== side) continue;
+        if (!keep(piece, p)) continue;
         const d = p.distanceTo(centre);
         if (d < best) {
           best = d;
@@ -410,29 +420,36 @@ function ballJoints(figure, joints, material, height) {
   for (const [socket, part, largest] of ballSockets) {
     const centre = joints.get(socket);
     if (!centre) continue;
-    const side = socket.endsWith("_l") || socket.endsWith("_r") ? sideOfPoint(centre) || (socket.endsWith("_l") ? 1 : -1) : 0;
+    const side = socket.match(/_([lr])$/)?.[1] ?? "";
+    // Which way is out, on this side: +1 or -1 along x.
+    const out = Math.sign(centre.x - centreX) || (side === "l" ? 1 : -1);
+    // One side of a pair, told by the bones it was cut from, or failing that
+    // by which side of the middle it's on.
+    const onSide = (piece, point) => !side || (piece.userData.side ? piece.userData.side === side : Math.sign(point.x - centreX) === out);
     const limit = height * largest;
     // Move the part (one side of it, for a pair) and its joints, socket
-    // included, towards a point on the body, to within `within` of it.
-    const slideTo = (target, within) => {
-      const gap = target.distanceTo(centre);
-      if (gap <= within) return;
-      const move = target.clone().sub(centre).multiplyScalar(1 - within / gap);
+    // included.
+    const shift = (move) => {
       for (const piece of figure.children) {
         if (piece.name !== part) continue;
         const position = piece.geometry.attributes.position;
         for (let v = 0; v < position.count; v++) {
           p.fromBufferAttribute(position, v);
-          if (side && sideOfPoint(p) !== side) continue;
+          if (!onSide(piece, p)) continue;
           position.setXYZ(v, p.x + move.x, p.y + move.y, p.z + move.z);
         }
         position.needsUpdate = true;
       }
       for (const [name, joint] of joints) {
         if (name !== socket && partOfName(name) !== part) continue;
-        if (side && sideOfPoint(joint) !== side) continue;
+        if (side && name.match(/_([lr])(?:_|$)/)?.[1] !== side) continue;
         joint.add(move);
       }
+    };
+    // Towards a point on the body, to within `within` of it.
+    const slideTo = (target, within) => {
+      const gap = target.distanceTo(centre);
+      if (gap > within) shift(target.clone().sub(centre).multiplyScalar(1 - within / gap));
     };
     // Where the body is further than the largest ball reaches, the part and
     // its socket move towards it until it's within reach, rather than the
@@ -440,9 +457,9 @@ function ballJoints(figure, joints, material, height) {
     // A head stays where seatHead set it, centred on the chest: pulled
     // towards the nearest point of the body, it would go off to one side.
     const slides = part !== "head";
-    const body = nearest(centre, "body", 0);
+    const body = nearest(centre, "body");
     if (slides && Number.isFinite(body.distance)) slideTo(body.at, limit / 1.1);
-    const reach = Math.max(nearest(centre, "body", 0).distance, nearest(centre, part, side).distance);
+    const reach = Math.max(nearest(centre, "body").distance, nearest(centre, part, onSide).distance);
     const radius = THREE.MathUtils.clamp(reach * 1.1, height * 0.02, limit);
     // Sized only to reach the body, a ball would just touch it, a part
     // hanging off one point. So it's sunk into the body like a kit's ball in
@@ -450,8 +467,26 @@ function ballJoints(figure, joints, material, height) {
     // fifth of the ball's radius of its middle, burying most of it. Measured
     // again after the first move, as the nearest point of the body changes.
     for (let i = 0; slides && i < 2; i++) {
-      const sunk = nearest(centre, "body", 0);
+      const sunk = nearest(centre, "body");
       if (Number.isFinite(sunk.distance)) slideTo(sunk.at, radius * 0.2);
+    }
+    // Arms with broad shoulder armour, set on a narrow frame, can reach past
+    // the middle of its chest, the two pads crossing in front of it. The
+    // armour sets how broad the shoulders are, so the arm moves back out
+    // until its pad, at shoulder height, stays clear of the middle.
+    if (part === "arms") {
+      let inner = Infinity;
+      for (const piece of figure.children) {
+        if (piece.name !== "arms") continue;
+        const position = piece.geometry.attributes.position;
+        for (let v = 0; v < position.count; v++) {
+          p.fromBufferAttribute(position, v);
+          if (!onSide(piece, p) || p.y < centre.y - height * 0.1) continue;
+          inner = Math.min(inner, out * (p.x - centreX));
+        }
+      }
+      const clear = height * 0.03;
+      if (inner < clear) shift(new THREE.Vector3(out * (clear - inner), 0, 0));
     }
     const ball = new THREE.Mesh(new THREE.IcosahedronGeometry(radius, 2), material ?? new THREE.MeshStandardMaterial({ color: 0x888888 }));
     ball.geometry.translate(centre.x, centre.y, centre.z);
