@@ -26,6 +26,8 @@ The build discovers packages containing `sketch.json`, runs their build scripts,
 
 Thumbnails are captured locally in Chromium and committed in `apps/site/public/thumbnails/`, so Netlify builds never download a browser. Run `npm run browsers:install` once. A Husky pre-commit hook then recaptures the thumbnail of every sketch with staged changes under `packages/<sketch>/` and adds it to the commit, unless that thumbnail is already staged. It builds from the working tree, so with partially staged files the thumbnail may show unstaged edits. Set `SKIP_THUMBNAILS=1` to skip it. `npm run thumbnails` rebuilds and recaptures every sketch, and `npm run thumbnails hatch wander` only the named ones. A sketch without a thumbnail fails the build.
 
+To save build minutes, `scripts/netlify-ignore.sh` skips deploy previews for Dependabot PRs and production builds of commits that change nothing under `apps`, `packages`, `scripts`, the npm manifests, `netlify.toml` or `.node-version`.
+
 ## Structure
 
 - `apps/site`: Astro homepage and gallery.
