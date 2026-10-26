@@ -8,11 +8,10 @@ Use Node 24 (see `.node-version`). From the repository root:
 
 ```sh
 npm install
-npm run browsers:install
 npm run dev
 ```
 
-The site runs at http://127.0.0.1:4321. The root dev command builds the sketches and captures thumbnails before starting Astro. To edit a sketch with automatic JavaScript rebuilds, run `npm run dev --workspace=model_001` (or another package). Refresh its browser page after a rebuild; restart its dev command after editing its HTML.
+The site runs at http://127.0.0.1:4321. The root dev command builds the sketches before starting Astro. To edit a sketch with automatic JavaScript rebuilds, run `npm run dev --workspace=model_001` (or another package). Refresh its browser page after a rebuild; restart its dev command after editing its HTML.
 
 ## Build and preview
 
@@ -21,11 +20,13 @@ npm run build
 npm run preview
 ```
 
-The build discovers packages containing `sketch.json`, runs their build scripts, copies their `dist/` folders into Astro's generated public assets, captures thumbnails in Chromium, writes the gallery data, then builds Astro. Output is `apps/site/dist/`. All sketch URLs and images are local to that static deployment. No server runtime is required.
+The build discovers packages containing `sketch.json`, runs their build scripts, copies their `dist/` folders into Astro's generated public assets, checks that every sketch has a thumbnail, writes the gallery data, then builds Astro. Output is `apps/site/dist/`. All sketch URLs and images are local to that static deployment. No server runtime is required.
 
-`npm run thumbnails` recaptures the already prepared sketches. `npm run prepare:site` rebuilds all sketches, thumbnails, and gallery data. Run it after editing packages if Astro is already running. Generated outputs are ignored by Git.
+`npm run prepare:site` rebuilds all sketches and gallery data. Run it after editing packages if Astro is already running. Generated outputs are ignored by Git.
 
-Netlify downloads Chromium with `npm run browsers:install` and runs the complete build. This does not request root access or install OS packages: Netlify must provide the required system libraries. Use `--with-deps` only on Linux CI systems where installing system packages is permitted. Browser downloads require network access on first setup.
+Thumbnails are captured locally in Chromium and committed in `apps/site/public/thumbnails/`, so Netlify builds never download a browser. Run `npm run browsers:install` once. A Husky pre-commit hook then recaptures the thumbnail of every sketch with staged changes under `packages/<sketch>/` and adds it to the commit, unless that thumbnail is already staged. It builds from the working tree, so with partially staged files the thumbnail may show unstaged edits. Set `SKIP_THUMBNAILS=1` to skip it. `npm run thumbnails` rebuilds and recaptures every sketch, and `npm run thumbnails hatch wander` only the named ones. A sketch without a thumbnail fails the build.
+
+To save build minutes, `scripts/netlify-ignore.sh` skips deploy previews for Dependabot PRs and production builds of commits that change nothing under `apps`, `packages`, `scripts`, the npm manifests, `netlify.toml` or `.node-version`.
 
 ## Structure
 
