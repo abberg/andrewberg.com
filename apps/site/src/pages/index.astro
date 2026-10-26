@@ -9,7 +9,7 @@ const logos = import.meta.glob('../icons/*.svg', { query: '?raw', import: 'defau
 const logo = name => logos[`../icons/${name}.svg`];
 const systems = [...work].reverse();
 // A hand-picked, varied selection for the home page, by sketch number (place in the full list on /sketches/).
-const FEATURED = [1, 7, 10, 18, 24, 25, 30, 33];
+const FEATURED = [6, 12, 13, 19, 22, 25, 30, 33];
 const featured = FEATURED.map(number => ({ ...sketches[number - 1], number }));
 ---
 <Base

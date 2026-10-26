@@ -1,7 +1,7 @@
 {
   "title": "Helicopter",
   "description": "The original helicopter scene.",
-  "order": 4,
+  "order": 16,
   "thumbnail": {
     "path": "?thumbnail=1",
     "readySelector": "html[data-thumbnail-ready=\"true\"]"
