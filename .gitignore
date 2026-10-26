@@ -12,3 +12,7 @@ tmp/
 # Bootleg Toys models are local only; keep the one sample model.
 packages/bootleg-toys/public/models/*
 !packages/bootleg-toys/public/models/DamagedHelmet.glb
+
+# Claude's local tooling files.
+.claude/
+packages/bootleg-toys/src/harness-deps.js
