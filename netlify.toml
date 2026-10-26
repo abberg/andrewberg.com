@@ -1,6 +1,6 @@
 [build]
   publish = "apps/site/dist"
-  command = "npm run browsers:install && npm run build"
+  command = "npm run build"
 
 [build.environment]
   NODE_VERSION = "24"

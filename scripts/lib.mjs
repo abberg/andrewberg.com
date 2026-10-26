@@ -1,4 +1,4 @@
-import { readdir, readFile, stat } from 'node:fs/promises';
+import { cp, readdir, readFile, rm, stat } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { resolve, extname, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -18,6 +18,11 @@ export async function sketches() {
     result.push({ ...metadata, id: entry.name, directory });
   }
   return result.sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.id.localeCompare(b.id));
+}
+export async function buildSketch(item) {
+  await run('npm', ['run', 'build'], item.directory);
+  await rm(resolve(sitePublic, 'sketches', item.id), { recursive: true, force: true });
+  await cp(resolve(item.directory, 'dist'), resolve(sitePublic, 'sketches', item.id), { recursive: true });
 }
 export function run(command, args, cwd = root) {
   return new Promise((resolve, reject) => {

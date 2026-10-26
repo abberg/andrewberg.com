@@ -2,7 +2,7 @@ import { chromium } from 'playwright';
 import { mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { sketches, sitePublic, serve } from './lib.mjs';
+import { sketches, sitePublic, serve, buildSketch } from './lib.mjs';
 export async function generateThumbnails(items) {
   await mkdir(resolve(sitePublic, 'thumbnails'), { recursive: true });
   const server = await serve(sitePublic);
@@ -32,4 +32,13 @@ export async function generateThumbnails(items) {
     }
   } finally { if (browser) await browser.close(); await server.close(); }
 }
-if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) await generateThumbnails(await sketches());
+// Builds and captures the named sketches, or every sketch when none are named.
+export async function captureSketches(ids = []) {
+  const all = await sketches();
+  const unknown = ids.filter(id => !all.some(item => item.id === id));
+  if (unknown.length) throw new Error(`Unknown sketches: ${unknown.join(', ')}`);
+  const items = ids.length ? all.filter(item => ids.includes(item.id)) : all;
+  for (const item of items) await buildSketch(item);
+  await generateThumbnails(items);
+}
+if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) await captureSketches(process.argv.slice(2));
