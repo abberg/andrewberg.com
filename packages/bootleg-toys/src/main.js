@@ -1150,13 +1150,8 @@ else if (thumbnailMode && robotsHere) openKitbash("kitbash=36");
 else if (robotsHere) openKitbash(hash.startsWith("kitbash=") ? hash : `kitbash=${Math.floor(Math.random() * 1e9)}`);
 if (!viewable.length) document.documentElement.classList.add("no-robots");
 
-if (!robotsHere) loader.loadAsync("./models/DamagedHelmet.glb").then((gltf) => {
-  show(gltf.scene);
-  if (thumbnailMode) {
-    renderer.render(scene, camera);
-    requestAnimationFrame(() => (document.documentElement.dataset.thumbnailReady = "true"));
-  }
-});
+// With no robots there's nothing to show; a thumbnail still has to finish.
+if (!robotsHere && thumbnailMode) requestAnimationFrame(() => (document.documentElement.dataset.thumbnailReady = "true"));
 
 // Drag and drop. Only single-file models load: a .gltf that points at
 // separate .bin or texture files won't find them.
