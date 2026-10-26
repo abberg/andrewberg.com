@@ -2,7 +2,7 @@
   "title": "Scattered blocks",
   "description": "A suspended arrangement of blocks, light, and shadow.",
   "category": "3D study",
-  "order": 1,
+  "order": 29,
   "thumbnail": {
     "path": "?thumbnail=1",
     "readySelector": "html[data-thumbnail-ready=\"true\"]"

@@ -2,7 +2,7 @@
   "title": "Small city",
   "description": "A miniature grid of buildings and open streets.",
   "category": "3D study",
-  "order": 2,
+  "order": 30,
   "thumbnail": {
     "path": "?thumbnail=1",
     "readySelector": "html[data-thumbnail-ready=\"true\"]"

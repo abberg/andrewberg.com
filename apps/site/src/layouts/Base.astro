@@ -10,6 +10,7 @@ interface Props {
 const { title, description, ogDescription, path, current } = Astro.props;
 const site = 'https://andrewberg.com/';
 const linkedin = 'https://www.linkedin.com/in/andrewbberg';
+const github = 'https://github.com/abberg';
 const systemsHref = current === 'systems' ? '#systems' : '/#systems';
 ---
 <!doctype html>
@@ -47,14 +48,12 @@ const systemsHref = current === 'systems' ? '#systems' : '/#systems';
           <nav class="nav mono" aria-label="Main">
             <a href={systemsHref} class:list={{ current: current === 'systems' }}>Design systems</a>
             <a href="/sketches/" class:list={{ current: current === 'sketches' }}>Sketches</a>
-            <a href={linkedin}>LinkedIn</a>
           </nav>
           <details class="menu mono">
             <summary>Menu</summary>
             <nav aria-label="Main">
               <a href={systemsHref}>Design systems</a>
               <a href="/sketches/">Sketches</a>
-              <a href={linkedin}>LinkedIn</a>
             </nav>
           </details>
           <button class="theme-toggle" type="button" aria-label="Dark mode" aria-pressed="false">
@@ -67,8 +66,8 @@ const systemsHref = current === 'systems' ? '#systems' : '/#systems';
         <slot />
       </main>
       <footer class="site-footer mono">
-        <span>Andrew Berg · Boston</span>
-        <a href={linkedin}>LinkedIn</a>
+        <span>Andrew Berg</span>
+        <span class="links"><a href={linkedin}>LinkedIn</a><a href={github}>GitHub</a></span>
       </footer>
     </div>
     <script>
@@ -193,7 +192,6 @@ const systemsHref = current === 'systems' ? '#systems' : '/#systems';
   .sketches { padding-top: 140px; }
   .sketches-header { display: grid; grid-template-columns: 192px minmax(0, 1fr) 300px; gap: 32px; align-items: end; padding-bottom: 32px; }
   .sketches-header h2 { margin: 0; font-family: var(--display); font-size: 34px; font-weight: 700; letter-spacing: -.025em; line-height: 1.05; }
-  .count { text-align: right; }
   .sketches.first { padding-top: 0; }
   .more { margin: 32px 0 0; text-align: right; }
   .more a:hover { color: var(--accent); }
@@ -209,6 +207,7 @@ const systemsHref = current === 'systems' ? '#systems' : '/#systems';
   .clip iframe { display: block; width: 100%; height: auto; border: 0; border-radius: 10px; background: var(--edge); }
 
   .site-footer { display: flex; justify-content: space-between; gap: 16px; margin-top: 96px; padding-top: 24px; border-top: 1px solid var(--rule); }
+  .site-footer .links { display: flex; gap: 28px; }
 
   @media (max-width: 1100px) {
     .intro, .sketches-header { grid-template-columns: minmax(0, 1fr) 260px; }
@@ -251,7 +250,7 @@ const systemsHref = current === 'systems' ? '#systems' : '/#systems';
 
     .sketches { padding-top: 44px; }
     .sketches-header { display: block; padding-bottom: 14px; }
-    .sketches-header .eyebrow, .count { display: none; }
+    .sketches-header .eyebrow { display: none; }
     .more { margin-top: 20px; }
     .sketches-header h2 { font-family: var(--mono); font-size: 12px; font-weight: 400; letter-spacing: .02em; line-height: 1.5; text-transform: uppercase; color: var(--mute); }
     .sketches-intro { margin-bottom: 20px; font-size: 15px; }

@@ -20,18 +20,16 @@ const all = sketches.map((item, index) => ({ ...item, number: index + 1 })).reve
 
   <section id="browser" class="sketches first" aria-labelledby="browser-heading">
     <div class="sketches-header">
-      <div class="mono eyebrow">In the browser</div>
-      <h2 id="browser-heading"><span class="mono phone-only">In the browser — </span>Browser sketches</h2>
-      <div class="mono count">{sketches.length} sketches</div>
+      <div class="mono eyebrow">Web</div>
+      <h2 id="browser-heading"><span class="mono phone-only">Web — </span>Browser sketches</h2>
     </div>
     <SketchTiles items={all} eager={8} />
   </section>
 
   <section id="videos" class="sketches videos" aria-labelledby="videos-heading">
     <div class="sketches-header">
-      <div class="mono eyebrow">In C++</div>
-      <h2 id="videos-heading"><span class="mono phone-only">In C++ — </span>Recorded sketches</h2>
-      <div class="mono count">{videos.length} videos</div>
+      <div class="mono eyebrow">C++</div>
+      <h2 id="videos-heading"><span class="mono phone-only">C++ — </span>Recorded sketches</h2>
     </div>
     <p class="sketches-intro">Sketches in the same spirit, written in C++ and recorded to video.</p>
     <div class="clips">

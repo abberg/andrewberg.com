@@ -11,7 +11,7 @@ npm install
 npm run dev
 ```
 
-The site runs at http://127.0.0.1:4321. The root dev command builds the sketches before starting Astro. To edit a sketch with automatic JavaScript rebuilds, run `npm run dev --workspace=model_001` (or another package). Refresh its browser page after a rebuild; restart its dev command after editing its HTML.
+The site runs at http://localhost:4321. The root dev command builds the sketches before starting Astro. To edit a sketch with automatic JavaScript rebuilds, run `npm run dev --workspace=model_001` (or another package). Refresh its browser page after a rebuild; restart its dev command after editing its HTML.
 
 ## Build and preview
 
@@ -30,12 +30,16 @@ To save build minutes, `scripts/netlify-ignore.sh` skips deploy previews for Dep
 
 ## Structure
 
-- `apps/site`: Astro homepage and gallery.
-- `packages/model_001` through `model_004`: standalone Three.js sketches restored from the archive.
-- `packages/model_base`: shared rendering and interaction code; excluded from the gallery because it has no sketch metadata.
-- `scripts`: package builds, discovery, static serving, and thumbnail capture.
-
-The old sketches retain Three.js 0.128 while their build tooling has been replaced. They can be modernized independently.
+- `apps/site`: the Astro site, with two pages: `index.astro` (design systems timeline, then the four newest sketches and four picked at random on each visit) and `sketches.astro` (every browser sketch, newest first, plus the recorded C++ sketches).
+  - `src/layouts/Base.astro`: page shell, header, footer, theme toggle, and global styles.
+  - `src/components`: `SketchTiles.astro` for the thumbnail grids, and `heroes/` for the illustrated design system cards on the home page.
+  - `src/data`: `work.json` (timeline entries), `videos.json` (Vimeo clips), and the generated `sketches.json`.
+  - `public/thumbnails`: committed sketch thumbnails. `public/sketches` is generated.
+- `packages/*`: one workspace per browser sketch, each with a `sketch.json` whose `order` sets its number. Most copy plain `src/` files with a small `build.mjs`. `voronoi-particles` bundles with esbuild, `model_001`–`model_004` use `scripts/build-sketch.mjs`, and `bootleg-toys`, `infinite-circus`, `shape-grammar`, and `tw0-bot` use Vite. Each package has its own Three.js or other library versions, from three 0.71 in the A Thousand More sketches to 0.186 in the newest, and can be modernized independently.
+- `packages/model_base`: shared rendering and interaction code for the arch models; excluded from the gallery because it has no sketch metadata.
+- `scripts`: sketch discovery, building, and the static server for dev and capture (`lib.mjs`), the esbuild sketch build (`build-sketch.mjs`), site preparation (`prepare-site.mjs`), thumbnail capture and its pre-commit hook (`thumbnails.mjs`, `thumbnail-hook.mjs`), and the Netlify ignore check (`netlify-ignore.sh`).
+- `.husky/pre-commit`: runs the thumbnail hook.
+- `netlify.toml`: build settings and the `/experiments/*` → `/sketches/*` redirect.
 
 ## Add a sketch
 
@@ -48,7 +52,7 @@ Add `sketch.json`:
   "title": "My sketch",
   "description": "A short description.",
   "category": "Interactive study",
-  "order": 6,
+  "order": 37,
   "thumbnail": {
     "path": "?thumbnail=1",
     "readySelector": "html[data-thumbnail-ready=\"true\"]"
