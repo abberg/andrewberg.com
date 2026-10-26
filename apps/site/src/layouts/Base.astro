@@ -48,14 +48,12 @@ const systemsHref = current === 'systems' ? '#systems' : '/#systems';
           <nav class="nav mono" aria-label="Main">
             <a href={systemsHref} class:list={{ current: current === 'systems' }}>Design systems</a>
             <a href="/sketches/" class:list={{ current: current === 'sketches' }}>Sketches</a>
-            <a href={linkedin}>LinkedIn</a>
           </nav>
           <details class="menu mono">
             <summary>Menu</summary>
             <nav aria-label="Main">
               <a href={systemsHref}>Design systems</a>
               <a href="/sketches/">Sketches</a>
-              <a href={linkedin}>LinkedIn</a>
             </nav>
           </details>
           <button class="theme-toggle" type="button" aria-label="Dark mode" aria-pressed="false">
