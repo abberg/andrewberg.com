@@ -11,7 +11,7 @@ npm install
 npm run dev
 ```
 
-The site runs at http://127.0.0.1:4321. The root dev command builds the sketches before starting Astro. To edit a sketch with automatic JavaScript rebuilds, run `npm run dev --workspace=model_001` (or another package). Refresh its browser page after a rebuild; restart its dev command after editing its HTML.
+The site runs at http://localhost:4321. The root dev command builds the sketches before starting Astro. To edit a sketch with automatic JavaScript rebuilds, run `npm run dev --workspace=model_001` (or another package). Refresh its browser page after a rebuild; restart its dev command after editing its HTML.
 
 ## Build and preview
 
@@ -30,7 +30,7 @@ To save build minutes, `scripts/netlify-ignore.sh` skips deploy previews for Dep
 
 ## Structure
 
-- `apps/site`: the Astro site, with two pages: `index.astro` (design systems timeline and featured sketches) and `sketches.astro` (every browser sketch plus the recorded C++ sketches).
+- `apps/site`: the Astro site, with two pages: `index.astro` (design systems timeline, then the four newest sketches and four picked at random on each visit) and `sketches.astro` (every browser sketch, newest first, plus the recorded C++ sketches).
   - `src/layouts/Base.astro`: page shell, header, footer, theme toggle, and global styles.
   - `src/components`: `SketchTiles.astro` for the thumbnail grids, and `heroes/` for the illustrated design system cards on the home page.
   - `src/data`: `work.json` (timeline entries), `videos.json` (Vimeo clips), and the generated `sketches.json`.
@@ -52,7 +52,7 @@ Add `sketch.json`:
   "title": "My sketch",
   "description": "A short description.",
   "category": "Interactive study",
-  "order": 6,
+  "order": 37,
   "thumbnail": {
     "path": "?thumbnail=1",
     "readySelector": "html[data-thumbnail-ready=\"true\"]"
