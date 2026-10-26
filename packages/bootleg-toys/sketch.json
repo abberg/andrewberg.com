@@ -1,0 +1,10 @@
+{
+  "title": "Bootleg Toys",
+  "description": "An endless belt of bootleg resin robots, each kitbashed from four others. Pick one up to see its kit card.",
+  "category": "3D study",
+  "order": 36,
+  "thumbnail": {
+    "path": "?thumbnail=1",
+    "readySelector": "html[data-thumbnail-ready=\"true\"]"
+  }
+}

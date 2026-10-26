@@ -8,3 +8,10 @@ apps/site/src/data/sketches.json
 output/
 .playwright-cli/
 tmp/
+
+# Bootleg Toys models are local only.
+packages/bootleg-toys/public/models/*
+
+# Claude's local tooling files.
+.claude/
+packages/bootleg-toys/src/harness-deps.js

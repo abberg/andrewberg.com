@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
+  <title>Bootleg Toys — Andrew Berg</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600&family=JetBrains+Mono:wght@400;700&family=Zen+Kaku+Gothic+New:wght@400;700&family=Big+Shoulders+Stencil+Display:wght@900&family=Big+Shoulders+Display:wght@700;800&display=swap">
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #16181c; color: #c9ccd2; font: 12px/1.4 ui-monospace, Menlo, Consolas, monospace; }
+    canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+    #hint { position: fixed; left: 16px; bottom: 16px; opacity: 0.7; pointer-events: none; }
+    #panel { position: fixed; left: 16px; top: 16px; bottom: 48px; width: 220px; display: flex; flex-direction: column; gap: 8px; }
+    #filter { font: inherit; color: inherit; background: #22252b; border: 1px solid #33363d; border-radius: 4px; padding: 6px 8px; }
+    #robots { list-style: none; margin: 0; padding: 0; overflow-y: auto; flex: 1; }
+    #robots li { padding: 2px 8px; border-radius: 3px; cursor: pointer; opacity: 0.7; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #robots li:hover { opacity: 1; background: #22252b; }
+    #robots li.current { opacity: 1; background: #33363d; }
+    /* The belt fills the page on its own; the panel and hint are the viewer's. */
+    [data-mode="kitbash"] #panel, [data-mode="kitbash"] #hint, [data-mode="kitbash"] #parts { display: none; }
+    #parts { position: fixed; right: 16px; top: 16px; max-height: calc(100% - 64px); width: 200px; overflow-y: auto; display: flex; flex-direction: column; }
+    #parts label { display: flex; gap: 6px; align-items: center; padding: 1px 0; cursor: pointer; opacity: 0.7; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #parts label:has(:checked), #parts label:hover { opacity: 1; }
+    #parts input { margin: 0; accent-color: #c9ccd2; }
+    .thumbnail #hint, .thumbnail #panel, .no-robots #panel, .thumbnail #parts, .no-robots #parts { display: none; }
+    /* The held figure's card: a sheet off a kit's spec sheet, on graph paper,
+       over the darkened, blurred belt. The title sits top left and the
+       callouts are staggered, the left pair lower than the right, with the
+       code as a watermark bottom right. The canvas sits over the card,
+       cleared to show it, and the leader lines over that. */
+    canvas { position: fixed; inset: 0; z-index: 2; }
+    #panel, #hint, #parts { z-index: 4; }
+    :root:not(.holding) :is(#blurred, #card, #leaders, #close) { display: none; }
+    :root {
+      --card-w: min(780px, calc(100vw - 56px)); --card-h: min(760px, calc(100vh - 56px));
+      --accent: #2a8bbc; --ink: #17181b; --ink-2: #2b2d31; --ink-title: #3a3c40; --paper: #eeeeec; --keyline: #85868a;
+      --font-ui: "Archivo", "Zen Kaku Gothic New", "Hiragino Kaku Gothic ProN", "Hiragino Sans", sans-serif;
+      --font-mono: "JetBrains Mono", "Zen Kaku Gothic New", "Hiragino Kaku Gothic ProN", Menlo, monospace;
+      --font-display: "Big Shoulders Display", "Zen Kaku Gothic New", sans-serif;
+      --font-stencil: "Big Shoulders Stencil Display", "Arial Narrow", sans-serif;
+    }
+    #blurred { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; filter: brightness(0.42) saturate(0.8); }
+    #card {
+      --window: clamp(84px, 17vh, 140px);
+      position: fixed; z-index: 1; box-sizing: border-box; overflow: hidden;
+      left: calc(50% - var(--card-w) / 2); top: calc(50% - var(--card-h) / 2); width: var(--card-w); height: var(--card-h);
+      color: var(--ink); font-family: var(--font-ui); border-radius: 16px; box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
+      /* Graph paper: crosses at the corners of 96px squares, dotted between. */
+      background:
+        url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2796%27%20height%3D%2796%27%3E%3Cg%20stroke%3D%27rgba%2823%2C24%2C27%2C0.16%29%27%20stroke-width%3D%271.5%27%20fill%3D%27none%27%3E%3Cpath%20d%3D%27M0%20.75H8M88%20.75H96M.75%200V8M.75%2088V96%27%2F%3E%3C%2Fg%3E%3Cpath%20d%3D%27M12%20.75H84M.75%2012V84%27%20stroke%3D%27rgba%2823%2C24%2C27%2C0.12%29%27%20stroke-width%3D%271.5%27%20stroke-dasharray%3D%271.5%205%27%20fill%3D%27none%27%2F%3E%3C%2Fsvg%3E") 40px 24px / 96px 96px,
+        var(--paper);
+    }
+    #card .watermark { position: absolute; right: 24px; bottom: -0.15em; font: 700 calc(var(--card-w) * 0.185) / 1 var(--font-display); color: rgba(23, 24, 27, 0.07); pointer-events: none; white-space: nowrap; }
+    #card header { position: absolute; left: 24px; top: 14px; z-index: 1; display: flex; flex-direction: column; max-width: calc(100% - 48px); }
+    #card .code { font: 400 16px var(--font-mono); letter-spacing: 0.24em; color: var(--ink-title); padding-bottom: 6px; white-space: nowrap; }
+    #card h1 { margin: 0; font: 900 68px var(--font-stencil); letter-spacing: 0.01em; line-height:1; text-transform: uppercase; color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    /* A hazard stripe under the name. */
+    #card header i { min-width: 400px; max-width: 100%; height: 12px; background: repeating-linear-gradient(-45deg, var(--accent) 0 7px, transparent 7px 14px); }
+    #stage { position: absolute; left: 17%; width: 66%; top: 8%; height: 90%; }
+    .callout { position: absolute; z-index: 1; width: 232px; max-width: 30%; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
+    .callout[data-side="right"] { align-items: flex-end; text-align: right; }
+    /* Drawn in close round the figure, which lies over them where they meet. */
+    .callout[data-part="head"] { left: 8%; top: 20%; }
+    .callout[data-part="body"] { left: 5%; top: 56%; }
+    .callout[data-part="arms"] { right: 6%; top: 12%; }
+    .callout[data-part="legs"] { right: 9%; top: 47%; }
+    /* The part's drawing, in a box sized to it; see placeSources. The probe
+       measures --window for it. */
+    #card .probe { position: absolute; visibility: hidden; width: var(--window); }
+    .callout .window { box-sizing: content-box; width: var(--window); height: var(--window); padding: 14px; border: 2px solid var(--keyline); border-radius: 12px; background: rgba(255, 255, 255, 0.86); transition: border-color 0.15s; }
+    .callout .window:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+    .callout.active .window { border-color: var(--accent); }
+    .callout h2 { margin: 0; display: flex; align-items: center; gap: 8px; font: 800 16px/1.1 var(--font-display); letter-spacing: 0.03em; }
+    .callout h2 i { width: 10px; height: 10px; background: var(--accent); flex: none; }
+    .callout p { margin: 0; display: flex; flex-direction: column; gap: 2px; font: 400 12px/1.35 var(--font-mono); }
+    .callout[data-side="right"] p { align-items: flex-end; }
+    .callout p small { font: 400 11px/1.4 var(--font-ui); color: var(--ink-2); }
+    #close {
+      position: fixed; z-index: 4; left: calc(50% + var(--card-w) / 2 - 30px); top: calc(50% - var(--card-h) / 2 - 14px);
+      width: 44px; height: 44px; padding: 0; border-radius: 50%; border: 2px solid #fff; background: var(--ink); cursor: pointer; display: grid; place-items: center;
+    }
+    #close:focus-visible { outline: 3px solid var(--accent, #2a8bbc); outline-offset: 2px; }
+    #close svg { width: 16px; height: 16px; }
+    #leaders { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 3; pointer-events: none; overflow: visible; }
+    #leaders line { stroke: var(--ink); stroke-opacity: 0.75; stroke-width: 2; stroke-dasharray: 2 2; }
+    #leaders rect { fill: var(--ink); }
+    #leaders circle { fill: var(--ink); stroke: #fff; stroke-width: 3; }
+    #leaders .active line { stroke: var(--accent); stroke-opacity: 1; }
+    #leaders .active :is(rect, circle) { fill: var(--accent); }
+    @media (prefers-reduced-motion: reduce) { .callout .window { transition: none; } }
+    /* On a narrow page the card fills it, the figure takes the middle, and the
+       callouts sit level in pairs above and below it. */
+    @media (max-width: 760px) {
+      :root { --card-w: calc(100vw - 20px); --card-h: calc(100vh - 20px); }
+      #card { --window: clamp(64px, 13vh, 110px); border-radius: 14px; }
+      #card header { left: 14px; top: 12px; }
+      #card .code { font-size: 12px; padding-bottom: 4px; }
+      #card h1 { font-size: 30px; }
+      #card header i { width: 240px; height: 9px; margin-top: 7px; }
+      #stage { left: 6%; width: 88%; top: 33%; height: 42%; }
+      .callout { max-width: 46%; gap: 6px; }
+      .callout .window { padding: 8px; border-radius: 10px; }
+      .callout h2 { font-size: 14px; }
+      .callout p { font-size: 10px; }
+      .callout p small { font-size: 10px; }
+      .callout[data-part="head"] { left: 14px; top: 14%; }
+      .callout[data-part="arms"] { right: 14px; top: 14%; }
+      .callout[data-part="body"] { left: 14px; top: auto; bottom: 3%; }
+      .callout[data-part="legs"] { right: 14px; top: auto; bottom: 3%; }
+      #close { left: calc(50% + var(--card-w) / 2 - 52px); top: calc(50% - var(--card-h) / 2 + 10px); }
+    }
+    /* Outline the page while a file is dragged over it. */
+    .dragging body { box-shadow: inset 0 0 0 2px #c9ccd2; }
+  </style>
+</head>
+<body>
+<div id="panel">
+  <input id="filter" type="search" placeholder="Filter robots" aria-label="Filter robots" autocomplete="off">
+  <ul id="robots"></ul>
+</div>
+<div id="parts" aria-label="Parts"></div>
+<div id="hint">↑ ↓ to step through robots · drag to orbit · scroll to zoom · drop a .glb or .gltf to load it</div>
+<canvas id="blurred"></canvas>
+<div id="card" role="dialog" aria-modal="true" aria-labelledby="kit-name">
+  <div class="watermark" aria-hidden="true"></div>
+  <header><span class="code"></span><h1 id="kit-name"></h1><i aria-hidden="true"></i></header>
+  <div id="stage"></div>
+  <i class="probe"></i>
+  <section class="callout" data-part="head" data-side="left"><div class="window" tabindex="0"></div><h2></h2><p></p></section>
+  <section class="callout" data-part="body" data-side="left"><div class="window" tabindex="0"></div><h2></h2><p></p></section>
+  <section class="callout" data-part="arms" data-side="right"><div class="window" tabindex="0"></div><h2></h2><p></p></section>
+  <section class="callout" data-part="legs" data-side="right"><div class="window" tabindex="0"></div><h2></h2><p></p></section>
+</div>
+<svg id="leaders"></svg>
+<button id="close" type="button" aria-label="Put it back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5 L19 19 M19 5 L5 19" stroke="#fff" stroke-width="2.4" stroke-linecap="round" fill="none"/></svg></button>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
