@@ -3,7 +3,8 @@ import Base from '../layouts/Base.astro';
 import SketchTiles from '../components/SketchTiles.astro';
 import sketches from '../data/sketches.json';
 import videos from '../data/videos.json';
-const all = sketches.map((item, index) => ({ ...item, number: index + 1 }));
+// Numbers follow each sketch's `order`, oldest first; the page lists them newest first.
+const all = sketches.map((item, index) => ({ ...item, number: index + 1 })).reverse();
 ---
 <Base
   title="Sketches — Andrew Berg"
