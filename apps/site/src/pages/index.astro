@@ -8,9 +8,13 @@ import { heroes } from '../components/heroes';
 const logos = import.meta.glob('../icons/*.svg', { query: '?raw', import: 'default', eager: true });
 const logo = name => logos[`../icons/${name}.svg`];
 const systems = [...work].reverse();
-// A hand-picked, varied selection for the home page, by sketch number (place in the full list on /sketches/).
-const FEATURED = [6, 12, 13, 19, 22, 25, 30, 33];
-const featured = FEATURED.map(number => ({ ...sketches[number - 1], number }));
+// The home page shows the four latest sketches, then four picked at random from the rest. The build picks
+// a set for visitors without JavaScript; the script after the tiles picks a fresh set on every visit.
+const numbered = sketches.map((item, index) => ({ ...item, number: index + 1 }));
+const latest = numbered.slice(-4).reverse();
+const pool = numbered.slice(0, -4).map(({ title, href, image }) => ({ title, href, image }));
+const pick = items => [...items].sort(() => Math.random() - 0.5).slice(0, 4);
+const featured = [...latest, ...pick(pool)];
 ---
 <Base
   title="Andrew Berg — Design Systems Engineer"
@@ -56,6 +60,16 @@ const featured = FEATURED.map(number => ({ ...sketches[number - 1], number }));
           </div>
           <p class="sketches-intro">Exploring form, motion, and interaction.</p>
           <SketchTiles items={featured} numbered={false} />
+          <script is:inline define:vars={{ pool }}>
+            const tiles = [...document.currentScript.previousElementSibling.querySelectorAll('.tile')].slice(4);
+            const picks = [...pool].sort(() => Math.random() - 0.5);
+            tiles.forEach((tile, index) => {
+              const item = picks[index];
+              tile.href = item.href;
+              tile.setAttribute('aria-label', item.title);
+              tile.querySelector('img').src = item.image;
+            });
+          </script>
           <p class="more"><a class="mono" href="/sketches/">See all</a></p>
         </section>
 </Base>
