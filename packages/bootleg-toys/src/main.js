@@ -15,8 +15,8 @@ import { robotNames, robotSeries, seriesNames } from "./names.js";
 // public/models (kept locally, not published) are listed on the left; pick one, or step through them with
 // the arrow keys. Kitbash mode builds a robot from four others' parts. Drop a
 // .glb (or a self-contained .gltf) on the page to swap it in. ?thumbnail=1
-// holds the camera still and flags the page ready once the first frame is
-// drawn.
+// holds the belt still and flags the page ready once the figures on screen
+// are cast.
 const thumbnailMode = new URLSearchParams(location.search).has("thumbnail");
 if (thumbnailMode) document.documentElement.classList.add("thumbnail");
 
@@ -492,7 +492,7 @@ function buildSoon() {
 // figures on screen. A figure that's been picked up is left to the pick-up
 // below.
 function runBelt(seconds) {
-  if (!held) travelled += speed * Math.min(seconds, 0.1);
+  if (!held && !thumbnailMode) travelled += speed * Math.min(seconds, 0.1);
   for (const slot of belt) {
     const lap = place(slot);
     if (lap !== slot.lap) {
@@ -509,6 +509,10 @@ function runBelt(seconds) {
   }
   buildSoon();
   runPickUp(Math.min(seconds, 0.1));
+  // The thumbnail is a still belt, taken once every figure on screen is cast.
+  if (thumbnailMode && !building.size && belt.every((slot) => slot.holder || fromCentre(slot.position) >= 1.4)) {
+    requestAnimationFrame(() => (document.documentElement.dataset.thumbnailReady = "true"));
+  }
 }
 
 function buildField() {
@@ -1139,8 +1143,10 @@ function openKitbash(hash = "") {
 // at a time: #viewer, or a robot's name, opens it.
 const hash = location.hash.slice(1);
 const start = viewable.find((robot) => robot.id === hash) ?? viewable[0];
-const robotsHere = !thumbnailMode && (humanoids.length || start);
+const robotsHere = humanoids.length || (start && !thumbnailMode);
 if (start && !thumbnailMode && (hash === "viewer" || hash === start.id || !humanoids.length)) loadRobot(start.id);
+// The thumbnail always shows the same belt.
+else if (thumbnailMode && robotsHere) openKitbash("kitbash=36");
 else if (robotsHere) openKitbash(hash.startsWith("kitbash=") ? hash : `kitbash=${Math.floor(Math.random() * 1e9)}`);
 if (!viewable.length) document.documentElement.classList.add("no-robots");
 
