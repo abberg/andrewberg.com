@@ -14,3 +14,6 @@ packages/bootleg-toys/public/models/*
 # Claude's local tooling files.
 .claude/
 packages/bootleg-toys/src/harness-deps.js
+
+# Bumping Heads survey output, local only.
+packages/bumping-heads/survey/

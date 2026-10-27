@@ -1,0 +1,326 @@
+[
+  {
+    "code": "c02_001_00",
+    "name": "Zeta Gundam (Standard)",
+    "series": "Mobile Suit Zeta Gundam",
+    "file": "Mobile Suit Zeta Gundam/Zeta Gundam (Standard)/c02_001_00.glb"
+  },
+  {
+    "code": "c02_002_00",
+    "name": "Hyaku Shiki (Standard)",
+    "series": "Mobile Suit Zeta Gundam",
+    "file": "Mobile Suit Zeta Gundam/Hyaku Shiki (Standard)/c02_002_00.glb"
+  },
+  {
+    "code": "c02_003_00",
+    "name": "Dijeh (Standard)",
+    "series": "Mobile Suit Zeta Gundam",
+    "file": "Mobile Suit Zeta Gundam/Dijeh (Standard)/c02_003_00.glb"
+  },
+  {
+    "code": "c02_100_00",
+    "name": "Hi-Zack (Standard)",
+    "series": "Mobile Suit Zeta Gundam",
+    "file": "Mobile Suit Zeta Gundam/Hi-Zack (Standard)/c02_100_00.glb"
+  },
+  {
+    "code": "c02_102_00",
+    "name": "Marasai (Standard)",
+    "series": "Mobile Suit Zeta Gundam",
+    "file": "Mobile Suit Zeta Gundam/Marasai (Standard)/c02_102_00.glb"
+  },
+  {
+    "code": "c02_181_00",
+    "name": "Rick Dias (Standard)",
+    "series": "Mobile Suit Zeta Gundam",
+    "file": "Mobile Suit Zeta Gundam/Rick Dias (Standard)/c02_181_00.glb"
+  },
+  {
+    "code": "c03_001_00",
+    "name": "Nu Gundam (Standard)",
+    "series": "Mobile Suit Gundam: Char's Counterattack",
+    "file": "Mobile Suit Gundam - Char's Counterattack/Nu Gundam (Standard)/c03_001_00.glb"
+  },
+  {
+    "code": "c03_002_00",
+    "name": "Hi-Nu Gundam (Standard)",
+    "series": "Mobile Suit Gundam: Char's Counterattack",
+    "file": "Mobile Suit Gundam - Char's Counterattack/Hi-Nu Gundam (Standard)/c03_002_00.glb"
+  },
+  {
+    "code": "c05_001_00",
+    "name": "Crossbone Gundam X1 (Standard)",
+    "series": "Mobile Suit Crossbone Gundam",
+    "file": "Mobile Suit Crossbone Gundam/Crossbone Gundam X1 (Standard)/c05_001_00.glb"
+  },
+  {
+    "code": "c05_003_00",
+    "name": "Crossbone Gundam X3 (Standard)",
+    "series": "Mobile Suit Crossbone Gundam",
+    "file": "Mobile Suit Crossbone Gundam/Crossbone Gundam X3 (Standard)/c05_003_00.glb"
+  },
+  {
+    "code": "c05_100_00",
+    "name": "Batara (Standard)",
+    "series": "Mobile Suit Crossbone Gundam",
+    "file": "Mobile Suit Crossbone Gundam/Batara (Standard)/c05_100_00.glb"
+  },
+  {
+    "code": "c05_102_00",
+    "name": "Abijo (Standard)",
+    "series": "Mobile Suit Crossbone Gundam",
+    "file": "Mobile Suit Crossbone Gundam/Abijo (Standard)/c05_102_00.glb"
+  },
+  {
+    "code": "c05_103_00",
+    "name": "Totuga (Standard)",
+    "series": "Mobile Suit Crossbone Gundam",
+    "file": "Mobile Suit Crossbone Gundam/Totuga (Standard)/c05_103_00.glb"
+  },
+  {
+    "code": "c10_001_00",
+    "name": "Strike Freedom Gundam (Standard)",
+    "series": "Mobile Suit Gundam SEED Destiny",
+    "file": "Mobile Suit Gundam SEED Destiny/Strike Freedom Gundam (Standard)/c10_001_00.glb"
+  },
+  {
+    "code": "c10_002_00",
+    "name": "Infinite Justice Gundam (Standard)",
+    "series": "Mobile Suit Gundam SEED Destiny",
+    "file": "Mobile Suit Gundam SEED Destiny/Infinite Justice Gundam (Standard)/c10_002_00.glb"
+  },
+  {
+    "code": "c10_003_00",
+    "name": "Destiny Gundam (Standard)",
+    "series": "Mobile Suit Gundam SEED Destiny",
+    "file": "Mobile Suit Gundam SEED Destiny/Destiny Gundam (Standard)/c10_003_00.glb"
+  },
+  {
+    "code": "c10_100_00",
+    "name": "Dagger L",
+    "series": "Mobile Suit Gundam SEED Destiny",
+    "file": "Mobile Suit Gundam SEED Destiny/Dagger L [provisional]/c10_100_00.glb"
+  },
+  {
+    "code": "c10_103_00",
+    "name": "Windam",
+    "series": "Mobile Suit Gundam SEED Destiny",
+    "file": "Mobile Suit Gundam SEED Destiny/Windam [provisional]/c10_103_00.glb"
+  },
+  {
+    "code": "c15_100_00",
+    "name": "SV-51 (Grunt, Standard)",
+    "series": "Macross Zero",
+    "file": "Macross Zero/SV-51 (Grunt, Standard)/c15_100_00.glb"
+  },
+  {
+    "code": "c19_005_00",
+    "name": "Queadluun-Rea (Standard)",
+    "series": "Macross Frontier",
+    "file": "Macross Frontier/Queadluun-Rea (Standard)/c19_005_00.glb"
+  },
+  {
+    "code": "c19_008_00",
+    "name": "Koenig Monster (Standard)",
+    "series": "Macross Frontier",
+    "file": "Macross Frontier/Koenig Monster (Standard)/c19_008_00.glb"
+  },
+  {
+    "code": "c19_104_00",
+    "name": "VF-27 Lucifer (Standard)",
+    "series": "Macross Frontier",
+    "file": "Macross Frontier/VF-27 Lucifer (Standard)/c19_104_00.glb"
+  },
+  {
+    "code": "c19_105_00",
+    "name": "VF-27 Lucifer (Grunt)",
+    "series": "Macross Frontier",
+    "file": "Macross Frontier/VF-27 Lucifer (Grunt)/c19_105_00.glb"
+  },
+  {
+    "code": "c19_108_00",
+    "name": "Koenig Monster (Fighter Mode)",
+    "series": "Macross Frontier",
+    "file": "Macross Frontier/Koenig Monster (Fighter Mode)/c19_108_00.glb"
+  },
+  {
+    "code": "c19_180_00",
+    "name": "VF-171 Nightmare Plus (Standard)",
+    "series": "Macross Frontier",
+    "file": "Macross Frontier/VF-171 Nightmare Plus (Standard)/c19_180_00.glb"
+  },
+  {
+    "code": "c21_001_00",
+    "name": "Lancelot (Standard)",
+    "series": "Code Geass: Lelouch of the Rebellion",
+    "file": "Code Geass - Lelouch of the Rebellion/Lancelot (Standard)/c21_001_00.glb"
+  },
+  {
+    "code": "c21_006_00",
+    "name": "Guren Mk-II (Standard)",
+    "series": "Code Geass: Lelouch of the Rebellion",
+    "file": "Code Geass - Lelouch of the Rebellion/Guren Mk-II (Standard)/c21_006_00.glb"
+  },
+  {
+    "code": "c21_010_00",
+    "name": "Shinkiro (Standard)",
+    "series": "Code Geass: Lelouch of the Rebellion",
+    "file": "Code Geass - Lelouch of the Rebellion/Shinkiro (Standard)/c21_010_00.glb"
+  },
+  {
+    "code": "c21_011_00",
+    "name": "Gawain (Standard)",
+    "series": "Code Geass: Lelouch of the Rebellion",
+    "file": "Code Geass - Lelouch of the Rebellion/Gawain (Standard)/c21_011_00.glb"
+  },
+  {
+    "code": "c21_021_00",
+    "name": "Akatsuki (Standard)",
+    "series": "Code Geass: Lelouch of the Rebellion",
+    "file": "Code Geass - Lelouch of the Rebellion/Akatsuki (Standard)/c21_021_00.glb"
+  },
+  {
+    "code": "c21_100_00",
+    "name": "Sutherland (Standard)",
+    "series": "Code Geass: Lelouch of the Rebellion",
+    "file": "Code Geass - Lelouch of the Rebellion/Sutherland (Standard)/c21_100_00.glb"
+  },
+  {
+    "code": "c21_107_00",
+    "name": "Mordred (Standard)",
+    "series": "Code Geass: Lelouch of the Rebellion",
+    "file": "Code Geass - Lelouch of the Rebellion/Mordred (Standard)/c21_107_00.glb"
+  },
+  {
+    "code": "c21_109_00",
+    "name": "Percival (Standard)",
+    "series": "Code Geass: Lelouch of the Rebellion",
+    "file": "Code Geass - Lelouch of the Rebellion/Percival (Standard)/c21_109_00.glb"
+  },
+  {
+    "code": "c25_001_00",
+    "name": "ARX-7 Arbalest (Standard)",
+    "series": "Full Metal Panic!",
+    "file": "Full Metal Panic!/ARX-7 Arbalest (Standard)/c25_001_00.glb"
+  },
+  {
+    "code": "c25_002_03",
+    "name": "M9 Gernsback (Melissa)",
+    "series": "Full Metal Panic!",
+    "file": "Full Metal Panic!/M9 Gernsback (Melissa)/c25_002_03.glb"
+  },
+  {
+    "code": "c25_101_00",
+    "name": "Savage (Standard)",
+    "series": "Full Metal Panic!",
+    "file": "Full Metal Panic!/Savage (Standard)/c25_101_00.glb"
+  },
+  {
+    "code": "c26_102_00",
+    "name": "Mex Brute (Standard)",
+    "series": "Overman King Gainer",
+    "file": "Overman King Gainer/Mex Brute (Standard)/c26_102_00.glb"
+  },
+  {
+    "code": "c26_104_00",
+    "name": "Power Golem (Standard)",
+    "series": "Overman King Gainer",
+    "file": "Overman King Gainer/Power Golem (Standard)/c26_104_00.glb"
+  },
+  {
+    "code": "c27_003_00",
+    "name": "Nikick (Standard)",
+    "series": "Super Dimension Century Orguss",
+    "file": "Super Dimension Century Orguss/Nikick (Standard)/c27_003_00.glb"
+  },
+  {
+    "code": "c32_001_00",
+    "name": "Solar Aquarion (Standard)",
+    "series": "Genesis of Aquarion",
+    "file": "Genesis of Aquarion/Solar Aquarion (Standard)/c32_001_00.glb"
+  },
+  {
+    "code": "c32_104_00",
+    "name": "Cherubim Iskyuron (Standard)",
+    "series": "Genesis of Aquarion",
+    "file": "Genesis of Aquarion/Cherubim Iskyuron (Standard)/c32_104_00.glb"
+  },
+  {
+    "code": "c32_105_00",
+    "name": "Cherubim Shururukubera (Standard)",
+    "series": "Genesis of Aquarion",
+    "file": "Genesis of Aquarion/Cherubim Shururukubera (Standard)/c32_105_00.glb"
+  },
+  {
+    "code": "c32_106_00",
+    "name": "Cherubim Verruzeba (Standard)",
+    "series": "Genesis of Aquarion",
+    "file": "Genesis of Aquarion/Cherubim Verruzeba (Standard)/c32_106_00.glb"
+  },
+  {
+    "code": "c90_001_00",
+    "name": "Al Fato",
+    "series": "ACE Original",
+    "file": "ACE Original/Al Fato/c90_001_00.glb"
+  },
+  {
+    "code": "c90_100_00",
+    "name": "Spring: Core Mech",
+    "series": "ACE Original",
+    "file": "ACE Original/Spring - Core Mech/c90_100_00.glb"
+  },
+  {
+    "code": "c90_101_00",
+    "name": "Summer: Core Mech",
+    "series": "ACE Original",
+    "file": "ACE Original/Summer - Core Mech/c90_101_00.glb"
+  },
+  {
+    "code": "c90_102_00",
+    "name": "Autumn: Core Mech",
+    "series": "ACE Original",
+    "file": "ACE Original/Autumn - Core Mech/c90_102_00.glb"
+  },
+  {
+    "code": "c90_103_00",
+    "name": "Winter: Core Mech",
+    "series": "ACE Original",
+    "file": "ACE Original/Winter - Core Mech/c90_103_00.glb"
+  },
+  {
+    "code": "c90_125_00",
+    "name": "Spring: Grunt Leader",
+    "series": "ACE Original",
+    "file": "ACE Original/Spring - Grunt Leader/c90_125_00.glb"
+  },
+  {
+    "code": "c90_144_00",
+    "name": "Autumn: 05",
+    "series": "ACE Original",
+    "file": "ACE Original/Autumn - 05/c90_144_00.glb"
+  },
+  {
+    "code": "c91_001_00",
+    "name": "Cybuster (Standard)",
+    "series": "Super Robot Wars OG",
+    "file": "Super Robot Wars OG/Cybuster (Standard)/c91_001_00.glb"
+  },
+  {
+    "code": "c91_002_00",
+    "name": "Alteisen Riese (Standard)",
+    "series": "Super Robot Wars OG",
+    "file": "Super Robot Wars OG/Alteisen Riese (Standard)/c91_002_00.glb"
+  },
+  {
+    "code": "c91_003_00",
+    "name": "ART-1 (Standard)",
+    "series": "Super Robot Wars OG",
+    "file": "Super Robot Wars OG/ART-1 (Standard)/c91_003_00.glb"
+  },
+  {
+    "code": "c92_001_00",
+    "name": "Nineball Seraph (Standard)",
+    "series": "Armored Core",
+    "file": "Armored Core/Nineball Seraph (Standard)/c92_001_00.glb"
+  }
+]

@@ -1,0 +1,10 @@
+{
+  "title": "Bumping Heads",
+  "description": "Fifty mecha helmets from Another Century's Episode R, pulled together into a cloud. Move the pointer through it to knock them about.",
+  "category": "3D study",
+  "order": 38,
+  "thumbnail": {
+    "path": "?thumbnail=1",
+    "readySelector": "html[data-thumbnail-ready=\"true\"]"
+  }
+}
