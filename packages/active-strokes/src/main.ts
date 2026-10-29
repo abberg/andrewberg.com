@@ -18,6 +18,7 @@ import { createMotion, motionParams } from './render/motion';
 // browser that lands here, since its WebGPU is still off by default.
 if (!navigator.gpu || !(await navigator.gpu.requestAdapter())) {
   document.getElementById('unsupported')!.dataset.show = '';
+  document.getElementById('loading')!.hidden = true;
   throw new Error('WebGPU unavailable');
 }
 
@@ -38,7 +39,13 @@ scene.add(sun);
 
 // The Behemoth from Full Metal Panic!, walking on the spot and now and then
 // swiping (scripts/extract-model.mjs, render/motion.ts).
-const gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync('./behemoth.glb');
+// The loading bar (index.html) follows the model, which is most of the download.
+const loading = document.getElementById('loading')!;
+const progressBar = loading.querySelector<HTMLElement>('.bar span')!;
+const gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync('./behemoth.glb', event => {
+  if (event.total) progressBar.style.width = `${Math.round(event.loaded / event.total * 100)}%`;
+});
+progressBar.style.width = '100%';
 const model = gltf.scene;
 scene.add(model);
 const motion = createMotion(model, gltf.animations);
@@ -170,6 +177,12 @@ renderer.setAnimationLoop(time => {
   }
   // Draw the shading of the frame the strokes came from, so they stay in step.
   if (lastStrokes) toon.show(lastStrokes.frame);
+  // Shaders compile and the snakes get going over the first frames; the
+  // drawing fades in once there are strokes to show.
+  if (lastStrokes && !document.body.dataset.ready) {
+    document.body.dataset.ready = '';
+    loading.dataset.done = '';
+  }
   pipeline.render();
   toon.capture(compaction.nextFrame);
   compaction.update();

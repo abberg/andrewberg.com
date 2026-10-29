@@ -12,6 +12,14 @@
     #unsupported { display: none; position: fixed; inset: 0; place-items: center; padding: 16px;
       font: 16px/1.5 system-ui, sans-serif; color: #2b2b2b; text-align: center; }
     #unsupported[data-show] { display: grid; }
+    /* Shown from the first byte until the first strokes are drawn. */
+    #loading { position: fixed; inset: 0; display: grid; place-content: center; justify-items: center; gap: 10px;
+      font: 14px/1.5 system-ui, sans-serif; color: #5c5850; pointer-events: none; transition: opacity 0.4s; }
+    #loading[data-done] { opacity: 0; }
+    #loading .bar { width: 160px; height: 2px; background: #d8d3c7; overflow: hidden; }
+    #loading .bar span { display: block; height: 100%; width: 0; background: #2b2b2b; transition: width 0.2s; }
+    canvas { transition: opacity 0.4s; }
+    body:not([data-ready]) canvas { opacity: 0; }
     /* What this is, folded away bottom left (the settings panel is top right). */
     #info { position: fixed; left: 16px; bottom: 16px; max-width: min(360px, calc(100vw - 32px));
       font: 14px/1.5 system-ui, sans-serif; color: #2b2b2b; }
@@ -29,6 +37,7 @@
   </style>
 </head>
 <body>
+<div id="loading" role="status"><span>Loading</span><div class="bar"><span></span></div></div>
 <details id="info">
   <summary aria-label="About this sketch">i</summary>
   <div class="card">
