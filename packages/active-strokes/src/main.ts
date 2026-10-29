@@ -149,13 +149,13 @@ addEventListener('resize', () => {
 
 // ?thumbnail=1 (scripts/thumbnails.mjs at the root) leaves out the panel and
 // the info box and the swipe, and flags the page ready once the strokes have
-// settled in.
+// had a few seconds to settle in (counted from the first strokes, below: in
+// the capture's software renderer the first frames come slowly).
 const thumbnail = new URLSearchParams(location.search).has('thumbnail');
 if (thumbnail) {
   motionParams.swipeEvery = 0;
   panel.gui.hide();
   document.getElementById('info')!.hidden = true;
-  setTimeout(() => { document.documentElement.dataset.thumbnailReady = 'true'; }, 4000);
 }
 
 let lastStrokes: typeof snakes.latest = null;
@@ -182,6 +182,7 @@ renderer.setAnimationLoop(time => {
   if (lastStrokes && !document.body.dataset.ready) {
     document.body.dataset.ready = '';
     loading.dataset.done = '';
+    if (thumbnail) setTimeout(() => { document.documentElement.dataset.thumbnailReady = 'true'; }, 3000);
   }
   pipeline.render();
   toon.capture(compaction.nextFrame);
