@@ -17,3 +17,6 @@ packages/bootleg-toys/src/harness-deps.js
 
 # Bumping Heads survey output, local only.
 packages/bumping-heads/survey/
+
+# Reference paper for Active Strokes, local only.
+packages/active-strokes/*.pdf
