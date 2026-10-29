@@ -8,7 +8,7 @@ export async function generateThumbnails(items) {
   const server = await serve(sitePublic);
   let browser;
   try {
-    browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+    browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--enable-unsafe-webgpu'] });
     for (const item of items) {
       const page = await browser.newPage({ viewport: { width: 960, height: 720 }, deviceScaleFactor: 1, reducedMotion: 'reduce' });
       const errors = [];

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
+  <title>Active Strokes — Andrew Berg</title>
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #f4f1ea; }
+    canvas { display: block; touch-action: none; }
+    canvas[hidden] { display: none; }
+    #unsupported { display: none; position: fixed; inset: 0; place-items: center; padding: 16px;
+      font: 16px/1.5 system-ui, sans-serif; color: #2b2b2b; text-align: center; }
+    #unsupported[data-show] { display: grid; }
+    /* What this is, folded away bottom left (the settings panel is top right). */
+    #info { position: fixed; left: 16px; bottom: 16px; max-width: min(360px, calc(100vw - 32px));
+      font: 14px/1.5 system-ui, sans-serif; color: #2b2b2b; }
+    #info summary { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px;
+      border-radius: 50%; background: #2b2b2b; color: #f4f1ea; font: italic 600 17px/1 Georgia, serif;
+      cursor: pointer; list-style: none; user-select: none; }
+    #info summary::-webkit-details-marker { display: none; }
+    #info summary:focus-visible { outline: 2px solid #2b2b2b; outline-offset: 3px; }
+    #info[open] summary { margin-bottom: 8px; }
+    #info .card { background: rgba(250, 248, 243, 0.94); border: 1px solid #d8d3c7; border-radius: 8px; padding: 14px 16px; }
+    #info h1 { margin: 0 0 6px; font-size: 15px; }
+    #info p { margin: 0 0 8px; }
+    #info p:last-child { margin: 0; color: #5c5850; font-size: 13px; }
+    #info a { color: inherit; }
+  </style>
+</head>
+<body>
+<details id="info">
+  <summary aria-label="About this sketch">i</summary>
+  <div class="card">
+    <h1>Active Strokes</h1>
+    <p>A real-time take on <a href="https://pixl.cs.princeton.edu/pubs/Benard_2012_ASC/index.php">Active Strokes: Coherent Line Stylization for Animated 3D Models</a> (Bénard, Lu, Cole, Finkelstein and Thollot, NPAR 2012). Lines are found in each rendered frame, then tracked from frame to frame by active contours (snakes), so hand-drawn strokes can follow them coherently as the model moves.</p>
+    <p>Full Metal Panic Behemoth model and animations from Another Century's Episode R.</p>
+    <p>Runs on WebGPU. The settings panel is top right; H hides it, W swipes, Space pauses.</p>
+  </div>
+</details>
+<div id="unsupported"><p>This sketch needs WebGPU, which this browser doesn't have turned on.<br>Try a recent Chrome, Edge or Safari.</p></div>
+<script type="module" src="./src/main.ts"></script>
+</body>
+</html>

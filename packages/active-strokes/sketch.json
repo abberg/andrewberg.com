@@ -1,0 +1,10 @@
+{
+  "title": "Active Strokes",
+  "description": "A WebGPU take on Bénard et al.'s Active Strokes: lines found in each frame are tracked by snakes and drawn as sketchy strokes over toon shading, on a walking, swiping Behemoth.",
+  "category": "NPR Rendering",
+  "order": 39,
+  "thumbnail": {
+    "path": "?thumbnail=1",
+    "readySelector": "html[data-thumbnail-ready=\"true\"]"
+  }
+}
