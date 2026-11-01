@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
+  <title>Outlines — Andrew Berg</title>
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #d9d9d9; }
+    canvas { display: block; touch-action: none; transition: opacity 0.4s; }
+    body:not([data-ready]) canvas { opacity: 0; }
+    /* Shown from the first byte until the first frame is drawn. */
+    #loading { position: fixed; inset: 0; display: grid; place-content: center; justify-items: center; gap: 10px;
+      font: 14px/1.5 system-ui, sans-serif; color: #5c5c5c; pointer-events: none; transition: opacity 0.4s; }
+    #loading[data-done] { opacity: 0; }
+    #loading .bar { width: 160px; height: 2px; background: #bdbdbd; overflow: hidden; }
+    #loading .bar span { display: block; height: 100%; width: 0; background: #1f1f1f; transition: width 0.2s; }
+    /* The thumbnail capture shows the drawing alone. */
+    body[data-thumbnail] .lil-gui, body[data-thumbnail] button, body[data-thumbnail] #info { display: none !important; }
+    /* What this is, folded away bottom left. */
+    #info { position: fixed; left: 8px; bottom: 8px; z-index: 2000; max-width: min(380px, calc(100vw - 32px));
+      font: 14px/1.5 system-ui, sans-serif; color: #2b2b2b; }
+    #info summary { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px;
+      border-radius: 50%; background: #1f1f1f; color: #eee; font: italic 600 17px/1 Georgia, serif;
+      cursor: pointer; list-style: none; user-select: none; }
+    #info summary::-webkit-details-marker { display: none; }
+    #info summary:focus-visible { outline: 2px solid #1f1f1f; outline-offset: 3px; }
+    /* The card opens upwards, above the button. */
+    #info .card { position: absolute; left: 0; bottom: 40px; width: min(380px, calc(100vw - 32px)); box-sizing: border-box;
+      max-height: calc(100vh - 64px); overflow-y: auto; background: rgba(245, 245, 243, 0.96);
+      border: 1px solid #bdbdbd; border-radius: 8px; padding: 14px 16px; }
+    #info h1 { margin: 0 0 6px; font-size: 15px; }
+    #info h2 { margin: 10px 0 2px; font-size: 13px; }
+    #info p { margin: 0 0 8px; }
+    #info .credits { color: #5c5c5c; font-size: 13px; }
+    #info .credits p:last-child { margin: 0; }
+    #info a { color: inherit; }
+  </style>
+</head>
+<body>
+<div id="loading" role="status"><span>Loading</span><div class="bar"><span></span></div></div>
+<details id="info">
+  <summary aria-label="About this sketch">i</summary>
+  <div class="card">
+    <h1>Three ways of drawing sketchy outlines</h1>
+    <h2>Inverted hull</h2>
+    <p>A copy of the model pushed out along its normals and drawn black from behind, so it shows as a rim. One ring per line, each nudged its own way. Cheap and steady, but only silhouettes and overlaps.</p>
+    <h2>Screen-space edges</h2>
+    <p>The model's normals, depth and parts are rendered to a buffer, and ink goes wherever neighbouring pixels disagree. That catches the creases inside panels too. Edges are extended along their own direction for overshoot, and the wander is seeded from the model's surface so the lines don't slide over it.</p>
+    <h2>Contour strokes</h2>
+    <p>Silhouette and crease edges are found on the mesh every frame, chained into curves and drawn as overlapping strokes that run past their ends, with what's hidden decided against a depth buffer.</p>
+    <div class="credits">
+      <p>Batara (Mobile Suit Crossbone Gundam) model and reaction animations from Another Century's Episode R. Walk cycle: "Mutant Walking" from <a href="https://www.mixamo.com/">Mixamo</a>, retargeted with three.js's SkeletonUtils.</p>
+    </div>
+  </div>
+</details>
+<script type="module" src="./src/main.ts"></script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+{
+  "title": "Outlines",
+  "description": "Three ways of drawing sketchy outlines side by side on a walking Batara from Another Century's Episode R: an inverted hull, screen-space edges and contour strokes, over halftone toon shading.",
+  "category": "NPR Rendering",
+  "order": 40,
+  "thumbnail": {
+    "path": "?thumbnail=1",
+    "readySelector": "html[data-thumbnail-ready=\"true\"]"
+  }
+}
