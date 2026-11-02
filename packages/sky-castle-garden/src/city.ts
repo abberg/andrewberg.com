@@ -91,7 +91,7 @@ export function buildCity(world: RAPIER.World, scene: THREE.Scene) {
   const c = 1.6, R = ARCH.half + c, rise = Math.sqrt(R * R - c * c), spring = archTop - rise;
   const archAt = (x: number, grow = 0) => Math.abs(x) < ARCH.half + grow ? spring + Math.sqrt((R + grow) ** 2 - (Math.abs(x) + c) ** 2) : -Infinity;
   // The great tower in the middle of the front, the arch at its foot.
-  const GATE = { r: 17, z: ARCH.front + 17, tall: 56 };
+  const GATE = { r: 17, z: ARCH.front + 17 };
 
   // Windows, as one instanced quad each, set into the face where it is at
   // their height and tilted with it.
@@ -126,14 +126,38 @@ export function buildCity(world: RAPIER.World, scene: THREE.Scene) {
       (i, r, y) => new THREE.Vector3(cx + Math.sin(angles[i]) * r, y, cz - Math.cos(angles[i]) * r), metres, skip);
   };
   // Radius out instead of in.
-  const bulging = (r: number, y0: number, y1: number, lean: number) => drum(-r, y0, y1, lean).map(([out, y]) => [-out, y]);
+  const bulging = (r: number, y0: number, y1: number, lean: number, steps = 14) => drum(-r, y0, y1, lean, steps).map(([out, y]) => [-out, y]);
+  // A tower in tiers, as in the reference: each tier a drum rounding over at
+  // the top, then a band of rust tiles back up to the narrower tier above,
+  // and a dome over the last. Tiers as [radius, top, lean]. Gives the
+  // sections, for the moss and ivy.
+  const tiered = (cx: number, cz: number, tiers: number[][], domeRise: number,
+    { windowsFrom = 6, footSteps = 14, footSegments = 72, skip }: { windowsFrom?: number, footSteps?: number, footSegments?: number, skip?: (x: number, y: number, z: number) => boolean } = {}) => {
+    const bodies: number[][][] = [], roofs: number[][][] = [];
+    let y0 = -0.3;
+    tiers.forEach(([r, top, lean], i) => {
+      const body = bulging(r, y0, top, lean, i ? 14 : footSteps), [rTop] = body[body.length - 1];
+      bodies.push(body);
+      add(round(cx, cz, body, textures.city.metres, i ? 72 : footSegments, i ? undefined : skip), city);
+      const floors: number[][] = [];
+      for (let y = i ? y0 + 4 : windowsFrom; y < top - 2.5; y += 4.3) floors.push([y, 3.6, y < 18 ? 0.3 : 0.7]);
+      ringOfWindows(cx, cz, [r, y0, top, lean], floors);
+      const cap = i < tiers.length - 1 ? roof(rTop, top, tiers[i + 1][0], top + 4)
+        : Array.from({ length: 10 }, (_, k) => { const u = k / 9 * Math.PI / 2; return [(rTop + 0.4) * Math.cos(u) + 0.01, top - 0.3 + domeRise * Math.sin(u)]; });
+      roofs.push(cap);
+      add(round(cx, cz, cap, textures.tiles.metres, 72), tiles);
+      y0 = top + 4;
+    });
+    return { bodies, roofs };
+  };
 
-  // The bastion, west of the arch, in three tiers under a rust dome.
+  // The bastion, west of the arch, in two tiers under a rust dome.
   // Its foot is an arcade (below), as in the reference, round the arc of
   // it that stands clear of the wall behind.
   // Pushed forward into the moat, to just behind the lawn's edge, so it
   // bulges well out of the wall as in the reference.
   const B = { x: -24, z: 62, r: 14.5 };
+  const BASTION = [[B.r, 20, 2], [10.8, 41, 1.4]];
   const foot = bulging(B.r, -0.3, 20, 2);
   let reach = 0;
   while (reach < Math.PI / 2 && [-1, 1].every(side => {
@@ -141,16 +165,10 @@ export function buildCity(world: RAPIER.World, scene: THREE.Scene) {
     return z < cityFront(x) - 0.5;
   })) reach += 0.01;
   const ARCADE = { reach, top: foot.find(([, y]) => y >= 6.8)![1] };
-  add(round(B.x, B.z, foot, textures.city.metres, 72, (x, y, z) =>
-    z < B.z && Math.abs(Math.asin(THREE.MathUtils.clamp((x - B.x) / B.r, -1, 1))) < ARCADE.reach && y < ARCADE.top), city);
-  add(round(B.x, B.z, roof(12.5, 20, 10.5, 24.5), textures.tiles.metres), tiles);
-  add(round(B.x, B.z, bulging(10.5, 24.5, 38, 1.5), textures.city.metres), city);
-  add(round(B.x, B.z, roof(9, 38, 7, 42), textures.tiles.metres), tiles);
-  add(round(B.x, B.z, bulging(7, 42, 47, 0.6), textures.city.metres), city);
-  add(round(B.x, B.z, Array.from({ length: 9 }, (_, i) => { const a = i / 8 * Math.PI / 2; return [6.6 * Math.cos(a) + 0.01, 47 + 5 * Math.sin(a)]; }), textures.tiles.metres), tiles);
-  ringOfWindows(B.x, B.z, [14.5, -0.3, 20, 2], [[14.5, 7.5, 0.8]]);
-  ringOfWindows(B.x, B.z, [10.5, 24.5, 38, 1.5], [[28, 6.5, 0.85], [33.5, 6.5, 0.85]]);
-  ringOfWindows(B.x, B.z, [7, 42, 47, 0.6], [[44, 4, 0.9]]);
+  const bastion = tiered(B.x, B.z, BASTION, 7, {
+    windowsFrom: 14.5,
+    skip: (x, y, z) => z < B.z && Math.abs(Math.asin(THREE.MathUtils.clamp((x - B.x) / B.r, -1, 1))) < ARCADE.reach && y < ARCADE.top,
+  });
   world.createCollider(RAPIER.ColliderDesc.cylinder(11.5, 14.5).setTranslation(B.x, 11.2, B.z));
 
   // The castle, as in the far view: big round white towers rising straight
@@ -164,15 +182,13 @@ export function buildCity(world: RAPIER.World, scene: THREE.Scene) {
     // Rows as [depth behind the front, and each tower's x, radius, height,
     // and whether it has a narrower stage on top], mirrored either side.
     const rows: [number, [number, number, number, boolean?][]][] = [
-      [0, [[24, 14.5, 44], [47, 12.5, 36], [69, 12, 30], [90, 11.5, 25]]],
-      [22, [[13, 12, 58, true], [36, 12, 50], [58, 11.5, 42], [79, 11, 34]]],
-      [44, [[0, 13, 72, true], [25, 12.5, 66], [49, 12, 56, true], [70, 11, 46]]],
-      [66, [[13, 12, 80], [37, 11.5, 70], [58, 11, 58]]],
-      [88, [[0, 12, 84, true], [25, 11, 76]]],
+      [0, [[44, 10, 40], [62, 13.5, 27], [84, 11, 35, true]]],
+      [22, [[14, 8.5, 70, true], [33, 13.5, 47], [54, 9, 56], [75, 12.5, 31]]],
+      [44, [[0, 11, 80, true], [24, 14.5, 60], [46, 8.5, 72, true], [66, 13, 43]]],
+      [66, [[12, 10, 92], [35, 15, 64], [57, 9.5, 76, true]]],
+      [88, [[0, 15.5, 84, true], [26, 9, 98]]],
     ];
     for (const [depth, row] of rows) for (const [x0, r, tall, stage] of row) for (const x of x0 ? [-x0, x0] : [0]) {
-      // The bastion stands west of the arch already.
-      if (!depth && x === -24) continue;
       const inward = new THREE.Vector3(-2 * x / 292, 0, 1).normalize();
       const at = new THREE.Vector3(x, 0, cityFront(x)).addScaledVector(inward, depth + r);
       const body = bulging(r, -0.3, tall, 0.8), [r0] = body[0], [r1, t1] = body[body.length - 1];
@@ -196,21 +212,23 @@ export function buildCity(world: RAPIER.World, scene: THREE.Scene) {
   }
 
   // The great tower: the biggest drum of all, standing forward in the
-  // middle of the front with the arch cut into its foot, finer-built than
-  // the others so the opening is cut cleanly.
-  const gate = drum(-GATE.r, -0.3, GATE.tall, 1.2, 60).map(([out, y]) => [-out, y]);
-  const gateDome = Array.from({ length: 10 }, (_, k) => { const u = k / 9 * Math.PI / 2; return [(gate[gate.length - 1][0] + 0.5) * Math.cos(u) + 0.01, GATE.tall - 0.3 + 11 * Math.sin(u)]; });
-  {
-    add(round(0, GATE.z, gate, textures.city.metres, 200, (x, y, z) => z < GATE.z && y < archAt(x, 0.6)), city);
-    add(round(0, GATE.z, gateDome, textures.tiles.metres, 64), tiles);
-    const rows: number[][] = [];
-    for (let y = archTop + 6; y < GATE.tall - 3; y += 4.3) rows.push([y, 3.6, y < 26 ? 0.3 : 0.75]);
-    ringOfWindows(0, GATE.z, [GATE.r, -0.3, GATE.tall, 1.2], rows);
-    // Solid either side of the passage.
-    for (const side of [-1, 1]) solid(side * (ARCH.half + GATE.r) / 2, 15, GATE.z, (GATE.r - ARCH.half) / 2, 15.3, GATE.r * 0.85);
-    solid(0, (archTop + 30) / 2, GATE.z, ARCH.half, (30 - archTop) / 2, GATE.r * 0.85);
-    towers.push({ x: 0, z: GATE.z, r: GATE.r, depth: 0, body: gate, dome: gateDome });
-  }
+  // middle of the front with the arch cut into its foot, in three tiers.
+  // Its foot is finer-built than the others so the opening is cut cleanly.
+  const gate = tiered(0, GATE.z, [[GATE.r, 24, 1.5], [13.8, 45, 1.4], [10.6, 63, 1]], 10, {
+    windowsFrom: archTop + 6, footSteps: 30, footSegments: 200,
+    skip: (x, y, z) => z < GATE.z && y < archAt(x, 0.6),
+  });
+  // Solid either side of the passage.
+  for (const side of [-1, 1]) solid(side * (ARCH.half + GATE.r) / 2, 15, GATE.z, (GATE.r - ARCH.half) / 2, 15.3, GATE.r * 0.85);
+  solid(0, (archTop + 30) / 2, GATE.z, ARCH.half, (30 - archTop) / 2, GATE.r * 0.85);
+
+  // The bastion's twin east of the arch, in two tiers that break higher.
+  const T = { r: 14.5, ...(() => {
+    const inward = new THREE.Vector3(-2 * 24 / 292, 0, 1).normalize();
+    return { x: 24 + inward.x * 14.5, z: cityFront(24) + inward.z * 14.5 };
+  })() };
+  const twin = tiered(T.x, T.z, [[T.r, 30, 1.8], [10.2, 52, 1.2]], 8);
+  world.createCollider(RAPIER.ColliderDesc.cylinder(15, T.r).setTranslation(T.x, 14.7, T.z));
 
   const glass = new THREE.InstancedMesh(new THREE.PlaneGeometry(WINDOW.width, WINDOW.height),
     painted(palette.stone, { map: windowTexture(), alphaTest: 0.5 }), windows.length);
@@ -330,27 +348,39 @@ export function buildCity(world: RAPIER.World, scene: THREE.Scene) {
       (i, d) => 0.12 + 0.2 * Math.max(0, clumps(at[i] * 1.3 + d * 0.5)) + (full(at[i]) > 0 ? 0.2 : 0), floor ? i => floor(at[i]) : undefined));
   };
 
+  // Round the garden side of a tower: a ring of columns at the angles given.
+  // Sections are by radius, so out is taken as the radius turned inside out.
+  const arc = (cx: number, cz: number, angles: number[]) =>
+    angles.map(a => (out: number, y: number) => new THREE.Vector3(cx + Math.sin(a) * -out, y, cz - Math.cos(a) * -out));
+  // The upper bands of a tiered tower, from the given tier up.
+  const upperBands = (cx: number, cz: number, r: number, { bodies, roofs }: { bodies: number[][][], roofs: number[][][] }, from: number) => {
+    const angles = Array.from({ length: 61 }, (_, i) => -1.6 + i * 3.2 / 60), along = angles.map(a => (a + 1.6) * r);
+    for (let i = from; i < roofs.length; i++)
+      band(arc(cx, cz, angles), along, along.map(d => d + cx * 3 + i * 40), inside(roofs[i]), inside(bodies[i]), { moss: i === roofs.length - 1 ? 0.4 : 0.9, ivyReach: 7 });
+  };
   // Down the great tower's front, the ivy comes right down round the arch,
   // raggedly, short of the opening itself.
   {
     const angles = Array.from({ length: 121 }, (_, i) => -1.5 + i * 3 / 120);
-    const ring = angles.map(a => (out: number, y: number) => new THREE.Vector3(Math.sin(a) * -out, y, GATE.z - Math.cos(a) * -out));
+    const ring = arc(0, GATE.z, angles);
     const across = angles.map(a => Math.sin(a) * GATE.r), archIvy = wander(99, 2.5);
-    band(ring, angles.map(a => (a + 1.5) * GATE.r), across, inside(gateDome), inside(gate), {
-      moss: 0.6,
+    band(ring, angles.map(a => (a + 1.5) * GATE.r), across, inside(gate.roofs[0]), inside(gate.bodies[0]), {
+      moss: 0.9,
       ivyReach: 9,
       // A rounded mass, to the ground beside the arch.
-      full: x => (GATE.tall + 2) * (1 - THREE.MathUtils.smoothstep(Math.abs(x) + 3 * archIvy(x), 6, 13)) ** 1.5,
+      full: x => 28 * (1 - THREE.MathUtils.smoothstep(Math.abs(x) + 3 * archIvy(x), 6, 13)) ** 1.5,
       // Over the opening it stops a hand's width outside the arch's lining,
       // so a ring of stone shows round it, and it comes down beside it.
       floor: x => archAt(x, w + 0.8),
     });
+    upperBands(0, GATE.z, GATE.r, gate, 1);
   }
+  upperBands(T.x, T.z, T.r, twin, 0);
   // Moss on the near towers' domes and ivy hanging from under them, round
   // the side that faces the garden. Sections are by radius, so out is taken
   // as the radius turned inside out.
   for (const { x, z, r, depth, body, dome } of towers) {
-    if (depth > 12 || (!x && z === GATE.z)) continue;
+    if (depth > 12) continue;
     const angles = Array.from({ length: 41 }, (_, i) => -1.6 + i * 3.2 / 40);
     const ring = angles.map(a => (out: number, y: number) => new THREE.Vector3(x + Math.sin(a) * -out, y, z - Math.cos(a) * -out));
     const arcAlong = angles.map(a => (a + 1.6) * r);
@@ -363,11 +393,11 @@ export function buildCity(world: RAPIER.World, scene: THREE.Scene) {
     const angles = Array.from({ length: 121 }, (_, i) => -1.7 + i * 3.4 / 120);
     const ring = angles.map(a => (out: number, y: number) => new THREE.Vector3(B.x + Math.sin(a) * -out, y, B.z - Math.cos(a) * -out));
     const arcAlong = angles.map(a => (a + 1.7) * B.r);
-    band(ring, arcAlong, arcAlong, inside(roof(12.5, 20, 10.5, 24.5)), inside(foot), {
+    band(ring, arcAlong, arcAlong, inside(bastion.roofs[0]), inside(bastion.bodies[0]), {
       ivyReach: 7,
       floor: d => Math.abs(d / B.r - 1.7) < ARCADE.reach + 0.05 ? ARCADE.top + 0.5 : -Infinity,
     });
-    band(ring, arcAlong, arcAlong, inside(roof(9, 38, 7, 42)), inside(bulging(10.5, 24.5, 38, 1.5)), { ivyReach: 6 });
   }
+  upperBands(B.x, B.z, B.r, bastion, 1);
   growth.finish(scene);
 }
