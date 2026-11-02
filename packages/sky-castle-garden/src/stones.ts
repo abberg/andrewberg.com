@@ -83,10 +83,10 @@ export function createStones(world: RAPIER.World, scene: THREE.Scene) {
     const along = new THREE.Vector3(16.2, 0, 5.8).normalize(), lying = turned(-Math.atan2(5.8, 16.2), Math.PI / 2);
     for (let i = 0; i < 4; i++) {
       const at = new THREE.Vector3(-12.1, 0.7, 36.8).addScaledVector(along, (i - 1.5) * 4.3);
-      piece(at.x, at.y, at.z, lying).look(drumGeometry(0.7, 4.28)).cylinder(0.7, 4.28);
+      piece(at.x, at.y, at.z, lying).look(drumGeometry(0.7, 4.28, i * 3)).cylinder(0.7, 4.28);
     }
   }
-  for (const [x, z, yaw] of [[-23, 33, 0.4], [-21.5, 40.5, 1.3], [-7, 43, 2.2]]) piece(x, 0.7, z, turned(yaw, Math.PI / 2)).look(drumGeometry(0.7, 1.2)).cylinder(0.7, 1.2);
+  for (const [x, z, yaw, from] of [[-23, 33, 0.4, 2], [-21.5, 40.5, 1.3, 5], [-7, 43, 2.2, 8]]) piece(x, 0.7, z, turned(yaw, Math.PI / 2)).look(drumGeometry(0.7, 1.2, from)).cylinder(0.7, 1.2);
 
   // The statue near the north end, east of the path: the plinth, and the
   // figure with its raised arm standing loose on top.

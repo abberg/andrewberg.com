@@ -1,34 +1,95 @@
 import * as THREE from 'three';
 import { painted, palette } from './look';
-import { textures } from './masonry';
+import { stroke } from './masonry';
 
-// Step 7: the columns, as in the garden painting: a shaft built of stacked
-// drums of sandstone, set on a round moulded base, with a ring at the neck
-// and, on the tall standing columns, a flared cup for a capital, open at the
-// top. The colonnade's columns have a plainer flared capital under the square
-// block that carries the lintels. The fallen column and the loose drums are
-// lengths of the same shaft.
+// Step 7: the columns, as in the garden painting: white stone, fluted, built
+// of stacked drums so the only joints are the horizontal seams between them.
+// The vertical lines the painting shows are staining, darker where rain has
+// run down the flutes. A round moulded base, a ring at the neck and, on the
+// tall standing columns, a flared cup for a capital, open at the top. The
+// colonnade's columns have a plainer flare under the square block that
+// carries the lintels. The fallen column and the loose drums are lengths of
+// the same shaft.
 
-const drums = textures.drums.map();
-export const columnStone = painted(palette.column, { map: drums });
+// Flutes round the shaft, and how deep each is, as a share of the radius.
+const FLUTES = 20, DEPTH = 0.07;
+// The texture runs once round the shaft and up a whole standing column.
+const TALL = 14;
+// Heights of the seams between drums, up from a column's foot: drums of 1.1
+// to 1.7 m, the same every time.
+const SEAMS = (() => {
+  let s = 29;
+  const random = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  const seams: number[] = [];
+  for (let y = 0.9 + random() * 0.4; y < TALL - 1; y += 1.1 + random() * 0.6) seams.push(y);
+  return seams;
+})();
+
+// White stone with a little warmth, the seams as thin violet lines and the
+// stains run down the middle of the flutes from the seams and the top: broad
+// and faint, a few darker, some long, most short, never grey.
+function shaftTexture() {
+  const width = 512, height = 2048, m = height / TALL;
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const g = canvas.getContext('2d')!;
+  let s = 53;
+  const random = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  g.fillStyle = '#fbf9f2';
+  g.fillRect(0, 0, width, height);
+  // A few broad, faint washes down the shaft.
+  for (let k = 0; k < 30; k++) {
+    const x = random() * width, y = random() * height, long = (1 + random() * 3) * m;
+    stroke(g, Math.floor(random() * 10), x, y, x + (random() - 0.5) * 8, y + long, width * (0.1 + random() * 0.15),
+      random() < 0.5 ? 'rgba(244,236,214,0.5)' : 'rgba(236,234,248,0.5)');
+  }
+  // Canvas y runs down; the texture's v runs up from the foot.
+  const at = (y: number) => height - y * m;
+  const flute = width / FLUTES;
+  for (let f = 0; f < FLUTES; f++) {
+    const x = (f + 0.5) * flute;
+    for (const from of [TALL, ...SEAMS]) {
+      if (random() < 0.35) continue;
+      const long = (0.3 + random() ** 2 * 4.5) * m, dark = random() < 0.3;
+      const colour = dark ? `rgba(128,120,184,${0.45 + random() * 0.25})` : `rgba(156,150,206,${0.3 + random() * 0.25})`;
+      stroke(g, Math.floor(random() * 10), x + (random() - 0.5) * 3, at(from) - 2, x + (random() - 0.5) * 6, at(from) - 2 + long,
+        flute * (0.35 + random() * 0.3), colour);
+    }
+    // Green near the foot, now and then.
+    if (random() < 0.4) stroke(g, Math.floor(random() * 10), x, at(0), x, at(0) - (0.4 + random()) * m, flute * 0.6, 'rgba(150,176,96,0.35)');
+  }
+  // The seams, drawn across in short wavering strokes.
+  for (const y of SEAMS) {
+    for (let x = -20; x < width; x += 60 + random() * 40) {
+      stroke(g, Math.floor(random() * 10), x, at(y) + (random() - 0.5) * 2, x + 90, at(y) + (random() - 0.5) * 2, 4 + random() * 3, 'rgba(120,108,176,0.75)');
+    }
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.anisotropy = 8;
+  return texture;
+}
+
+const shaft = shaftTexture();
+export const columnStone = painted(palette.stone, { map: shaft });
 // The same stone laid on from three sides, for blocks with no UVs to speak of.
-export const blockStone = painted(palette.column, { map: drums }, textures.drums.metres);
+export const blockStone = painted(palette.stone, { map: shaft }, 4.4);
 
-// A profile ([radius, y] points, bottom first) turned round the y axis, with
-// the texture laid on by distance round and up it, in metres, wrapping a
-// whole number of times round the widest part.
-function lathe(profile: number[][], segments = 40) {
-  const { metres } = textures.drums;
-  const widest = Math.max(...profile.map(([r]) => r));
-  const turns = Math.max(1, Math.round(Math.PI * 2 * widest / metres));
-  const up = [0];
-  for (let j = 1; j < profile.length; j++) up.push(up[j - 1] + Math.hypot(profile[j][0] - profile[j - 1][0], profile[j][1] - profile[j - 1][1]));
+// A profile ([radius, y, fluted] points, bottom first) turned round the y
+// axis. Fluted points are cut into scalloped flutes with sharp ridges
+// between. The texture runs once round, and up from the given height.
+function lathe(profile: number[][], from: number) {
+  const segments = FLUTES * 8;
   const positions: number[] = [], uvs: number[] = [], indices: number[] = [];
   for (let i = 0; i <= segments; i++) {
-    const a = i / segments * Math.PI * 2;
-    profile.forEach(([r, y], j) => {
-      positions.push(Math.sin(a) * r, y, Math.cos(a) * r);
-      uvs.push(i / segments * turns, up[j] / metres);
+    const a = i / segments * Math.PI * 2, t = (i / segments * FLUTES) % 1;
+    const scallop = Math.sqrt(Math.max(0, 1 - (2 * t - 1) ** 2));
+    profile.forEach(([r, y, fluted]) => {
+      const radius = r * (1 - (fluted ?? 0) * DEPTH * scallop);
+      positions.push(Math.sin(a) * radius, y, Math.cos(a) * radius);
+      uvs.push(i / segments, (y - from) / TALL);
     });
   }
   const rows = profile.length;
@@ -49,6 +110,28 @@ function lathe(profile: number[][], segments = 40) {
 const arc = (r: number, y: number, radius: number, from: number, to: number, steps = 6) =>
   Array.from({ length: steps + 1 }, (_, k) => { const a = from + (to - from) * k / steps; return [r + Math.cos(a) * radius, y + Math.sin(a) * radius]; });
 
+// A fluted length of shaft from y0 to y1, its radius given by height, with a
+// shallow groove at every seam between drums. foot is where the column's
+// foot is, for the seams.
+function fluted(radius: (y: number) => number, y0: number, y1: number, foot: number) {
+  const points: number[][] = [];
+  const add = (y: number, inset = 1) => points.push([radius(y) * inset, y, 1]);
+  for (let k = 0; k <= 8; k++) {
+    const y = y0 + (y1 - y0) * k / 8, next = y0 + (y1 - y0) * (k + 1) / 8;
+    add(y);
+    if (k === 8) break;
+    for (const seam of SEAMS.map(h => h + foot)) {
+      if (seam > y + 0.04 && seam < next - 0.04) {
+        add(seam - 0.03);
+        add(seam - 0.012, 0.985);
+        add(seam + 0.012, 0.985);
+        add(seam + 0.03);
+      }
+    }
+  }
+  return points;
+}
+
 // A column of a radius and height, standing centred on the origin. The
 // mouldings scale with the radius.
 export function columnGeometry(radius: number, height: number, capital: 'cup' | 'flat') {
@@ -62,10 +145,10 @@ export function columnGeometry(radius: number, height: number, capital: 'cup' | 
   ];
   const shaftFoot = bottom + 0.7 * k, shaftTop = top - (capital === 'cup' ? 1.15 : 0.75) * k;
   // The shaft narrows a little as it rises, with a slight swell.
-  const shaft = Array.from({ length: 9 }, (_, i) => {
-    const t = i / 8;
-    return [radius * (1 - 0.12 * t * t + 0.025 * Math.sin(t * Math.PI)), shaftFoot + (shaftTop - shaftFoot) * t];
-  });
+  const taper = (y: number) => {
+    const t = (y - shaftFoot) / (shaftTop - shaftFoot);
+    return radius * (1 - 0.12 * t * t + 0.025 * Math.sin(t * Math.PI));
+  };
   const neck = radius * 0.88;
   const ring = arc(neck + 0.02 * k, shaftTop + 0.09 * k, 0.07 * k, -Math.PI / 2, Math.PI / 2, 4);
   const head = capital === 'cup'
@@ -87,11 +170,13 @@ export function columnGeometry(radius: number, height: number, capital: 'cup' | 
         const t = (i + 1) / 5;
         return [neck * 0.96 + (1.1 * k - neck * 0.96) * Math.sin(t * Math.PI / 2), shaftTop + 0.2 * k + 0.55 * k * t];
       }),
-      [0, top - 0.0],
+      [0, top],
     ];
-  return lathe([...base, ...shaft, ...ring, ...head]);
+  return lathe([...base, ...fluted(taper, shaftFoot, shaftTop, bottom), ...ring, ...head], bottom);
 }
 
-// A plain length of shaft, centred on the origin along y.
-export const drumGeometry = (radius: number, length: number) =>
-  lathe([[0, -length / 2], [radius * 0.97, -length / 2], [radius, -length / 2 + 0.04], [radius, length / 2 - 0.04], [radius * 0.97, length / 2], [0, length / 2]], 32);
+// A plain length of fluted shaft, centred on the origin along y, cut from
+// partway up a column (from, in metres above its foot) so its seams line up
+// with the texture's.
+export const drumGeometry = (radius: number, length: number, from = 2) =>
+  lathe([[0, -length / 2], ...fluted(() => radius, -length / 2, length / 2, -length / 2 - from), [0, length / 2]], -length / 2 - from);
