@@ -119,7 +119,10 @@ export function buildLevel(world: RAPIER.World, scene: THREE.Scene) {
     const a = to + (from + Math.PI * 2 - to) * i / 64;
     return [Math.cos(a) * PLATFORM.r, PLATFORM.z + Math.sin(a) * PLATFORM.r];
   });
-  ground(slab([...rim, [2.5, -27.3], [-2.5, -27.3]], -60, PLATFORM_TOP), stone);
+  // Grass on top of the tower's stone.
+  const outline = [...rim, [2.5, -27.3], [-2.5, -27.3]];
+  ground(slab(outline, -60, PLATFORM_TOP - 0.3), stone);
+  ground(slab(outline, PLATFORM_TOP - 0.3, PLATFORM_TOP), lawn);
   // The causeway, 5 m wide, from inside the notch to the garden's lip.
   box(0, -12.5, -13.65, 5, 25, 27.3);
   paving(-2.5, 2.5, -27.3, 0);
