@@ -113,10 +113,10 @@ function walled(geometry: THREE.BufferGeometry, outline?: number[][]) {
   const key = (k: number) => `${p.getX(k).toFixed(2)},${p.getZ(k).toFixed(2)}`;
   // The holes' walls come after the outline's: they go to a third material.
   if (outline) {
-    const on = new Set(outline.map(([x, z]) => `${x.toFixed(2)},${z.toFixed(2)}`));
+    const on = (k: number) => outline.some(([x, z]) => Math.abs(x - p.getX(k)) < 0.01 && Math.abs(z - p.getZ(k)) < 0.01);
     const [caps, all] = geometry.groups;
     let split = all.start;
-    while (split < all.start + all.count && [0, 1, 2].every(j => on.has(key(split + j)))) split += 3;
+    while (split < all.start + all.count && [0, 1, 2].every(j => on(split + j))) split += 3;
     geometry.clearGroups();
     geometry.addGroup(caps.start, caps.count, 0);
     geometry.addGroup(all.start, split - all.start, 1);
