@@ -509,7 +509,8 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
   for (let gx = -PLATFORM.r; gx < PLATFORM.r; gx += 0.32) {
     for (let gz = PLATFORM.z - PLATFORM.r; gz < PLATFORM.z + PLATFORM.r; gz += 0.32) {
       const x = gx + (random() - 0.5) * 0.3, z = gz + (random() - 0.5) * 0.3;
-      if (Math.hypot(x, z - PLATFORM.z) < PLATFORM.r - 0.25) field(x, z, PLATFORM_TOP);
+      // Not in the notch the stair comes up through.
+      if (Math.hypot(x, z - PLATFORM.z) < PLATFORM.r - 0.25 && !(Math.abs(x) < 2.7 && z > -27.5)) field(x, z, PLATFORM_TOP);
     }
   }
   {
