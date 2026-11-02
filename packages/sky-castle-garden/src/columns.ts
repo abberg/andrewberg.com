@@ -226,3 +226,64 @@ export function plinthGeometry(width: number, height: number, slope: number, top
   }
   return new ConvexGeometry(points);
 }
+
+// An urn on a pedestal, as in the garden's references: a square foot, a
+// short stem swelling between rings, and a wide shallow bowl whose
+// underside is a ring of rounded ribs, under a thick flat lip, with a mound
+// of green growing in it. Standing on the origin, about 1.5 m tall.
+export function urnGeometry() {
+  const foot = new THREE.BoxGeometry(0.64, 0.22, 0.64).translate(0, 0.11, 0);
+  const body = lathe([
+    [0, 0.22], [0.24, 0.22], ...arc(0.22, 0.28, 0.05, -Math.PI / 2, Math.PI / 2, 4),
+    [0.15, 0.34],
+    // The stem, swelling a little.
+    ...Array.from({ length: 5 }, (_, i) => { const t = (i + 1) / 6; return [0.15 + 0.04 * Math.sin(t * Math.PI), 0.34 + 0.3 * t]; }),
+    [0.15, 0.66], ...arc(0.18, 0.7, 0.045, -Math.PI / 2, Math.PI / 2, 4),
+    // The bowl: ribbed underneath, flaring out to the lip.
+    ...Array.from({ length: 8 }, (_, i) => { const t = i / 7; return [0.2 + 0.5 * Math.sin(t * Math.PI / 2) ** 0.8, 0.75 + 0.4 * t ** 1.3, 2]; }),
+    [0.68, 1.17], [0.78, 1.17], ...arc(0.76, 1.24, 0.07, -Math.PI / 2, Math.PI / 2, 4), [0.72, 1.31], [0.64, 1.31], [0.62, 1.24], [0, 1.22],
+  ], -10);
+  // Moss and leaves heaped in the bowl.
+  const green = new THREE.SphereGeometry(0.64, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, 0.45, 1).translate(0, 1.22, 0);
+  return { foot, body, green };
+}
+
+// A block of stone, its edges worn and its corners chipped, each corner its
+// own way: most just rounded off a little, a few with a big piece knocked
+// off. The points, for a hull, centred on the origin.
+export function chippedBlock(width: number, height: number, depth: number, seed: number) {
+  let s = seed * 7919 + 3;
+  const random = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  const points: THREE.Vector3[] = [];
+  for (const x of [-1, 1]) for (const y of [-1, 1]) for (const z of [-1, 1]) {
+    const corner = new THREE.Vector3(x * width / 2, y * height / 2, z * depth / 2);
+    const big = random() < 0.25, size = big ? 0.15 + random() * 0.25 : 0.03 + random() * 0.06;
+    // Cut back along each of the three edges meeting here, by different amounts.
+    for (const axis of [0, 1, 2]) {
+      const p = corner.clone(), extent = [width, height, depth][axis];
+      p.setComponent(axis, p.getComponent(axis) - Math.sign(p.getComponent(axis)) * Math.min(extent * 0.4, size * (0.5 + random())));
+      points.push(p);
+    }
+  }
+  return points;
+}
+
+// The points of a convex block cut in two by a plane (normal n through
+// the origin), each half with the points where its edges cross the plane.
+export function crack(points: THREE.Vector3[], n: THREE.Vector3) {
+  const hull = new ConvexGeometry(points), p = hull.getAttribute('position');
+  const sides: THREE.Vector3[][] = [[], []];
+  const corner = (k: number) => new THREE.Vector3(p.getX(k), p.getY(k), p.getZ(k));
+  for (let t = 0; t < p.count; t += 3) {
+    for (let e = 0; e < 3; e++) {
+      const a = corner(t + e), b = corner(t + (e + 1) % 3), da = a.dot(n), db = b.dot(n);
+      sides[da < 0 ? 0 : 1].push(a);
+      if ((da < 0) !== (db < 0)) {
+        const cut = a.clone().lerp(b, da / (da - db));
+        sides[0].push(cut);
+        sides[1].push(cut.clone());
+      }
+    }
+  }
+  return sides;
+}

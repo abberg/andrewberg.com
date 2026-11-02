@@ -1,6 +1,8 @@
 import RAPIER from '@dimforge/rapier3d-compat';
 import * as THREE from 'three';
-import { blockStone, capitalGeometry, columnGeometry, columnStone, drumGeometry, plinthGeometry } from './columns';
+import { ConvexGeometry } from 'three/addons/geometries/ConvexGeometry.js';
+import { blockStone, capitalGeometry, chippedBlock, columnGeometry, columnStone, crack, drumGeometry, plinthGeometry, urnGeometry } from './columns';
+import { painted, palette } from './look';
 import { stone } from './level';
 
 // Step 4: every freestanding stone object is a dynamic body the robot can
@@ -140,20 +142,37 @@ export function createStones(world: RAPIER.World, scene: THREE.Scene) {
     piece(middle.x, middle.y, middle.z, turned(-Math.atan2(b.z - a.z, b.x - a.x))).look(new THREE.BoxGeometry(length, 0.5, 0.9), blockStone).box(length, 0.5, 0.9);
   }
 
-  // Urns beside the pools, narrower at the foot so they tip.
+  // Urns beside the pools: a ribbed bowl of greenery on a stem and a square
+  // foot (columns.ts), top-heavy, so they tip.
+  const urn = urnGeometry(), greenery = painted(palette.moss);
+  const urnHull = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(
+    [...urn.foot.getAttribute('position').array, ...urn.body.getAttribute('position').array], 3));
   for (const [x, z] of [[-24.5, 12], [-24, 21], [-7.8, 10], [24, 38], [22, 42.5]]) {
-    piece(x, 0.65, z).hull(new THREE.CylinderGeometry(0.55, 0.35, 1.3, 16));
+    piece(x, 0, z, turned(x * z)).look(urn.foot, blockStone).look(urn.body).look(urn.green, greenery).hull(urnHull);
   }
 
   // Stone slabs and blocks along the path edges, placed at random but the
-  // same every time.
+  // same every time, their edges worn and corners chipped. A couple have
+  // cracked right through, into two pieces that come apart.
   let seed = 7;
   const random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-  for (const [x, z] of [[-7, 3], [5.5, 18], [6, 24.5], [-11, 42.5], [5.8, 42.5], [-26.5, 9.8], [-36, 13], [-30, 30],
-    [-36, 34], [22, 9], [33, 16], [40, 9], [-10, 22.5], [9, 40]]) {
+  const cracked = [1, 8];
+  [[-7, 3], [5.5, 18], [6, 24.5], [-11, 42.5], [5.8, 42.5], [-26.5, 9.8], [-36, 13], [-30, 30],
+    [-36, 34], [22, 9], [33, 16], [40, 9], [-10, 22.5], [9, 40]].forEach(([x, z], k) => {
     const width = 1 + random() * 2, depth = 1 + random() * 2, height = 0.3 + random() * 0.7;
-    piece(x, height / 2, z, turned(random() * Math.PI)).box(width, height, depth);
-  }
+    const turn = turned(random() * Math.PI), points = chippedBlock(width, height, depth, k + 1);
+    if (!cracked.includes(k)) {
+      const block = new ConvexGeometry(points);
+      piece(x, height / 2, z, turn).look(block, blockStone).hull(block);
+      return;
+    }
+    // Across the block's length, slanting.
+    const across = new THREE.Vector3(1, 0.25 * (random() - 0.5), 0.5 * (random() - 0.5)).normalize();
+    for (const [i, half] of crack(points, across).entries()) {
+      const block = new ConvexGeometry(half).translate(...across.clone().multiplyScalar(i ? 0.07 : -0.07).toArray());
+      piece(x, height / 2, z, turn).look(block, blockStone).hull(block);
+    }
+  });
 
   // Asleep until touched: adding colliders woke them.
   for (const { body } of pieces) body.sleep();
