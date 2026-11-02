@@ -100,15 +100,25 @@ function leafTexture(seed: number) {
 // One clump: cards laid like shingles, nearly flat to the wall (local z is
 // out of the wall, local y up it), each tipped so its lower edge stands off
 // and overlaps the card below, with their normals pointing out from a point
-// behind the middle, so the clump shades like a ball.
-function clumpGeometry(seed: number) {
+// behind the middle, so the clump shades like a ball. Or, for surfaces that
+// face up, a tuft: the same cards standing up off the surface like grass,
+// facing every way round it.
+function clumpGeometry(seed: number, tuft = false) {
   let s = seed;
   const random = () => (s = (s * 16807) % 2147483647) / 2147483647;
   const cards: THREE.BufferGeometry[] = [];
   for (let k = 0; k < 8; k++) {
     const card = new THREE.PlaneGeometry(1, 1);
-    card.applyMatrix4(new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(-(0.25 + random() * 0.4), (random() - 0.5) * 0.4, (random() - 0.5) * 0.6)));
-    card.translate((random() - 0.5) * 0.7, (random() - 0.5) * 0.7, random() * 0.25);
+    if (tuft) {
+      card.scale(0.8, 1, 1);
+      card.translate(0, 0.45, 0);
+      card.applyMatrix4(new THREE.Matrix4().makeRotationX(1.0 + random() * 0.4));
+      card.applyMatrix4(new THREE.Matrix4().makeRotationZ(random() * Math.PI * 2));
+      card.translate((random() - 0.5) * 0.7, (random() - 0.5) * 0.7, -0.05);
+    } else {
+      card.applyMatrix4(new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(-(0.25 + random() * 0.4), (random() - 0.5) * 0.4, (random() - 0.5) * 0.6)));
+      card.translate((random() - 0.5) * 0.7, (random() - 0.5) * 0.7, random() * 0.25);
+    }
     cards.push(card);
   }
   const geometry = mergeGeometries(cards)!;
@@ -141,8 +151,8 @@ export function createGrowth() {
   };
   const leaves = leafTexture(31);
   const clumps = {
-    moss: { geometry: clumpGeometry(41), size: 0.9, material: bothSidesAlike(painted(palette.moss, { map: leaves, alphaTest: 0.5, side: THREE.DoubleSide })), placed: [] as THREE.Matrix4[] },
-    ivy: { geometry: clumpGeometry(43), size: 1.9, material: bothSidesAlike(painted(palette.ivy, { map: leaves, alphaTest: 0.5, side: THREE.DoubleSide })), placed: [] as THREE.Matrix4[] },
+    moss: { geometries: [clumpGeometry(41), clumpGeometry(41, true)], size: 0.9, material: bothSidesAlike(painted(palette.moss, { map: leaves, alphaTest: 0.5, side: THREE.DoubleSide })), placed: [[], []] as THREE.Matrix4[][] },
+    ivy: { geometries: [clumpGeometry(43), clumpGeometry(43, true)], size: 1.9, material: bothSidesAlike(painted(palette.ivy, { map: leaves, alphaTest: 0.5, side: THREE.DoubleSide })), placed: [[], []] as THREE.Matrix4[][] },
   };
   let s = 977;
   const random = () => (s = (s * 16807) % 2147483647) / 2147483647;
@@ -221,7 +231,11 @@ export function createGrowth() {
         const turn = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(side, up, out))
           .multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), (random() - 0.5) * 0.7));
         const scale = size * (0.75 + random() * 0.5);
-        placed.push(new THREE.Matrix4().compose(at, turn, new THREE.Vector3(scale, scale, scale)));
+        // A sort of gravity: on a wall the leaves hang down it like
+        // shingles; where the surface faces up they stand up off it like
+        // grass, with a ragged mix of the two between.
+        const upright = random() < THREE.MathUtils.smoothstep(out.y, 0.4, 0.8) ? 1 : 0;
+        placed[upright].push(new THREE.Matrix4().compose(at, turn, new THREE.Vector3(scale, scale, scale)));
       }
     }
     const mesh = new THREE.Mesh(geometry, materials[kind]);
@@ -229,14 +243,14 @@ export function createGrowth() {
     return mesh;
   };
 
-  // All the clumps placed so far, as one instanced mesh for each kind.
+  // All the clumps placed so far, as one instanced mesh for each kind and shape.
   const finish = (scene: THREE.Scene) => {
-    for (const { geometry, material, placed } of Object.values(clumps)) {
-      const mesh = new THREE.InstancedMesh(geometry, material, placed.length);
-      placed.forEach((matrix, i) => mesh.setMatrixAt(i, matrix));
+    for (const { geometries, material, placed } of Object.values(clumps)) geometries.forEach((geometry, g) => {
+      const mesh = new THREE.InstancedMesh(geometry, material, placed[g].length);
+      placed[g].forEach((matrix, i) => mesh.setMatrixAt(i, matrix));
       mesh.castShadow = mesh.receiveShadow = true;
       scene.add(mesh);
-    }
+    });
   };
 
   return { drape, finish };
