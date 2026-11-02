@@ -5,6 +5,7 @@ import { bothSidesAlike, wander } from './growth';
 import { stroke } from './masonry';
 import { EAST, EAST_LAWN, lawnSouth, MOATS_FROM, northEdge, PATHS, PLATFORM, PLATFORM_TOP, POOLS, WALL_GROUPS, WEST, WEST_LAWN } from './level';
 import { painted, palette } from './look';
+import { SWAY, type Sway, swaying } from './wind';
 
 // Step 8: the garden's planting, built like the ivy (growth.ts): leaf cards
 // whose normals point out from the middle of the plant, so the light shades
@@ -106,7 +107,7 @@ const facing = (shader: { vertexShader: string }) => {
 };
 // A painted leaf material for camera-facing cards, with a shadow pass that
 // turns the cards to the sun the same way.
-function leafCards(colours: readonly [number, number], map: THREE.Texture) {
+function leafCards(colours: readonly [number, number], map: THREE.Texture, sway: Sway) {
   const material = bothSidesAlike(painted(colours, { map, alphaTest: 0.5, side: THREE.DoubleSide }));
   const paint = material.onBeforeCompile;
   material.onBeforeCompile = (shader, renderer) => {
@@ -115,7 +116,7 @@ function leafCards(colours: readonly [number, number], map: THREE.Texture) {
   };
   const depth = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map, alphaTest: 0.5, side: THREE.DoubleSide });
   depth.onBeforeCompile = facing;
-  return { material, depth };
+  return { material: swaying(material, sway), depth: swaying(depth, sway) };
 }
 function instanced(geometry: THREE.BufferGeometry, leaves: ReturnType<typeof leafCards> | THREE.Material, placed: THREE.Matrix4[], scene: THREE.Scene) {
   const mesh = new THREE.InstancedMesh(geometry, 'depth' in leaves ? leaves.material : leaves, placed.length);
@@ -405,11 +406,11 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
       return new THREE.Vector2(cypressRadius(h) * 0.75, h * 0.96);
     }), 10);
     const placed = cypresses.map(({ matrix }) => matrix);
-    instanced(geometry, leafCards(CYPRESS, clusterTexture(41)), placed, scene);
+    instanced(geometry, leafCards(CYPRESS, clusterTexture(41), SWAY.cypress), placed, scene);
     instanced(core, painted(CYPRESS_CORE), placed, scene);
   }
   {
-    instanced(ballGeometry(31), leafCards(CROWN, clusterTexture(43)), crowns, scene);
+    instanced(ballGeometry(31), leafCards(CROWN, clusterTexture(43), SWAY.crown), crowns, scene);
     instanced(new THREE.SphereGeometry(0.34, 12, 8), painted(CROWN_CORE), crowns, scene);
     const wood = new THREE.Mesh(mergeGeometries(trunks.map(g => { g.deleteAttribute('uv'); return g; }))!, painted(BARK));
     wood.castShadow = wood.receiveShadow = true;
@@ -449,7 +450,7 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
   hedge(8, 9.3, 17, 9.3, 1.6);
   hedge(-35, 40.3, -27, 40.3, 2.4);
   {
-    instanced(ballGeometry(59), leafCards(SHRUB, clusterTexture(53)), hedges, scene);
+    instanced(ballGeometry(59), leafCards(SHRUB, clusterTexture(53), SWAY.crown), hedges, scene);
     instanced(new THREE.SphereGeometry(0.36, 12, 8), painted(CORE), hedges, scene);
   }
 
@@ -526,9 +527,9 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
   }
   {
     for (const [placed, material, shape] of [
-      [sward, bothSidesAlike(painted(palette.lawn, { map: swardTexture(71), alphaTest: 0.5, side: THREE.DoubleSide })), tuftGeometry(true)],
-      [tufts, bothSidesAlike(painted(palette.lawn, { map: tuftTexture(61, false), alphaTest: 0.5, side: THREE.DoubleSide })), tuftGeometry()],
-      [blooms, bothSidesAlike(painted([0xffffff, 0x8a8cc0], { map: tuftTexture(67, true), alphaTest: 0.5, side: THREE.DoubleSide })), tuftGeometry()],
+      [sward, swaying(bothSidesAlike(painted(palette.lawn, { map: swardTexture(71), alphaTest: 0.5, side: THREE.DoubleSide })), SWAY.grass), tuftGeometry(true)],
+      [tufts, swaying(bothSidesAlike(painted(palette.lawn, { map: tuftTexture(61, false), alphaTest: 0.5, side: THREE.DoubleSide })), SWAY.grass), tuftGeometry()],
+      [blooms, swaying(bothSidesAlike(painted([0xffffff, 0x8a8cc0], { map: tuftTexture(67, true), alphaTest: 0.5, side: THREE.DoubleSide })), SWAY.grass), tuftGeometry()],
     ] as const) {
       const mesh = new THREE.InstancedMesh(shape, material, placed.length);
       placed.forEach((matrix, i) => mesh.setMatrixAt(i, matrix));
@@ -537,7 +538,7 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
     }
   }
 
-  instanced(shrubGeometry(19), leafCards(SHRUB, clusterTexture(29)), shrubs, scene);
+  instanced(shrubGeometry(19), leafCards(SHRUB, clusterTexture(29), SWAY.shrub), shrubs, scene);
   instanced(new THREE.SphereGeometry(0.36, 12, 8).scale(1, 0.75, 1).translate(0, 0.12, 0), painted(CORE), shrubs, scene);
   return { shrubs: shrubs.length, cypresses: cypresses.length, trees: crowns.length, tufts: tufts.length + blooms.length + sward.length };
 }

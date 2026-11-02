@@ -10,6 +10,7 @@ import { buildLevel, PLATFORM_TOP } from './level';
 import { createPlayer, movement } from './player';
 import { createRobot } from './robot';
 import { createStones } from './stones';
+import { updateWind, wind } from './wind';
 
 // Sky Castle Garden, built in steps from the plan (docs/design-plan.md). So
 // far: the robot (modelled in blender/robot.py), the follow camera, the level
@@ -55,6 +56,10 @@ following.add(follow, 'swing', 0, 4, 0.1).name('swing behind (s, 0 off)');
 following.add(follow, 'hold', 0, 5, 0.1).name('after mouse (s)');
 following.add(camera, 'fov', 30, 80, 1).name('fov (°)').onChange(() => camera.updateProjectionMatrix());
 look.tune(gui);
+const blowing = gui.addFolder('wind');
+blowing.add(wind, 'strength', 0, 3, 0.1);
+blowing.add(wind, 'from', -180, 180, 1).name('from, east of north (°)');
+blowing.close();
 gui.add(walls, 'visible').name('show invisible walls');
 gui.close();
 
@@ -92,5 +97,6 @@ renderer.setAnimationLoop(time => {
   stones.sync();
   follower.update(delta, player.mesh.position, player.mesh.rotation.y, player.pace);
   look.update(camera);
+  updateWind(time / 1000);
   renderer.render(scene, camera);
 });

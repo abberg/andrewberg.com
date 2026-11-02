@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { painted, palette } from './look';
+import { SWAY, swaying } from './wind';
 import { stroke } from './masonry';
 
 // Step 7: moss and ivy on the city, where the reference has them. Moss and
@@ -151,8 +152,8 @@ export function createGrowth() {
   };
   const leaves = leafTexture(31);
   const clumps = {
-    moss: { geometries: [clumpGeometry(41), clumpGeometry(41, true)], size: 0.9, material: bothSidesAlike(painted(palette.moss, { map: leaves, alphaTest: 0.5, side: THREE.DoubleSide })), placed: [[], []] as THREE.Matrix4[][] },
-    ivy: { geometries: [clumpGeometry(43), clumpGeometry(43, true)], size: 1.9, material: bothSidesAlike(painted(palette.ivy, { map: leaves, alphaTest: 0.5, side: THREE.DoubleSide })), placed: [[], []] as THREE.Matrix4[][] },
+    moss: { geometries: [clumpGeometry(41), clumpGeometry(41, true)], size: 0.9, material: swaying(bothSidesAlike(painted(palette.moss, { map: leaves, alphaTest: 0.5, side: THREE.DoubleSide })), SWAY.ivy), placed: [[], []] as THREE.Matrix4[][] },
+    ivy: { geometries: [clumpGeometry(43), clumpGeometry(43, true)], size: 1.9, material: swaying(bothSidesAlike(painted(palette.ivy, { map: leaves, alphaTest: 0.5, side: THREE.DoubleSide })), SWAY.ivy), placed: [[], []] as THREE.Matrix4[][] },
   };
   let s = 977;
   const random = () => (s = (s * 16807) % 2147483647) / 2147483647;
@@ -268,7 +269,7 @@ export function createGrowth() {
 let vineParts: { leaves: THREE.MeshStandardMaterial; stem: THREE.MeshStandardMaterial; clump: THREE.BufferGeometry } | undefined;
 export function columnIvy(seed: number, foot: number, top: number, radius: (y: number) => number, facing: number) {
   vineParts ??= {
-    leaves: bothSidesAlike(painted(palette.ivy, { map: leafTexture(37), alphaTest: 0.5, side: THREE.DoubleSide })),
+    leaves: swaying(bothSidesAlike(painted(palette.ivy, { map: leafTexture(37), alphaTest: 0.5, side: THREE.DoubleSide })), SWAY.ivy),
     stem: painted(palette.ivyDepth),
     clump: clumpGeometry(47),
   };
