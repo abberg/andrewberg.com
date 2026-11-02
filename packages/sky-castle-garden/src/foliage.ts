@@ -196,12 +196,15 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
   // the branch paths, each tree its own height, gaps here and there. Each
   // has a solid trunk the robot can't walk through, which the camera ignores.
   const cypresses: THREE.Matrix4[] = [];
+  // Where the trees stand, so the hedges keep off them.
+  const taken: [number, number, number][] = [];
   const cypress = (x: number, z: number, tall: number, placed = false) => {
     const across = tall * 0.13 * 2 / 0.9;
     if (!placed && !clear(x, z, across / 2)) return;
     const wide = 0.9 + random() * 0.25;
     cypresses.push(new THREE.Matrix4().compose(new THREE.Vector3(x, 0, z),
       new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), random() * Math.PI * 2), new THREE.Vector3(tall * wide, tall, tall * wide)));
+    taken.push([x, z, across / 2]);
     world.createCollider(RAPIER.ColliderDesc.capsule(tall * 0.3, 0.5).setTranslation(x, tall * 0.3 + 0.5, z).setCollisionGroups(WALL_GROUPS));
   };
   cypress(-4.3, 42.8, 10.5, true);
@@ -254,6 +257,7 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
     const top = fork.clone().add(new THREE.Vector3(0, tall * 0.6, 0));
     ball(top, tall * 0.48);
     tips.forEach((tip, k) => ball(tip.clone().lerp(tips[(k + 1) % tips.length], 0.5).lerp(top, 0.3), tall * (0.34 + random() * 0.1)));
+    taken.push([x, z, 1]);
     world.createCollider(RAPIER.ColliderDesc.capsule(tall * 0.15, 0.4).setTranslation(x, tall * 0.15 + 0.4, z).setCollisionGroups(WALL_GROUPS));
   };
   // By the pools: on the west pool's far side, and the east pool's south
@@ -327,6 +331,48 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
     const wood = new THREE.Mesh(mergeGeometries(trunks.map(g => { g.deleteAttribute('uv'); return g; }))!, painted(BARK));
     wood.castShadow = wood.receiveShadow = true;
     scene.add(wood);
+  }
+
+  // Hedge fragments, the old edging along the paths: rows of boxy, flat-
+  // topped masses of leaves, broken where something's in the way and gappy
+  // anyway, each unbroken run with a box the robot can't walk through.
+  const hedges: THREE.Matrix4[] = [];
+  const hedge = (x0: number, z0: number, x1: number, z1: number, tall: number) => {
+    const length = Math.hypot(x1 - x0, z1 - z0), yaw = -Math.atan2(z1 - z0, x1 - x0), gaps = wander(Math.floor(x0 * 7 + z0 * 13), 3);
+    let run: THREE.Vector3[] = [];
+    const close = () => {
+      if (run.length > 1) {
+        const [a, b] = [run[0], run[run.length - 1]], middle = a.clone().lerp(b, 0.5);
+        world.createCollider(RAPIER.ColliderDesc.cuboid(a.distanceTo(b) / 2 + 0.6, tall / 2, 0.7).setTranslation(middle.x, tall / 2, middle.z)
+          .setRotation(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw)).setCollisionGroups(WALL_GROUPS));
+      }
+      run = [];
+    };
+    for (let d = 0; d < length; d += 0.9 + random() * 0.4) {
+      const x = x0 + (x1 - x0) * d / length, z = z0 + (z1 - z0) * d / length;
+      if (gaps(d) < -0.35 || !clear(x, z, 0.8) || taken.some(([tx, tz, r]) => Math.hypot(x - tx, z - tz) < r + 0.9)) { close(); continue; }
+      const height = tall * (0.75 + random() * 0.3) * (gaps(d) < -0.1 ? 0.6 : 1);
+      hedges.push(new THREE.Matrix4().compose(new THREE.Vector3(x, height * 0.42, z),
+        new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw + (random() - 0.5) * 0.3), new THREE.Vector3(1.9, height, 1.6)));
+      run.push(new THREE.Vector3(x, 0, z));
+    }
+    close();
+  };
+  hedge(4.1, 16, 4.1, 23, 2);
+  hedge(4.1, 26, 4.1, 31, 1.8);
+  hedge(-40, 9.3, -29, 9.3, 2.2);
+  hedge(-37, 23, -27, 23, 1.7);
+  hedge(19, 15.8, 31, 15.8, 2);
+  hedge(8, 9.3, 17, 9.3, 1.6);
+  hedge(-35, 40.3, -27, 40.3, 2.4);
+  {
+    const leaves = bothSidesAlike(painted(SHRUB, { map: leafTexture(53), alphaTest: 0.5, side: THREE.DoubleSide }));
+    for (const [shape, material] of [[ballGeometry(59), leaves], [new THREE.SphereGeometry(0.42, 12, 8), painted(CORE)]] as const) {
+      const mesh = new THREE.InstancedMesh(shape, material, hedges.length);
+      hedges.forEach((matrix, i) => mesh.setMatrixAt(i, matrix));
+      mesh.castShadow = mesh.receiveShadow = true;
+      scene.add(mesh);
+    }
   }
 
   const geometry = shrubGeometry(19), core = new THREE.SphereGeometry(0.42, 12, 8).scale(1, 0.75, 1).translate(0, 0.14, 0);
