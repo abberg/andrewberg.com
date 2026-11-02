@@ -10,6 +10,7 @@ import { buildLevel, PLATFORM_TOP } from './level';
 import { createPlayer, movement } from './player';
 import { createRobot } from './robot';
 import { createStones } from './stones';
+import { updateWater } from './water';
 import { updateWind, wind } from './wind';
 
 // Sky Castle Garden, built in steps from the plan (docs/design-plan.md). So
@@ -98,5 +99,6 @@ renderer.setAnimationLoop(time => {
   follower.update(delta, player.mesh.position, player.mesh.rotation.y, player.pace);
   look.update(camera);
   updateWind(time / 1000);
+  updateWater(time / 1000);
   renderer.render(scene, camera);
 });

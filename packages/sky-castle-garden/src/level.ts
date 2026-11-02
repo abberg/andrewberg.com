@@ -1,8 +1,10 @@
 import RAPIER from '@dimforge/rapier3d-compat';
 import * as THREE from 'three';
 import { ARCH, buildCity, cityFront } from './city';
-import { painted, palette } from './look';
+import { drowned, painted, palette } from './look';
 import { textures } from './masonry';
+import { buildFlooded } from './flooded';
+import { waterMaterial } from './water';
 
 // Step 2 of the plan: every asset as a grey primitive at its final size,
 // placed from the zone plan (docs/zone-plan.png). The snapshot's scale bar
@@ -63,6 +65,21 @@ export const ledgeFront = (x: number) => {
   return az + (bz - az) * (x - ax) / (bx - ax);
 };
 
+// The moats are a flooded part of the city: open down to the old streets,
+// FLOOD metres under the water. Each moat as an outline: the west one down
+// the west side and round the south to the stair, the east one the same.
+// Their far side runs a little in under the towers, which go on down.
+export const FLOOD = 14;
+export const moat = (side: number) => {
+  const lawn = side > 0 ? EAST_LAWN : WEST_LAWN, edge = side > 0 ? EAST : WEST, landing = side > 0 ? 4.6 : -4.5;
+  return [
+    [lawn, MOATS_FROM], [edge, MOATS_FROM],
+    ...sample(x => cityFront(x) + 2, edge, side * ARCH.half, 32),
+    [side * ARCH.half, 50.4], [landing, 50.4],
+    ...sample(lawnSouth, landing, lawn, 32),
+  ];
+};
+
 export const SPAWN = { x: 0, z: -37, yaw: Math.PI };
 export const PLATFORM_TOP = 3.2;
 // The start platform's middle and radius.
@@ -77,7 +94,9 @@ const pavingMap = textures.paving.map();
 const path = painted(palette.path, { map: pavingMap }, textures.paving.metres), door = painted(palette.door);
 // The same stone with the texture laid on by UVs, for the pool rims.
 const coping = painted(palette.path, { map: pavingMap });
-const water = painted(palette.water, { roughness: 0.2 });
+const water = waterMaterial(0.42), poolWater = waterMaterial(0.92);
+// The moats' walls and the streets at their foot.
+const drownedMasonry = drowned(painted(palette.masonry, { map: sandstoneMap }, textures.sandstone.metres));
 
 // A curve sampled across x, as [x, z] points.
 const sample = (curve: (x: number) => number, from: number, to: number, steps = 32) =>
@@ -89,9 +108,21 @@ const sample = (curve: (x: number) => number, from: number, to: number, steps = 
 const outside = painted(palette.masonry, { map: textures.sandstone.map() });
 // A slab's sides given UVs along and up the wall, in blocks, and normals
 // smoothed round its curves (not round its sharp corners).
-function walled(geometry: THREE.BufferGeometry) {
-  const sides = geometry.groups[1], p = geometry.getAttribute('position'), n = geometry.getAttribute('normal'), uv = geometry.getAttribute('uv');
+function walled(geometry: THREE.BufferGeometry, outline?: number[][]) {
+  const p = geometry.getAttribute('position'), n = geometry.getAttribute('normal'), uv = geometry.getAttribute('uv');
   const key = (k: number) => `${p.getX(k).toFixed(2)},${p.getZ(k).toFixed(2)}`;
+  // The holes' walls come after the outline's: they go to a third material.
+  if (outline) {
+    const on = new Set(outline.map(([x, z]) => `${x.toFixed(2)},${z.toFixed(2)}`));
+    const [caps, all] = geometry.groups;
+    let split = all.start;
+    while (split < all.start + all.count && [0, 1, 2].every(j => on.has(key(split + j)))) split += 3;
+    geometry.clearGroups();
+    geometry.addGroup(caps.start, caps.count, 0);
+    geometry.addGroup(all.start, split - all.start, 1);
+    geometry.addGroup(split, all.start + all.count - split, 2);
+  }
+  const sides = geometry.groups[1];
   // Each corner of the outline once, in order round it.
   const corners: string[] = [], at = new Map<string, THREE.Vector2>();
   for (let k = sides.start; k < sides.start + sides.count; k++) if (!at.has(key(k))) { at.set(key(k), new THREE.Vector2(p.getX(k), p.getZ(k))); corners.push(key(k)); }
@@ -224,7 +255,12 @@ export function buildLevel(world: RAPIER.World, scene: THREE.Scene) {
     const back = [[OUTER, cityFront(OUTER) + 6], [104, 135], [80, 178], [40, 198]].map(([x, z]) => [side * x, z]);
     return side > 0 ? [...front, ...back] : [...back.reverse(), ...front.reverse()];
   };
-  ground(walled(slab([...north, ...outer(1), ...outer(-1)], -40, -0.3)), [masonry, outside] as unknown as THREE.Material);
+  {
+    const outline = [...north, ...outer(1), ...outer(-1)];
+    const base = walled(slab(outline, -40, -0.3, [moat(-1), moat(1)]), outline);
+    ground(base, [masonry, outside, drownedMasonry] as unknown as THREE.Material);
+    for (const side of [-1, 1]) ground(slab(moat(side), -40, -FLOOD), drownedMasonry);
+  }
   // The ledges' lawn, from the front edge back under the towers' feet.
   for (const side of [-1, 1]) {
     const front = ledgeEdge(side);
@@ -277,7 +313,9 @@ export function buildLevel(world: RAPIER.World, scene: THREE.Scene) {
     const solid = slab(circle(x, z, 7.4), 0, 0.4, [circle(x, z, 5.4).reverse()]);
     world.createCollider(RAPIER.ColliderDesc.trimesh(new Float32Array(solid.getAttribute('position').array),
       new Uint32Array(solid.index ? solid.index.array : Array.from({ length: solid.getAttribute('position').count }, (_, i) => i))));
-    const pool = add(new THREE.CircleGeometry(5.4, 48), water, { cast: false });
+    const surface = new THREE.CircleGeometry(5.4, 48), uvs = surface.getAttribute('uv');
+    for (let k = 0; k < uvs.count; k++) uvs.setXY(k, uvs.getX(k) * 10.8, uvs.getY(k) * 10.8);
+    const pool = add(surface, poolWater, { cast: false });
     pool.rotation.x = -Math.PI / 2;
     pool.position.set(x, 0.05, z);
   }
@@ -287,6 +325,7 @@ export function buildLevel(world: RAPIER.World, scene: THREE.Scene) {
 
   // The city's base behind the south moat, the bastion and the arch.
   buildCity(world, scene);
+  buildFlooded(scene, { west: WEST, westLawn: WEST_LAWN, east: EAST, eastLawn: EAST_LAWN, from: MOATS_FROM, lawnSouth, flood: FLOOD });
 
   // The arch: a stair of twelve 0.3 m steps up from the grass to its floor,
   // the sealed door at the back and a frame round the opening. 0.4 m risers

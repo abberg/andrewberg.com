@@ -1,6 +1,6 @@
 import RAPIER from '@dimforge/rapier3d-compat';
 import * as THREE from 'three';
-import { painted, palette } from './look';
+import { drowned, painted, palette } from './look';
 import { createGrowth, wander, type Column } from './growth';
 import { textures, WINDOW, windowTexture } from './masonry';
 
@@ -71,6 +71,10 @@ function surface(along: number[], section: number[][], place: (column: number, o
 
 export function buildCity(world: RAPIER.World, scene: THREE.Scene) {
   const city = painted(palette.stone, { map: textures.city.map() });
+  // The towers' feet go on down into the flooded moats.
+  const cityDrowned = drowned(painted(palette.stone, { map: textures.city.map() }));
+  const sunk = (cx: number, cz: number, r: number, segments: number) =>
+    add(round(cx, cz, [[r, -15], [r, -7], [r, -0.3]], textures.city.metres, segments), cityDrowned);
   const tiles = painted(palette.rust, { map: textures.tiles.map() });
   // The arch's stone, darkening into the passage by its vertex colours.
   const portalStone = painted(palette.stone, { map: textures.city.map(), vertexColors: true }, textures.city.metres);
@@ -140,6 +144,7 @@ export function buildCity(world: RAPIER.World, scene: THREE.Scene) {
       const body = bulging(r, y0, top, lean, i ? 14 : footSteps), [rTop] = body[body.length - 1];
       bodies.push(body);
       add(round(cx, cz, body, textures.city.metres, i ? 72 : footSegments, i ? undefined : skip), city);
+      if (!i) sunk(cx, cz, r, 72);
       const floors: number[][] = [];
       for (let y = i ? y0 + 4 : windowsFrom; y < top - 2.5; y += 4.3) floors.push([y, 3.6, y < 18 ? 0.3 : 0.7]);
       ringOfWindows(cx, cz, [r, y0, top, lean], floors);
@@ -221,6 +226,7 @@ export function buildCity(world: RAPIER.World, scene: THREE.Scene) {
       const dome = Array.from({ length: 8 }, (_, k) => { const u = k / 7 * Math.PI / 2; return [(r1 + 0.4) * Math.cos(u) + 0.01, t1 - 0.3 + r1 * 0.8 * Math.sin(u)]; });
       towers.push({ x: at.x, z: at.z, r: r0, depth, body, dome });
       add(round(at.x, at.z, body, textures.city.metres, 56), city);
+      if (!depth) sunk(at.x, at.z, r0, 56);
       add(round(at.x, at.z, dome, textures.tiles.metres, 56), tiles);
       if (stage) {
         const r2 = r1 * 0.5, upper = bulging(r2, t1 + r1 * 0.5, t1 + r1 * 0.5 + 10, 0.3), [, t2] = upper[upper.length - 1];

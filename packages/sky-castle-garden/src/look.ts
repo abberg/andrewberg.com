@@ -23,7 +23,7 @@ export const palette = {
   ivyDepth: [0x76a44a, 0x466e54],
   path: [0xe0c99a, 0x9c93b2],
   rust: [0xb47a45, 0x7a5a78],
-  water: [0x3e6a80, 0x2e4a66],
+  water: [0x5aa3a6, 0x3a7488],
   door: [0x2a2622, 0x1c1d2a],
 } as const;
 export const SKY = 0xa9d2e8;
@@ -38,7 +38,13 @@ export const look = {
   rim: 0.25,
   // Fog below the garden: clear down to y = 0, gone by this far down.
   depth: 25,
+  // Under the moats' water: how far down until things are lost in its
+  // colour, and how much of it they take at most.
+  drown: 13,
+  murk: 0.85,
 };
+// The colour the drowned city sinks into.
+export const DEEP = 0x1f5a62;
 const uniforms = {
   uSun: { value: new THREE.Color() },
   uWarm: { value: new THREE.Color() },
@@ -46,6 +52,9 @@ const uniforms = {
   uFill: { value: look.fill },
   uRim: { value: look.rim },
   uDepth: { value: look.depth },
+  uDrown: { value: look.drown },
+  uMurk: { value: look.murk },
+  uDeep: { value: new THREE.Color(DEEP) },
 };
 
 // Shade picked from lit by multiplying, per channel, so materials with a map
@@ -82,7 +91,8 @@ export function paint(material: THREE.MeshStandardMaterial, shade?: number, tile
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <fog_pars_fragment>', /* glsl */`#include <fog_pars_fragment>
         uniform vec3 uSun, uWarm, uShade;
-        uniform float uMid, uFill, uRim, uDepth, uTile;
+        uniform float uMid, uFill, uRim, uDepth, uTile, uDrown, uMurk;
+        uniform vec3 uDeep;
         varying float vHeight;
         varying vec3 vModel, vModelNormal;`)
       .replace('#include <map_fragment>', /* glsl */`#if defined(USE_MAP) && defined(TRIPLANAR)
@@ -106,14 +116,26 @@ export function paint(material: THREE.MeshStandardMaterial, shade?: number, tile
         totalDiffuse += reflectedLight.indirectDiffuse * uFill;`)
       // Distance fog, and fog rising from below so the cliff and the tower
       // melt into the sky.
-      .replace('#include <fog_fragment>', /* glsl */`#ifdef USE_FOG
+      // Under the water, sinking into its colour instead.
+      .replace('#include <fog_fragment>', /* glsl */`#ifdef DROWNED
+          gl_FragColor.rgb = mix(gl_FragColor.rgb, uDeep, uMurk * smoothstep(0.0, -uDrown, vHeight));
+        #endif
+        #ifdef USE_FOG
           float fogFactor = smoothstep(fogNear, fogFar, vFogDepth);
-          fogFactor = max(fogFactor, smoothstep(0.0, -uDepth, vHeight));
+          #ifndef DROWNED
+            fogFactor = max(fogFactor, smoothstep(0.0, -uDepth, vHeight));
+          #endif
           gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, fogFactor);
         #endif`);
   };
   return material;
 }
+
+// The same, for what's under the moats' water.
+export const drowned = <T extends THREE.Material>(material: T) => {
+  material.defines = { ...material.defines, DROWNED: '' };
+  return material;
+};
 
 // A painted material in one of the palette's pairs.
 export const painted = ([lit, shade]: readonly [number, number], options: THREE.MeshStandardMaterialParameters = {}, tile?: number) =>
@@ -197,6 +219,8 @@ export function createLook(scene: THREE.Scene) {
     uniforms.uFill.value = look.fill;
     uniforms.uRim.value = look.rim;
     uniforms.uDepth.value = look.depth;
+    uniforms.uDrown.value = look.drown;
+    uniforms.uMurk.value = look.murk;
   };
 
   const tune = (gui: { addFolder(name: string): any }) => {
