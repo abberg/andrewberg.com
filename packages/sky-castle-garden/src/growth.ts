@@ -257,3 +257,66 @@ export function createGrowth() {
 
   return { drape, finish };
 }
+
+// Ivy up a column, as on the nearest column in the painting: not a curtain
+// but a few thin vines climbing from a bushy foot, wandering and winding a
+// little round the shaft, most stopping partway and one or two reaching the
+// capital, with small clusters of leaves along them, the shingles hanging
+// down the vine. In the column's own space (y up its axis), radius giving
+// the shaft's radius at a height, so it can move with the column; facing is
+// the angle round the shaft (from +z towards +x) the ivy grows mostly on.
+let vineParts: { leaves: THREE.MeshStandardMaterial; stem: THREE.MeshStandardMaterial; clump: THREE.BufferGeometry } | undefined;
+export function columnIvy(seed: number, foot: number, top: number, radius: (y: number) => number, facing: number) {
+  vineParts ??= {
+    leaves: bothSidesAlike(painted(palette.ivy, { map: leafTexture(37), alphaTest: 0.5, side: THREE.DoubleSide })),
+    stem: painted(palette.ivyDepth),
+    clump: clumpGeometry(47),
+  };
+  let s = seed * 7919 + 11;
+  const random = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  const group = new THREE.Group(), placed: THREE.Matrix4[] = [];
+  // A clump at a height and angle round the shaft, standing off it by lift,
+  // its shingles hanging down the given direction.
+  const clump = (y: number, a: number, size: number, lift: number, down = new THREE.Vector3(0, -1, 0)) => {
+    const out = new THREE.Vector3(Math.sin(a), 0, Math.cos(a)), at = out.clone().multiplyScalar(radius(y) + lift).setY(y);
+    const up = down.clone().negate();
+    up.addScaledVector(out, -up.dot(out)).normalize();
+    const turn = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(up.clone().cross(out), up, out))
+      .multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), (random() - 0.5) * 0.8));
+    placed.push(new THREE.Matrix4().compose(at, turn, new THREE.Vector3(size, size, size)));
+  };
+  const vines = 3 + Math.floor(random() * 2), start = facing;
+  for (let v = 0; v < vines; v++) {
+    // Starting round one side of the foot, climbing to some height; the
+    // first all the way.
+    const a0 = start + (random() - 0.5) * 2.4, reach = v === 0 ? top - foot : (top - foot) * (0.3 + random() * 0.6);
+    const twist = (random() - 0.5) * 1.6, drift = wander(seed * 13 + v, 2.5);
+    const points: THREE.Vector3[] = [];
+    for (let d = 0; d <= reach; d += 0.15) {
+      const y = foot + d, a = a0 + twist * d / 6 + 0.25 * drift(d);
+      points.push(new THREE.Vector3(Math.sin(a), 0, Math.cos(a)).multiplyScalar(radius(y) + 0.03).setY(y));
+    }
+    if (points.length < 2) continue;
+    const curve = new THREE.CatmullRomCurve3(points);
+    const stem = new THREE.Mesh(new THREE.TubeGeometry(curve, points.length * 2, 0.03, 5), vineParts.stem);
+    stem.castShadow = true;
+    group.add(stem);
+    // Leaves all along it, thinning out and getting smaller as it climbs.
+    for (let d = random() * 0.15; d < reach; d += 0.12 + random() * 0.14 + d / reach * 0.18) {
+      const t = d / reach, point = curve.getPointAt(Math.min(1, t)), tangent = curve.getTangentAt(Math.min(1, t));
+      if (t > 0.3 && random() < 0.2 * t) continue;
+      clump(point.y, Math.atan2(point.x, point.z) + (random() - 0.5) * 0.25, 0.32 + 0.22 * (1 - t) + random() * 0.12, 0.06 + random() * 0.05, tangent.negate());
+    }
+  }
+  // The bushy foot: clumps heaped round the bottom of the shaft on the side
+  // the vines start from, and a few lower over the edge.
+  for (let k = 0; k < 14; k++) {
+    const a = start + (random() - 0.5) * 3.2, y = foot + random() ** 2 * 1.2;
+    clump(y, a, 0.6 + random() * 0.35, 0.12 + random() * 0.15);
+  }
+  const leaves = new THREE.InstancedMesh(vineParts.clump, vineParts.leaves, placed.length);
+  placed.forEach((matrix, i) => leaves.setMatrixAt(i, matrix));
+  leaves.castShadow = leaves.receiveShadow = true;
+  group.add(leaves);
+  return group;
+}

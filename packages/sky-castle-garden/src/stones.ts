@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { ConvexGeometry } from 'three/addons/geometries/ConvexGeometry.js';
 import { blockStone, capitalGeometry, chippedBlock, columnGeometry, columnStone, crack, drumGeometry, plinthGeometry, urnGeometry } from './columns';
 import { painted, palette } from './look';
+import { columnIvy } from './growth';
 import { archBlockGeometry, patina, statueGeometry } from './ruins';
 import { stone } from './level';
 
@@ -50,6 +51,11 @@ export function createStones(world: RAPIER.World, scene: THREE.Scene) {
         shown = true;
         return parts;
       },
+      // Anything else that moves with the piece, set in its space.
+      add(object: THREE.Object3D) {
+        group.add(object);
+        return parts;
+      },
       // Back to drawing each part.
       plain() {
         shown = false;
@@ -79,9 +85,12 @@ export function createStones(world: RAPIER.World, scene: THREE.Scene) {
   // the shaft and a capital (columns.ts), as one very heavy body.
   // Each on a square plinth with a sloped top.
   const standing = columnGeometry(0.7, 12.7, 'cup', true), plinth = plinthGeometry(2.3, 1.3, 0.35, 1.7).translate(0, -7, 0);
+  // The nearest has ivy climbing it, as in the painting.
+  const shaft = (y: number) => { const t = (y + 5.52) / 11.07; return 0.7 * (1 - 0.12 * t * t + 0.025 * Math.sin(t * Math.PI)); };
   for (const z of [14.6, 22.7, 31.2]) {
-    piece(-4.1, 7, z).look(plinth, blockStone).look(standing, columnStone, [0, 0.65, 0])
+    const column = piece(-4.1, 7, z).look(plinth, blockStone).look(standing, columnStone, [0, 0.65, 0])
       .hull(plinth).cylinder(0.7, 12.1, [0, 0.35, 0]).cylinder(1.15, 0.6, [0, 6.7, 0]);
+    if (z === 14.6) column.add(columnIvy(5, -5.6, 5.4, shaft, Math.PI * 0.7));
   }
 
   // A fourth column in the row fell west, across the lowest west branch. Its
