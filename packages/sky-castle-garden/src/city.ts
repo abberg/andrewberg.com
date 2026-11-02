@@ -92,7 +92,7 @@ export function buildCity(world: RAPIER.World, scene: THREE.Scene) {
   const archAt = (x: number, grow = 0) => Math.abs(x) < ARCH.half + grow ? spring + Math.sqrt((R + grow) ** 2 - (Math.abs(x) + c) ** 2) : -Infinity;
   // The great tower in the middle of the front, the arch at its foot.
   // Its tiers as [radius, top, lean].
-  const GATE = { r: 22, z: ARCH.front + 22, tiers: [[22, 24, 1.5], [18, 45, 1.4], [14.2, 63, 1]] };
+  const GATE = { r: 26, z: ARCH.front + 26, tiers: [[26, 24, 1.5], [22.5, 45, 1.4], [18.5, 63, 1]] };
 
   // Windows, as one instanced quad each, set into the face where it is at
   // their height and tilted with it.
