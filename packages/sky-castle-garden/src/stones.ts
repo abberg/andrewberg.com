@@ -1,6 +1,6 @@
 import RAPIER from '@dimforge/rapier3d-compat';
 import * as THREE from 'three';
-import { blockStone, columnGeometry, columnStone, drumGeometry, plinthGeometry } from './columns';
+import { blockStone, capitalGeometry, columnGeometry, columnStone, drumGeometry, plinthGeometry } from './columns';
 import { stone } from './level';
 
 // Step 4: every freestanding stone object is a dynamic body the robot can
@@ -81,25 +81,29 @@ export function createStones(world: RAPIER.World, scene: THREE.Scene) {
       .hull(plinth).cylinder(0.7, 12.1, [0, 0.35, 0]).cylinder(1.15, 0.6, [0, 6.7, 0]);
   }
 
-  // The fallen column across the lowest west branch, in four drums lying end
-  // to end, and three loose drums near it.
+  // A fourth column in the row fell west, across the lowest west branch. Its
+  // plinth is left where it stood, tipped and sunk into the earth, deeper on
+  // one side (fixed: it has settled there). The column lies beside it in four
+  // drums end to end, its foot by the plinth, and its capital broke off at the
+  // far end. Three loose drums lie near it.
   {
-    const along = new THREE.Vector3(16.2, 0, 5.8).normalize(), lying = turned(-Math.atan2(5.8, 16.2), Math.PI / 2);
-    for (let i = 0; i < 4; i++) {
-      const at = new THREE.Vector3(-12.1, 0.7, 36.8).addScaledVector(along, (i - 1.5) * 4.3);
-      piece(at.x, at.y, at.z, lying).look(drumGeometry(0.7, 4.28, i * 3)).cylinder(0.7, 4.28);
-    }
-    // Its plinth, where it stood, beyond its foot: left behind when it fell,
-    // tipped and sunk into the earth, deeper on one side. Fixed: it has
-    // settled there.
-    const foot = new THREE.Vector3(-12.1, 0, 36.8).addScaledVector(along, -11.2);
-    const tipped = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.24, -0.5, -0.13, 'YXZ'));
-    const sunk = plinthGeometry(2.3, 1.3, 0.35, 1.7).applyQuaternion(tipped).translate(foot.x, -0.6, foot.z);
+    const plinth = new THREE.Vector3(-4.1, 0, 39.6);
+    const tipped = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.24, 0.1, -0.13, 'YXZ'));
+    const sunk = plinthGeometry(2.3, 1.3, 0.35, 1.7).applyQuaternion(tipped).translate(plinth.x, -0.6, plinth.z);
     const mesh = new THREE.Mesh(sunk, blockStone);
     mesh.castShadow = mesh.receiveShadow = true;
     scene.add(mesh);
     world.createCollider(RAPIER.ColliderDesc.convexHull(new Float32Array(sunk.getAttribute('position').array))!.setFriction(0.8),
       world.createRigidBody(RAPIER.RigidBodyDesc.fixed()));
+    // East along it; the lying pieces' own up points west, away from the foot.
+    const along = new THREE.Vector3(16.2, 0, 5.8).normalize(), lying = turned(-Math.atan2(5.8, 16.2), Math.PI / 2);
+    const middle = plinth.clone().setY(0.7).addScaledVector(along, -1.6 - 8.6);
+    for (let i = 0; i < 4; i++) {
+      const at = middle.clone().addScaledVector(along, (i - 1.5) * 4.3);
+      piece(at.x, at.y, at.z, lying).look(drumGeometry(0.7, 4.28, (3 - i) * 3)).cylinder(0.7, 4.28);
+    }
+    const capital = middle.clone().addScaledVector(along, -8.7).setY(1.15);
+    piece(capital.x, capital.y, capital.z, lying).look(capitalGeometry(0.7)).cylinder(1.15, 1.45, [0, 0.725, 0]);
   }
   for (const [x, z, yaw, from] of [[-25.5, 29.5, 0.4, 2], [-21.5, 40.5, 1.3, 5], [-7, 43, 2.2, 8]]) piece(x, 0.7, z, turned(yaw, Math.PI / 2)).look(drumGeometry(0.7, 1.2, from)).cylinder(0.7, 1.2);
 

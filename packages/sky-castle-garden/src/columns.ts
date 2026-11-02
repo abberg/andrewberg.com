@@ -143,27 +143,13 @@ function fluted(radius: (y: number) => number, y0: number, y1: number, foot: num
   return points;
 }
 
-// A column of a radius and height, standing centred on the origin. The
-// mouldings scale with the radius. On a plinth it has only a thin ring at
-// its foot.
-export function columnGeometry(radius: number, height: number, capital: 'cup' | 'flat', plinth = false) {
-  const k = radius / 0.7, bottom = -height / 2, top = height / 2;
-  const base = plinth ? [[0, bottom], [0.82 * k, bottom], ...arc(0.8 * k, bottom + 0.08 * k, 0.08 * k, -Math.PI / 2, Math.PI / 2, 4)] : [
-    [0, bottom], [1.02 * k, bottom], [1.02 * k, bottom + 0.2 * k],
-    // A fat round, a hollow, and a thin round, up to the shaft.
-    ...arc(0.86 * k, bottom + 0.36 * k, 0.16 * k, -Math.PI / 2, Math.PI / 2),
-    [0.8 * k, bottom + 0.54 * k],
-    ...arc(0.78 * k, bottom + 0.6 * k, 0.07 * k, -Math.PI / 2, Math.PI / 2, 4),
-  ];
-  const shaftFoot = bottom + (plinth ? 0.18 : 0.7) * k, shaftTop = top - (capital === 'cup' ? 1.45 : 0.75) * k;
-  // The shaft narrows a little as it rises, with a slight swell.
-  const taper = (y: number) => {
-    const t = (y - shaftFoot) / (shaftTop - shaftFoot);
-    return radius * (1 - 0.12 * t * t + 0.025 * Math.sin(t * Math.PI));
-  };
+// The ring at the neck and the capital over it, from the top of the shaft
+// to the top of the column.
+function capitalProfile(radius: number, shaftTop: number, top: number, capital: 'cup' | 'flat') {
+  const k = radius / 0.7;
   const neck = radius * 0.88;
   const ring = arc(neck + 0.02 * k, shaftTop + 0.09 * k, 0.07 * k, -Math.PI / 2, Math.PI / 2, 4);
-  const head = capital === 'cup'
+  return [...ring, ...(capital === 'cup'
     // A band and a second ring, then a bell of rounded ribs flaring out,
     // under a thick round slab that overhangs it, flat on top.
     ? [
@@ -185,8 +171,35 @@ export function columnGeometry(radius: number, height: number, capital: 'cup' | 
         return [neck * 0.96 + (1.1 * k - neck * 0.96) * Math.sin(t * Math.PI / 2), shaftTop + 0.2 * k + 0.55 * k * t];
       }),
       [0, top],
-    ];
-  return lathe([...base, ...fluted(taper, shaftFoot, shaftTop, bottom), ...ring, ...head], bottom);
+    ])];
+}
+
+// A tall column's capital on its own, broken off at the top of the shaft,
+// standing on the origin.
+export function capitalGeometry(radius: number) {
+  const height = 1.45 * radius / 0.7;
+  return lathe([[0, 0], [radius * 0.9, 0], ...capitalProfile(radius, 0, height, 'cup')], -12.55);
+}
+
+// A column of a radius and height, standing centred on the origin. The
+// mouldings scale with the radius. On a plinth it has only a thin ring at
+// its foot.
+export function columnGeometry(radius: number, height: number, capital: 'cup' | 'flat', plinth = false) {
+  const k = radius / 0.7, bottom = -height / 2, top = height / 2;
+  const base = plinth ? [[0, bottom], [0.82 * k, bottom], ...arc(0.8 * k, bottom + 0.08 * k, 0.08 * k, -Math.PI / 2, Math.PI / 2, 4)] : [
+    [0, bottom], [1.02 * k, bottom], [1.02 * k, bottom + 0.2 * k],
+    // A fat round, a hollow, and a thin round, up to the shaft.
+    ...arc(0.86 * k, bottom + 0.36 * k, 0.16 * k, -Math.PI / 2, Math.PI / 2),
+    [0.8 * k, bottom + 0.54 * k],
+    ...arc(0.78 * k, bottom + 0.6 * k, 0.07 * k, -Math.PI / 2, Math.PI / 2, 4),
+  ];
+  const shaftFoot = bottom + (plinth ? 0.18 : 0.7) * k, shaftTop = top - (capital === 'cup' ? 1.45 : 0.75) * k;
+  // The shaft narrows a little as it rises, with a slight swell.
+  const taper = (y: number) => {
+    const t = (y - shaftFoot) / (shaftTop - shaftFoot);
+    return radius * (1 - 0.12 * t * t + 0.025 * Math.sin(t * Math.PI));
+  };
+  return lathe([...base, ...fluted(taper, shaftFoot, shaftTop, bottom), ...capitalProfile(radius, shaftTop, top, capital)], bottom);
 }
 
 // A plain length of fluted shaft, centred on the origin along y, cut from
