@@ -6,13 +6,16 @@ import { stroke } from './masonry';
 // of stacked drums so the only joints are the horizontal seams between them.
 // The vertical lines the painting shows are staining, darker where rain has
 // run down the flutes. A round moulded base, a ring at the neck and, on the
-// tall standing columns, a flared cup for a capital, open at the top. The
+// tall standing columns, a capital of two rings and a bell of rounded ribs
+// under a thick, overhanging round slab. The
 // colonnade's columns have a plainer flare under the square block that
 // carries the lintels. The fallen column and the loose drums are lengths of
 // the same shaft.
 
 // Flutes round the shaft, and how deep each is, as a share of the radius.
 const FLUTES = 20, DEPTH = 0.07;
+// Ribs round the tall columns' capitals.
+const RIBS = 10;
 // The texture runs once round the shaft and up a whole standing column.
 const TALL = 14;
 // Heights of the seams between drums, up from a column's foot: drums of 1.1
@@ -73,23 +76,29 @@ function shaftTexture() {
 }
 
 const shaft = shaftTexture();
-export const columnStone = painted(palette.stone, { map: shaft });
+export const columnStone = painted(palette.stone, { map: shaft, vertexColors: true });
 // The same stone laid on from three sides, for blocks with no UVs to speak of.
 export const blockStone = painted(palette.stone, { map: shaft }, 4.4);
 
-// A profile ([radius, y, fluted] points, bottom first) turned round the y
-// axis. Fluted points are cut into scalloped flutes with sharp ridges
-// between. The texture runs once round, and up from the given height.
+// A profile ([radius, y, cut] points, bottom first) turned round the y
+// axis. Points cut 1 are fluted, scalloped flutes with sharp ridges between;
+// points cut 2 are the capital's ribs, broad and rounded with deep dark
+// slots between them. The texture runs once round, and up from the given
+// height.
 function lathe(profile: number[][], from: number) {
   const segments = FLUTES * 8;
-  const positions: number[] = [], uvs: number[] = [], indices: number[] = [];
+  const positions: number[] = [], uvs: number[] = [], colours: number[] = [], indices: number[] = [];
   for (let i = 0; i <= segments; i++) {
     const a = i / segments * Math.PI * 2, t = (i / segments * FLUTES) % 1;
     const scallop = Math.sqrt(Math.max(0, 1 - (2 * t - 1) ** 2));
-    profile.forEach(([r, y, fluted]) => {
-      const radius = r * (1 - (fluted ?? 0) * DEPTH * scallop);
+    const slot = Math.exp(-((((i / segments * RIBS) % 1 - 0.5) / 0.13) ** 2));
+    profile.forEach(([r, y, cut]) => {
+      const radius = r * (1 - (cut === 1 ? DEPTH * scallop : cut === 2 ? 0.28 * slot : 0));
       positions.push(Math.sin(a) * radius, y, Math.cos(a) * radius);
       uvs.push(i / segments, (y - from) / TALL);
+      // Shadowed deep in the slots.
+      const shade = cut === 2 ? 1 - 0.6 * slot : 1;
+      colours.push(shade, shade, shade);
     });
   }
   const rows = profile.length;
@@ -100,6 +109,7 @@ function lathe(profile: number[][], from: number) {
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setAttribute('color', new THREE.Float32BufferAttribute(colours, 3));
   geometry.setIndex(indices);
   geometry.computeVertexNormals();
   return geometry;
@@ -143,7 +153,7 @@ export function columnGeometry(radius: number, height: number, capital: 'cup' | 
     [0.8 * k, bottom + 0.54 * k],
     ...arc(0.78 * k, bottom + 0.6 * k, 0.07 * k, -Math.PI / 2, Math.PI / 2, 4),
   ];
-  const shaftFoot = bottom + 0.7 * k, shaftTop = top - (capital === 'cup' ? 1.15 : 0.75) * k;
+  const shaftFoot = bottom + 0.7 * k, shaftTop = top - (capital === 'cup' ? 1.45 : 0.75) * k;
   // The shaft narrows a little as it rises, with a slight swell.
   const taper = (y: number) => {
     const t = (y - shaftFoot) / (shaftTop - shaftFoot);
@@ -152,16 +162,18 @@ export function columnGeometry(radius: number, height: number, capital: 'cup' | 
   const neck = radius * 0.88;
   const ring = arc(neck + 0.02 * k, shaftTop + 0.09 * k, 0.07 * k, -Math.PI / 2, Math.PI / 2, 4);
   const head = capital === 'cup'
-    // A short neck, then the cup flaring out in a hollow curve to a thick
-    // lip, open at the top with a shallow bowl inside.
+    // A band and a second ring, then a bell of rounded ribs flaring out,
+    // under a thick round slab that overhangs it, flat on top.
     ? [
-      [neck * 0.96, shaftTop + 0.2 * k], [neck * 0.96, shaftTop + 0.35 * k],
+      [neck * 0.97, shaftTop + 0.17 * k], [neck * 0.97, shaftTop + 0.26 * k],
+      ...arc(neck, shaftTop + 0.32 * k, 0.06 * k, -Math.PI / 2, Math.PI / 2, 4),
       ...Array.from({ length: 7 }, (_, i) => {
-        const t = (i + 1) / 7;
-        return [neck * 0.96 + (1.08 * k - neck * 0.96) * t * t, shaftTop + 0.35 * k + 0.6 * k * t];
+        const t = i / 6;
+        return [neck * 0.94 + (0.98 * k - neck * 0.94) * t ** 0.8, shaftTop + 0.38 * k + (0.8 * k) * t, 2];
       }),
-      ...arc(1.06 * k, top - 0.12 * k, 0.1 * k, -Math.PI / 4, Math.PI / 2, 4),
-      [0.9 * k, top - 0.02 * k], [0.86 * k, top - 0.1 * k], [0.6 * k, top - 0.32 * k], [0, top - 0.4 * k],
+      [0.96 * k, top - 0.26 * k], [1.14 * k, top - 0.26 * k],
+      ...arc(1.12 * k, top - 0.14 * k, 0.1 * k, -Math.PI / 2, Math.PI / 2, 4),
+      [1.06 * k, top - 0.04 * k], [1.0 * k, top - 0.01 * k], [0, top - 0.01 * k],
     ]
     // A plain flare under the square block (a box of its own).
     : [
