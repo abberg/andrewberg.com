@@ -88,15 +88,18 @@ export function createStones(world: RAPIER.World, scene: THREE.Scene) {
   // far end. Three loose drums lie near it.
   {
     const plinth = new THREE.Vector3(-4.1, 0, 39.6);
-    const tipped = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.24, 0.1, -0.13, 'YXZ'));
+    // East along the fallen column; the lying pieces' own up points west,
+    // away from the foot.
+    const along = new THREE.Vector3(16.2, 0, 5.8).normalize(), lying = turned(-Math.atan2(5.8, 16.2), Math.PI / 2);
+    // Tipped over the way the column fell, a little turned.
+    const tipped = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0).cross(along.clone().negate()).normalize(), 0.26)
+      .multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), 0.1));
     const sunk = plinthGeometry(2.3, 1.3, 0.35, 1.7).applyQuaternion(tipped).translate(plinth.x, -0.6, plinth.z);
     const mesh = new THREE.Mesh(sunk, blockStone);
     mesh.castShadow = mesh.receiveShadow = true;
     scene.add(mesh);
     world.createCollider(RAPIER.ColliderDesc.convexHull(new Float32Array(sunk.getAttribute('position').array))!.setFriction(0.8),
       world.createRigidBody(RAPIER.RigidBodyDesc.fixed()));
-    // East along it; the lying pieces' own up points west, away from the foot.
-    const along = new THREE.Vector3(16.2, 0, 5.8).normalize(), lying = turned(-Math.atan2(5.8, 16.2), Math.PI / 2);
     const middle = plinth.clone().setY(0.7).addScaledVector(along, -1.6 - 8.6);
     for (let i = 0; i < 4; i++) {
       const at = middle.clone().addScaledVector(along, (i - 1.5) * 4.3);
@@ -146,7 +149,7 @@ export function createStones(world: RAPIER.World, scene: THREE.Scene) {
   // same every time.
   let seed = 7;
   const random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-  for (const [x, z] of [[-7, 3], [5.5, 18], [6, 24.5], [-6.5, 41], [5.8, 42.5], [-26.5, 9.8], [-36, 13], [-30, 30],
+  for (const [x, z] of [[-7, 3], [5.5, 18], [6, 24.5], [-11, 42.5], [5.8, 42.5], [-26.5, 9.8], [-36, 13], [-30, 30],
     [-36, 34], [22, 9], [33, 16], [40, 9], [-10, 22.5], [9, 40]]) {
     const width = 1 + random() * 2, depth = 1 + random() * 2, height = 0.3 + random() * 0.7;
     piece(x, height / 2, z, turned(random() * Math.PI)).box(width, height, depth);
