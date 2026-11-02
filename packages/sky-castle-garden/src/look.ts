@@ -15,6 +15,12 @@ export const palette = {
   sandstone: [0xdcc08a, 0x8f86a8],
   masonry: [0xd0b07a, 0x847a9f],
   lawn: [0x8dbf4a, 0x4f7f3a],
+  // Moss and ivy on the stonework.
+  moss: [0xb4d66a, 0x5f9468],
+  ivy: [0x98c85c, 0x4f8664],
+  // The shadowed depths under them.
+  mossDepth: [0x86b052, 0x507e5c],
+  ivyDepth: [0x76a44a, 0x466e54],
   path: [0xe0c99a, 0x9c93b2],
   rust: [0xb47a45, 0x7a5a78],
   water: [0x3e6a80, 0x2e4a66],

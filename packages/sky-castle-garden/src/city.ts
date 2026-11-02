@@ -1,6 +1,7 @@
 import RAPIER from '@dimforge/rapier3d-compat';
 import * as THREE from 'three';
 import { painted, palette } from './look';
+import { createGrowth, wander, type Column } from './growth';
 import { textures, WINDOW, windowTexture } from './masonry';
 
 // Step 7: the city's base behind the south moat, built as in the reference
@@ -280,4 +281,71 @@ export function buildCity(world: RAPIER.World, scene: THREE.Scene) {
       for (const part of these) add(part.clone().applyMatrix4(place), portalStone);
     }
   }
+
+  // Moss on the bands and ivy hanging from them (growth.ts). Each band's
+  // path runs from the foot of the tier above, down the band, over its lip
+  // and down the tier below.
+  const growth = createGrowth();
+  const reversed = (points: number[][]) => [...points].reverse();
+  let bandSeed = 1;
+  // One band over a row of columns. roofSection and below as [out, y],
+  // bottom first, as roof() and drum() give them. ivyReach is how far down
+  // the curtains can hang at most; more (to clear) where full() says so.
+  const band = (columns: Column[], along: number[], at: number[], roofSection: number[][], below: number[][],
+    { moss = 1, ivyReach = 10, full = (_: number): number => 0, floor = (_: number): number => -Infinity } = {}) => {
+    const path = [...reversed(roofSection), ...reversed(below).slice(1)];
+    let roofLength = 0;
+    roofSection.slice(1).forEach(([o, y], k) => roofLength += Math.hypot(o - roofSection[k][0], y - roofSection[k][1]));
+    const patches = wander(bandSeed++, 14), curtains = wander(bandSeed++, 6), clumps = wander(bandSeed++, 3);
+    let s = bandSeed * 101;
+    const random = () => (s = (s * 16807) % 2147483647) / 2147483647;
+    // How much of the band the moss covers, by column: patchy, now and then
+    // all of it and over the lip.
+    const cover = at.map(x => moss * (0.5 + 0.7 * patches(x)));
+    const mossLength = cover.map(c => c < 0.08 ? 0 : Math.min(c, 1) * roofLength + Math.max(0, c - 0.95) * 18 + (random() - 0.5) * 0.4);
+    // Ivy in curtains, longer under heavy moss, the foot ragged.
+    const ivyLength = at.map((x, i) => {
+      const hang = Math.max(0, curtains(x) * 1.4 - 0.25) * ivyReach * (cover[i] > 0.95 ? 1.6 : 1);
+      return Math.max(hang, full(x)) * (0.93 + random() * 0.07);
+    });
+    scene.add(growth.drape('moss', columns, along, path, at.map(() => 0), mossLength, (_, d) => 0.06 + 0.12 * Math.max(0, clumps(d + _ * 0.37))));
+    scene.add(growth.drape('ivy', columns, along, path, at.map(() => roofLength - 0.4), ivyLength,
+      (i, d) => 0.12 + 0.2 * Math.max(0, clumps(at[i] * 1.3 + d * 0.5)) + (full(at[i]) > 0 ? 0.2 : 0), floor ? i => floor(at[i]) : undefined));
+  };
+
+  // Along the front, every half metre.
+  const xs = Array.from({ length: 441 }, (_, i) => -110 + i * 0.5);
+  const facade = xs.map(x => (out: number, y: number) => new THREE.Vector3(x, y, cityFront(x)).addScaledVector(new THREE.Vector3(-2 * x / 292, 0, 1).normalize(), out));
+  const facadeAlong = xs.map(x => x + 110);
+  // Round the arch the ivy comes right down, raggedly, short of the opening
+  // itself.
+  const archIvy = wander(99, 2.5);
+  band(facade, facadeAlong, xs, roof(3.5, 26, 10, 33), ground, {
+    ivyReach: 9,
+    // A rounded mass, to the ground beside the arch and tailing off in lobes
+    // further out.
+    full: x => 32 * (1 - THREE.MathUtils.smoothstep(Math.abs(x) + 3 * archIvy(x), 7, 19)) ** 1.5,
+    // Over the opening it stops a hand's width outside the arch, so a ring
+    // of stone shows round it, and it comes down the jambs beside it.
+    floor: x => {
+      const ring = R + 0.8, reach = Math.abs(x) + c;
+      return reach < ring ? spring + Math.sqrt(ring * ring - reach * reach) : -Infinity;
+    },
+  });
+  band(facade, facadeAlong, xs, roof(13, 56, 20, 62), drum(10, 33, 56, 3), { ivyReach: 8 });
+  band(facade, facadeAlong, xs, roof(23, 86, 45, 93, 8), drum(20, 62, 86, 3), { moss: 0.5, ivyReach: 7 });
+
+  // Round the front of the bastion. Its sections are by radius, so out is
+  // taken as the radius turned inside out.
+  {
+    const angles = Array.from({ length: 121 }, (_, i) => -1.7 + i * 3.4 / 120);
+    const ring = angles.map(a => (out: number, y: number) => new THREE.Vector3(B.x + Math.sin(a) * -out, y, B.z - Math.cos(a) * -out));
+    const arcAlong = angles.map(a => (a + 1.7) * B.r), inside = (points: number[][]) => points.map(([r, y]) => [-r, y]);
+    band(ring, arcAlong, arcAlong, inside(roof(12.5, 20, 10.5, 24.5)), inside(foot), {
+      ivyReach: 7,
+      floor: d => Math.abs(d / B.r - 1.7) < ARCADE.reach + 0.05 ? ARCADE.top + 0.5 : -Infinity,
+    });
+    band(ring, arcAlong, arcAlong, inside(roof(9, 38, 7, 42)), inside(bulging(10.5, 24.5, 38, 1.5)), { ivyReach: 6 });
+  }
+  growth.finish(scene);
 }

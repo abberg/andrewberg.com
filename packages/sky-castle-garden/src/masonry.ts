@@ -87,7 +87,7 @@ const dye = document.createElement('canvas');
 dye.width = STROKE.length;
 dye.height = STROKE.width;
 // One stroke of colour from (x0, y0) to (x1, y1), width wide.
-function stroke(g: CanvasRenderingContext2D, mask: number, x0: number, y0: number, x1: number, y1: number, width: number, colour: string) {
+export function stroke(g: CanvasRenderingContext2D, mask: number, x0: number, y0: number, x1: number, y1: number, width: number, colour: string) {
   const d = dye.getContext('2d')!;
   d.globalCompositeOperation = 'copy';
   d.fillStyle = colour;
