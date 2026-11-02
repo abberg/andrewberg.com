@@ -4,6 +4,7 @@ import GUI from 'three/addons/libs/lil-gui.module.min.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { createFollowCamera, follow } from './followCamera';
 import { createInput } from './input';
+import { createLook } from './look';
 import { buildLevel, PLATFORM_TOP } from './level';
 import { createPlayer, movement } from './player';
 import { createRobot } from './robot';
@@ -11,7 +12,7 @@ import { createStones } from './stones';
 
 // Sky Castle Garden, built in steps from the plan (docs/design-plan.md). So
 // far: the robot (modelled in blender/robot.py), the follow camera, the level
-// blocked out in grey, and stones to push about. 1 unit = 1 m, y up, north −z.
+// blocked out, stones to push about, and the light, sky and palette (look.ts). 1 unit = 1 m, y up, north −z.
 const [, gltf] = await Promise.all([RAPIER.init(), new GLTFLoader().loadAsync('./robot.glb')]);
 const world = new RAPIER.World({ x: 0, y: -9.81, z: 0 });
 world.timestep = 1 / 60;
@@ -20,22 +21,10 @@ const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFShadowMap;
 document.body.append(renderer.domElement);
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xa9d2e8);
-scene.fog = new THREE.Fog(0xa9d2e8, 80, 320);
-scene.add(new THREE.HemisphereLight(0xcfe6f5, 0x4f7f3a, 1.4));
-// The sun is high in the north, behind the camera's usual view towards the
-// city, and casts shadows in a tight box that follows the robot.
-const sun = new THREE.DirectionalLight(0xfff3dd, 2.4);
-sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
-Object.assign(sun.shadow.camera, { left: -25, right: 25, top: 25, bottom: -25, near: 1, far: 120 });
-sun.shadow.bias = -0.0005;
-scene.add(sun, sun.target);
-const sunOffset = new THREE.Vector3(25, 60, -40);
+const look = createLook(scene);
 
 const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 1000);
 
@@ -63,6 +52,7 @@ following.add(follow, 'sensitivity', 0.0005, 0.008, 0.0005);
 following.add(follow, 'swing', 0, 4, 0.1).name('swing behind (s, 0 off)');
 following.add(follow, 'hold', 0, 5, 0.1).name('after mouse (s)');
 following.add(camera, 'fov', 30, 80, 1).name('fov (°)').onChange(() => camera.updateProjectionMatrix());
+look.tune(gui);
 gui.add(walls, 'visible').name('show invisible walls');
 gui.close();
 
@@ -99,7 +89,6 @@ renderer.setAnimationLoop(time => {
   player.animate(delta, world.timestep);
   stones.sync();
   follower.update(delta, player.mesh.position, player.mesh.rotation.y, player.pace);
-  sun.target.position.copy(player.mesh.position);
-  sun.position.copy(player.mesh.position).add(sunOffset);
+  look.update(camera);
   renderer.render(scene, camera);
 });

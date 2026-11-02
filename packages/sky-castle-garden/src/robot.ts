@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { GLTF } from 'three/addons/loaders/GLTFLoader.js';
+import { paint } from './look';
 
 // The robot model (blender/robot.py builds it and exports public/robot.glb):
 // about 4 m tall, feet at the origin, facing −z, every part rigid on one bone.
@@ -30,7 +31,8 @@ export function createRobot(gltf: GLTF) {
   const object = gltf.scene;
   object.traverse(child => {
     if (!(child as THREE.Mesh).isMesh) return;
-    child.castShadow = true;
+    child.castShadow = child.receiveShadow = true;
+    paint((child as THREE.Mesh).material as THREE.MeshStandardMaterial);
     // The arms reach well outside the bind pose's bounds.
     child.frustumCulled = false;
   });

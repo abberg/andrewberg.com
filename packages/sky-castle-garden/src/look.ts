@@ -1,0 +1,192 @@
+import * as THREE from 'three';
+
+// Step 6 of the plan: the light, the sky and the fog, and the palette laid on
+// the greybox. The painted look comes from flat, hand-picked colour: each
+// surface has a lit colour and a shade colour, and the sun picks between them
+// in a few soft bands instead of shading it darker. Shade leans blue-green, or
+// lavender on the stone, never grey.
+
+// The plan's palette (docs/design-plan.md), as [lit, shade].
+export const palette = {
+  stone: [0xe6d8bc, 0x9497c4],
+  // The terrace's masonry under the lawn and the cliff below it.
+  masonry: [0xd2c3a3, 0x8486b6],
+  lawn: [0x8dbf4a, 0x4f7f3a],
+  path: [0xd8c8a0, 0x9a9cbf],
+  rust: [0xb47a45, 0x7a5a78],
+  water: [0x3e6a80, 0x2e4a66],
+  door: [0x2a2622, 0x1c1d2a],
+} as const;
+export const SKY = 0xa9d2e8;
+
+// Shared by every painted material, and tuned from the panel.
+export const look = {
+  // How much of the light the middle band is, and where it sits: shade below
+  // the first edge, full light past the second.
+  mid: 0.55,
+  // The sky fill on top of the bands, and the rim on the sunny side.
+  fill: 0.25,
+  rim: 0.25,
+  // Fog below the garden: clear down to y = 0, gone by this far down.
+  depth: 25,
+};
+const uniforms = {
+  uSun: { value: new THREE.Color() },
+  uWarm: { value: new THREE.Color() },
+  uMid: { value: look.mid },
+  uFill: { value: look.fill },
+  uRim: { value: look.rim },
+  uDepth: { value: look.depth },
+};
+
+// Shade picked from lit by multiplying, per channel, so materials with a map
+// (the robot's) keep it in both.
+const ratio = (lit: number, shade: number) => {
+  const a = new THREE.Color(lit), b = new THREE.Color(shade);
+  return new THREE.Vector3(b.r / a.r, b.g / a.g, b.b / a.b);
+};
+// For anything without a shade of its own: towards blue-green.
+const COOL = ratio(0xd8c8a0, 0x7f9aa8);
+
+// Turns a standard material into a painted one. Shade defaults to cooling
+// whatever colour the material already has.
+export function paint(material: THREE.MeshStandardMaterial, shade?: number) {
+  const shadeRatio = shade === undefined ? COOL : ratio(material.color.getHex(), shade);
+  material.onBeforeCompile = shader => {
+    Object.assign(shader.uniforms, uniforms, { uShade: { value: shadeRatio } });
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <fog_pars_vertex>', '#include <fog_pars_vertex>\nvarying float vHeight;')
+      .replace('#include <fog_vertex>', /* glsl */`#include <fog_vertex>
+        vec4 placed = vec4(transformed, 1.0);
+        #ifdef USE_INSTANCING
+          placed = instanceMatrix * placed;
+        #endif
+        vHeight = (modelMatrix * placed).y;`);
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <fog_pars_fragment>', /* glsl */`#include <fog_pars_fragment>
+        uniform vec3 uSun, uWarm, uShade;
+        uniform float uMid, uFill, uRim, uDepth;
+        varying float vHeight;`)
+      // How lit the surface is, 0 to 1, from what the sun gave it next to what
+      // it would give a surface facing it square on, shadows included.
+      .replace('vec3 totalDiffuse = reflectedLight.directDiffuse + reflectedLight.indirectDiffuse;', /* glsl */`
+        const vec3 luma = vec3(0.2126, 0.7152, 0.0722);
+        float full = dot(diffuseColor.rgb * uSun * RECIPROCAL_PI, luma);
+        float lit = full > 1e-5 ? clamp(dot(reflectedLight.directDiffuse, luma) / full, 0.0, 1.0) : 0.0;
+        float band = smoothstep(0.0, 0.12, lit) * uMid + smoothstep(0.3, 0.45, lit) * (1.0 - uMid);
+        vec3 totalDiffuse = mix(diffuseColor.rgb * uShade, diffuseColor.rgb * uWarm, band);
+        float rim = pow(1.0 - saturate(dot(normal, geometryViewDir)), 3.0);
+        totalDiffuse += diffuseColor.rgb * uWarm * rim * band * uRim;
+        totalDiffuse += reflectedLight.indirectDiffuse * uFill;`)
+      // Distance fog, and fog rising from below so the cliff and the tower
+      // melt into the sky.
+      .replace('#include <fog_fragment>', /* glsl */`#ifdef USE_FOG
+          float fogFactor = smoothstep(fogNear, fogFar, vFogDepth);
+          fogFactor = max(fogFactor, smoothstep(0.0, -uDepth, vHeight));
+          gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, fogFactor);
+        #endif`);
+  };
+  return material;
+}
+
+// A painted material in one of the palette's pairs.
+export const painted = ([lit, shade]: readonly [number, number], options: THREE.MeshStandardMaterialParameters = {}) =>
+  paint(new THREE.MeshStandardMaterial({ color: lit, roughness: 1, metalness: 0, ...options }), shade);
+
+// The sky: a dome, deeper blue overhead, the fog's colour at the horizon and
+// below it, where the garden drops away.
+function createSky() {
+  const material = new THREE.ShaderMaterial({
+    uniforms: { horizon: { value: new THREE.Color(SKY) }, zenith: { value: new THREE.Color(0x5f9fd6) } },
+    vertexShader: /* glsl */`
+      varying vec3 vDirection;
+      void main() {
+        vDirection = position;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }`,
+    fragmentShader: /* glsl */`
+      uniform vec3 horizon, zenith;
+      varying vec3 vDirection;
+      void main() {
+        float up = max(normalize(vDirection).y, 0.0);
+        gl_FragColor = vec4(mix(horizon, zenith, pow(up, 0.6)), 1.0);
+        #include <colorspace_fragment>
+      }`,
+    side: THREE.BackSide,
+    depthWrite: false,
+  });
+  const sky = new THREE.Mesh(new THREE.SphereGeometry(900, 32, 16), material);
+  sky.renderOrder = -1;
+  sky.frustumCulled = false;
+  return sky;
+}
+
+// What the sun's shadow has to cover: the whole level, from the platform to
+// the top of the city, so shadows never pop in as the robot walks about.
+const COVER = new THREE.Box3(new THREE.Vector3(-64, -10, -48), new THREE.Vector3(64, 90, 98));
+
+export function createLook(scene: THREE.Scene) {
+  scene.background = new THREE.Color(SKY);
+  scene.fog = new THREE.Fog(SKY, 30, 350);
+  const sky = createSky();
+  scene.add(sky);
+
+  const hemisphere = new THREE.HemisphereLight(0xcfe6f5, 0x4f7f3a, 1.4);
+  // A warm sun, high in the north behind the usual view south to the city,
+  // a little to the east so the faces turned to the camera aren't all alike.
+  const sun = new THREE.DirectionalLight(0xfff6e8, 3);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(4096, 4096);
+  sun.shadow.radius = 4;
+  sun.shadow.bias = -0.0003;
+  sun.shadow.normalBias = 0.04;
+  scene.add(hemisphere, sun, sun.target);
+  const angles = { height: 56, from: 25 };
+
+  // Points the sun from its angles and fits its shadow box round the level.
+  const aim = () => {
+    const height = THREE.MathUtils.degToRad(angles.height), from = THREE.MathUtils.degToRad(angles.from);
+    const centre = COVER.getCenter(new THREE.Vector3());
+    sun.target.position.copy(centre);
+    sun.position.copy(centre).add(new THREE.Vector3(Math.sin(from) * Math.cos(height), Math.sin(height), -Math.cos(from) * Math.cos(height)).multiplyScalar(200));
+    const camera = sun.shadow.camera;
+    camera.position.copy(sun.position);
+    camera.lookAt(centre);
+    camera.updateMatrixWorld();
+    const box = new THREE.Box3();
+    for (let i = 0; i < 8; i++) {
+      const corner = new THREE.Vector3(i & 1 ? COVER.max.x : COVER.min.x, i & 2 ? COVER.max.y : COVER.min.y, i & 4 ? COVER.max.z : COVER.min.z);
+      box.expandByPoint(corner.applyMatrix4(camera.matrixWorldInverse));
+    }
+    Object.assign(camera, { left: box.min.x, right: box.max.x, bottom: box.min.y, top: box.max.y, near: -box.max.z - 1, far: -box.min.z + 1 });
+    camera.updateProjectionMatrix();
+  };
+  aim();
+
+  const update = (camera: THREE.Camera) => {
+    sky.position.copy(camera.position);
+    uniforms.uSun.value.copy(sun.color).multiplyScalar(sun.intensity);
+    uniforms.uWarm.value.copy(sun.color);
+    uniforms.uMid.value = look.mid;
+    uniforms.uFill.value = look.fill;
+    uniforms.uRim.value = look.rim;
+    uniforms.uDepth.value = look.depth;
+  };
+
+  const tune = (gui: { addFolder(name: string): any }) => {
+    const folder = gui.addFolder('light');
+    folder.add(angles, 'height', 20, 85, 1).name('sun height (°)').onChange(aim);
+    folder.add(angles, 'from', -180, 180, 1).name('sun from, east of north (°)').onChange(aim);
+    folder.addColor(sun, 'color').name('sun');
+    folder.add(look, 'mid', 0, 1, 0.05).name('middle band');
+    folder.add(hemisphere, 'intensity', 0, 4, 0.1).name('sky fill');
+    folder.add(look, 'fill', 0, 1, 0.05).name('fill in the bands');
+    folder.add(look, 'rim', 0, 1, 0.05).name('rim');
+    folder.add(scene.fog as THREE.Fog, 'near', 0, 300, 5).name('fog from (m)');
+    folder.add(scene.fog as THREE.Fog, 'far', 100, 1000, 10).name('fog full (m)');
+    folder.add(look, 'depth', 5, 120, 1).name('fog below (m)');
+    folder.close();
+  };
+
+  return { sun, update, tune };
+}

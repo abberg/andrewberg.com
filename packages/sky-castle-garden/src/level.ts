@@ -1,5 +1,6 @@
 import RAPIER from '@dimforge/rapier3d-compat';
 import * as THREE from 'three';
+import { painted, palette } from './look';
 
 // Step 2 of the plan: every asset as a grey primitive at its final size,
 // placed from the zone plan (docs/zone-plan.png). The snapshot's scale bar
@@ -28,14 +29,10 @@ export const CAMERA_GROUPS = (0x0001 << 16) | (0xffff & ~WALLS);
 export const SPAWN = { x: 0, z: -37, yaw: Math.PI };
 export const PLATFORM_TOP = 3.2;
 
-const colours = {
-  stone: 0xc9c2b4, dark: 0x8f897d, lawn: 0x8dbf4a, path: 0xd8c8a0, water: 0x2e4a66, door: 0x1f1d1b,
-};
-const material = (color: number) => new THREE.MeshStandardMaterial({ color, roughness: 0.9 });
-export const stone = material(colours.stone);
-const dark = material(colours.dark), lawn = material(colours.lawn);
-const path = material(colours.path), door = material(colours.door);
-const water = new THREE.MeshStandardMaterial({ color: colours.water, roughness: 0.2 });
+export const stone = painted(palette.stone);
+const masonry = painted(palette.masonry), lawn = painted(palette.lawn);
+const path = painted(palette.path), door = painted(palette.door), rust = painted(palette.rust);
+const water = painted(palette.water, { roughness: 0.2 });
 
 // A curve sampled across x, as [x, z] points.
 const sample = (curve: (x: number) => number, from: number, to: number, steps = 32) =>
@@ -97,7 +94,7 @@ export function buildLevel(world: RAPIER.World, scene: THREE.Scene) {
 
   // The terrace: a stone base that the moats are cut into, and the lawn on top.
   const north = sample(northEdge, WEST, EAST, 64);
-  ground(slab([...north, [EAST, 120], [WEST, 120]], -40, -0.3), dark);
+  ground(slab([...north, [EAST, 120], [WEST, 120]], -40, -0.3), masonry);
   const lawnOutline = [
     ...north,
     [EAST, MOATS_FROM], [EAST_LAWN, MOATS_FROM],
@@ -162,6 +159,8 @@ export function buildLevel(world: RAPIER.World, scene: THREE.Scene) {
     const tier = (back: number, depth: number, bottom: number, top: number) => {
       const out = back + depth / 2;
       box(xc - Math.sin(t) * out, (bottom + top) / 2, front + Math.cos(t) * out, 4.3, top - bottom, depth, stone, -t);
+      // A rust band round the top of each tier.
+      box(xc - Math.sin(t) * (out - 0.1), top - 0.65, front + Math.cos(t) * (out - 0.1), 4.3, 1.4, depth + 0.2, rust, -t, false);
     };
     const inArch = Math.abs(xc) < 4;
     tier(0, 12, inArch ? ARCH.floor + ARCH.height : -0.3, 28);
