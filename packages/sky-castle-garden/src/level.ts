@@ -1,6 +1,8 @@
 import RAPIER from '@dimforge/rapier3d-compat';
 import * as THREE from 'three';
+import { ARCH, buildCity } from './city';
 import { painted, palette } from './look';
+import { textures } from './masonry';
 
 // Step 2 of the plan: every asset as a grey primitive at its final size,
 // placed from the zone plan (docs/zone-plan.png). The snapshot's scale bar
@@ -11,10 +13,9 @@ import { painted, palette } from './look';
 // The garden's edges, as curves across x.
 // The north lip bows out over the drop: a circle about 250 m across.
 const northEdge = (x: number) => 250.7 - Math.sqrt(250.7 ** 2 - x * x);
-// The lawn's south edge, where the south moat starts, and the city's front
-// behind the moat, both following the curve of the city's base.
+// The lawn's south edge, where the south moat starts, following the curve of
+// the city's base (city.ts).
 const lawnSouth = (x: number) => 44.7 + x * x / 298;
-const cityFront = (x: number) => 52.5 + x * x / 292;
 // The moats down the sides, from z 6 to the south moat.
 const WEST = -52, WEST_LAWN = -44.9, EAST_LAWN = 46.3, EAST = 53.3, MOATS_FROM = 6.1;
 
@@ -30,8 +31,11 @@ export const SPAWN = { x: 0, z: -37, yaw: Math.PI };
 export const PLATFORM_TOP = 3.2;
 
 export const stone = painted(palette.stone);
-const masonry = painted(palette.masonry), lawn = painted(palette.lawn);
-const path = painted(palette.path), door = painted(palette.door), rust = painted(palette.rust);
+const sandstoneMap = textures.sandstone.map();
+const sandstone = painted(palette.sandstone, { map: sandstoneMap }, textures.sandstone.metres);
+const steps = painted(palette.sandstone, { map: textures.steps.map() }, textures.steps.metres);
+const masonry = painted(palette.masonry, { map: sandstoneMap }, textures.sandstone.metres), lawn = painted(palette.lawn);
+const path = painted(palette.path, { map: textures.paving.map() }, textures.paving.metres), door = painted(palette.door);
 const water = painted(palette.water, { roughness: 0.2 });
 
 // A curve sampled across x, as [x, z] points.
@@ -89,6 +93,16 @@ export function buildLevel(world: RAPIER.World, scene: THREE.Scene) {
     return mesh;
   };
   // Paving laid on the lawn, by its x and z extents: just a surface.
+  // A step: a box in the stair texture, slid along by its own amount so the
+  // joints don't line up from one step to the next.
+  let shift = 3;
+  const step = (x: number, y: number, z: number, width: number, height: number, depth: number, solid = true) => {
+    const mesh = box(x, y, z, width, height, depth, steps, 0, solid);
+    shift = (shift * 7.31 + 2.17) % 12;
+    mesh.geometry.translate(shift, 0, 0);
+    mesh.position.x -= shift;
+    return mesh;
+  };
   const paving = (x0: number, x1: number, z0: number, z1: number) =>
     box((x0 + x1) / 2, 0.02, (z0 + z1) / 2, x1 - x0, 0.04, z1 - z0, path, 0, false).castShadow = false;
 
@@ -121,15 +135,15 @@ export function buildLevel(world: RAPIER.World, scene: THREE.Scene) {
   });
   // Grass on top of the tower's stone.
   const outline = [...rim, [2.5, -27.3], [-2.5, -27.3]];
-  ground(slab(outline, -60, PLATFORM_TOP - 0.3), stone);
+  ground(slab(outline, -60, PLATFORM_TOP - 0.3), sandstone);
   ground(slab(outline, PLATFORM_TOP - 0.3, PLATFORM_TOP), lawn);
   // The causeway, 5 m wide, from inside the notch to the garden's lip.
-  box(0, -12.5, -13.65, 5, 25, 27.3);
+  box(0, -12.5, -13.65, 5, 25, 27.3, sandstone);
   paving(-2.5, 2.5, -27.3, 0);
   // Eight 0.4 m steps down off the platform onto it.
   for (let i = 0; i < 7; i++) {
     const top = PLATFORM_TOP - 0.4 * (i + 1), z0 = -27.3 + 7.1 / 8 * i;
-    box(0, top / 2, z0 + 7.1 / 16, 5, top, 7.1 / 8);
+    step(0, top / 2, z0 + 7.1 / 16, 5, top, 7.1 / 8);
   }
 
   // Paths: the main axis, three branches west and one east, and stubs to the pools.
@@ -152,24 +166,9 @@ export function buildLevel(world: RAPIER.World, scene: THREE.Scene) {
   // The freestanding stonework (columns, statue, ruin, colonnade, urns,
   // slabs) moves, so it's built in stones.ts.
 
-  // The city's base behind the south moat: tiers stepping back and up,
-  // following its curve, with the arch cut into the bottom tier.
-  // The stair starts where the grass landing ends and climbs across the moat.
-  const ARCH = { half: 3.7, stair: 50.4, front: 52.5, back: 61.2, floor: 3.6, height: 10 };
-  for (let xc = -62; xc <= 62; xc += 4) {
-    const t = Math.atan(xc / 146);
-    const front = cityFront(xc);
-    const tier = (back: number, depth: number, bottom: number, top: number) => {
-      const out = back + depth / 2;
-      box(xc - Math.sin(t) * out, (bottom + top) / 2, front + Math.cos(t) * out, 4.3, top - bottom, depth, stone, -t);
-      // A rust band round the top of each tier.
-      box(xc - Math.sin(t) * (out - 0.1), top - 0.65, front + Math.cos(t) * (out - 0.1), 4.3, 1.4, depth + 0.2, rust, -t, false);
-    };
-    const inArch = Math.abs(xc) < 4;
-    tier(0, 12, inArch ? ARCH.floor + ARCH.height : -0.3, 28);
-    tier(10, 12, 28, 55);
-    tier(20, 14, 55, 85);
-  }
+  // The city's base behind the south moat, the bastion and the arch.
+  buildCity(world, scene);
+
   // The arch: a stair of twelve 0.3 m steps up from the grass to its floor,
   // the sealed door at the back and a frame round the opening. 0.4 m risers
   // on treads this short climb at over 40°, too steep for the robot. The
@@ -177,7 +176,7 @@ export function buildLevel(world: RAPIER.World, scene: THREE.Scene) {
   const run = 0.475, landing = ARCH.stair + run * 12;
   for (let i = 0; i < 12; i++) {
     const top = 0.3 * (i + 1);
-    box(0, (top - 0.3) / 2, ARCH.stair + run * (i + 0.5), ARCH.half * 2, top + 0.3, run, stone, 0, false);
+    step(0, (top - 0.3) / 2, ARCH.stair + run * (i + 0.5), ARCH.half * 2, top + 0.3, run, false);
   }
   {
     const length = Math.hypot(run * 12, ARCH.floor), slope = Math.atan2(ARCH.floor, run * 12);
@@ -187,15 +186,8 @@ export function buildLevel(world: RAPIER.World, scene: THREE.Scene) {
     world.createCollider(RAPIER.ColliderDesc.cuboid(ARCH.half, 0.2, length / 2).setTranslation(middle.x, middle.y, middle.z)
       .setRotation(new THREE.Quaternion().setFromEuler(new THREE.Euler(-slope, 0, 0))));
   }
-  box(0, (ARCH.floor - 0.3) / 2, (landing + ARCH.back) / 2, ARCH.half * 2, ARCH.floor + 0.3, ARCH.back - landing);
+  box(0, (ARCH.floor - 0.3) / 2, (landing + ARCH.back) / 2, ARCH.half * 2, ARCH.floor + 0.3, ARCH.back - landing, sandstone);
   box(0, ARCH.floor + ARCH.height / 2, ARCH.back + 0.5, ARCH.half * 2 + 0.6, ARCH.height, 1, door);
-  for (const side of [-1, 1]) box(side * (ARCH.half + 0.6), (ARCH.floor + ARCH.height) / 2, ARCH.front - 0.5, 1.2, ARCH.floor + ARCH.height + 1.5, 1);
-  box(0, ARCH.floor + ARCH.height + 1.2, ARCH.front - 0.5, ARCH.half * 2 + 2.4, 1.5, 1);
-
-  // The rounded bastion, beside the arch to the west (not on the zone plan:
-  // placed by eye).
-  column(-24, -0.3, 65.5, 13, 34.3);
-  column(-24, 34, 65.5, 10, 14);
 
   // Step 3: the boundaries, as invisible walls 20 m tall. They follow the
   // water's edge round the moats, the stair across the south moat and the

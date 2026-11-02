@@ -1,0 +1,283 @@
+import RAPIER from '@dimforge/rapier3d-compat';
+import * as THREE from 'three';
+import { painted, palette } from './look';
+import { textures, WINDOW, windowTexture } from './masonry';
+
+// Step 7: the city's base behind the south moat, built as in the reference
+// looking south: tiers of big pale blocks, each rounding over at the top and
+// dropping straight down, stepping back under a sloping band of rust tiles, small arched
+// windows scattered over them, a round bastion beside the arch and a little
+// domed turret. Only the colliders at the base are solid.
+
+// The city's front, where its lowest tier meets the moat, following the curve
+// of the garden.
+export const cityFront = (x: number) => 52.5 + x * x / 292;
+// The arch the main path climbs into: its opening, the stair up to it from
+// the grass landing, its floor and the sealed door at the back.
+export const ARCH = { half: 3.7, stair: 50.4, front: 52.5, back: 61.2, floor: 3.6, height: 10 };
+
+// A tier's face from y0 to y1, as [out, y] points: out is how far back into
+// the city from the front. It drops straight from the front up to halfway,
+// then rounds over and back by lean towards the top.
+const drum = (out: number, y0: number, y1: number, lean: number, steps = 14) =>
+  Array.from({ length: steps + 1 }, (_, i) => {
+    const t = i / steps, u = Math.max(0, (t - 0.45) / 0.55);
+    return [out + lean * (1 - Math.sqrt(1 - u * u)), y0 + (y1 - y0) * t];
+  });
+// Where a drum's face is at a height: how far back, and how far back it goes
+// per metre up.
+function drumAt(out: number, y0: number, y1: number, lean: number, y: number) {
+  const at = (y: number) => { const u = Math.max(0, Math.min(0.999, ((y - y0) / (y1 - y0) - 0.45) / 0.55)); return out + lean * (1 - Math.sqrt(1 - u * u)); };
+  return [at(y), (at(y + 0.05) - at(y - 0.05)) / 0.1];
+}
+// A band of roof from one tier back up to the foot of the next, rounded over.
+const roof = (out0: number, y0: number, out1: number, y1: number, steps = 6) =>
+  Array.from({ length: steps + 1 }, (_, i) => { const t = i / steps; return [out0 + (out1 - out0) * t, y0 + (y1 - y0) * Math.sin(t * Math.PI / 2)]; });
+
+// A surface from a row of columns along some line and a cross-section swept
+// along it. place() puts a point of the section at a column; along gives each
+// column's distance along the line, in metres, for the texture. Quads can be
+// left out, for openings.
+function surface(along: number[], section: number[][], place: (column: number, out: number, y: number) => THREE.Vector3, metres: number,
+  skip?: (x: number, y: number, z: number) => boolean) {
+  const positions: number[] = [], uvs: number[] = [], indices: number[] = [];
+  // Distance up the section, so the bulge doesn't stretch the blocks.
+  const up = [0];
+  for (let j = 1; j < section.length; j++) up.push(up[j - 1] + Math.hypot(section[j][0] - section[j - 1][0], section[j][1] - section[j - 1][1]));
+  along.forEach((u, i) => section.forEach(([out, y], j) => {
+    positions.push(...place(i, out, y).toArray());
+    uvs.push(u / metres, (up[j] + section[0][1]) / metres);
+  }));
+  const rows = section.length, at = (i: number, j: number) => i * rows + j;
+  for (let i = 0; i < along.length - 1; i++) for (let j = 0; j < rows - 1; j++) {
+    if (skip) {
+      const x = (positions[at(i, j) * 3] + positions[at(i + 1, j) * 3]) / 2, z = (positions[at(i, j) * 3 + 2] + positions[at(i + 1, j) * 3 + 2]) / 2;
+      if (skip(x, section[j][1], z)) continue;
+    }
+    // Facing out of the city.
+    indices.push(at(i, j), at(i, j + 1), at(i + 1, j), at(i + 1, j), at(i, j + 1), at(i + 1, j + 1));
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
+export function buildCity(world: RAPIER.World, scene: THREE.Scene) {
+  const city = painted(palette.stone, { map: textures.city.map() });
+  const tiles = painted(palette.rust, { map: textures.tiles.map() });
+  // The arch's stone, darkening into the passage by its vertex colours.
+  const portalStone = painted(palette.stone, { map: textures.city.map(), vertexColors: true }, textures.city.metres);
+  const add = (geometry: THREE.BufferGeometry, material: THREE.Material) => {
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.castShadow = mesh.receiveShadow = true;
+    scene.add(mesh);
+    return mesh;
+  };
+  const solid = (x: number, y: number, z: number, hx: number, hy: number, hz: number, yaw = 0) =>
+    world.createCollider(RAPIER.ColliderDesc.cuboid(hx, hy, hz).setTranslation(x, y, z)
+      .setRotation(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw)));
+
+  // The tiers, swept along the front from well past either side of the garden.
+  const columns = Array.from({ length: 301 }, (_, i) => i - 150);
+  const along: number[] = [0];
+  columns.slice(1).forEach((x, i) => along.push(along[i] + Math.hypot(1, cityFront(x) - cityFront(columns[i]))));
+  // Into the city, square to the front.
+  const inward = columns.map(x => new THREE.Vector3(-2 * x / 292, 0, 1).normalize());
+  const front = (i: number, out: number, y: number) =>
+    new THREE.Vector3(columns[i], y, cityFront(columns[i])).addScaledVector(inward[i], out);
+
+  // The tiers as [out, bottom, top, lean], and each one's rows of windows as
+  // [height, spacing along the floor, share of spots filled]. A row is one
+  // floor, so its windows line up; the lower tiers have only a couple of
+  // sparse rows and the top tier is full of them, as in the reference.
+  const tiers: [number[], number[][]][] = [
+    [[0, -0.3, 26, 3.5], [[4.5, 13, 0.5], [19, 8.5, 0.7]]],
+    [[10, 33, 56, 3], [[38, 9, 0.65], [48.5, 6.5, 0.8]]],
+    [[20, 62, 86, 3], [[64.5, 5.5, 0.8], [69, 5.5, 0.8], [73.5, 5.5, 0.85], [78, 5.5, 0.85], [82.5, 5.5, 0.85]]],
+  ];
+  const [[, , groundTop, groundLean]] = tiers[0];
+  const ground = drum(0, -0.3, groundTop, groundLean);
+  // The bottom tier is open round the arch, up to the row the arch's
+  // surround reaches.
+  const archTop = ARCH.floor + ARCH.height;
+  const surroundTop = ground.find(([, y]) => y >= archTop)![1];
+  add(surface(along, ground, front, textures.city.metres, (x, y) => Math.abs(x) < 5 && y < archTop), city);
+  add(surface(along, roof(3.5, 26, 10, 33), front, textures.tiles.metres), tiles);
+  add(surface(along, drum(10, 33, 56, 3), front, textures.city.metres), city);
+  add(surface(along, roof(13, 56, 20, 62), front, textures.tiles.metres), tiles);
+  add(surface(along, drum(20, 62, 86, 3), front, textures.city.metres), city);
+  add(surface(along, roof(23, 86, 45, 93, 8), front, textures.tiles.metres), tiles);
+
+  // Windows, as one instanced quad each, set into the face where it is at
+  // their height and tilted with it.
+  let seed = 11;
+  const random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const windows: THREE.Matrix4[] = [];
+  const UP = new THREE.Vector3(0, 1, 0);
+  const setWindow = (at: THREE.Vector3, facing: THREE.Vector3) => {
+    const up = UP.clone().addScaledVector(facing, -facing.dot(UP)).normalize(), right = up.clone().cross(facing);
+    windows.push(new THREE.Matrix4().makeBasis(right, up, facing).setPosition(at.addScaledVector(facing, 0.04)));
+  };
+  // A row along a floor: spots every spacing from one end to the other, every
+  // other row shifted half a spot.
+  const row = (from: number, to: number, spacing: number, keep: number, shift: number, put: (s: number) => void) => {
+    for (let s = from + spacing * (0.5 + shift); s < to; s += spacing) if (random() < keep) put(s);
+  };
+  tiers.forEach(([[out, y0, y1, lean], rows]) => rows.forEach(([y, spacing, keep], k) => {
+    const [back, slope] = drumAt(out, y0, y1, lean, y);
+    row(-110, 110, spacing, keep, k % 2 ? 0.5 : 0, x => {
+      // Clear of the arch, and of the city behind the bastion.
+      if (Math.abs(x) < 9 && y < 30 || x > -40 && x < -8 && y < 48) return;
+      const inward = new THREE.Vector3(-2 * x / 292, 0, 1).normalize();
+      setWindow(new THREE.Vector3(x, y, cityFront(x)).addScaledVector(inward, back),
+        inward.clone().negate().addScaledVector(UP, slope).normalize());
+    });
+  }));
+  // The same round a tower, at radius r (and leaning in) from its centre.
+  const ringOfWindows = (cx: number, cz: number, [r, y0, y1, lean]: number[], rows: number[][]) => rows.forEach(([y, spacing, keep], k) => {
+    const [back, slope] = drumAt(-r, y0, y1, lean, y), radius = -back;
+    row(0, Math.PI * 2 * radius, spacing, keep, k % 2 ? 0.5 : 0, s => {
+      const a = s / radius, out = new THREE.Vector3(Math.sin(a), 0, -Math.cos(a));
+      setWindow(new THREE.Vector3(cx, y, cz).addScaledVector(out, radius), out.clone().addScaledVector(UP, slope).normalize());
+    });
+  });
+
+  // Solid only at the base: boxes along the bottom tier, open over the arch.
+  for (let x = -62; x <= 62; x += 4) {
+    const yaw = -Math.atan(x / 146), z = cityFront(x), out = new THREE.Vector3(-Math.sin(-yaw), 0, Math.cos(-yaw));
+    const bottom = Math.abs(x) < 4 ? archTop : -0.3;
+    solid(x + out.x * 6, (bottom + 28) / 2, z + out.z * 6, 2.15, (28 - bottom) / 2, 6, yaw);
+  }
+
+  // A round tower drum, as [radius, y] points, centred on (cx, cz).
+  const round = (cx: number, cz: number, section: number[][], metres: number, segments = 72, skip?: (x: number, y: number, z: number) => boolean) => {
+    const reference = section[0][0];
+    const turns = Math.max(1, Math.round(Math.PI * 2 * reference / metres));
+    const angles = Array.from({ length: segments + 1 }, (_, i) => i / segments * Math.PI * 2);
+    return surface(angles.map(a => a / (Math.PI * 2) * turns * metres), section,
+      (i, r, y) => new THREE.Vector3(cx + Math.sin(angles[i]) * r, y, cz - Math.cos(angles[i]) * r), metres, skip);
+  };
+  // Radius out instead of in.
+  const bulging = (r: number, y0: number, y1: number, lean: number) => drum(-r, y0, y1, lean).map(([out, y]) => [-out, y]);
+
+  // The bastion, west of the arch, in three tiers under a rust dome.
+  // Its foot is an arcade (below), as in the reference, round the arc of
+  // it that stands clear of the wall behind.
+  // Pushed forward into the moat, to just behind the lawn's edge, so it
+  // bulges well out of the wall as in the reference.
+  const B = { x: -24, z: 62, r: 14.5 };
+  const foot = bulging(B.r, -0.3, 20, 2);
+  let reach = 0;
+  while (reach < Math.PI / 2 && [-1, 1].every(side => {
+    const x = B.x + Math.sin(side * reach) * B.r, z = B.z - Math.cos(reach) * B.r;
+    return z < cityFront(x) - 0.5;
+  })) reach += 0.01;
+  const ARCADE = { reach, top: foot.find(([, y]) => y >= 6.8)![1] };
+  add(round(B.x, B.z, foot, textures.city.metres, 72, (x, y, z) =>
+    z < B.z && Math.abs(Math.asin(THREE.MathUtils.clamp((x - B.x) / B.r, -1, 1))) < ARCADE.reach && y < ARCADE.top), city);
+  add(round(B.x, B.z, roof(12.5, 20, 10.5, 24.5), textures.tiles.metres), tiles);
+  add(round(B.x, B.z, bulging(10.5, 24.5, 38, 1.5), textures.city.metres), city);
+  add(round(B.x, B.z, roof(9, 38, 7, 42), textures.tiles.metres), tiles);
+  add(round(B.x, B.z, bulging(7, 42, 47, 0.6), textures.city.metres), city);
+  add(round(B.x, B.z, Array.from({ length: 9 }, (_, i) => { const a = i / 8 * Math.PI / 2; return [6.6 * Math.cos(a) + 0.01, 47 + 5 * Math.sin(a)]; }), textures.tiles.metres), tiles);
+  ringOfWindows(B.x, B.z, [14.5, -0.3, 20, 2], [[14.5, 7.5, 0.8]]);
+  ringOfWindows(B.x, B.z, [10.5, 24.5, 38, 1.5], [[28, 6.5, 0.85], [33.5, 6.5, 0.85]]);
+  ringOfWindows(B.x, B.z, [7, 42, 47, 0.6], [[44, 4, 0.9]]);
+  world.createCollider(RAPIER.ColliderDesc.cylinder(11.5, 14.5).setTranslation(B.x, 11.2, B.z));
+
+  // A little domed turret on the first band of roof, east of the arch.
+  {
+    const x = 20, i = columns.indexOf(x), base = front(i, 6.5, 0);
+    add(round(base.x, base.z, bulging(2.4, 29.5, 35, 0.2), textures.city.metres, 32), city);
+    ringOfWindows(base.x, base.z, [2.4, 29.5, 35, 0.2], [[32.3, 2.6, 1]]);
+    add(round(base.x, base.z, Array.from({ length: 7 }, (_, k) => { const a = k / 6 * Math.PI / 2; return [2.7 * Math.cos(a) + 0.01, 35 + 2.4 * Math.sin(a)]; }), textures.tiles.metres, 32), tiles);
+  }
+
+  const glass = new THREE.InstancedMesh(new THREE.PlaneGeometry(WINDOW.width, WINDOW.height),
+    painted(palette.stone, { map: windowTexture(), alphaTest: 0.5 }), windows.length);
+  windows.forEach((matrix, i) => glass.setMatrixAt(i, matrix));
+  glass.receiveShadow = true;
+  scene.add(glass);
+
+  // The arch: a plain pointed opening in a surround standing just proud of
+  // the tier, and the passage through it to the sealed door. Two arcs meet at
+  // the crown, each centred a little past the middle.
+  const z0 = ARCH.front - 0.15, depth = ARCH.back - z0, outer = 5.5;
+  const c = 1.6, R = ARCH.half + c, rise = Math.sqrt(R * R - c * c), spring = archTop - rise;
+  const shape = new THREE.Shape()
+    .moveTo(-outer, -0.3).lineTo(-ARCH.half, -0.3).lineTo(-ARCH.half, spring)
+    .absarc(c, spring, R, Math.PI, Math.atan2(rise, -c), true)
+    .absarc(-c, spring, R, Math.atan2(rise, c), 0, true)
+    .lineTo(ARCH.half, -0.3).lineTo(outer, -0.3).lineTo(outer, surroundTop).lineTo(-outer, surroundTop).closePath();
+  const portal = new THREE.ExtrudeGeometry(shape, { depth, steps: 12, bevelEnabled: false, curveSegments: 24 });
+  portal.translate(0, 0, z0);
+  {
+    const p = portal.getAttribute('position'), colours: number[] = [];
+    for (let k = 0; k < p.count; k++) {
+      const inside = Math.abs(p.getX(k)) < ARCH.half + 0.01 && p.getY(k) < archTop + 0.01;
+      const dark = inside ? 1 - 0.85 * THREE.MathUtils.smoothstep(p.getZ(k) - z0, 0.5, 7) : 1;
+      colours.push(dark, dark, dark);
+    }
+    portal.setAttribute('color', new THREE.Float32BufferAttribute(colours, 3));
+  }
+  add(portal, portalStone);
+  for (const side of [-1, 1]) solid(side * (ARCH.half + outer) / 2, (surroundTop - 0.3) / 2, (z0 + ARCH.back) / 2, (outer - ARCH.half) / 2, (surroundTop + 0.3) / 2, depth / 2);
+
+  // The arcade round the bastion's foot, as in the reference: a row of
+  // round arches over the moat, on a plinth with a ledge, opening into a
+  // gallery with a second row of arches further back, set half a bay over so
+  // a column stands in the middle of each opening. Each bay is square to the
+  // curve, and everything fades dark the deeper it is.
+  {
+    const plinth = 1.2, half = 1.6, spring = 4.6, front = 0.9, inner = 2.6, deep = 4.5;
+    const ceiling = spring + half + 0.35;
+    const bays = Math.floor(2 * ARCADE.reach * B.r / 4.3), turn = 2 * ARCADE.reach / bays;
+    // Each bay as wide as the chord across its share of the curve.
+    const bay = 2 * B.r * Math.sin(turn / 2);
+    const arch = (x: number, half: number) => new THREE.Path().moveTo(x - half, plinth).lineTo(x + half, plinth).lineTo(x + half, spring)
+      .absarc(x, spring, half, 0, Math.PI, false).lineTo(x - half, plinth);
+    const wall = (bottom: number, top: number, holes: THREE.Path[], depth: number, at: number) => {
+      const shape = new THREE.Shape().moveTo(-bay / 2 - 0.05, bottom).lineTo(bay / 2 + 0.05, bottom).lineTo(bay / 2 + 0.05, top).lineTo(-bay / 2 - 0.05, top).closePath();
+      shape.holes = holes;
+      return new THREE.ExtrudeGeometry(shape, { depth, steps: 2, bevelEnabled: false, curveSegments: 16 }).translate(0, 0, at);
+    };
+    const block = (width: number, height: number, depth: number, x: number, y: number, z: number) =>
+      new THREE.BoxGeometry(width, height, depth).translate(x, y, z).toNonIndexed();
+    const back = new THREE.PlaneGeometry(bay + 0.1, ceiling - plinth).rotateY(Math.PI).translate(0, (plinth + ceiling) / 2, deep);
+    const parts = [
+      wall(-0.3, ARCADE.top, [arch(0, half)], front, 0),
+      // The inner arches, half a bay over.
+      wall(plinth, ceiling, [arch(-bay / 4, bay / 4 - 0.35), arch(bay / 4, bay / 4 - 0.35)], 0.5, inner),
+      // The gallery's floor and ceiling.
+      block(bay + 0.1, plinth + 0.3, deep - front, 0, (plinth - 0.3) / 2, (front + deep) / 2),
+      block(bay + 0.1, ARCADE.top - ceiling, deep - front, 0, (ceiling + ARCADE.top) / 2, (front + deep) / 2),
+      back,
+      // The ledge along the plinth.
+      block(bay + 0.1, 0.25, 0.5, 0, plinth - 0.125, -0.2),
+    ];
+    // Darker with depth. Vertex colours are linear: squared, so the fade
+    // reads even.
+    const shade = (geometry: THREE.BufferGeometry) => {
+      const p = geometry.getAttribute('position'), colours: number[] = [];
+      for (let k = 0; k < p.count; k++) {
+        const dark = (1 - 0.8 * THREE.MathUtils.smoothstep(p.getZ(k), 0.2, deep * 0.9)) ** 2;
+        colours.push(dark, dark, dark);
+      }
+      geometry.setAttribute('color', new THREE.Float32BufferAttribute(colours, 3));
+      return geometry;
+    };
+    parts.forEach(shade);
+    // Walls closing the gallery's ends.
+    const end = (side: number) => shade(block(0.3, ceiling - plinth, deep - front, side * bay / 2, (plinth + ceiling) / 2, (front + deep) / 2));
+    for (let i = 0; i < bays; i++) {
+      const a = -ARCADE.reach + turn * (i + 0.5), out = B.r * Math.cos(turn / 2) + 0.03;
+      // Baked into place, so the blocks run on across the bays.
+      const place = new THREE.Matrix4().makeRotationY(-a).setPosition(B.x + Math.sin(a) * out, 0, B.z - Math.cos(a) * out);
+      const these = [...parts, ...(i === 0 ? [end(-1)] : []), ...(i === bays - 1 ? [end(1)] : [])];
+      for (const part of these) add(part.clone().applyMatrix4(place), portalStone);
+    }
+  }
+}

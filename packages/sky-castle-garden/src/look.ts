@@ -8,11 +8,14 @@ import * as THREE from 'three';
 
 // The plan's palette (docs/design-plan.md), as [lit, shade].
 export const palette = {
-  stone: [0xe6d8bc, 0x9497c4],
-  // The terrace's masonry under the lawn and the cliff below it.
-  masonry: [0xd2c3a3, 0x8486b6],
+  stone: [0xeee6d4, 0x9497c4],
+  // The garden's tan sandstone, as in the references' bridge and tower: the
+  // platform, causeway and stairs, and darker in the terrace's masonry under
+  // the lawn and the cliff below it.
+  sandstone: [0xdcc08a, 0x8f86a8],
+  masonry: [0xd0b07a, 0x847a9f],
   lawn: [0x8dbf4a, 0x4f7f3a],
-  path: [0xd8c8a0, 0x9a9cbf],
+  path: [0xe0c99a, 0x9c93b2],
   rust: [0xb47a45, 0x7a5a78],
   water: [0x3e6a80, 0x2e4a66],
   door: [0x2a2622, 0x1c1d2a],
@@ -50,23 +53,40 @@ const COOL = ratio(0xd8c8a0, 0x7f9aa8);
 
 // Turns a standard material into a painted one. Shade defaults to cooling
 // whatever colour the material already has.
-export function paint(material: THREE.MeshStandardMaterial, shade?: number) {
+// A map given with a tile size (in metres) is laid on by the model's own
+// position from three sides and blended by its normal, so boxes and slabs
+// need no UVs and the blocks stay the same size everywhere.
+export function paint(material: THREE.MeshStandardMaterial, shade?: number, tile?: number) {
   const shadeRatio = shade === undefined ? COOL : ratio(material.color.getHex(), shade);
+  // Masonry is painted darker than it is so its highlights can be brighter.
+  if (material.map?.userData.gain) material.color.multiplyScalar(material.map.userData.gain);
+  if (tile) material.defines = { TRIPLANAR: '' };
   material.onBeforeCompile = shader => {
-    Object.assign(shader.uniforms, uniforms, { uShade: { value: shadeRatio } });
+    Object.assign(shader.uniforms, uniforms, { uShade: { value: shadeRatio }, uTile: { value: tile ?? 1 } });
     shader.vertexShader = shader.vertexShader
-      .replace('#include <fog_pars_vertex>', '#include <fog_pars_vertex>\nvarying float vHeight;')
+      .replace('#include <fog_pars_vertex>', '#include <fog_pars_vertex>\nvarying float vHeight;\nvarying vec3 vModel, vModelNormal;')
       .replace('#include <fog_vertex>', /* glsl */`#include <fog_vertex>
         vec4 placed = vec4(transformed, 1.0);
         #ifdef USE_INSTANCING
           placed = instanceMatrix * placed;
         #endif
-        vHeight = (modelMatrix * placed).y;`);
+        vHeight = (modelMatrix * placed).y;
+        vModel = transformed;
+        vModelNormal = objectNormal;`);
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <fog_pars_fragment>', /* glsl */`#include <fog_pars_fragment>
         uniform vec3 uSun, uWarm, uShade;
-        uniform float uMid, uFill, uRim, uDepth;
-        varying float vHeight;`)
+        uniform float uMid, uFill, uRim, uDepth, uTile;
+        varying float vHeight;
+        varying vec3 vModel, vModelNormal;`)
+      .replace('#include <map_fragment>', /* glsl */`#if defined(USE_MAP) && defined(TRIPLANAR)
+          vec3 side = pow(abs(normalize(vModelNormal)), vec3(8.0));
+          side /= side.x + side.y + side.z;
+          vec3 at = vModel / uTile;
+          diffuseColor *= texture2D(map, at.zy) * side.x + texture2D(map, at.xz) * side.y + texture2D(map, at.xy) * side.z;
+        #else
+          #include <map_fragment>
+        #endif`)
       // How lit the surface is, 0 to 1, from what the sun gave it next to what
       // it would give a surface facing it square on, shadows included.
       .replace('vec3 totalDiffuse = reflectedLight.directDiffuse + reflectedLight.indirectDiffuse;', /* glsl */`
@@ -90,8 +110,8 @@ export function paint(material: THREE.MeshStandardMaterial, shade?: number) {
 }
 
 // A painted material in one of the palette's pairs.
-export const painted = ([lit, shade]: readonly [number, number], options: THREE.MeshStandardMaterialParameters = {}) =>
-  paint(new THREE.MeshStandardMaterial({ color: lit, roughness: 1, metalness: 0, ...options }), shade);
+export const painted = ([lit, shade]: readonly [number, number], options: THREE.MeshStandardMaterialParameters = {}, tile?: number) =>
+  paint(new THREE.MeshStandardMaterial({ color: lit, roughness: 1, metalness: 0, ...options }), shade, tile);
 
 // The sky: a dome, deeper blue overhead, the fog's colour at the horizon and
 // below it, where the garden drops away.
