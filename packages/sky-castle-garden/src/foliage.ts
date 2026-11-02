@@ -1,10 +1,10 @@
 import RAPIER from '@dimforge/rapier3d-compat';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { CROWN as CITY_TOP } from './city';
+import { cityFront, CROWN as CITY_TOP } from './city';
 import { bothSidesAlike, wander } from './growth';
 import { stroke } from './masonry';
-import { EAST, EAST_LAWN, lawnSouth, MOATS_FROM, northEdge, PATHS, PLATFORM, PLATFORM_TOP, POOLS, WALL_GROUPS, WEST, WEST_LAWN } from './level';
+import { EAST, EAST_LAWN, lawnSouth, ledgeFront, MOATS_FROM, northEdge, PATHS, PLATFORM, OUTER, PLATFORM_TOP, POOLS, WALL_GROUPS, WEST, WEST_LAWN } from './level';
 import { painted, palette } from './look';
 import { SWAY, type Sway, swaying } from './wind';
 
@@ -438,12 +438,15 @@ function giantTree(scene: THREE.Scene) {
 export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
   let s = 4243;
   const random = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  // Draws for what's out of the garden come from a sequence of their own,
+  // so adding to them never shifts the garden's planting.
+  const apart = (seed: number, plant: () => void) => { const kept = s; s = seed; plant(); s = kept; };
   const shrubs: THREE.Matrix4[] = [];
-  // A shrub across a diameter, if there's room, a little squashed or
-  // stretched and turned at random.
-  const shrub = (x: number, z: number, across: number) => {
+  // A shrub across a diameter, if there's room (or anywhere, out of the
+  // garden), a little squashed or stretched and turned at random.
+  const shrub = (x: number, z: number, across: number, anywhere = false) => {
     const r = across / 2;
-    if (!clear(x, z, r * 0.7)) return false;
+    if (!anywhere && !clear(x, z, r * 0.7)) return false;
     const squash = 0.8 + random() * 0.4;
     shrubs.push(new THREE.Matrix4().compose(new THREE.Vector3(x, 0, z),
       new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), random() * Math.PI * 2),
@@ -473,6 +476,22 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
   bank(t => [EAST_LAWN, MOATS_FROM + 1 + t * (lawnSouth(EAST_LAWN) - MOATS_FROM - 2), -1, 0], lawnSouth(EAST_LAWN) - MOATS_FROM, 2);
   bank(t => south(WEST_LAWN + 1 + t * (-WEST_LAWN - 10)), -WEST_LAWN - 10, 3);
   bank(t => south(9 + t * (EAST_LAWN - 10)), EAST_LAWN - 10, 4);
+  // On the ledges beyond the garden's sides: heaped along the front edge in
+  // runs, and big ones banked against the towers' feet.
+  apart(811, () => { for (const side of [-1, 1]) {
+    const edge = side > 0 ? EAST : WEST, runs = wander(side > 0 ? 5 : 6, 8), feet = wander(side > 0 ? 7 : 8, 11);
+    for (let d = 1.5; d < OUTER - Math.abs(edge) - 2; d += 0.8 + random() * 1.2) {
+      const x = edge + side * d;
+      if (runs(d) > -0.4) {
+        const across = 1.8 + random() ** 1.3 * 2.6 + Math.max(0, runs(d)) * 1.6;
+        shrub(x, ledgeFront(x) + across * 0.4 + random() * 0.6, across, true);
+      }
+      if (feet(d) > -0.2) {
+        const across = 2.5 + random() * 2.5 + Math.max(0, feet(d)) * 2.5;
+        shrub(x, cityFront(x) - across * 0.2, across, true);
+      }
+    }
+  } });
   // Round the foot of each column, on the side away from the main path.
   for (const z of [14.6, 22.7, 31.2, 39.6]) {
     for (let k = 1 + Math.floor(random() * 3); k > 0; k--) {
@@ -521,8 +540,8 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
   // boughs, each ending in a ball of leaves, more over the top and between,
   // running together into one lumpy crown.
   const trunks: THREE.BufferGeometry[] = [], crowns: THREE.Matrix4[] = [];
-  const tree = (x: number, z: number, tall: number) => {
-    if (!clear(x, z, 1)) return;
+  const tree = (x: number, z: number, tall: number, anywhere = false) => {
+    if (!anywhere && !clear(x, z, 1)) return;
     const lean = new THREE.Vector3((random() - 0.5) * 0.12, 1, (random() - 0.5) * 0.12).normalize();
     const fork = new THREE.Vector3(x, 0, z).addScaledVector(lean, tall * (0.3 + random() * 0.1));
     trunks.push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([new THREE.Vector3(x, -0.2, z), new THREE.Vector3(x, 0, z).addScaledVector(lean, tall * 0.15), fork]), 8, tall * 0.028, 7));
@@ -559,6 +578,8 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
   }
   // At the far ends of the branches.
   for (const [x, z] of [[-40.5, 10.2], [-37, 22.2], [-41, 41.2], [42.5, 7.6]]) tree(x, z, 6 + random() * 3.5);
+  // A few out on the ledges beyond the sides, bigger.
+  apart(823, () => { for (const x of [-63, -81, -97, 61, 76, 95]) tree(x, ledgeFront(x) + 4 + random() * 2, 9 + random() * 4, true); });
   {
     const geometry = cypressGeometry(23), core = new THREE.LatheGeometry(Array.from({ length: 12 }, (_, i) => {
       const h = i / 11;
@@ -677,6 +698,14 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
       field(x, z, 0);
     }
   }
+  // The ledges, from the front edge to the towers' feet.
+  apart(829, () => { for (const side of [-1, 1]) {
+    const edge = side > 0 ? EAST : WEST;
+    for (let d = 0; d < OUTER - Math.abs(edge); d += 0.32) {
+      const gx = edge + side * d;
+      for (let gz = ledgeFront(gx) + 0.2; gz < cityFront(gx) + 0.5; gz += 0.32) field(gx + (random() - 0.5) * 0.3, gz + (random() - 0.5) * 0.3, 0);
+    }
+  } });
   for (let gx = -PLATFORM.r; gx < PLATFORM.r; gx += 0.32) {
     for (let gz = PLATFORM.z - PLATFORM.r; gz < PLATFORM.z + PLATFORM.r; gz += 0.32) {
       const x = gx + (random() - 0.5) * 0.3, z = gz + (random() - 0.5) * 0.3;

@@ -1,6 +1,6 @@
 import RAPIER from '@dimforge/rapier3d-compat';
 import * as THREE from 'three';
-import { ARCH, buildCity } from './city';
+import { ARCH, buildCity, cityFront } from './city';
 import { painted, palette } from './look';
 import { textures } from './masonry';
 
@@ -33,6 +33,12 @@ export const PATHS = [[-2.5, 2.5, 0, 50.4], [-44.1, -2.5, 4.4, 7.7], [-40.7, -2.
   [2.5, 46.2, 10.9, 14.2], [-17.85, -14.35, 22.5, 24.6], [2.5, 8.5, 32.35, 35.85]];
 // The pools' middles; their rims are 7.4 m across the outside.
 export const POOLS = [[-16.1, 15.8], [15.3, 34.1]];
+
+// Beyond the garden's sides the castle's base runs on out under the outer
+// towers, a ledge of lawn in front of them: its front edge, from the
+// garden's side out to OUTER either way.
+export const ledgeFront = (x: number) => cityFront(x) - 9;
+export const OUTER = 106;
 
 export const SPAWN = { x: 0, z: -37, yaw: Math.PI };
 export const PLATFORM_TOP = 3.2;
@@ -151,7 +157,21 @@ export function buildLevel(world: RAPIER.World, scene: THREE.Scene) {
 
   // The terrace: a stone base that the moats are cut into, and the lawn on top.
   const north = sample(northEdge, WEST, EAST, 64);
-  ground(slab([...north, [EAST, 120], [WEST, 120]], -40, -0.3), masonry);
+  // Out under the castle either side and back under all of it, rounded off
+  // behind.
+  const outer = (side: number) => {
+    const edge = side > 0 ? EAST : WEST;
+    const front = sample(ledgeFront, edge, side * OUTER, 24);
+    const back = [[110, cityFront(110) + 6], [104, 135], [80, 178], [40, 198]].map(([x, z]) => [side * x, z]);
+    return side > 0 ? [...front, ...back] : [...back.reverse(), ...front.reverse()];
+  };
+  ground(slab([...north, ...outer(1), ...outer(-1)], -40, -0.3), masonry);
+  // The ledges' lawn, from the front edge back under the towers' feet.
+  for (const side of [-1, 1]) {
+    const front = sample(ledgeFront, side > 0 ? EAST : WEST, side * OUTER, 24);
+    const back = sample(x => cityFront(x) + 6, side * OUTER, side > 0 ? EAST : WEST, 24);
+    ground(slab([...front, ...back], -0.3, 0), lawn);
+  }
   const lawnOutline = [
     ...north,
     [EAST, MOATS_FROM], [EAST_LAWN, MOATS_FROM],
