@@ -15,6 +15,9 @@ import { textures, WINDOW, windowTexture } from './masonry';
 export const cityFront = (x: number) => 52.5 + x * x / 292;
 // The arch the main path climbs into: its opening, the stair up to it from
 // the grass landing, its floor and the sealed door at the back.
+// The city's middle, how far the front is from it, and the height of its
+// top, behind the last band of roof (93 m up, 45 m back from the front).
+export const CROWN = { z: 52.5 + 146, r: 146, top: 93 };
 export const ARCH = { half: 3.7, stair: 50.4, front: 52.5, back: 61.2, floor: 3.6, height: 10 };
 
 // A tier's face from y0 to y1, as [out, y] points: out is how far back into
@@ -195,6 +198,41 @@ export function buildCity(world: RAPIER.World, scene: THREE.Scene) {
     add(round(base.x, base.z, bulging(2.4, 29.5, 35, 0.2), textures.city.metres, 32), city);
     ringOfWindows(base.x, base.z, [2.4, 29.5, 35, 0.2], [[32.3, 2.6, 1]]);
     add(round(base.x, base.z, Array.from({ length: 7 }, (_, k) => { const a = k / 6 * Math.PI / 2; return [2.7 * Math.cos(a) + 0.01, 35 + 2.4 * Math.sin(a)]; }), textures.tiles.metres, 32), tiles);
+  }
+
+  // The city's crown, as in the far view: on the top, behind the last band
+  // of roof, a crowd of round white towers under red-brown domes, packed
+  // close and climbing towards the middle, the back ones tallest, all under
+  // the one giant tree (foliage.ts). The top itself is grassed over.
+  {
+    const top = CROWN.top, rim = CROWN.r - 45;
+    const cap = new THREE.CircleGeometry(rim + 0.5, 96).rotateX(-Math.PI / 2).translate(0, top, CROWN.z);
+    add(cap, painted(palette.lawn));
+    let s = 5003;
+    const random = () => (s = (s * 16807) % 2147483647) / 2147483647;
+    const towers: [number, number, number][] = [];
+    for (let tries = 0; tries < 900 && towers.length < 46; tries++) {
+      // Round the front of the top, where they can be seen, a few further back.
+      const a = (random() - 0.5) * (random() < 0.8 ? 1.5 : 3.4), d = rim - 6 - random() ** 0.8 * 62, r = 3.5 + random() ** 1.5 * 6;
+      const x = Math.sin(a) * d, z = CROWN.z - Math.cos(a) * d;
+      if (towers.some(([tx, tz, tr]) => Math.hypot(x - tx, z - tz) < r + tr + 0.6)) continue;
+      towers.push([x, z, r]);
+    }
+    for (const [x, z, r] of towers) {
+      const d = Math.hypot(x, z - CROWN.z), tall = 9 + (rim - d) * 0.32 + random() * 9;
+      const body = bulging(r, top - 1, top + tall, 0.5 + random() * 0.6), [, t1] = body[body.length - 1];
+      add(round(x, z, body, textures.city.metres, 40), city);
+      // The dome, a little proud of the drum, its foot tucked under.
+      const dome = r * (0.85 + random() * 0.3), rise = dome * (0.7 + random() * 0.4);
+      add(round(x, z, Array.from({ length: 8 }, (_, k) => {
+        const u = k / 7 * Math.PI / 2;
+        return [(r + 0.4) * Math.cos(u) + 0.01, t1 - 0.3 + rise * Math.sin(u)];
+      }), textures.tiles.metres, 40), tiles);
+      // Floors of windows, most of the way up.
+      const rows: number[][] = [];
+      for (let y = top + 4 + random() * 2; y < t1 - 2.5; y += 4.2) rows.push([y, 3.2 + random(), 0.55 + random() * 0.35]);
+      ringOfWindows(x, z, [r, top - 1, top + tall, 0.5], rows);
+    }
   }
 
   const glass = new THREE.InstancedMesh(new THREE.PlaneGeometry(WINDOW.width, WINDOW.height),
