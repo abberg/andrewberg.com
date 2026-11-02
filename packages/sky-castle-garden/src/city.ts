@@ -91,7 +91,7 @@ export function buildCity(world: RAPIER.World, scene: THREE.Scene) {
   const c = 1.6, R = ARCH.half + c, rise = Math.sqrt(R * R - c * c), spring = archTop - rise;
   const archAt = (x: number, grow = 0) => Math.abs(x) < ARCH.half + grow ? spring + Math.sqrt((R + grow) ** 2 - (Math.abs(x) + c) ** 2) : -Infinity;
   // The great tower in the middle of the front, the arch at its foot.
-  const GATE = { r: 15, z: ARCH.front + 15, tall: 50 };
+  const GATE = { r: 17, z: ARCH.front + 17, tall: 56 };
 
   // Windows, as one instanced quad each, set into the face where it is at
   // their height and tilted with it.
@@ -153,50 +153,45 @@ export function buildCity(world: RAPIER.World, scene: THREE.Scene) {
   ringOfWindows(B.x, B.z, [7, 42, 47, 0.6], [[44, 4, 0.9]]);
   world.createCollider(RAPIER.ColliderDesc.cylinder(11.5, 14.5).setTranslation(B.x, 11.2, B.z));
 
-  // The castle, as in the far view: a crowd of round white towers rising
-  // straight from the moat under red-brown domes, packed so close that the
-  // front row makes the castle's face, row after row behind getting taller
-  // towards the middle, all under the one giant tree (foliage.ts). The arch's
-  // great middle tower and the bastion stand in the front row.
+  // The castle, as in the far view: big round white towers rising straight
+  // from the moat under red-brown domes, overlapping so the front row makes
+  // a wall, and rows behind set in the gaps, climbing towards the middle,
+  // all under the one giant tree (foliage.ts). Laid out on purpose, the same
+  // either side: the great tower with the arch in the middle of the front,
+  // the bastion west of it and its twin east.
   const towers: { x: number, z: number, r: number, depth: number, body: number[][], dome: number[][] }[] = [];
   {
-    let s = 5003;
-    const random = () => (s = (s * 16807) % 2147483647) / 2147483647;
-    const taken: [number, number, number][] = [[B.x, B.z, B.r], [0, GATE.z, GATE.r]];
-    // A row along the front at a depth behind it, each tower just touching
-    // or overlapping the one before, so there are no gaps to see through.
-    for (const [depth, from, to] of [[0, -95, 95], [12, -90, 90], [25, -84, 84], [39, -76, 76], [54, -66, 66], [70, -54, 54], [86, -40, 40]]) {
-      for (let x = from + random() * 4; x < to;) {
-        const r = depth ? 5 + random() ** 1.3 * 7 : 6.5 + random() * 5;
-        const inward = new THREE.Vector3(-2 * x / 292, 0, 1).normalize();
-        const at = new THREE.Vector3(x, 0, cityFront(x)).addScaledVector(inward, depth + r + (random() - 0.3) * 2.5);
-        // In the front row nothing in the moat, nor over the middle tower and
-        // bastion; further back overlapping is fine.
-        if (!taken.some(([tx, tz, tr]) => Math.hypot(at.x - tx, at.z - tz) < (tr + r) * (depth ? 0.55 : 0.9))) {
-          const tall = 24 + depth * 0.5 + random() * 16 - Math.abs(x) * 0.12 + (depth ? 0 : -4);
-          const body = bulging(r, -0.3, tall, 0.4 + random() * 0.6), [[r0], , [r1, t1]] = [body[0], 0, body[body.length - 1]];
-          const rise = r1 * (0.6 + random() * 0.5);
-          const dome = Array.from({ length: 8 }, (_, k) => { const u = k / 7 * Math.PI / 2; return [(r1 + 0.4) * Math.cos(u) + 0.01, t1 - 0.3 + rise * Math.sin(u)]; });
-          towers.push({ x: at.x, z: at.z, r: r0, depth, body, dome });
-          taken.push([at.x, at.z, r]);
-          add(round(at.x, at.z, body, textures.city.metres, 40), city);
-          add(round(at.x, at.z, dome, textures.tiles.metres, 40), tiles);
-          // Now and then a narrower stage on top, under its own dome.
-          if (random() < 0.25 && depth > 0) {
-            const r2 = r1 * 0.55, upper = bulging(r2, t1 - 1, t1 + 6 + random() * 8, 0.3), [, t2] = upper[upper.length - 1];
-            add(round(at.x, at.z, upper, textures.city.metres, 32), city);
-            add(round(at.x, at.z, Array.from({ length: 7 }, (_, k) => { const u = k / 6 * Math.PI / 2; return [(r2 + 0.3) * Math.cos(u) + 0.01, t2 - 0.2 + r2 * 0.9 * Math.sin(u)]; }), textures.tiles.metres, 32), tiles);
-            ringOfWindows(at.x, at.z, [r2, t1 - 1, t2, 0.3], [[t1 + 2.5, 3, 0.8]]);
-          }
-          // Floors of windows: a sparse one or two low down, more higher up.
-          const rows: number[][] = [];
-          for (let y = 5 + random() * 3; y < t1 - 2.5; y += 4.3) rows.push([y, 3.2 + random() * 1.5, y < 18 ? 0.25 : 0.5 + random() * 0.35]);
-          ringOfWindows(at.x, at.z, [r, -0.3, tall, 0.5], rows);
-          // The front row is solid at the foot.
-          if (!depth) world.createCollider(RAPIER.ColliderDesc.cylinder(15, r0).setTranslation(at.x, 14.7, at.z));
-        }
-        x += r * (depth ? 1.5 : 1.7) * (0.85 + random() * 0.3);
+    // Rows as [depth behind the front, and each tower's x, radius, height,
+    // and whether it has a narrower stage on top], mirrored either side.
+    const rows: [number, [number, number, number, boolean?][]][] = [
+      [0, [[24, 14.5, 44], [47, 12.5, 36], [69, 12, 30], [90, 11.5, 25]]],
+      [22, [[13, 12, 58, true], [36, 12, 50], [58, 11.5, 42], [79, 11, 34]]],
+      [44, [[0, 13, 72, true], [25, 12.5, 66], [49, 12, 56, true], [70, 11, 46]]],
+      [66, [[13, 12, 80], [37, 11.5, 70], [58, 11, 58]]],
+      [88, [[0, 12, 84, true], [25, 11, 76]]],
+    ];
+    for (const [depth, row] of rows) for (const [x0, r, tall, stage] of row) for (const x of x0 ? [-x0, x0] : [0]) {
+      // The bastion stands west of the arch already.
+      if (!depth && x === -24) continue;
+      const inward = new THREE.Vector3(-2 * x / 292, 0, 1).normalize();
+      const at = new THREE.Vector3(x, 0, cityFront(x)).addScaledVector(inward, depth + r);
+      const body = bulging(r, -0.3, tall, 0.8), [r0] = body[0], [r1, t1] = body[body.length - 1];
+      const dome = Array.from({ length: 8 }, (_, k) => { const u = k / 7 * Math.PI / 2; return [(r1 + 0.4) * Math.cos(u) + 0.01, t1 - 0.3 + r1 * 0.8 * Math.sin(u)]; });
+      towers.push({ x: at.x, z: at.z, r: r0, depth, body, dome });
+      add(round(at.x, at.z, body, textures.city.metres, 56), city);
+      add(round(at.x, at.z, dome, textures.tiles.metres, 56), tiles);
+      if (stage) {
+        const r2 = r1 * 0.5, upper = bulging(r2, t1 + r1 * 0.5, t1 + r1 * 0.5 + 10, 0.3), [, t2] = upper[upper.length - 1];
+        add(round(at.x, at.z, upper, textures.city.metres, 32), city);
+        add(round(at.x, at.z, Array.from({ length: 7 }, (_, k) => { const u = k / 6 * Math.PI / 2; return [(r2 + 0.3) * Math.cos(u) + 0.01, t2 - 0.2 + r2 * 0.9 * Math.sin(u)]; }), textures.tiles.metres, 32), tiles);
+        ringOfWindows(at.x, at.z, [r2, t1 + r1 * 0.5, t2, 0.3], [[t2 - 4, 3, 0.8]]);
       }
+      // Floors of windows: sparse low down, more higher up.
+      const floors: number[][] = [];
+      for (let y = 6; y < t1 - 2.5; y += 4.3) floors.push([y, 3.6, y < 18 ? 0.25 : 0.7]);
+      ringOfWindows(at.x, at.z, [r, -0.3, tall, 0.8], floors);
+      // The front row is solid at the foot.
+      if (!depth) world.createCollider(RAPIER.ColliderDesc.cylinder(15, r0).setTranslation(at.x, 14.7, at.z));
     }
   }
 
