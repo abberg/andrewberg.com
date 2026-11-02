@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { ConvexGeometry } from 'three/addons/geometries/ConvexGeometry.js';
 import { blockStone, capitalGeometry, chippedBlock, columnGeometry, columnStone, crack, drumGeometry, plinthGeometry, urnGeometry } from './columns';
 import { painted, palette } from './look';
+import { urnPlant } from './foliage';
 import { columnIvy } from './growth';
 import { archBlockGeometry, patina, statueGeometry } from './ruins';
 import { stone } from './level';
@@ -178,14 +179,14 @@ export function createStones(world: RAPIER.World, scene: THREE.Scene) {
     piece(middle.x, middle.y, middle.z, turned(-Math.atan2(b.z - a.z, b.x - a.x))).look(new THREE.BoxGeometry(length, 0.5, 0.9), blockStone).box(length, 0.5, 0.9);
   }
 
-  // Urns beside the pools: a ribbed bowl of greenery on a stem and a square
+  // Urns beside the pools: a ribbed bowl planted up (foliage.ts) on a stem and a square
   // foot (columns.ts), top-heavy, so they tip.
-  const urn = urnGeometry(), greenery = painted(palette.moss);
+  const urn = urnGeometry();
   const urnHull = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(
     [...urn.foot.getAttribute('position').array, ...urn.body.getAttribute('position').array], 3));
-  for (const [x, z] of [[-24.5, 12], [-24, 21], [-7.8, 10], [24, 38], [22, 42.5]]) {
-    piece(x, 0, z, turned(x * z)).look(urn.foot, blockStone).look(urn.body).look(urn.green, greenery).hull(urnHull);
-  }
+  [[-24.5, 12], [-24, 21], [-7.8, 10], [24, 38], [22, 42.5]].forEach(([x, z], i) => {
+    piece(x, 0, z, turned(x * z)).look(urn.foot, blockStone).look(urn.body).add(urnPlant(i, 1.22, 0.64, 0.83)).hull(urnHull);
+  });
 
   // Stone slabs and blocks along the path edges, placed at random but the
   // same every time, their edges worn and corners chipped. A couple have

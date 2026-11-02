@@ -179,6 +179,80 @@ function ballGeometry(seed: number) {
   return cardGeometry(cards);
 }
 
+// Small flowers on a clear ground, for the urns: five round petals round a
+// yellow eye, a few to a card, each its own size and turn.
+function flowerTexture(seed: number) {
+  const px = 128;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = px;
+  const g = canvas.getContext('2d')!;
+  let s = seed;
+  const random = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  for (let k = 0; k < 3; k++) {
+    const x = px * (0.3 + random() * 0.4), y = px * (0.3 + random() * 0.4), r = px * (0.09 + random() * 0.05), turn = random() * Math.PI;
+    g.fillStyle = ['#fff6ec', '#f6c4d4', '#f2a8c0'][k];
+    for (let p = 0; p < 5; p++) {
+      const a = turn + p * Math.PI * 2 / 5;
+      g.beginPath();
+      g.arc(x + Math.cos(a) * r, y + Math.sin(a) * r, r * 0.72, 0, Math.PI * 2);
+      g.fill();
+    }
+    g.fillStyle = '#f2c84a';
+    g.beginPath();
+    g.arc(x, y, r * 0.45, 0, Math.PI * 2);
+    g.fill();
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+// What grows in an urn whose soil is radius across at height lip, inside
+// a rim that far out: a
+// leafy mound heaped over the rim, strands trailing down over the lip on
+// every side, and flowers dotted through it. In the urn's own space, so it
+// moves when the urn is knocked over.
+let urnParts: { leaves: ReturnType<typeof leafCards>, flowers: ReturnType<typeof leafCards>, core: THREE.Material } | undefined;
+export function urnPlant(seed: number, lip: number, radius: number, rim: number) {
+  urnParts ??= {
+    leaves: leafCards(SHRUB, clusterTexture(83), SWAY.crown),
+    flowers: leafCards([0xffffff, 0x9a92c2], flowerTexture(89), SWAY.crown),
+    core: painted(CORE),
+  };
+  let s = seed * 7919 + 5;
+  const random = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  const leaves: Card[] = [], flowers: Card[] = [], middle = new THREE.Vector3(0, lip - 0.1, 0);
+  // The mound.
+  for (let k = 0; k < 95; k++) {
+    const a = random() * Math.PI * 2, up = Math.asin(random() ** 0.7);
+    const at = new THREE.Vector3(Math.cos(a) * Math.cos(up) * radius * 1.02, lip + 0.04 + Math.sin(up) * radius * 0.6, Math.sin(a) * Math.cos(up) * radius * 1.02);
+    const size = 0.26 + random() * 0.1;
+    leaves.push({ at, w: size, h: size, normal: at.clone().sub(middle).normalize(), spin: random() * Math.PI * 2 });
+    if (random() < 0.3) flowers.push({ at: at.clone().addScaledVector(at.clone().sub(middle).normalize(), 0.06), w: 0.2, h: 0.2, normal: at.clone().sub(middle).normalize(), spin: random() * Math.PI * 2 });
+  }
+  // The trailing strands, out over the lip and down the bowl's side.
+  for (let k = 0, strands = 7 + Math.floor(random() * 4); k < strands; k++) {
+    const a = (k + random() * 0.7) * Math.PI * 2 / strands, long = 0.3 + random() * 0.55;
+    const out = new THREE.Vector3(Math.cos(a), 0, Math.sin(a));
+    for (let d = 0; d < long; d += 0.05) {
+      const t = d / long, at = out.clone().multiplyScalar(rim + 0.04 + 0.05 * Math.sin(Math.min(1, d / 0.15) * Math.PI / 2)).setY(lip + 0.1 - d);
+      const size = 0.2 * (1 - t * 0.4) + random() * 0.05;
+      leaves.push({ at, w: size, h: size, normal: out.clone().setY(0.9).normalize(), spin: random() * Math.PI * 2 });
+    }
+  }
+  const group = new THREE.Group();
+  for (const [cards, parts] of [[leaves, urnParts.leaves], [flowers, urnParts.flowers]] as const) {
+    const mesh = new THREE.Mesh(cardGeometry(cards), parts.material);
+    mesh.customDepthMaterial = parts.depth;
+    mesh.castShadow = mesh.receiveShadow = true;
+    group.add(mesh);
+  }
+  const core = new THREE.Mesh(new THREE.SphereGeometry(radius * 0.88, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, 0.55, 1).translate(0, lip, 0), urnParts.core);
+  core.castShadow = core.receiveShadow = true;
+  group.add(core);
+  return group;
+}
+
 // A tuft of grass painted on a clear ground, a few broad blades fanning up
 // from the foot in strokes, paler towards their tips: near white, the
 // material gives the lawn's green. With flowers, the blades are painted in

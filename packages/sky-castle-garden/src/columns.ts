@@ -229,8 +229,8 @@ export function plinthGeometry(width: number, height: number, slope: number, top
 
 // An urn on a pedestal, as in the garden's references: a square foot, a
 // short stem swelling between rings, and a wide shallow bowl whose
-// underside is a ring of rounded ribs, under a thick flat lip, with a mound
-// of green growing in it. Standing on the origin, about 1.5 m tall.
+// underside is a ring of rounded ribs, under a thick flat lip, planted up
+// (foliage.ts urnPlant). Standing on the origin, about 1.5 m tall.
 export function urnGeometry() {
   const foot = new THREE.BoxGeometry(0.64, 0.22, 0.64).translate(0, 0.11, 0);
   const body = lathe([
@@ -243,9 +243,7 @@ export function urnGeometry() {
     ...Array.from({ length: 8 }, (_, i) => { const t = i / 7; return [0.2 + 0.5 * Math.sin(t * Math.PI / 2) ** 0.8, 0.75 + 0.4 * t ** 1.3, 2]; }),
     [0.68, 1.17], [0.78, 1.17], ...arc(0.76, 1.24, 0.07, -Math.PI / 2, Math.PI / 2, 4), [0.72, 1.31], [0.64, 1.31], [0.62, 1.24], [0, 1.22],
   ], -10);
-  // Moss and leaves heaped in the bowl.
-  const green = new THREE.SphereGeometry(0.64, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, 0.45, 1).translate(0, 1.22, 0);
-  return { foot, body, green };
+  return { foot, body };
 }
 
 // A block of stone, its edges worn and its corners chipped, each corner its
