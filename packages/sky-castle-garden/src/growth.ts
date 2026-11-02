@@ -195,13 +195,24 @@ export function createGrowth() {
     geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
     geometry.setIndex(indices);
     geometry.computeVertexNormals();
-    // Clumps over it, every half metre or so, lifted off the sheet, turned
-    // at random about the wall's normal and sized at random.
+    // Clumps over it, scattered evenly over the whole area rather than
+    // stacked up chosen columns (which read as stripes): a jittered grid
+    // across the row and down the path, each clump between two columns,
+    // lifted off the sheet, turned at random about the wall's normal and
+    // sized at random.
     const { size, placed } = clumps[kind];
-    columns.forEach((place, i) => {
-      if (leafLength[i] <= 0 || random() > 0.5 / size) return;
-      for (let d = start[i] + random() * 0.3; d < start[i] + leafLength[i]; d += (0.4 + random() * 0.2) * size) {
-        const [o, y, no, ny] = walk(d), lift0 = lift(i, d) + 0.15;
+    const step = 0.7 * size;
+    for (let a = along[0] + random() * step; a < along[along.length - 1]; a += step) {
+      let i = 0;
+      while (i < columns.length - 2 && along[i + 1] < a) i++;
+      const t0 = (a - along[i]) / (along[i + 1] - along[i] || 1);
+      const begin = THREE.MathUtils.lerp(start[i], start[i + 1], t0), reach = THREE.MathUtils.lerp(leafLength[i], leafLength[i + 1], t0);
+      if (leafLength[i] <= 0 && leafLength[i + 1] <= 0) continue;
+      for (let d = begin + random() * step * 0.5; d < begin + reach; d += step * (0.8 + random() * 0.4)) {
+        // Each clump shifted across the row by up to half a step.
+        const t = THREE.MathUtils.clamp(t0 + (random() - 0.5) * step / (along[i + 1] - along[i] || 1), 0, 1);
+        const place = (o: number, y: number) => columns[i](o, y).lerp(columns[i + 1](o, y), t);
+        const [o, y, no, ny] = walk(d), lift0 = THREE.MathUtils.lerp(lift(i, d), lift(i + 1, d), t) + 0.15;
         const at = place(o + no * lift0, y + ny * lift0), out = place(o + no * (lift0 + 1), y + ny * (lift0 + 1)).sub(at).normalize();
         // Up the path, towards where it grows from, so the shingles hang down it.
         const [uo, uy] = walk(d - 0.3), up = place(uo + no * lift0, uy + ny * lift0).sub(at);
@@ -212,7 +223,7 @@ export function createGrowth() {
         const scale = size * (0.75 + random() * 0.5);
         placed.push(new THREE.Matrix4().compose(at, turn, new THREE.Vector3(scale, scale, scale)));
       }
-    });
+    }
     const mesh = new THREE.Mesh(geometry, materials[kind]);
     mesh.receiveShadow = true;
     return mesh;
