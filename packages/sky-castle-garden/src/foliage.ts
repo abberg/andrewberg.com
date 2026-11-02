@@ -4,7 +4,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { cityFront, CROWN as CITY_TOP } from './city';
 import { bothSidesAlike, wander } from './growth';
 import { stroke } from './masonry';
-import { EAST, EAST_LAWN, lawnSouth, ledgeFront, MOATS_FROM, northEdge, PATHS, PLATFORM, OUTER, PLATFORM_TOP, POOLS, WALL_GROUPS, WEST, WEST_LAWN } from './level';
+import { EAST, EAST_LAWN, lawnSouth, ledgeEdge, ledgeFront, MOATS_FROM, northEdge, PATHS, PLATFORM, OUTER, PLATFORM_TOP, POOLS, WALL_GROUPS, WEST, WEST_LAWN } from './level';
 import { painted, palette } from './look';
 import { SWAY, type Sway, swaying } from './wind';
 
@@ -476,20 +476,34 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
   bank(t => [EAST_LAWN, MOATS_FROM + 1 + t * (lawnSouth(EAST_LAWN) - MOATS_FROM - 2), -1, 0], lawnSouth(EAST_LAWN) - MOATS_FROM, 2);
   bank(t => south(WEST_LAWN + 1 + t * (-WEST_LAWN - 10)), -WEST_LAWN - 10, 3);
   bank(t => south(9 + t * (EAST_LAWN - 10)), EAST_LAWN - 10, 4);
-  // On the ledges beyond the garden's sides: heaped along the front edge in
-  // runs, and big ones banked against the towers' feet.
+  // On the ledges beyond the garden's sides: heaped in runs along the front
+  // edge, big ones banked against the towers' feet, and clumps out on the
+  // lawn.
   apart(811, () => { for (const side of [-1, 1]) {
     const edge = side > 0 ? EAST : WEST, runs = wander(side > 0 ? 5 : 6, 8), feet = wander(side > 0 ? 7 : 8, 11);
+    const line = ledgeEdge(side, 400), centre = [edge, ledgeFront(side * OUTER)];
+    let walked = 0, next = 3;
+    line.slice(1).forEach(([x, z], i) => {
+      walked += Math.hypot(x - line[i][0], z - line[i][1]);
+      if (walked < next) return;
+      next = walked + 0.8 + random() * 1.2;
+      if (runs(walked) < -0.4) return;
+      const inward = Math.atan2(centre[1] - z, centre[0] - x), across = 1.8 + random() ** 1.3 * 2.6 + Math.max(0, runs(walked)) * 1.6;
+      const set = across * 0.4 + random() * 0.6;
+      shrub(x + Math.cos(inward) * set, z + Math.sin(inward) * set, across, true);
+    });
     for (let d = 1.5; d < OUTER - Math.abs(edge) - 2; d += 0.8 + random() * 1.2) {
       const x = edge + side * d;
-      if (runs(d) > -0.4) {
-        const across = 1.8 + random() ** 1.3 * 2.6 + Math.max(0, runs(d)) * 1.6;
-        shrub(x, ledgeFront(x) + across * 0.4 + random() * 0.6, across, true);
-      }
       if (feet(d) > -0.2) {
         const across = 2.5 + random() * 2.5 + Math.max(0, feet(d)) * 2.5;
         shrub(x, cityFront(x) - across * 0.2, across, true);
       }
+    }
+    for (let k = 0; k < 7; k++) {
+      const x = edge + side * (6 + random() * (OUTER - Math.abs(edge) - 14)), z0 = ledgeFront(x) + 6, z1 = cityFront(x) - 8;
+      if (z1 < z0) continue;
+      const cz = z0 + random() * (z1 - z0);
+      for (let n = 2 + Math.floor(random() * 4); n > 0; n--) shrub(x + (random() - 0.5) * 7, cz + (random() - 0.5) * 7, 1.4 + random() ** 1.5 * 2.8, true);
     }
   } });
   // Round the foot of each column, on the side away from the main path.
@@ -579,7 +593,13 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
   // At the far ends of the branches.
   for (const [x, z] of [[-40.5, 10.2], [-37, 22.2], [-41, 41.2], [42.5, 7.6]]) tree(x, z, 6 + random() * 3.5);
   // A few out on the ledges beyond the sides, bigger.
-  apart(823, () => { for (const x of [-63, -81, -97, 61, 76, 95]) tree(x, ledgeFront(x) + 4 + random() * 2, 9 + random() * 4, true); });
+  apart(823, () => { for (const side of [-1, 1]) {
+    const edge = side > 0 ? EAST : WEST;
+    for (let k = 0; k < 9; k++) {
+      const x = edge + side * (5 + random() * (OUTER - Math.abs(edge) - 10)), z0 = ledgeFront(x) + 4, z1 = cityFront(x) - 5;
+      if (z1 > z0) tree(x, z0 + random() * (z1 - z0), 8 + random() * 5, true);
+    }
+  } });
   {
     const geometry = cypressGeometry(23), core = new THREE.LatheGeometry(Array.from({ length: 12 }, (_, i) => {
       const h = i / 11;
@@ -701,9 +721,9 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
   // The ledges, from the front edge to the towers' feet.
   apart(829, () => { for (const side of [-1, 1]) {
     const edge = side > 0 ? EAST : WEST;
-    for (let d = 0; d < OUTER - Math.abs(edge); d += 0.32) {
+    for (let d = 0.3; d < OUTER - Math.abs(edge); d += 0.4) {
       const gx = edge + side * d;
-      for (let gz = ledgeFront(gx) + 0.2; gz < cityFront(gx) + 0.5; gz += 0.32) field(gx + (random() - 0.5) * 0.3, gz + (random() - 0.5) * 0.3, 0);
+      for (let gz = ledgeFront(gx) + 0.2; gz < cityFront(gx) + 0.5; gz += 0.4) field(gx + (random() - 0.5) * 0.36, gz + (random() - 0.5) * 0.36, 0);
     }
   } });
   for (let gx = -PLATFORM.r; gx < PLATFORM.r; gx += 0.32) {

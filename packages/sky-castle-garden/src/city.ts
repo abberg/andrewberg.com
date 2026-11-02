@@ -185,10 +185,10 @@ export function buildCity(world: RAPIER.World, scene: THREE.Scene) {
     // and whether it has a narrower stage on top].
     const rows: [number, [number, number, number, boolean?][]][] = [
       [0, [[-44, 11, 33], [-63, 12.5, 41, true], [-84, 13, 26], [52, 10, 40], [70, 13.5, 27], [91, 11, 35, true]]],
-      [22, [[-14, 11, 58], [-36, 9, 62, true], [-55, 14, 38], [-77, 10, 47], [16, 8.5, 70, true], [33, 13.5, 47], [57, 9, 56], [78, 12.5, 31]]],
-      [44, [[0, 11, 80, true], [-22, 10, 74], [-47, 13, 52], [-68, 9, 66, true], [26, 14.5, 60], [48, 8.5, 72, true], [68, 13, 43]]],
-      [66, [[-14, 13, 80], [-38, 10, 88, true], [-60, 12, 58], [12, 10, 92], [36, 15, 64], [58, 9.5, 76, true]]],
-      [88, [[0, 15.5, 84, true], [-25, 12, 90], [27, 9, 98]]],
+      // Behind the front row, only those that show from somewhere in the
+      // garden (tmp/scg-seen.mjs renders each tower's id from all over it).
+      [22, [[-36, 9, 62, true], [-77, 10, 47], [16, 8.5, 70, true]]],
+      [44, [[0, 11, 80, true]]],
     ];
     // How tall a tower can be and stay out of sight behind the great tower,
     // seen from anywhere in the garden: wherever it is behind the great

@@ -35,10 +35,19 @@ export const PATHS = [[-2.5, 2.5, 0, 50.4], [-44.1, -2.5, 4.4, 7.7], [-40.7, -2.
 export const POOLS = [[-16.1, 15.8], [15.3, 34.1]];
 
 // Beyond the garden's sides the castle's base runs on out under the outer
-// towers, a ledge of lawn in front of them: its front edge, from the
-// garden's side out to OUTER either way.
-export const ledgeFront = (x: number) => cityFront(x) - 9;
+// towers, a ledge of lawn sweeping forward beside the garden to its north
+// corners: the front edge, a quarter ellipse from each corner out to OUTER,
+// rounding back to z 95. As points along it, and where it is across x.
 export const OUTER = 106;
+const LEDGE_BACK = 95;
+export const ledgeEdge = (side: number, n = 48) => {
+  const edge = side > 0 ? EAST : WEST, a = OUTER - Math.abs(edge), b = LEDGE_BACK - northEdge(edge);
+  return Array.from({ length: n + 1 }, (_, i) => { const t = i / n * Math.PI / 2; return [edge + side * a * Math.sin(t), LEDGE_BACK - b * Math.cos(t)]; });
+};
+export const ledgeFront = (x: number) => {
+  const edge = x > 0 ? EAST : WEST, a = OUTER - Math.abs(edge), u = Math.min(1, Math.max(0, (Math.abs(x) - Math.abs(edge)) / a));
+  return LEDGE_BACK - (LEDGE_BACK - northEdge(edge)) * Math.sqrt(1 - u * u);
+};
 
 export const SPAWN = { x: 0, z: -37, yaw: Math.PI };
 export const PLATFORM_TOP = 3.2;
@@ -160,15 +169,14 @@ export function buildLevel(world: RAPIER.World, scene: THREE.Scene) {
   // Out under the castle either side and back under all of it, rounded off
   // behind.
   const outer = (side: number) => {
-    const edge = side > 0 ? EAST : WEST;
-    const front = sample(ledgeFront, edge, side * OUTER, 24);
+    const front = ledgeEdge(side);
     const back = [[110, cityFront(110) + 6], [104, 135], [80, 178], [40, 198]].map(([x, z]) => [side * x, z]);
     return side > 0 ? [...front, ...back] : [...back.reverse(), ...front.reverse()];
   };
   ground(slab([...north, ...outer(1), ...outer(-1)], -40, -0.3), masonry);
   // The ledges' lawn, from the front edge back under the towers' feet.
   for (const side of [-1, 1]) {
-    const front = sample(ledgeFront, side > 0 ? EAST : WEST, side * OUTER, 24);
+    const front = ledgeEdge(side);
     const back = sample(x => cityFront(x) + 6, side * OUTER, side > 0 ? EAST : WEST, 24);
     ground(slab([...front, ...back], -0.3, 0), lawn);
   }
