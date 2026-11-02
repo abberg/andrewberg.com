@@ -208,11 +208,36 @@ function tuftTexture(seed: number, flowers: boolean) {
   return texture;
 }
 
+// A patch of the lawn's grass: many thin blades side by side across the
+// card, all within a shade of the lawn, so tufts packed together run into
+// one carpet the same colour as the ground.
+function swardTexture(seed: number) {
+  const px = 256;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = px;
+  const g = canvas.getContext('2d')!;
+  let s = seed;
+  const random = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  for (let k = 0; k < 30; k++) {
+    const x = px * (0.06 + random() * 0.88), a = -Math.PI / 2 + (random() - 0.5) * 0.6, long = px * (0.45 + random() * 0.5);
+    const shade = 0.9 + random() * 0.1, c = 255 * shade | 0;
+    stroke(g, Math.floor(random() * 10), x, px, x + Math.cos(a) * long, px + Math.sin(a) * long, px * (0.035 + random() * 0.025), `rgba(${c},${c},${c},1)`);
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
 // A tuft: three upright cards crossing at its middle, a unit tall and wide,
 // standing on the origin, its normals all straight up so it shades just as
 // the lawn under it does.
-function tuftGeometry() {
-  const cards = [0, 1, 2].map(k => new THREE.PlaneGeometry(1, 1).translate(0, 0.5, 0).rotateY(k * Math.PI / 3));
+function tuftGeometry(sward = false) {
+  const cards = sward
+    // The lawn's own grass: four cards leaning out from the middle, so from
+    // above they cover the ground between them rather than showing as thin
+    // crosses.
+    ? [0, 1, 2, 3].map(k => new THREE.PlaneGeometry(1, 1).translate(0, 0.5, 0).rotateX(-0.75).translate(0, 0, 0.08).rotateY(k * Math.PI / 2))
+    : [0, 1, 2].map(k => new THREE.PlaneGeometry(1, 1).translate(0, 0.5, 0).rotateY(k * Math.PI / 3));
   const positions: number[] = [], normals: number[] = [], uvs: number[] = [];
   for (const card of cards) {
     const nonIndexed = card.toNonIndexed();
@@ -455,18 +480,19 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
     }
   }
   // And short grass all over every lawn, the strip north of the moats and
-  // the top of the start tower too, a tuft every 40 cm or so, running together into a carpet, taller
+  // the top of the start tower too, a patch every 30 cm or so, running together into a carpet, taller
   // and shorter in drifts, clear of the paving, the pools and the stonework.
+  const sward: THREE.Matrix4[] = [];
   const drifts = [wander(97, 7), wander(98, 9)], field = (x: number, z: number, y: number) => {
     const drift = (drifts[0](x * 0.8 + z * 0.6) + drifts[1](z * 0.8 - x * 0.6)) / 2;
-    const tall = 0.22 + Math.max(0, drift) * 0.45 + random() * 0.12;
-    tufts.push(new THREE.Matrix4().compose(new THREE.Vector3(x, y, z),
-      new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), random() * Math.PI * 2), new THREE.Vector3(tall * (1.4 + random() * 0.7), tall, tall * (1.4 + random() * 0.7))));
+    const tall = 0.2 + Math.max(0, drift) * 0.35 + random() * 0.1;
+    sward.push(new THREE.Matrix4().compose(new THREE.Vector3(x, y, z),
+      new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), random() * Math.PI * 2), new THREE.Vector3(tall * (1.6 + random() * 0.6), tall, tall * (1.6 + random() * 0.6))));
   };
   const along = new THREE.Vector2(16.2, 5.8).normalize(), fallen = new THREE.Vector2(-5.6, 39.1);
-  for (let gx = WEST; gx < EAST; gx += 0.38) {
-    for (let gz = northEdge(gx) - 0.5; gz < lawnSouth(gx) + 6; gz += 0.38) {
-      const x = gx + (random() - 0.5) * 0.36, z = gz + (random() - 0.5) * 0.36;
+  for (let gx = WEST; gx < EAST; gx += 0.32) {
+    for (let gz = northEdge(gx) - 0.5; gz < lawnSouth(gx) + 6; gz += 0.32) {
+      const x = gx + (random() - 0.5) * 0.3, z = gz + (random() - 0.5) * 0.3;
       if (z < northEdge(x) + 0.2) continue;
       if (z > MOATS_FROM - 0.2 && (x < WEST_LAWN + 0.2 || x > EAST_LAWN - 0.2)) continue;
       if (z > lawnSouth(x) - 0.2 && !(Math.abs(x) < 4.4 && z < 50.2)) continue;
@@ -480,17 +506,17 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
       field(x, z, 0);
     }
   }
-  for (let gx = -PLATFORM.r; gx < PLATFORM.r; gx += 0.38) {
-    for (let gz = PLATFORM.z - PLATFORM.r; gz < PLATFORM.z + PLATFORM.r; gz += 0.38) {
-      const x = gx + (random() - 0.5) * 0.36, z = gz + (random() - 0.5) * 0.36;
+  for (let gx = -PLATFORM.r; gx < PLATFORM.r; gx += 0.32) {
+    for (let gz = PLATFORM.z - PLATFORM.r; gz < PLATFORM.z + PLATFORM.r; gz += 0.32) {
+      const x = gx + (random() - 0.5) * 0.3, z = gz + (random() - 0.5) * 0.3;
       if (Math.hypot(x, z - PLATFORM.z) < PLATFORM.r - 0.25) field(x, z, PLATFORM_TOP);
     }
   }
   {
-    const shape = tuftGeometry();
-    for (const [placed, material] of [
-      [tufts, bothSidesAlike(painted(palette.lawn, { map: tuftTexture(61, false), alphaTest: 0.5, side: THREE.DoubleSide }))],
-      [blooms, bothSidesAlike(painted([0xffffff, 0x8a8cc0], { map: tuftTexture(67, true), alphaTest: 0.5, side: THREE.DoubleSide }))],
+    for (const [placed, material, shape] of [
+      [sward, bothSidesAlike(painted(palette.lawn, { map: swardTexture(71), alphaTest: 0.5, side: THREE.DoubleSide })), tuftGeometry(true)],
+      [tufts, bothSidesAlike(painted(palette.lawn, { map: tuftTexture(61, false), alphaTest: 0.5, side: THREE.DoubleSide })), tuftGeometry()],
+      [blooms, bothSidesAlike(painted([0xffffff, 0x8a8cc0], { map: tuftTexture(67, true), alphaTest: 0.5, side: THREE.DoubleSide })), tuftGeometry()],
     ] as const) {
       const mesh = new THREE.InstancedMesh(shape, material, placed.length);
       placed.forEach((matrix, i) => mesh.setMatrixAt(i, matrix));
@@ -501,5 +527,5 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
 
   instanced(shrubGeometry(19), leafCards(SHRUB, clusterTexture(29)), shrubs, scene);
   instanced(new THREE.SphereGeometry(0.36, 12, 8).scale(1, 0.75, 1).translate(0, 0.12, 0), painted(CORE), shrubs, scene);
-  return { shrubs: shrubs.length, cypresses: cypresses.length, trees: crowns.length, tufts: tufts.length + blooms.length };
+  return { shrubs: shrubs.length, cypresses: cypresses.length, trees: crowns.length, tufts: tufts.length + blooms.length + sward.length };
 }
