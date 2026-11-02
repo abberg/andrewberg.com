@@ -327,21 +327,25 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
     }
   }
 
-  // Cypresses: a pair framing the approach to the arch, and loose rows along
-  // the branch paths, each tree its own height, gaps here and there. Each
-  // has a solid trunk the robot can't walk through, which the camera ignores.
-  const cypresses: THREE.Matrix4[] = [];
+  // Cypresses: loose rows along the branch paths, each tree its own height,
+  // gaps here and there. Each has a solid trunk the robot can't walk
+  // through, which the camera ignores.
+  let cypresses: { matrix: THREE.Matrix4, x: number, z: number, r: number, trunk: RAPIER.Collider }[] = [];
   // Where the trees stand, so the hedges keep off them.
   const taken: [number, number, number][] = [];
   const cypress = (x: number, z: number, tall: number, placed = false) => {
     const across = tall * 0.13 * 2 / 0.9;
     if (!placed && !clear(x, z, across / 2)) return;
     const wide = 0.9 + random() * 0.25;
-    cypresses.push(new THREE.Matrix4().compose(new THREE.Vector3(x, 0, z),
-      new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), random() * Math.PI * 2), new THREE.Vector3(tall * wide, tall, tall * wide)));
+    const matrix = new THREE.Matrix4().compose(new THREE.Vector3(x, 0, z),
+      new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), random() * Math.PI * 2), new THREE.Vector3(tall * wide, tall, tall * wide));
+    if (placed) return;
     taken.push([x, z, across / 2]);
-    world.createCollider(RAPIER.ColliderDesc.capsule(tall * 0.3, 0.5).setTranslation(x, tall * 0.3 + 0.5, z).setCollisionGroups(WALL_GROUPS));
+    cypresses.push({ matrix, x, z, r: across / 2,
+      trunk: world.createCollider(RAPIER.ColliderDesc.capsule(tall * 0.3, 0.5).setTranslation(x, tall * 0.3 + 0.5, z).setCollisionGroups(WALL_GROUPS)) });
   };
+  // Where the pair that once framed the arch stood: drawn and dropped, so
+  // the rest of the planting comes out as it was.
   cypress(-4.3, 42.8, 10.5, true);
   cypress(4.3, 42.8, 10, true);
   // Along one side or the other of each branch, about every 5 m.
@@ -352,15 +356,6 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
       cypress(x, side + (random() - 0.5) * 0.4, 5 + random() ** 1.3 * 7);
     }
   }
-  {
-    const geometry = cypressGeometry(23), core = new THREE.LatheGeometry(Array.from({ length: 12 }, (_, i) => {
-      const h = i / 11;
-      return new THREE.Vector2(cypressRadius(h) * 0.75, h * 0.96);
-    }), 10);
-    instanced(geometry, leafCards(CYPRESS, clusterTexture(41)), cypresses, scene);
-    instanced(core, painted(CYPRESS_CORE), cypresses, scene);
-  }
-
   // Small trees beside the pools and at the ends of the branch paths, each
   // the focal point of its garden room: a trunk forking into three or four
   // boughs, each ending in a ball of leaves, more over the top and between,
@@ -388,6 +383,13 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
     ball(top, tall * 0.48);
     tips.forEach((tip, k) => ball(tip.clone().lerp(tips[(k + 1) % tips.length], 0.5).lerp(top, 0.3), tall * (0.34 + random() * 0.1)));
     taken.push([x, z, 1]);
+    // No cypress growing up through its crown.
+    cypresses = cypresses.filter(c => {
+      if (Math.hypot(c.x - x, c.z - z) > tall * 0.9 + c.r) return true;
+      world.removeCollider(c.trunk, false);
+      taken.splice(taken.findIndex(([tx, tz]) => tx === c.x && tz === c.z), 1);
+      return false;
+    });
     world.createCollider(RAPIER.ColliderDesc.capsule(tall * 0.15, 0.4).setTranslation(x, tall * 0.15 + 0.4, z).setCollisionGroups(WALL_GROUPS));
   };
   // By the pools: on the west pool's far side, and the east pool's south
@@ -397,6 +399,15 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
   }
   // At the far ends of the branches.
   for (const [x, z] of [[-40.5, 10.2], [-37, 22.2], [-41, 41.2], [42.5, 7.6]]) tree(x, z, 6 + random() * 3.5);
+  {
+    const geometry = cypressGeometry(23), core = new THREE.LatheGeometry(Array.from({ length: 12 }, (_, i) => {
+      const h = i / 11;
+      return new THREE.Vector2(cypressRadius(h) * 0.75, h * 0.96);
+    }), 10);
+    const placed = cypresses.map(({ matrix }) => matrix);
+    instanced(geometry, leafCards(CYPRESS, clusterTexture(41)), placed, scene);
+    instanced(core, painted(CYPRESS_CORE), placed, scene);
+  }
   {
     instanced(ballGeometry(31), leafCards(CROWN, clusterTexture(43)), crowns, scene);
     instanced(new THREE.SphereGeometry(0.34, 12, 8), painted(CROWN_CORE), crowns, scene);
