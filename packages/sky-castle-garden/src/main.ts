@@ -11,7 +11,7 @@ import { createPlayer, movement } from './player';
 import { createRobot } from './robot';
 import { createStones } from './stones';
 import { updateFish } from './fish';
-import { updateWater } from './water';
+import { reflectWater, updateWater, waterLook } from './water';
 import { updateWind, wind } from './wind';
 
 // Sky Castle Garden, built in steps from the plan (docs/design-plan.md). So
@@ -62,6 +62,14 @@ const blowing = gui.addFolder('wind');
 blowing.add(wind, 'strength', 0, 3, 0.1);
 blowing.add(wind, 'from', -180, 180, 1).name('from, east of north (°)');
 blowing.close();
+const watery = gui.addFolder('water');
+watery.add(waterLook, 'down', 0, 1, 0.01).name('reflection, looking down');
+watery.add(waterLook, 'across', 0, 1, 0.01).name('reflection, looking across');
+watery.add(waterLook, 'blur', 0, 0.05, 0.001).name('reflection blur');
+watery.add(waterLook, 'sparse', 0.3, 0.9, 0.01).name('highlights, sparseness');
+watery.add(waterLook, 'size', 0.5, 6, 0.1).name('highlights, size (m)');
+watery.add(waterLook, 'pace', 0, 1, 0.01).name('highlights, pace');
+watery.close();
 gui.add(walls, 'visible').name('show invisible walls');
 gui.close();
 
@@ -102,5 +110,6 @@ renderer.setAnimationLoop(time => {
   updateWind(time / 1000);
   updateWater(time / 1000);
   updateFish(time / 1000, delta);
+  reflectWater(renderer, scene, camera);
   renderer.render(scene, camera);
 });

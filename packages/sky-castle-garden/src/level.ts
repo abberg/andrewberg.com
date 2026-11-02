@@ -94,7 +94,7 @@ const pavingMap = textures.paving.map();
 const path = painted(palette.path, { map: pavingMap }, textures.paving.metres), door = painted(palette.door);
 // The same stone with the texture laid on by UVs, for the pool rims.
 const coping = painted(palette.path, { map: pavingMap });
-const water = waterMaterial(0.42), poolWater = waterMaterial(0.92);
+const water = waterMaterial(palette.canal, 0.55), poolWater = waterMaterial(palette.water, 0.92);
 // The moats' walls and the streets at their foot.
 const drownedMasonry = drowned(painted(palette.masonry, { map: sandstoneMap }, textures.sandstone.metres));
 

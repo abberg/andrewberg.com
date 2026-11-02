@@ -24,6 +24,8 @@ export const palette = {
   path: [0xe0c99a, 0x9c93b2],
   rust: [0xb47a45, 0x7a5a78],
   water: [0x5aa3a6, 0x3a7488],
+  // The moats' canals, darker.
+  canal: [0x2f6f7a, 0x22506a],
   door: [0x2a2622, 0x1c1d2a],
 } as const;
 export const SKY = 0xa9d2e8;
