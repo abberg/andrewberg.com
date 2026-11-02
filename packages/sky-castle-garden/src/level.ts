@@ -36,17 +36,31 @@ export const POOLS = [[-16.1, 15.8], [15.3, 34.1]];
 
 // Beyond the garden's sides the castle's base runs on out under the outer
 // towers, a ledge of lawn sweeping forward beside the garden to its north
-// corners: the front edge, a quarter ellipse from each corner out to OUTER,
-// rounding back to z 95. As points along it, and where it is across x.
+// corners. Its front edge carries on from the north lip in the same
+// direction and turns gently at first, more and more, then less and less
+// until it heads straight back at OUTER, so there's no kink or sudden bend
+// anywhere along it. As points along it, and where it is across x.
 export const OUTER = 106;
-const LEDGE_BACK = 95;
 export const ledgeEdge = (side: number, n = 48) => {
-  const edge = side > 0 ? EAST : WEST, a = OUTER - Math.abs(edge), b = LEDGE_BACK - northEdge(edge);
-  return Array.from({ length: n + 1 }, (_, i) => { const t = i / n * Math.PI / 2; return [edge + side * a * Math.sin(t), LEDGE_BACK - b * Math.cos(t)]; });
+  const edge = side > 0 ? EAST : WEST, from = Math.atan(Math.abs(edge) / Math.sqrt(250.7 ** 2 - edge * edge));
+  const heading = (u: number) => from + (Math.PI / 2 - from) * u * u * (3 - 2 * u);
+  // Long enough to reach OUTER.
+  const steps = 400;
+  let across = 0;
+  for (let i = 0; i < steps; i++) across += Math.cos(heading((i + 0.5) / steps)) / steps;
+  const length = (OUTER - Math.abs(edge)) / across, points = [[edge, northEdge(edge)]];
+  for (let i = 0; i < steps; i++) {
+    const [x, z] = points[i], a = heading((i + 0.5) / steps);
+    points.push([x + side * Math.cos(a) * length / steps, z + Math.sin(a) * length / steps]);
+  }
+  return points.filter((_, i) => i % Math.round(steps / n) === 0 || i === steps);
 };
+const LEDGES = [ledgeEdge(-1, 400), ledgeEdge(1, 400)];
 export const ledgeFront = (x: number) => {
-  const edge = x > 0 ? EAST : WEST, a = OUTER - Math.abs(edge), u = Math.min(1, Math.max(0, (Math.abs(x) - Math.abs(edge)) / a));
-  return LEDGE_BACK - (LEDGE_BACK - northEdge(edge)) * Math.sqrt(1 - u * u);
+  const line = LEDGES[x > 0 ? 1 : 0], k = line.findIndex(([px]) => Math.abs(px) >= Math.abs(x));
+  if (k <= 0) return line[k < 0 ? line.length - 1 : 0][1];
+  const [ax, az] = line[k - 1], [bx, bz] = line[k];
+  return az + (bz - az) * (x - ax) / (bx - ax);
 };
 
 export const SPAWN = { x: 0, z: -37, yaw: Math.PI };
@@ -68,6 +82,43 @@ const water = painted(palette.water, { roughness: 0.2 });
 // A curve sampled across x, as [x, z] points.
 const sample = (curve: (x: number) => number, from: number, to: number, steps = 32) =>
   Array.from({ length: steps + 1 }, (_, i) => { const x = from + (to - from) * i / steps; return [x, curve(x)]; });
+
+// The base's outside wall, its blocks laid along the wall by UVs so they run
+// on round the curves without the seam the three-sided mapping leaves where
+// the wall turns from facing one way to another.
+const outside = painted(palette.masonry, { map: textures.sandstone.map() });
+// A slab's sides given UVs along and up the wall, in blocks, and normals
+// smoothed round its curves (not round its sharp corners).
+function walled(geometry: THREE.BufferGeometry) {
+  const sides = geometry.groups[1], p = geometry.getAttribute('position'), n = geometry.getAttribute('normal'), uv = geometry.getAttribute('uv');
+  const key = (k: number) => `${p.getX(k).toFixed(2)},${p.getZ(k).toFixed(2)}`;
+  // Each corner of the outline once, in order round it.
+  const corners: string[] = [], at = new Map<string, THREE.Vector2>();
+  for (let k = sides.start; k < sides.start + sides.count; k++) if (!at.has(key(k))) { at.set(key(k), new THREE.Vector2(p.getX(k), p.getZ(k))); corners.push(key(k)); }
+  const along = new Map<string, number>(), smooth = new Map<string, THREE.Vector3>();
+  let total = 0;
+  corners.forEach((c, i) => {
+    if (i) total += at.get(c)!.distanceTo(at.get(corners[i - 1])!);
+    along.set(c, total);
+    const prev = at.get(corners[(i - 1 + corners.length) % corners.length])!, next = at.get(corners[(i + 1) % corners.length])!;
+    smooth.set(c, new THREE.Vector3(next.y - prev.y, 0, prev.x - next.x).normalize());
+  });
+  total += at.get(corners[0])!.distanceTo(at.get(corners[corners.length - 1])!);
+  const metres = textures.sandstone.metres, face = new THREE.Vector3(), s = new THREE.Vector3();
+  for (let k = sides.start; k < sides.start + sides.count; k += 3) {
+    const u = [0, 1, 2].map(j => along.get(key(k + j))!);
+    // The quad that closes the outline runs from the end back to the start.
+    if (Math.max(...u) - Math.min(...u) > total / 2) u.forEach((v, j) => { if (v < total / 2) u[j] = v + total; });
+    face.fromBufferAttribute(n, k);
+    for (let j = 0; j < 3; j++) {
+      uv.setXY(k + j, u[j] / metres, p.getY(k + j) / metres);
+      s.copy(smooth.get(key(k + j))!);
+      if (s.dot(face) < 0) s.negate();
+      if (s.dot(face) > Math.cos(0.5)) n.setXYZ(k + j, s.x, s.y, s.z);
+    }
+  }
+  return geometry;
+}
 
 // A flat outline on the ground (x, z), extruded from y = bottom up to y = top.
 function slab(points: number[][], bottom: number, top: number, holes: number[][][] = []) {
@@ -170,10 +221,10 @@ export function buildLevel(world: RAPIER.World, scene: THREE.Scene) {
   // behind.
   const outer = (side: number) => {
     const front = ledgeEdge(side);
-    const back = [[110, cityFront(110) + 6], [104, 135], [80, 178], [40, 198]].map(([x, z]) => [side * x, z]);
+    const back = [[OUTER, cityFront(OUTER) + 6], [104, 135], [80, 178], [40, 198]].map(([x, z]) => [side * x, z]);
     return side > 0 ? [...front, ...back] : [...back.reverse(), ...front.reverse()];
   };
-  ground(slab([...north, ...outer(1), ...outer(-1)], -40, -0.3), masonry);
+  ground(walled(slab([...north, ...outer(1), ...outer(-1)], -40, -0.3)), [masonry, outside] as unknown as THREE.Material);
   // The ledges' lawn, from the front edge back under the towers' feet.
   for (const side of [-1, 1]) {
     const front = ledgeEdge(side);
