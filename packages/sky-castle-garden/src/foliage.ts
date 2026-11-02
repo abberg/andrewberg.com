@@ -2,8 +2,9 @@ import RAPIER from '@dimforge/rapier3d-compat';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { bothSidesAlike, leafTexture, wander } from './growth';
+import { stroke } from './masonry';
 import { EAST_LAWN, lawnSouth, MOATS_FROM, PATHS, POOLS, WALL_GROUPS, WEST_LAWN } from './level';
-import { painted } from './look';
+import { painted, palette } from './look';
 
 // Step 8: the garden's planting, built like the ivy (growth.ts): leaf cards
 // whose normals point out from the middle of the plant, so the light shades
@@ -114,6 +115,55 @@ function ballGeometry(seed: number) {
   geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
   geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
   geometry.setIndex(indices);
+  return geometry;
+}
+
+// A tuft of grass painted on a clear ground, a few broad blades fanning up
+// from the foot in strokes, paler towards their tips: near white, the
+// material gives the lawn's green. With flowers, the blades are painted in
+// green and the tips carry dots of white, pink and yellow.
+function tuftTexture(seed: number, flowers: boolean) {
+  const px = 256;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = px;
+  const g = canvas.getContext('2d')!;
+  let s = seed;
+  const random = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  const tips: number[][] = [];
+  for (let k = 0; k < 11; k++) {
+    const x = px / 2 + (random() - 0.5) * px * 0.3, a = -Math.PI / 2 + (random() - 0.5) * 1.1, long = px * (0.45 + random() * 0.45);
+    const tx = x + Math.cos(a) * long, ty = px + Math.sin(a) * long, shade = 0.78 + random() * 0.22;
+    const colour = flowers ? `rgba(${120 * shade | 0},${178 * shade | 0},${78 * shade | 0},1)` : `rgba(${255 * shade | 0},${255 * shade | 0},${255 * shade | 0},1)`;
+    stroke(g, Math.floor(random() * 10), x, px, tx, ty, px * (0.07 + random() * 0.04), colour);
+    tips.push([tx, ty]);
+  }
+  if (flowers) for (const [x, y] of tips.slice(0, 6)) {
+    g.fillStyle = ['#fffaf0', '#f4b8cc', '#f6dc6a'][Math.floor(random() * 3)];
+    g.beginPath();
+    g.arc(x, y + 6, 7 + random() * 4, 0, Math.PI * 2);
+    g.fill();
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+// A tuft: three upright cards crossing at its middle, a unit tall and wide,
+// standing on the origin, its normals all straight up so it shades just as
+// the lawn under it does.
+function tuftGeometry() {
+  const cards = [0, 1, 2].map(k => new THREE.PlaneGeometry(1, 1).translate(0, 0.5, 0).rotateY(k * Math.PI / 3));
+  const positions: number[] = [], normals: number[] = [], uvs: number[] = [];
+  for (const card of cards) {
+    const nonIndexed = card.toNonIndexed();
+    positions.push(...nonIndexed.getAttribute('position').array);
+    uvs.push(...nonIndexed.getAttribute('uv').array);
+    for (let k = 0; k < nonIndexed.getAttribute('position').count; k++) normals.push(0, 1, 0);
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
   return geometry;
 }
 
@@ -375,6 +425,56 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
     }
   }
 
+  // Grass: tufts creeping over the edges of every path and into the paving
+  // near them, in patches, and tall grass and wildflowers where paths meet
+  // the lawn and round the ruins.
+  const tufts: THREE.Matrix4[] = [], blooms: THREE.Matrix4[] = [];
+  const tuft = (x: number, z: number, tall: number, flowering = false) => {
+    if (!flowering && random() < 0.08) flowering = true;
+    (flowering ? blooms : tufts).push(new THREE.Matrix4().compose(new THREE.Vector3(x, 0, z),
+      new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), random() * Math.PI * 2), new THREE.Vector3(tall * (0.8 + random() * 0.6), tall, tall * (0.8 + random() * 0.6))));
+  };
+  PATHS.forEach(([x0, x1, z0, z1], p) => {
+    const patches = wander(p * 31 + 7, 4);
+    // Along each side: a line of the path's edge, which way is out of it.
+    const sides: [number, number, number, number, number][] = [[x0, z0, x0, z1, -1], [x1, z0, x1, z1, 1], [x0, z0, x1, z0, -1], [x0, z1, x1, z1, 1]];
+    for (const [ax, az, bx, bz, out] of sides) {
+      const length = Math.hypot(bx - ax, bz - az), across = ax === bx;
+      for (let d = random() * 0.4; d < length; d += 0.18 + random() * 0.3) {
+        const thick = patches(d + (across ? ax : az));
+        if (thick < -0.3) continue;
+        // Mostly on the lawn side, some reaching into the paving.
+        const off = out * (random() < 0.3 ? -random() * 0.6 : random() * 0.7), x = ax + (bx - ax) * d / length, z = az + (bz - az) * d / length;
+        const [tx, tz] = across ? [x + off, z] : [x, z + off];
+        if (PATHS.some(([px0, px1, pz0, pz1]) => tx > px0 + 0.8 && tx < px1 - 0.8 && tz > pz0 + 0.8 && tz < pz1 - 0.8)) continue;
+        if (POOLS.some(([px, pz]) => Math.hypot(tx - px, tz - pz) < 7.6)) continue;
+        tuft(tx, tz, 0.35 + random() * 0.4 + Math.max(0, thick) * 0.3);
+      }
+    }
+  });
+  // Tall grass and flowers in patches: round the broken fence, the fallen
+  // column and the column feet, and where the branches leave the main path.
+  for (const [cx, cz, r] of [[11, 4.5, 4], [17, 1, 3], [-12, 35, 4], [-18, 37.5, 3], [-4, 40, 2.5], [-6, 15, 2], [-6, 23, 2],
+    [-3.5, 8.5, 2.5], [-3.5, 29, 2.5], [-3.5, 39.5, 2], [3.5, 15.5, 2.5], [3.5, 37, 2.5], [-22, 32, 3]]) {
+    for (let k = Math.round(r * r * 7); k > 0; k--) {
+      const a = random() * Math.PI * 2, d = Math.sqrt(random()) * r, x = cx + Math.cos(a) * d, z = cz + Math.sin(a) * d;
+      if (PATHS.some(([px0, px1, pz0, pz1]) => x > px0 + 0.3 && x < px1 - 0.3 && z > pz0 + 0.3 && z < pz1 - 0.3)) continue;
+      tuft(x, z, 0.6 + random() * 0.6 * (1 - d / r), random() < 0.3);
+    }
+  }
+  {
+    const shape = tuftGeometry();
+    for (const [placed, material] of [
+      [tufts, bothSidesAlike(painted(palette.lawn, { map: tuftTexture(61, false), alphaTest: 0.5, side: THREE.DoubleSide }))],
+      [blooms, bothSidesAlike(painted([0xffffff, 0x8a8cc0], { map: tuftTexture(67, true), alphaTest: 0.5, side: THREE.DoubleSide }))],
+    ] as const) {
+      const mesh = new THREE.InstancedMesh(shape, material, placed.length);
+      placed.forEach((matrix, i) => mesh.setMatrixAt(i, matrix));
+      mesh.receiveShadow = true;
+      scene.add(mesh);
+    }
+  }
+
   const geometry = shrubGeometry(19), core = new THREE.SphereGeometry(0.42, 12, 8).scale(1, 0.75, 1).translate(0, 0.14, 0);
   const leaves = bothSidesAlike(painted(SHRUB, { map: leafTexture(29), alphaTest: 0.5, side: THREE.DoubleSide }));
   for (const [shape, material] of [[geometry, leaves], [core, painted(CORE)]] as const) {
@@ -383,5 +483,5 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
     mesh.castShadow = mesh.receiveShadow = true;
     scene.add(mesh);
   }
-  return { shrubs: shrubs.length, cypresses: cypresses.length, trees: crowns.length };
+  return { shrubs: shrubs.length, cypresses: cypresses.length, trees: crowns.length, tufts: tufts.length + blooms.length };
 }
