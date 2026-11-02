@@ -91,7 +91,8 @@ export function buildCity(world: RAPIER.World, scene: THREE.Scene) {
   const c = 1.6, R = ARCH.half + c, rise = Math.sqrt(R * R - c * c), spring = archTop - rise;
   const archAt = (x: number, grow = 0) => Math.abs(x) < ARCH.half + grow ? spring + Math.sqrt((R + grow) ** 2 - (Math.abs(x) + c) ** 2) : -Infinity;
   // The great tower in the middle of the front, the arch at its foot.
-  const GATE = { r: 17, z: ARCH.front + 17 };
+  // Its tiers as [radius, top, lean].
+  const GATE = { r: 22, z: ARCH.front + 22, tiers: [[22, 24, 1.5], [18, 45, 1.4], [14.2, 63, 1]] };
 
   // Windows, as one instanced quad each, set into the face where it is at
   // their height and tilted with it.
@@ -175,22 +176,47 @@ export function buildCity(world: RAPIER.World, scene: THREE.Scene) {
   // from the moat under red-brown domes, overlapping so the front row makes
   // a wall, and rows behind set in the gaps, climbing towards the middle,
   // all under the one giant tree (foliage.ts). Laid out on purpose, the same
-  // either side: the great tower with the arch in the middle of the front,
-  // the bastion west of it and its twin east.
+  // but not mirrored: the great tower with the arch in the middle of the
+  // front, the bastion west of it and its twin east. Nothing rises over the
+  // great tower from the garden: only the tree shows behind it.
   const towers: { x: number, z: number, r: number, depth: number, body: number[][], dome: number[][] }[] = [];
   {
     // Rows as [depth behind the front, and each tower's x, radius, height,
-    // and whether it has a narrower stage on top], mirrored either side.
+    // and whether it has a narrower stage on top].
     const rows: [number, [number, number, number, boolean?][]][] = [
-      [0, [[44, 10, 40], [62, 13.5, 27], [84, 11, 35, true]]],
-      [22, [[14, 8.5, 70, true], [33, 13.5, 47], [54, 9, 56], [75, 12.5, 31]]],
-      [44, [[0, 11, 80, true], [24, 14.5, 60], [46, 8.5, 72, true], [66, 13, 43]]],
-      [66, [[12, 10, 92], [35, 15, 64], [57, 9.5, 76, true]]],
-      [88, [[0, 15.5, 84, true], [26, 9, 98]]],
+      [0, [[-44, 11, 33], [-63, 12.5, 41, true], [-84, 13, 26], [52, 10, 40], [70, 13.5, 27], [91, 11, 35, true]]],
+      [22, [[-14, 11, 58], [-36, 9, 62, true], [-55, 14, 38], [-77, 10, 47], [16, 8.5, 70, true], [33, 13.5, 47], [57, 9, 56], [78, 12.5, 31]]],
+      [44, [[0, 11, 80, true], [-22, 10, 74], [-47, 13, 52], [-68, 9, 66, true], [26, 14.5, 60], [48, 8.5, 72, true], [68, 13, 43]]],
+      [66, [[-14, 13, 80], [-38, 10, 88, true], [-60, 12, 58], [12, 10, 92], [36, 15, 64], [58, 9.5, 76, true]]],
+      [88, [[0, 15.5, 84, true], [-25, 12, 90], [27, 9, 98]]],
     ];
-    for (const [depth, row] of rows) for (const [x0, r, tall, stage] of row) for (const x of x0 ? [-x0, x0] : [0]) {
+    // How tall a tower can be and stay out of sight behind the great tower,
+    // seen from anywhere in the garden: wherever it is behind the great
+    // tower's outline, under the tier it is behind. Infinity where it is
+    // clear of it.
+    const hidden = (x: number, z: number, r: number) => {
+      let most = Infinity;
+      for (const ex of [-35, 0, 35]) for (const ez of [-37, 0, 40]) {
+        const gd = Math.hypot(-ex, GATE.z - ez), td = Math.hypot(x - ex, z - ez);
+        if (td < gd) continue;
+        const centre = Math.atan2(x - ex, z - ez) - Math.atan2(-ex, GATE.z - ez), half = Math.asin(Math.min(1, r / td));
+        for (let k = 0; k <= 16; k++) {
+          const off = Math.abs(centre - half + 2 * half * k / 16);
+          // The highest tier there, as an angle up from the eye.
+          let up = -Infinity;
+          for (const [tr, top] of GATE.tiers) if (off < Math.asin(tr / gd)) up = Math.max(up, (top - 3) / (gd - tr));
+          if (up > -Infinity) most = Math.min(most, 3 + up * (td - r));
+        }
+      }
+      return most;
+    };
+    for (const [depth, row] of rows) for (const [x, r, high, high2] of row) {
       const inward = new THREE.Vector3(-2 * x / 292, 0, 1).normalize();
       const at = new THREE.Vector3(x, 0, cityFront(x)).addScaledVector(inward, depth + r);
+      // Lower it, dome and all, to stay hidden; not worth building if that
+      // leaves it a stump.
+      const limit = hidden(at.x, at.z, r), tall = Math.min(high, limit - 0.8 * r - 1), stage = high2 && tall === high;
+      if (tall < 20) continue;
       const body = bulging(r, -0.3, tall, 0.8), [r0] = body[0], [r1, t1] = body[body.length - 1];
       const dome = Array.from({ length: 8 }, (_, k) => { const u = k / 7 * Math.PI / 2; return [(r1 + 0.4) * Math.cos(u) + 0.01, t1 - 0.3 + r1 * 0.8 * Math.sin(u)]; });
       towers.push({ x: at.x, z: at.z, r: r0, depth, body, dome });
@@ -214,7 +240,7 @@ export function buildCity(world: RAPIER.World, scene: THREE.Scene) {
   // The great tower: the biggest drum of all, standing forward in the
   // middle of the front with the arch cut into its foot, in three tiers.
   // Its foot is finer-built than the others so the opening is cut cleanly.
-  const gate = tiered(0, GATE.z, [[GATE.r, 24, 1.5], [13.8, 45, 1.4], [10.6, 63, 1]], 10, {
+  const gate = tiered(0, GATE.z, GATE.tiers, 12, {
     windowsFrom: archTop + 6, footSteps: 30, footSegments: 200,
     skip: (x, y, z) => z < GATE.z && y < archAt(x, 0.6),
   });
@@ -224,8 +250,8 @@ export function buildCity(world: RAPIER.World, scene: THREE.Scene) {
 
   // The bastion's twin east of the arch, in two tiers that break higher.
   const T = { r: 14.5, ...(() => {
-    const inward = new THREE.Vector3(-2 * 24 / 292, 0, 1).normalize();
-    return { x: 24 + inward.x * 14.5, z: cityFront(24) + inward.z * 14.5 };
+    const inward = new THREE.Vector3(-2 * 34 / 292, 0, 1).normalize();
+    return { x: 34 + inward.x * 14.5, z: cityFront(34) + inward.z * 14.5 };
   })() };
   const twin = tiered(T.x, T.z, [[T.r, 30, 1.8], [10.2, 52, 1.2]], 8);
   world.createCollider(RAPIER.ColliderDesc.cylinder(15, T.r).setTranslation(T.x, 14.7, T.z));
