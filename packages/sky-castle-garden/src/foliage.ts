@@ -1,6 +1,7 @@
+import RAPIER from '@dimforge/rapier3d-compat';
 import * as THREE from 'three';
 import { bothSidesAlike, leafTexture, wander } from './growth';
-import { EAST_LAWN, lawnSouth, MOATS_FROM, PATHS, POOLS, WEST_LAWN } from './level';
+import { EAST_LAWN, lawnSouth, MOATS_FROM, PATHS, POOLS, WALL_GROUPS, WEST_LAWN } from './level';
 import { painted } from './look';
 
 // Step 8: the garden's planting, built like the ivy (growth.ts): leaf cards
@@ -11,6 +12,8 @@ import { painted } from './look';
 // Shrubs a little deeper and cooler than the lawn so they stand off it, with
 // a dark core so you never see through them.
 const SHRUB = [0x78ad4a, 0x3a6650] as const, CORE = [0x4f8442, 0x2c5246] as const;
+// Cypresses dark and blue-green, the vertical accent.
+const CYPRESS = [0x55905c, 0x264a4c] as const, CYPRESS_CORE = [0x3a6a4a, 0x1e3c40] as const;
 
 // One shrub: a dome of leaf cards sitting on the ground, a metre across at
 // scale 1 and a little less high, each card facing out with its own turn,
@@ -32,6 +35,42 @@ function shrubGeometry(seed: number) {
       const p = new THREE.Vector3((u - 0.5) * size, (v - 0.5) * size, 0).applyQuaternion(turn).add(at);
       positions.push(...p.toArray());
       normals.push(...p.clone().sub(middle).normalize().toArray());
+      uvs.push(u, v);
+    }
+    indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setIndex(indices);
+  return geometry;
+}
+
+// A cypress's outline, its radius at a height, both as shares of its
+// height: fullest a quarter of the way up, drawn in to a point at the top
+// and tucked in a little at the foot.
+const cypressRadius = (h: number) => 0.13 * Math.min(1, 0.55 + h * 2.2) * (1 - h) ** 0.75;
+
+// One cypress, a unit tall: leaf cards over its whole surface facing out,
+// normals out from its axis and a little up, so it shades as one soft
+// flame of a shape.
+function cypressGeometry(seed: number) {
+  let s = seed;
+  const random = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  const positions: number[] = [], normals: number[] = [], uvs: number[] = [], indices: number[] = [];
+  for (let k = 0; k < 220; k++) {
+    const h = random() ** 0.85 * 0.97, a = random() * Math.PI * 2, r = cypressRadius(h) * (0.85 + random() * 0.25);
+    const out = new THREE.Vector3(Math.cos(a), 0.35, Math.sin(a)).normalize();
+    const at = new THREE.Vector3(Math.cos(a) * r, h, Math.sin(a) * r);
+    // Upright cards, leaning out, each turned its own way.
+    const turn = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), out)
+      .multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), (random() - 0.5) * 1.2));
+    const w = 0.07 + random() * 0.04, tall = w * 1.5, base = positions.length / 3;
+    for (const [u, v] of [[0, 0], [1, 0], [1, 1], [0, 1]]) {
+      const p = new THREE.Vector3((u - 0.5) * w, (v - 0.5) * tall, 0).applyQuaternion(turn).add(at);
+      positions.push(...p.toArray());
+      normals.push(...new THREE.Vector3(p.x, 0, p.z).normalize().multiplyScalar(0.94).setY(0.35).normalize().toArray());
       uvs.push(u, v);
     }
     indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
@@ -67,7 +106,7 @@ function clear(x: number, z: number, r: number) {
   return !STONEWORK.some(([sx, sz, sr]) => Math.hypot(x - sx, z - sz) < sr + r * 0.8);
 }
 
-export function createFoliage(scene: THREE.Scene) {
+export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
   let s = 4243;
   const random = () => (s = (s * 16807) % 2147483647) / 2147483647;
   const shrubs: THREE.Matrix4[] = [];
@@ -119,6 +158,42 @@ export function createFoliage(scene: THREE.Scene) {
     }
   }
 
+  // Cypresses: a pair framing the approach to the arch, and loose rows along
+  // the branch paths, each tree its own height, gaps here and there. Each
+  // has a solid trunk the robot can't walk through, which the camera ignores.
+  const cypresses: THREE.Matrix4[] = [];
+  const cypress = (x: number, z: number, tall: number, placed = false) => {
+    const across = tall * 0.13 * 2 / 0.9;
+    if (!placed && !clear(x, z, across / 2)) return;
+    const wide = 0.9 + random() * 0.25;
+    cypresses.push(new THREE.Matrix4().compose(new THREE.Vector3(x, 0, z),
+      new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), random() * Math.PI * 2), new THREE.Vector3(tall * wide, tall, tall * wide)));
+    world.createCollider(RAPIER.ColliderDesc.capsule(tall * 0.3, 0.5).setTranslation(x, tall * 0.3 + 0.5, z).setCollisionGroups(WALL_GROUPS));
+  };
+  cypress(-4.3, 42.8, 10.5, true);
+  cypress(4.3, 42.8, 10, true);
+  // Along one side or the other of each branch, about every 5 m.
+  for (const [x0, x1, z0, z1] of PATHS.slice(1, 5)) {
+    const side = random() < 0.5 ? z0 - 1.9 : z1 + 1.9;
+    for (let x = Math.min(x0, x1) + 3 + random() * 2; x < Math.max(x0, x1) - 3; x += 4.5 + random() * 2) {
+      if (random() < 0.25) continue;
+      cypress(x, side + (random() - 0.5) * 0.4, 5 + random() ** 1.3 * 7);
+    }
+  }
+  {
+    const geometry = cypressGeometry(23), core = new THREE.LatheGeometry(Array.from({ length: 12 }, (_, i) => {
+      const h = i / 11;
+      return new THREE.Vector2(cypressRadius(h) * 0.8, h * 0.97);
+    }), 10);
+    const leaves = bothSidesAlike(painted(CYPRESS, { map: leafTexture(41), alphaTest: 0.5, side: THREE.DoubleSide }));
+    for (const [shape, material] of [[geometry, leaves], [core, painted(CYPRESS_CORE)]] as const) {
+      const mesh = new THREE.InstancedMesh(shape, material, cypresses.length);
+      cypresses.forEach((matrix, i) => mesh.setMatrixAt(i, matrix));
+      mesh.castShadow = mesh.receiveShadow = true;
+      scene.add(mesh);
+    }
+  }
+
   const geometry = shrubGeometry(19), core = new THREE.SphereGeometry(0.42, 12, 8).scale(1, 0.75, 1).translate(0, 0.14, 0);
   const leaves = bothSidesAlike(painted(SHRUB, { map: leafTexture(29), alphaTest: 0.5, side: THREE.DoubleSide }));
   for (const [shape, material] of [[geometry, leaves], [core, painted(CORE)]] as const) {
@@ -127,5 +202,5 @@ export function createFoliage(scene: THREE.Scene) {
     mesh.castShadow = mesh.receiveShadow = true;
     scene.add(mesh);
   }
-  return { shrubs: shrubs.length };
+  return { shrubs: shrubs.length, cypresses: cypresses.length };
 }

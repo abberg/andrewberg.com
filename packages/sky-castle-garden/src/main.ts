@@ -31,7 +31,7 @@ const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 10
 
 const { spawn, walls } = buildLevel(world, scene);
 const stones = createStones(world, scene);
-createFoliage(scene);
+createFoliage(world, scene);
 
 const input = createInput(renderer.domElement);
 const player = createPlayer(world, scene, { ...spawn, y: PLATFORM_TOP }, createRobot(gltf));
