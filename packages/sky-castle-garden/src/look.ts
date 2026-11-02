@@ -132,8 +132,8 @@ export function createLook(scene: THREE.Scene) {
   scene.add(sky);
 
   const hemisphere = new THREE.HemisphereLight(0xcfe6f5, 0x4f7f3a, 1.4);
-  // A warm sun, high in the north behind the usual view south to the city,
-  // a little to the east so the faces turned to the camera aren't all alike.
+  // A warm sun, high in the north-west behind the usual view south to the
+  // city, so the columns west of the main path throw shadows across it.
   const sun = new THREE.DirectionalLight(0xfff6e8, 3);
   sun.castShadow = true;
   sun.shadow.mapSize.set(4096, 4096);
@@ -141,7 +141,7 @@ export function createLook(scene: THREE.Scene) {
   sun.shadow.bias = -0.0003;
   sun.shadow.normalBias = 0.04;
   scene.add(hemisphere, sun, sun.target);
-  const angles = { height: 56, from: 25 };
+  const angles = { height: 50, from: -60 };
 
   // Points the sun from its angles and fits its shadow box round the level.
   const aim = () => {
