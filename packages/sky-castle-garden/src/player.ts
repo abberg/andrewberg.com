@@ -6,7 +6,7 @@ import type { Robot } from './robot';
 export const HEIGHT = 4, RADIUS = 0.8;
 
 export const movement = {
-  walk: 1.6,
+  walk: 1.1,
   run: 3,
   // Seconds from standing to full speed, and back.
   accelerate: 0.4,

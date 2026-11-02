@@ -8,7 +8,7 @@ import type { GLTF } from 'three/addons/loaders/GLTFLoader.js';
 
 // Metres covered in one walk and one run cycle, as robot.py makes them. Played
 // at the speed the robot actually covers ground, the feet don't slide.
-const STRIDE = { walk: 1.76, run: 2.4 };
+const STRIDE = { walk: 2.2, run: 2.4 };
 // The bones the push takes over, the rest stay on the walk.
 const UPPER = /^(spine|head|upperarm|forearm|hand)/;
 // Seconds to fade a clip in or out.
