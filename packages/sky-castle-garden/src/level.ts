@@ -32,7 +32,8 @@ const colours = {
   stone: 0xc9c2b4, dark: 0x8f897d, lawn: 0x8dbf4a, path: 0xd8c8a0, water: 0x2e4a66, door: 0x1f1d1b,
 };
 const material = (color: number) => new THREE.MeshStandardMaterial({ color, roughness: 0.9 });
-const stone = material(colours.stone), dark = material(colours.dark), lawn = material(colours.lawn);
+export const stone = material(colours.stone);
+const dark = material(colours.dark), lawn = material(colours.lawn);
 const path = material(colours.path), door = material(colours.door);
 const water = new THREE.MeshStandardMaterial({ color: colours.water, roughness: 0.2 });
 
@@ -148,65 +149,8 @@ export function buildLevel(world: RAPIER.World, scene: THREE.Scene) {
     pool.position.set(x, 0.05, z);
   }
 
-  // Three standing columns in a row beside the main path, west side.
-  for (const z of [14.6, 22.7, 31.2]) column(-4.1, 0, z, 0.7, 14);
-  // The fallen column across the lowest west branch, and loose drums near it.
-  const fallen = add(new THREE.CylinderGeometry(0.7, 0.7, 17.2, 32), stone);
-  fallen.position.set(-12.1, 0.7, 36.8);
-  fallen.rotation.set(0, -Math.atan2(5.8, 16.2), Math.PI / 2, 'YXZ');
-  {
-    const q = fallen.quaternion;
-    world.createCollider(RAPIER.ColliderDesc.cylinder(8.6, 0.7).setTranslation(-12.1, 0.7, 36.8).setRotation({ x: q.x, y: q.y, z: q.z, w: q.w }));
-  }
-  for (const [x, z, yaw] of [[-23, 33, 0.4], [-21.5, 40.5, 1.3], [-7, 43, 2.2]]) {
-    const drum = box(x, 0.7, z, 1.2, 1.4, 1.4, stone, yaw, false);
-    drum.geometry = new THREE.CylinderGeometry(0.7, 0.7, 1.2, 32).rotateZ(Math.PI / 2);
-    world.createCollider(RAPIER.ColliderDesc.cylinder(0.6, 0.7).setTranslation(x, 0.7, z)
-      .setRotation(new THREE.Quaternion().setFromEuler(new THREE.Euler(0, yaw, Math.PI / 2, 'YXZ'))));
-  }
-
-  // The statue on its plinth, near the north end east of the path.
-  box(4.1, 1.5, 8.3, 2.7, 3, 2.7);
-  {
-    const figure = add(new THREE.CapsuleGeometry(0.6, 1.8, 8, 16), stone);
-    figure.position.set(4.1, 4.5, 8.3);
-    world.createCollider(RAPIER.ColliderDesc.capsule(0.9, 0.6).setTranslation(4.1, 4.5, 8.3));
-    box(4.6, 5.6, 8.3, 0.3, 1.6, 0.3, stone, 0, false).rotation.z = -0.4;
-  }
-
-  // The low arch ruin by the north edge: four piers, one surviving lintel and
-  // a piece of another on the grass.
-  for (const x of [9.1, 12, 14.8, 17.6]) box(x, 1, 2.5, 1, 2, 1.6);
-  box(10.55, 2.25, 2.5, 4, 0.5, 1.6);
-  box(16.4, 0.25, 5.2, 2.6, 0.5, 1.4, stone, 0.5);
-
-  // The colonnade arcing round the north side of the east pool: five columns
-  // 6 m tall, lintels on top.
-  const tops: THREE.Vector3[] = [];
-  for (let i = -2; i <= 2; i++) {
-    const a = -Math.PI / 2 + i * THREE.MathUtils.degToRad(32);
-    const x = 15.3 + Math.cos(a) * 9.5, z = 34.1 + Math.sin(a) * 9.5;
-    column(x, 0, z, 0.4, 6);
-    tops.push(new THREE.Vector3(x, 6.25, z));
-  }
-  for (let i = 0; i < tops.length - 1; i++) {
-    const [a, b] = [tops[i], tops[i + 1]];
-    const mid = a.clone().add(b).multiplyScalar(0.5);
-    box(mid.x, mid.y, mid.z, a.distanceTo(b) + 0.9, 0.5, 0.9, stone, -Math.atan2(b.z - a.z, b.x - a.x));
-  }
-
-  // Urns beside the pools.
-  for (const [x, z] of [[-24.5, 12], [-24, 21], [-7.8, 10], [24, 38], [22, 42.5]]) column(x, 0, z, 0.5, 1.3);
-
-  // Stone slabs and blocks along the path edges, placed at random but the
-  // same every time.
-  let seed = 7;
-  const random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-  for (const [x, z] of [[-6.5, 2], [5.5, 18], [6, 24.5], [-6.5, 41], [5.8, 45], [-20, 9.5], [-33, 3], [-30, 30],
-    [-36, 34], [22, 9], [33, 16], [40, 9], [-10, 22.5], [9, 40]]) {
-    const width = 1 + random() * 2, depth = 1 + random() * 2, height = 0.3 + random() * 0.7;
-    box(x, height / 2, z, width, height, depth, stone, random() * Math.PI);
-  }
+  // The freestanding stonework (columns, statue, ruin, colonnade, urns,
+  // slabs) moves, so it's built in stones.ts.
 
   // The city's base behind the south moat: tiers stepping back and up,
   // following its curve, with the arch cut into the bottom tier.

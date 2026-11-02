@@ -1,12 +1,13 @@
 // Keyboard and mouse, read once per frame. Clicking the canvas locks the
 // pointer so the mouse orbits the camera; Esc lets it go.
 export function createInput(canvas: HTMLCanvasElement) {
-  const keys = new Set<string>();
+  const keys = new Set<string>(), taps = new Set<string>();
   const look = { x: 0, y: 0 };
   let zoom = 0;
   addEventListener('keydown', event => {
     if (event.target instanceof Element && event.target.closest('input, select')) return;
     keys.add(event.code);
+    if (!event.repeat) taps.add(event.code);
   });
   addEventListener('keyup', event => keys.delete(event.code));
   addEventListener('blur', () => keys.clear());
@@ -27,6 +28,8 @@ export function createInput(canvas: HTMLCanvasElement) {
       return { x: x / length, y: y / length };
     },
     run: () => keys.has('ShiftLeft') || keys.has('ShiftRight'),
+    // Whether a key went down since the last time it was asked about.
+    tapped: (code: string) => taps.delete(code),
     // Mouse movement and wheel steps since the last call.
     take() {
       const taken = { x: look.x, y: look.y, zoom };

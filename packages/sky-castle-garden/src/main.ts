@@ -5,6 +5,7 @@ import { createFollowCamera, follow } from './followCamera';
 import { createInput } from './input';
 import { buildLevel, PLATFORM_TOP } from './level';
 import { createPlayer, movement } from './player';
+import { createStones } from './stones';
 
 // Sky Castle Garden, built in steps from the plan (docs/design-plan.md). So
 // far: the robot as a 4 m capsule, the follow camera and the level blocked
@@ -37,6 +38,7 @@ const sunOffset = new THREE.Vector3(25, 60, -40);
 const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 1000);
 
 const { spawn, walls } = buildLevel(world, scene);
+const stones = createStones(world, scene);
 
 const input = createInput(renderer.domElement);
 const player = createPlayer(world, scene, { ...spawn, y: PLATFORM_TOP });
@@ -49,6 +51,8 @@ moving.add(movement, 'walk', 0.5, 4, 0.1).name('walk (m/s)');
 moving.add(movement, 'run', 1, 8, 0.1).name('run (m/s)');
 moving.add(movement, 'accelerate', 0.05, 1.5, 0.05).name('to full speed (s)');
 moving.add(movement, 'turn', 30, 540, 10).name('turn (°/s)');
+moving.add(movement, 'push', 20, 800, 10).name('push (kN)');
+moving.add(movement, 'stepOver', 0.5, 3, 0.1).name('step-over (s)');
 const following = gui.addFolder('camera');
 following.add(follow, 'distance', follow.nearest, follow.farthest, 0.5).name('distance (m)').listen();
 following.add(follow, 'shoulder', 1, 5, 0.1).name('pivot height (m)');
@@ -79,6 +83,8 @@ renderer.setAnimationLoop(time => {
   // Camera-relative: forward is away from the camera.
   const move = input.move(), yaw = follower.yaw;
   direction.set(move.x * Math.cos(yaw) - move.y * Math.sin(yaw), -move.x * Math.sin(yaw) - move.y * Math.cos(yaw));
+  // R puts the stonework back.
+  if (input.tapped('KeyR')) stones.reset();
   accumulator += delta;
   while (accumulator >= world.timestep) {
     player.step(world.timestep, direction, input.run());
@@ -88,6 +94,7 @@ renderer.setAnimationLoop(time => {
     accumulator -= world.timestep;
   }
   player.draw(accumulator / world.timestep);
+  stones.sync();
   follower.update(delta, player.mesh.position, player.mesh.rotation.y, player.pace);
   sun.target.position.copy(player.mesh.position);
   sun.position.copy(player.mesh.position).add(sunOffset);
