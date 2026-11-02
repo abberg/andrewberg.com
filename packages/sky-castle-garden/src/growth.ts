@@ -107,14 +107,14 @@ function clumpGeometry(seed: number, tuft = false) {
   let s = seed;
   const random = () => (s = (s * 16807) % 2147483647) / 2147483647;
   const cards: THREE.BufferGeometry[] = [];
-  for (let k = 0; k < 8; k++) {
+  for (let k = 0; k < (tuft ? 14 : 8); k++) {
     const card = new THREE.PlaneGeometry(1, 1);
     if (tuft) {
       card.scale(0.8, 1, 1);
       card.translate(0, 0.45, 0);
       card.applyMatrix4(new THREE.Matrix4().makeRotationX(1.0 + random() * 0.4));
       card.applyMatrix4(new THREE.Matrix4().makeRotationZ(random() * Math.PI * 2));
-      card.translate((random() - 0.5) * 0.7, (random() - 0.5) * 0.7, -0.05);
+      card.translate((random() - 0.5) * 0.9, (random() - 0.5) * 0.9, -0.05);
     } else {
       card.applyMatrix4(new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(-(0.25 + random() * 0.4), (random() - 0.5) * 0.4, (random() - 0.5) * 0.6)));
       card.translate((random() - 0.5) * 0.7, (random() - 0.5) * 0.7, random() * 0.25);
@@ -218,7 +218,9 @@ export function createGrowth() {
       const t0 = (a - along[i]) / (along[i + 1] - along[i] || 1);
       const begin = THREE.MathUtils.lerp(start[i], start[i + 1], t0), reach = THREE.MathUtils.lerp(leafLength[i], leafLength[i + 1], t0);
       if (leafLength[i] <= 0 && leafLength[i + 1] <= 0) continue;
-      for (let d = begin + random() * step * 0.5; d < begin + reach; d += step * (0.8 + random() * 0.4)) {
+      // Twice as thick where the surface faces up: seen across it, low, the
+      // tufts would otherwise leave the sheet showing between them.
+      for (let d = begin + random() * step * 0.5; d < begin + reach; d += step * (0.8 + random() * 0.4) * (1 - 0.5 * THREE.MathUtils.smoothstep(walk(d)[3], 0.4, 0.8))) {
         // Each clump shifted across the row by up to half a step.
         const t = THREE.MathUtils.clamp(t0 + (random() - 0.5) * step / (along[i + 1] - along[i] || 1), 0, 1);
         const place = (o: number, y: number) => columns[i](o, y).lerp(columns[i + 1](o, y), t);
