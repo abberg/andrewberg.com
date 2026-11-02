@@ -150,8 +150,11 @@ export function createPlayer(world: RAPIER.World, scene: THREE.Scene, spawn: { x
       const rate = top / movement.accelerate * dt;
       speed += THREE.MathUtils.clamp(target - speed, -rate, rate);
 
-      fall = controller.computedGrounded() ? Math.min(fall, 0) : fall;
-      fall -= GRAVITY * dt;
+      // Only falling once it's off the ground: pressed down into it every
+      // step, the controller now and then stops dead against it for a step,
+      // forward movement and all, and the walk stutters. Snapping to the
+      // ground keeps it on slopes and down steps.
+      fall = controller.computedGrounded() ? 0 : fall - GRAVITY * dt;
       ahead.set(-Math.sin(yaw), 0, -Math.cos(yaw));
       desired.set(ahead.x * speed * dt, fall * dt, ahead.z * speed * dt);
       controller.computeColliderMovement(collider, desired);
