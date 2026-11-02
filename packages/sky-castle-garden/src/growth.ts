@@ -76,7 +76,7 @@ export type Column = (out: number, y: number) => THREE.Vector3;
 
 // A small spray of painted leaves on a clear ground, for the cards. Near
 // white: the material gives the green.
-function leafTexture(seed: number) {
+export function leafTexture(seed: number) {
   const px = 256;
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = px;
@@ -132,7 +132,7 @@ function clumpGeometry(seed: number, tuft = false) {
 
 // Lit from the clump's normals on both faces of every card: the back of a
 // card would otherwise turn its normal round and go dark.
-function bothSidesAlike(material: THREE.MeshStandardMaterial) {
+export function bothSidesAlike(material: THREE.MeshStandardMaterial) {
   const paint = material.onBeforeCompile;
   material.onBeforeCompile = (shader, renderer) => {
     paint.call(material, shader, renderer);

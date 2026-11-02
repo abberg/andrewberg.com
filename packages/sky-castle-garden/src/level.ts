@@ -15,9 +15,9 @@ import { textures } from './masonry';
 const northEdge = (x: number) => 250.7 - Math.sqrt(250.7 ** 2 - x * x);
 // The lawn's south edge, where the south moat starts, following the curve of
 // the city's base (city.ts).
-const lawnSouth = (x: number) => 44.7 + x * x / 298;
+export const lawnSouth = (x: number) => 44.7 + x * x / 298;
 // The moats down the sides, from z 6 to the south moat.
-const WEST = -52, WEST_LAWN = -44.9, EAST_LAWN = 46.3, EAST = 53.3, MOATS_FROM = 6.1;
+export const WEST = -52, WEST_LAWN = -44.9, EAST_LAWN = 46.3, EAST = 53.3, MOATS_FROM = 6.1;
 
 // Collision groups, as Rapier packs them: the groups a collider is in, in the
 // top 16 bits, and the groups it meets, in the bottom 16. Invisible walls are
@@ -26,6 +26,13 @@ const WEST = -52, WEST_LAWN = -44.9, EAST_LAWN = 46.3, EAST = 53.3, MOATS_FROM =
 const WALLS = 0x0002;
 export const WALL_GROUPS = (WALLS << 16) | 0xffff;
 export const CAMERA_GROUPS = (0x0001 << 16) | (0xffff & ~WALLS);
+
+// Paths, as x and z extents: the main axis, three branches west and one
+// east, and stubs to the pools.
+export const PATHS = [[-2.5, 2.5, 0, 50.4], [-44.1, -2.5, 4.4, 7.7], [-40.7, -2.5, 24.6, 28], [-44.7, -2.5, 35.4, 38.7],
+  [2.5, 46.2, 10.9, 14.2], [-17.85, -14.35, 22.5, 24.6], [2.5, 8.5, 32.35, 35.85]];
+// The pools' middles; their rims are 7.4 m across the outside.
+export const POOLS = [[-16.1, 15.8], [15.3, 34.1]];
 
 export const SPAWN = { x: 0, z: -37, yaw: Math.PI };
 export const PLATFORM_TOP = 3.2;
@@ -181,17 +188,11 @@ export function buildLevel(world: RAPIER.World, scene: THREE.Scene) {
   }
 
   // Paths: the main axis, three branches west and one east, and stubs to the pools.
-  paving(-2.5, 2.5, 0, 50.4);
-  paving(-44.1, -2.5, 4.4, 7.7);
-  paving(-40.7, -2.5, 24.6, 28);
-  paving(-44.7, -2.5, 35.4, 38.7);
-  paving(2.5, 46.2, 10.9, 14.2);
-  paving(-17.85, -14.35, 22.5, 24.6);
-  paving(2.5, 8.5, 32.35, 35.85);
+  for (const [x0, x1, z0, z1] of PATHS) paving(x0, x1, z0, z1);
 
   // The pools: a low rim of the path's stone round each, laid as curved
   // coping stones, water inside.
-  for (const [x, z] of [[-16.1, 15.8], [15.3, 34.1]]) {
+  for (const [x, z] of POOLS) {
     add(rimGeometry(5.4, 7.4, 0.4).translate(x, 0, z), coping);
     const solid = slab(circle(x, z, 7.4), 0, 0.4, [circle(x, z, 5.4).reverse()]);
     world.createCollider(RAPIER.ColliderDesc.trimesh(new Float32Array(solid.getAttribute('position').array),
@@ -273,7 +274,7 @@ export function buildLevel(world: RAPIER.World, scene: THREE.Scene) {
     wall(2.5, notchMeets, Math.cos(to) * r, PLATFORM.z + Math.sin(to) * r);
   }
   // Over the pools' water, inside the rims.
-  for (const [x, z] of [[-16.1, 15.8], [15.3, 34.1]]) {
+  for (const [x, z] of POOLS) {
     const mesh = new THREE.Mesh(new THREE.CylinderGeometry(5.4, 5.4, 20, 48), seen);
     mesh.position.set(x, 9, z);
     walls.add(mesh);

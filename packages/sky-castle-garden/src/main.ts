@@ -2,6 +2,7 @@ import RAPIER from '@dimforge/rapier3d-compat';
 import * as THREE from 'three';
 import GUI from 'three/addons/libs/lil-gui.module.min.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { createFoliage } from './foliage';
 import { createFollowCamera, follow } from './followCamera';
 import { createInput } from './input';
 import { createLook } from './look';
@@ -30,6 +31,7 @@ const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 10
 
 const { spawn, walls } = buildLevel(world, scene);
 const stones = createStones(world, scene);
+createFoliage(scene);
 
 const input = createInput(renderer.domElement);
 const player = createPlayer(world, scene, { ...spawn, y: PLATFORM_TOP }, createRobot(gltf));
