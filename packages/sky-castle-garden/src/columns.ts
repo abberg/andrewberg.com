@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { ConvexGeometry } from 'three/addons/geometries/ConvexGeometry.js';
 import { painted, palette } from './look';
 import { stroke } from './masonry';
 
@@ -143,17 +144,18 @@ function fluted(radius: (y: number) => number, y0: number, y1: number, foot: num
 }
 
 // A column of a radius and height, standing centred on the origin. The
-// mouldings scale with the radius.
-export function columnGeometry(radius: number, height: number, capital: 'cup' | 'flat') {
+// mouldings scale with the radius. On a plinth it has only a thin ring at
+// its foot.
+export function columnGeometry(radius: number, height: number, capital: 'cup' | 'flat', plinth = false) {
   const k = radius / 0.7, bottom = -height / 2, top = height / 2;
-  const base = [
+  const base = plinth ? [[0, bottom], [0.82 * k, bottom], ...arc(0.8 * k, bottom + 0.08 * k, 0.08 * k, -Math.PI / 2, Math.PI / 2, 4)] : [
     [0, bottom], [1.02 * k, bottom], [1.02 * k, bottom + 0.2 * k],
     // A fat round, a hollow, and a thin round, up to the shaft.
     ...arc(0.86 * k, bottom + 0.36 * k, 0.16 * k, -Math.PI / 2, Math.PI / 2),
     [0.8 * k, bottom + 0.54 * k],
     ...arc(0.78 * k, bottom + 0.6 * k, 0.07 * k, -Math.PI / 2, Math.PI / 2, 4),
   ];
-  const shaftFoot = bottom + 0.7 * k, shaftTop = top - (capital === 'cup' ? 1.45 : 0.75) * k;
+  const shaftFoot = bottom + (plinth ? 0.18 : 0.7) * k, shaftTop = top - (capital === 'cup' ? 1.45 : 0.75) * k;
   // The shaft narrows a little as it rises, with a slight swell.
   const taper = (y: number) => {
     const t = (y - shaftFoot) / (shaftTop - shaftFoot);
@@ -190,5 +192,24 @@ export function columnGeometry(radius: number, height: number, capital: 'cup' | 
 // A plain length of fluted shaft, centred on the origin along y, cut from
 // partway up a column (from, in metres above its foot) so its seams line up
 // with the texture's.
-export const drumGeometry = (radius: number, length: number, from = 2) =>
-  lathe([[0, -length / 2], ...fluted(() => radius, -length / 2, length / 2, -length / 2 - from), [0, length / 2]], -length / 2 - from);
+// The ends are flat faces, their rims doubled so the edge stays sharp.
+export function drumGeometry(radius: number, length: number, from = 2) {
+  const side = fluted(() => radius, -length / 2, length / 2, -length / 2 - from);
+  const rows = side.length + 4, geometry = lathe([[0, -length / 2], side[0], ...side, side[side.length - 1], [0, length / 2]], -length / 2 - from);
+  // The faces take one plain spot of the texture, between flutes and seams,
+  // rather than streaking it out from the middle.
+  const uv = geometry.getAttribute('uv'), plain = (SEAMS[3] + SEAMS[4]) / 2 / TALL;
+  for (let k = 0; k < uv.count; k++) if ([0, 1, rows - 2, rows - 1].includes(k % rows)) uv.setXY(k, 0, plain);
+  return geometry;
+}
+
+// A square block for a column to stand on, as in the painting: straight
+// sides, and a sloped top rising to a square just wider than the shaft.
+// Sitting on the origin.
+export function plinthGeometry(width: number, height: number, slope: number, top: number) {
+  const points: THREE.Vector3[] = [];
+  for (const [w, y] of [[width, 0], [width, height - slope], [top, height]]) {
+    for (const [x, z] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) points.push(new THREE.Vector3(x * w / 2, y, z * w / 2));
+  }
+  return new ConvexGeometry(points);
+}

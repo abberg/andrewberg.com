@@ -1,6 +1,6 @@
 import RAPIER from '@dimforge/rapier3d-compat';
 import * as THREE from 'three';
-import { blockStone, columnGeometry, columnStone, drumGeometry } from './columns';
+import { blockStone, columnGeometry, columnStone, drumGeometry, plinthGeometry } from './columns';
 import { stone } from './level';
 
 // Step 4: every freestanding stone object is a dynamic body the robot can
@@ -74,8 +74,12 @@ export function createStones(world: RAPIER.World, scene: THREE.Scene) {
 
   // Three standing columns, 14 m tall, in a row beside the main path: a base,
   // the shaft and a capital (columns.ts), as one very heavy body.
-  const standing = columnGeometry(0.7, 14, 'cup');
-  for (const z of [14.6, 22.7, 31.2]) piece(-4.1, 7, z).look(standing).cylinder(1.02, 0.6, [0, -6.7, 0]).cylinder(0.7, 12.8).cylinder(1.1, 0.6, [0, 6.7, 0]);
+  // Each on a square plinth with a sloped top.
+  const standing = columnGeometry(0.7, 12.7, 'cup', true), plinth = plinthGeometry(2.3, 1.3, 0.35, 1.7).translate(0, -7, 0);
+  for (const z of [14.6, 22.7, 31.2]) {
+    piece(-4.1, 7, z).look(plinth, blockStone).look(standing, columnStone, [0, 0.65, 0])
+      .hull(plinth).cylinder(0.7, 12.1, [0, 0.35, 0]).cylinder(1.15, 0.6, [0, 6.7, 0]);
+  }
 
   // The fallen column across the lowest west branch, in four drums lying end
   // to end, and three loose drums near it.
@@ -85,8 +89,19 @@ export function createStones(world: RAPIER.World, scene: THREE.Scene) {
       const at = new THREE.Vector3(-12.1, 0.7, 36.8).addScaledVector(along, (i - 1.5) * 4.3);
       piece(at.x, at.y, at.z, lying).look(drumGeometry(0.7, 4.28, i * 3)).cylinder(0.7, 4.28);
     }
+    // Its plinth, where it stood, beyond its foot: left behind when it fell,
+    // tipped and sunk into the earth, deeper on one side. Fixed: it has
+    // settled there.
+    const foot = new THREE.Vector3(-12.1, 0, 36.8).addScaledVector(along, -11.2);
+    const tipped = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.24, -0.5, -0.13, 'YXZ'));
+    const sunk = plinthGeometry(2.3, 1.3, 0.35, 1.7).applyQuaternion(tipped).translate(foot.x, -0.6, foot.z);
+    const mesh = new THREE.Mesh(sunk, blockStone);
+    mesh.castShadow = mesh.receiveShadow = true;
+    scene.add(mesh);
+    world.createCollider(RAPIER.ColliderDesc.convexHull(new Float32Array(sunk.getAttribute('position').array))!.setFriction(0.8),
+      world.createRigidBody(RAPIER.RigidBodyDesc.fixed()));
   }
-  for (const [x, z, yaw, from] of [[-23, 33, 0.4, 2], [-21.5, 40.5, 1.3, 5], [-7, 43, 2.2, 8]]) piece(x, 0.7, z, turned(yaw, Math.PI / 2)).look(drumGeometry(0.7, 1.2, from)).cylinder(0.7, 1.2);
+  for (const [x, z, yaw, from] of [[-25.5, 29.5, 0.4, 2], [-21.5, 40.5, 1.3, 5], [-7, 43, 2.2, 8]]) piece(x, 0.7, z, turned(yaw, Math.PI / 2)).look(drumGeometry(0.7, 1.2, from)).cylinder(0.7, 1.2);
 
   // The statue near the north end, east of the path: the plinth, and the
   // figure with its raised arm standing loose on top.
