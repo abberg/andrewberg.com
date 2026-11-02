@@ -1,7 +1,7 @@
 import RAPIER from '@dimforge/rapier3d-compat';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { cityFront, CROWN as CITY_TOP } from './city';
+import { CROWN as CITY_TOP } from './city';
 import { bothSidesAlike, wander } from './growth';
 import { stroke } from './masonry';
 import { EAST, EAST_LAWN, lawnSouth, MOATS_FROM, northEdge, PATHS, PLATFORM, PLATFORM_TOP, POOLS, WALL_GROUPS, WEST, WEST_LAWN } from './level';
@@ -397,14 +397,14 @@ function clear(x: number, z: number, r: number) {
 }
 
 // The giant tree over the city, as in the far view: one vast canopy, wider
-// than the city's top, a broad dome of leaf masses with a flatter, lumpy
-// underside, on a trunk hidden among the towers, and boughs reaching out
+// than the castle, a broad dome of leaf masses drooping at its edge, with
+// a flatter, lumpy underside, on a trunk hidden among the towers, and boughs reaching out
 // under it. Built like the small trees' crowns, only huge: from the garden
 // it's a hazy green cloud over the wall.
 function giantTree(scene: THREE.Scene) {
   let s = 7717;
   const random = () => (s = (s * 16807) % 2147483647) / 2147483647;
-  const middle = new THREE.Vector3(0, CITY_TOP.top + 66, CITY_TOP.z), wide = 118, deep = 40;
+  const middle = new THREE.Vector3(0, CITY_TOP.top + 52, CITY_TOP.z), wide = 100, deep = 38, droop = 26;
   const balls: THREE.Matrix4[] = [];
   const ball = (at: THREE.Vector3, across: number) => balls.push(new THREE.Matrix4().compose(at,
     new THREE.Quaternion().setFromEuler(new THREE.Euler(random() * 6, random() * 6, random() * 6)), new THREE.Vector3(across, across * 0.75, across)));
@@ -412,11 +412,11 @@ function giantTree(scene: THREE.Scene) {
   // lumpy; and under it, a layer of masses hanging a little lower.
   for (let k = 0; k < 280; k++) {
     const a = random() * Math.PI * 2, up = Math.asin(random() ** 0.7) * 0.95, d = Math.cos(up);
-    ball(new THREE.Vector3(Math.sin(a) * d * wide, middle.y + Math.sin(up) * deep, middle.z - Math.cos(a) * d * wide), 30 + random() * 22 * (1.2 - d));
+    ball(new THREE.Vector3(Math.sin(a) * d * wide, middle.y + Math.sin(up) * deep - d ** 3 * droop, middle.z - Math.cos(a) * d * wide), 30 + random() * 22 * (1.2 - d));
   }
   for (let k = 0; k < 240; k++) {
     const a = random() * Math.PI * 2, d = Math.sqrt(random()) * wide * 0.9, under = deep * 0.85 * Math.sqrt(Math.max(0, 1 - (d / (wide * 0.88)) ** 2));
-    ball(new THREE.Vector3(Math.sin(a) * d, middle.y - under * 0.75 - random() * 4, middle.z - Math.cos(a) * d), 28 + random() * 18);
+    ball(new THREE.Vector3(Math.sin(a) * d, middle.y - under * 0.6 - (d / wide) ** 3 * droop - random() * 4, middle.z - Math.cos(a) * d), 28 + random() * 18);
   }
   instanced(ballGeometry(113), leafCards(CROWN, clusterTexture(117), { weight: '0.5', flutter: 0.5 }), balls, scene);
   const core = new THREE.SphereGeometry(1, 32, 16).scale(wide * 0.88, deep * 0.85, wide * 0.88).translate(middle.x, middle.y + 2, middle.z);
@@ -433,31 +433,6 @@ function giantTree(scene: THREE.Scene) {
     wood.push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([from, bend, to]), 12, 4.5 - random(), 8));
   }
   scene.add(new THREE.Mesh(mergeGeometries(wood.map(g => { g.deleteAttribute('uv'); return g.index ? g.toNonIndexed() : g; }))!, painted(BARK)));
-}
-
-// Trees on the city's ledges, as in the south view: small clumps standing
-// on the bands of roof between the tiers, here and there, never over the
-// arch or in front of the bastion.
-function ledgeTrees(scene: THREE.Scene) {
-  let s = 8111;
-  const random = () => (s = (s * 16807) % 2147483647) / 2147483647;
-  const balls: THREE.Matrix4[] = [], clumps = wander(131, 18);
-  // The bands, as how far back their middle is and how high.
-  for (const [out, y, from] of [[6.5, 29.5, 0], [16.5, 59, 1]]) {
-    for (let x = -105 + random() * 6; x < 105; x += 5 + random() * 6) {
-      if (clumps(x + from * 50) < 0.1) continue;
-      if (Math.abs(x) < 12 || (!from && x > -42 && x < -6)) continue;
-      const inward = new THREE.Vector3(-2 * x / 292, 0, 1).normalize();
-      const foot = new THREE.Vector3(x, y, cityFront(x)).addScaledVector(inward, out + (random() - 0.5) * 2), tall = 6 + random() * 5;
-      for (let k = 0; k < 3; k++) {
-        const across = tall * (0.45 + random() * 0.2);
-        balls.push(new THREE.Matrix4().compose(foot.clone().add(new THREE.Vector3((random() - 0.5) * tall * 0.4, tall * (0.45 + k * 0.15 + random() * 0.1), (random() - 0.5) * tall * 0.4)),
-          new THREE.Quaternion().setFromEuler(new THREE.Euler(random() * 6, random() * 6, random() * 6)), new THREE.Vector3(across, across * 0.8, across)));
-      }
-    }
-  }
-  instanced(ballGeometry(137), leafCards(CROWN, clusterTexture(139), SWAY.crown), balls, scene);
-  instanced(new THREE.SphereGeometry(0.34, 12, 8), painted(CROWN_CORE), balls, scene);
 }
 
 export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
@@ -740,7 +715,6 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
   ([[north(-31, -24.5), 2.6], [north(21, 27.5), 2.2], [rim(Math.PI / 2 + 0.45, Math.PI / 2 + 0.95), 3.4], [rim(Math.PI / 2 - 1.5, Math.PI / 2 - 0.9), 2.8]] as const)
     .forEach(([[lip, out], reach], i) => scene.add(vineSpill([...lip], [...out], reach, i + 1)));
   giantTree(scene);
-  ledgeTrees(scene);
   instanced(shrubGeometry(19), leafCards(SHRUB, clusterTexture(29), SWAY.shrub), shrubs, scene);
   instanced(new THREE.SphereGeometry(0.36, 12, 8).scale(1, 0.75, 1).translate(0, 0.12, 0), painted(CORE), shrubs, scene);
   return { shrubs: shrubs.length, cypresses: cypresses.length, trees: crowns.length, tufts: tufts.length + blooms.length + sward.length };

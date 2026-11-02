@@ -15,9 +15,9 @@ import { textures, WINDOW, windowTexture } from './masonry';
 export const cityFront = (x: number) => 52.5 + x * x / 292;
 // The arch the main path climbs into: its opening, the stair up to it from
 // the grass landing, its floor and the sealed door at the back.
-// The city's middle, how far the front is from it, and the height of its
-// top, behind the last band of roof (93 m up, 45 m back from the front).
-export const CROWN = { z: 52.5 + 146, r: 146, top: 93 };
+// Where the giant tree stands over the castle: how far south, and the
+// height its trunk and canopy are reckoned from.
+export const CROWN = { z: 160, top: 59 };
 export const ARCH = { half: 3.7, stair: 50.4, front: 52.5, back: 61.2, floor: 3.6, height: 10 };
 
 // A tier's face from y0 to y1, as [out, y] points: out is how far back into
@@ -84,36 +84,9 @@ export function buildCity(world: RAPIER.World, scene: THREE.Scene) {
     world.createCollider(RAPIER.ColliderDesc.cuboid(hx, hy, hz).setTranslation(x, y, z)
       .setRotation(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw)));
 
-  // The tiers, swept along the front from well past either side of the garden.
-  const columns = Array.from({ length: 301 }, (_, i) => i - 150);
-  const along: number[] = [0];
-  columns.slice(1).forEach((x, i) => along.push(along[i] + Math.hypot(1, cityFront(x) - cityFront(columns[i]))));
-  // Into the city, square to the front.
-  const inward = columns.map(x => new THREE.Vector3(-2 * x / 292, 0, 1).normalize());
-  const front = (i: number, out: number, y: number) =>
-    new THREE.Vector3(columns[i], y, cityFront(columns[i])).addScaledVector(inward[i], out);
-
-  // The tiers as [out, bottom, top, lean], and each one's rows of windows as
-  // [height, spacing along the floor, share of spots filled]. A row is one
-  // floor, so its windows line up; the lower tiers have only a couple of
-  // sparse rows and the top tier is full of them, as in the reference.
-  const tiers: [number[], number[][]][] = [
-    [[0, -0.3, 26, 3.5], [[4.5, 13, 0.5], [19, 8.5, 0.7]]],
-    [[10, 33, 56, 3], [[38, 9, 0.65], [48.5, 6.5, 0.8]]],
-    [[20, 62, 86, 3], [[64.5, 5.5, 0.8], [69, 5.5, 0.8], [73.5, 5.5, 0.85], [78, 5.5, 0.85], [82.5, 5.5, 0.85]]],
-  ];
-  const [[, , groundTop, groundLean]] = tiers[0];
-  const ground = drum(0, -0.3, groundTop, groundLean);
-  // The bottom tier is open round the arch, up to the row the arch's
-  // surround reaches.
-  const archTop = ARCH.floor + ARCH.height;
-  const surroundTop = ground.find(([, y]) => y >= archTop)![1];
-  add(surface(along, ground, front, textures.city.metres, (x, y) => Math.abs(x) < 5 && y < archTop), city);
-  add(surface(along, roof(3.5, 26, 10, 33), front, textures.tiles.metres), tiles);
-  add(surface(along, drum(10, 33, 56, 3), front, textures.city.metres), city);
-  add(surface(along, roof(13, 56, 20, 62), front, textures.tiles.metres), tiles);
-  add(surface(along, drum(20, 62, 86, 3), front, textures.city.metres), city);
-  add(surface(along, roof(23, 86, 45, 93, 8), front, textures.tiles.metres), tiles);
+  // The arch's opening, and the gatehouse it is set in: a plain block of
+  // wall between the front towers, a little taller than the arch.
+  const archTop = ARCH.floor + ARCH.height, surroundTop = 21;
 
   // Windows, as one instanced quad each, set into the face where it is at
   // their height and tilted with it.
@@ -130,16 +103,6 @@ export function buildCity(world: RAPIER.World, scene: THREE.Scene) {
   const row = (from: number, to: number, spacing: number, keep: number, shift: number, put: (s: number) => void) => {
     for (let s = from + spacing * (0.5 + shift); s < to; s += spacing) if (random() < keep) put(s);
   };
-  tiers.forEach(([[out, y0, y1, lean], rows]) => rows.forEach(([y, spacing, keep], k) => {
-    const [back, slope] = drumAt(out, y0, y1, lean, y);
-    row(-110, 110, spacing, keep, k % 2 ? 0.5 : 0, x => {
-      // Clear of the arch, and of the city behind the bastion.
-      if (Math.abs(x) < 9 && y < 30 || x > -40 && x < -8 && y < 48) return;
-      const inward = new THREE.Vector3(-2 * x / 292, 0, 1).normalize();
-      setWindow(new THREE.Vector3(x, y, cityFront(x)).addScaledVector(inward, back),
-        inward.clone().negate().addScaledVector(UP, slope).normalize());
-    });
-  }));
   // The same round a tower, at radius r (and leaning in) from its centre.
   const ringOfWindows = (cx: number, cz: number, [r, y0, y1, lean]: number[], rows: number[][]) => rows.forEach(([y, spacing, keep], k) => {
     const [back, slope] = drumAt(-r, y0, y1, lean, y), radius = -back;
@@ -148,13 +111,6 @@ export function buildCity(world: RAPIER.World, scene: THREE.Scene) {
       setWindow(new THREE.Vector3(cx, y, cz).addScaledVector(out, radius), out.clone().addScaledVector(UP, slope).normalize());
     });
   });
-
-  // Solid only at the base: boxes along the bottom tier, open over the arch.
-  for (let x = -62; x <= 62; x += 4) {
-    const yaw = -Math.atan(x / 146), z = cityFront(x), out = new THREE.Vector3(-Math.sin(-yaw), 0, Math.cos(-yaw));
-    const bottom = Math.abs(x) < 4 ? archTop : -0.3;
-    solid(x + out.x * 6, (bottom + 28) / 2, z + out.z * 6, 2.15, (28 - bottom) / 2, 6, yaw);
-  }
 
   // A round tower drum, as [radius, y] points, centred on (cx, cz).
   const round = (cx: number, cz: number, section: number[][], metres: number, segments = 72, skip?: (x: number, y: number, z: number) => boolean) => {
@@ -192,47 +148,58 @@ export function buildCity(world: RAPIER.World, scene: THREE.Scene) {
   ringOfWindows(B.x, B.z, [7, 42, 47, 0.6], [[44, 4, 0.9]]);
   world.createCollider(RAPIER.ColliderDesc.cylinder(11.5, 14.5).setTranslation(B.x, 11.2, B.z));
 
-  // A little domed turret on the first band of roof, east of the arch.
+  // The castle, as in the far view: a crowd of round white towers rising
+  // straight from the moat under red-brown domes, packed so close that the
+  // front row makes the castle's face, row after row behind getting taller
+  // towards the middle, all under the one giant tree (foliage.ts). The arch's
+  // gatehouse and the bastion stand in the front row.
+  const towers: { x: number, z: number, r: number, depth: number, body: number[][], dome: number[][] }[] = [];
   {
-    const x = 20, i = columns.indexOf(x), base = front(i, 6.5, 0);
-    add(round(base.x, base.z, bulging(2.4, 29.5, 35, 0.2), textures.city.metres, 32), city);
-    ringOfWindows(base.x, base.z, [2.4, 29.5, 35, 0.2], [[32.3, 2.6, 1]]);
-    add(round(base.x, base.z, Array.from({ length: 7 }, (_, k) => { const a = k / 6 * Math.PI / 2; return [2.7 * Math.cos(a) + 0.01, 35 + 2.4 * Math.sin(a)]; }), textures.tiles.metres, 32), tiles);
-  }
-
-  // The city's crown, as in the far view: on the top, behind the last band
-  // of roof, a crowd of round white towers under red-brown domes, packed
-  // close and climbing towards the middle, the back ones tallest, all under
-  // the one giant tree (foliage.ts). The top itself is grassed over.
-  {
-    const top = CROWN.top, rim = CROWN.r - 45;
-    const cap = new THREE.CircleGeometry(rim + 0.5, 96).rotateX(-Math.PI / 2).translate(0, top, CROWN.z);
-    add(cap, painted(palette.lawn));
     let s = 5003;
     const random = () => (s = (s * 16807) % 2147483647) / 2147483647;
-    const towers: [number, number, number][] = [];
-    for (let tries = 0; tries < 900 && towers.length < 46; tries++) {
-      // Round the front of the top, where they can be seen, a few further back.
-      const a = (random() - 0.5) * (random() < 0.8 ? 1.5 : 3.4), d = rim - 6 - random() ** 0.8 * 62, r = 3.5 + random() ** 1.5 * 6;
-      const x = Math.sin(a) * d, z = CROWN.z - Math.cos(a) * d;
-      if (towers.some(([tx, tz, tr]) => Math.hypot(x - tx, z - tz) < r + tr + 0.6)) continue;
-      towers.push([x, z, r]);
+    const taken: [number, number, number][] = [[B.x, B.z, B.r], [0, ARCH.front + 5, 9.5]];
+    // A row along the front at a depth behind it, each tower just touching
+    // or overlapping the one before, so there are no gaps to see through.
+    for (const [depth, from, to] of [[0, -95, 95], [12, -90, 90], [25, -84, 84], [39, -76, 76], [54, -66, 66], [70, -54, 54], [86, -40, 40]]) {
+      for (let x = from + random() * 4; x < to;) {
+        const r = depth ? 5 + random() ** 1.3 * 7 : 6.5 + random() * 5;
+        const inward = new THREE.Vector3(-2 * x / 292, 0, 1).normalize();
+        const at = new THREE.Vector3(x, 0, cityFront(x)).addScaledVector(inward, depth + r + (random() - 0.3) * 2.5);
+        // In the front row nothing in the moat, nor over the gatehouse and
+        // bastion; further back overlapping is fine.
+        if (!taken.some(([tx, tz, tr]) => Math.hypot(at.x - tx, at.z - tz) < (tr + r) * (depth ? 0.55 : 0.9))) {
+          const tall = 24 + depth * 0.5 + random() * 16 - Math.abs(x) * 0.12 + (depth ? 0 : -4);
+          const body = bulging(r, -0.3, tall, 0.4 + random() * 0.6), [[r0], , [r1, t1]] = [body[0], 0, body[body.length - 1]];
+          const rise = r1 * (0.6 + random() * 0.5);
+          const dome = Array.from({ length: 8 }, (_, k) => { const u = k / 7 * Math.PI / 2; return [(r1 + 0.4) * Math.cos(u) + 0.01, t1 - 0.3 + rise * Math.sin(u)]; });
+          towers.push({ x: at.x, z: at.z, r: r0, depth, body, dome });
+          taken.push([at.x, at.z, r]);
+          add(round(at.x, at.z, body, textures.city.metres, 40), city);
+          add(round(at.x, at.z, dome, textures.tiles.metres, 40), tiles);
+          // Now and then a narrower stage on top, under its own dome.
+          if (random() < 0.25 && depth > 0) {
+            const r2 = r1 * 0.55, upper = bulging(r2, t1 - 1, t1 + 6 + random() * 8, 0.3), [, t2] = upper[upper.length - 1];
+            add(round(at.x, at.z, upper, textures.city.metres, 32), city);
+            add(round(at.x, at.z, Array.from({ length: 7 }, (_, k) => { const u = k / 6 * Math.PI / 2; return [(r2 + 0.3) * Math.cos(u) + 0.01, t2 - 0.2 + r2 * 0.9 * Math.sin(u)]; }), textures.tiles.metres, 32), tiles);
+            ringOfWindows(at.x, at.z, [r2, t1 - 1, t2, 0.3], [[t1 + 2.5, 3, 0.8]]);
+          }
+          // Floors of windows: a sparse one or two low down, more higher up.
+          const rows: number[][] = [];
+          for (let y = 5 + random() * 3; y < t1 - 2.5; y += 4.3) rows.push([y, 3.2 + random() * 1.5, y < 18 ? 0.25 : 0.5 + random() * 0.35]);
+          ringOfWindows(at.x, at.z, [r, -0.3, tall, 0.5], rows);
+          // The front row is solid at the foot.
+          if (!depth) world.createCollider(RAPIER.ColliderDesc.cylinder(15, r0).setTranslation(at.x, 14.7, at.z));
+        }
+        x += r * (depth ? 1.5 : 1.7) * (0.85 + random() * 0.3);
+      }
     }
-    for (const [x, z, r] of towers) {
-      const d = Math.hypot(x, z - CROWN.z), tall = 9 + (rim - d) * 0.32 + random() * 9;
-      const body = bulging(r, top - 1, top + tall, 0.5 + random() * 0.6), [, t1] = body[body.length - 1];
-      add(round(x, z, body, textures.city.metres, 40), city);
-      // The dome, a little proud of the drum, its foot tucked under.
-      const dome = r * (0.85 + random() * 0.3), rise = dome * (0.7 + random() * 0.4);
-      add(round(x, z, Array.from({ length: 8 }, (_, k) => {
-        const u = k / 7 * Math.PI / 2;
-        return [(r + 0.4) * Math.cos(u) + 0.01, t1 - 0.3 + rise * Math.sin(u)];
-      }), textures.tiles.metres, 40), tiles);
-      // Floors of windows, most of the way up.
-      const rows: number[][] = [];
-      for (let y = top + 4 + random() * 2; y < t1 - 2.5; y += 4.2) rows.push([y, 3.2 + random(), 0.55 + random() * 0.35]);
-      ringOfWindows(x, z, [r, top - 1, top + tall, 0.5], rows);
-    }
+  }
+
+  // The gatehouse round the arch: a block of wall flush with the arch's
+  // surround, reaching back to the towers, under a sloping band of roof.
+  {
+    const width = 9.5, back = ARCH.front + 14;
+    add(new THREE.BoxGeometry(width * 2, 0.6, back - ARCH.front).translate(0, surroundTop + 0.3, (ARCH.front + back) / 2), tiles);
   }
 
   const glass = new THREE.InstancedMesh(new THREE.PlaneGeometry(WINDOW.width, WINDOW.height),
@@ -244,7 +211,7 @@ export function buildCity(world: RAPIER.World, scene: THREE.Scene) {
   // The arch: a plain pointed opening in a surround standing just proud of
   // the tier, and the passage through it to the sealed door. Two arcs meet at
   // the crown, each centred a little past the middle.
-  const z0 = ARCH.front - 0.15, depth = ARCH.back - z0, outer = 5.5;
+  const z0 = ARCH.front - 0.15, depth = ARCH.back - z0, outer = 9.5;
   const c = 1.6, R = ARCH.half + c, rise = Math.sqrt(R * R - c * c), spring = archTop - rise;
   const shape = new THREE.Shape()
     .moveTo(-outer, -0.3).lineTo(-ARCH.half, -0.3).lineTo(-ARCH.half, spring)
@@ -351,17 +318,14 @@ export function buildCity(world: RAPIER.World, scene: THREE.Scene) {
       (i, d) => 0.12 + 0.2 * Math.max(0, clumps(at[i] * 1.3 + d * 0.5)) + (full(at[i]) > 0 ? 0.2 : 0), floor ? i => floor(at[i]) : undefined));
   };
 
-  // Along the front, every half metre.
-  const xs = Array.from({ length: 441 }, (_, i) => -110 + i * 0.5);
-  const facade = xs.map(x => (out: number, y: number) => new THREE.Vector3(x, y, cityFront(x)).addScaledVector(new THREE.Vector3(-2 * x / 292, 0, 1).normalize(), out));
-  const facadeAlong = xs.map(x => x + 110);
-  // Round the arch the ivy comes right down, raggedly, short of the opening
-  // itself.
+  // Down the gatehouse's face, which is flat, every half metre. Round the
+  // arch the ivy comes right down, raggedly, short of the opening itself.
+  const xs = Array.from({ length: 39 }, (_, i) => -9.5 + i * 0.5);
+  const gate = xs.map(x => (out: number, y: number) => new THREE.Vector3(x, y, z0 + out));
   const archIvy = wander(99, 2.5);
-  band(facade, facadeAlong, xs, roof(3.5, 26, 10, 33), ground, {
+  band(gate, xs.map(x => x + 9.5), xs, roof(0, surroundTop, 6, surroundTop + 0.6), [[0, -0.3], [0, surroundTop]], {
     ivyReach: 9,
-    // A rounded mass, to the ground beside the arch and tailing off in lobes
-    // further out.
+    // A rounded mass, to the ground beside the arch.
     full: x => 32 * (1 - THREE.MathUtils.smoothstep(Math.abs(x) + 3 * archIvy(x), 7, 19)) ** 1.5,
     // Over the opening it stops a hand's width outside the arch, so a ring
     // of stone shows round it, and it comes down the jambs beside it.
@@ -370,15 +334,24 @@ export function buildCity(world: RAPIER.World, scene: THREE.Scene) {
       return reach < ring ? spring + Math.sqrt(ring * ring - reach * reach) : -Infinity;
     },
   });
-  band(facade, facadeAlong, xs, roof(13, 56, 20, 62), drum(10, 33, 56, 3), { ivyReach: 8 });
-  band(facade, facadeAlong, xs, roof(23, 86, 45, 93, 8), drum(20, 62, 86, 3), { moss: 0.5, ivyReach: 7 });
+  // Moss on the near towers' domes and ivy hanging from under them, round
+  // the side that faces the garden. Sections are by radius, so out is taken
+  // as the radius turned inside out.
+  const inside = (points: number[][]) => points.map(([r, y]) => [-r, y]);
+  for (const { x, z, r, depth, body, dome } of towers) {
+    if (depth > 12) continue;
+    const angles = Array.from({ length: 41 }, (_, i) => -1.6 + i * 3.2 / 40);
+    const ring = angles.map(a => (out: number, y: number) => new THREE.Vector3(x + Math.sin(a) * -out, y, z - Math.cos(a) * -out));
+    const arcAlong = angles.map(a => (a + 1.6) * r);
+    band(ring, arcAlong, arcAlong.map(d => d + x * 3), inside(dome), inside(body), { moss: 0.4, ivyReach: depth ? 6 : 9 });
+  }
 
   // Round the front of the bastion. Its sections are by radius, so out is
   // taken as the radius turned inside out.
   {
     const angles = Array.from({ length: 121 }, (_, i) => -1.7 + i * 3.4 / 120);
     const ring = angles.map(a => (out: number, y: number) => new THREE.Vector3(B.x + Math.sin(a) * -out, y, B.z - Math.cos(a) * -out));
-    const arcAlong = angles.map(a => (a + 1.7) * B.r), inside = (points: number[][]) => points.map(([r, y]) => [-r, y]);
+    const arcAlong = angles.map(a => (a + 1.7) * B.r);
     band(ring, arcAlong, arcAlong, inside(roof(12.5, 20, 10.5, 24.5)), inside(foot), {
       ivyReach: 7,
       floor: d => Math.abs(d / B.r - 1.7) < ARCADE.reach + 0.05 ? ARCADE.top + 0.5 : -Infinity,
