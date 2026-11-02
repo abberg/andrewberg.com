@@ -1,8 +1,8 @@
 import RAPIER from '@dimforge/rapier3d-compat';
 import * as THREE from 'three';
+import type { Robot } from './robot';
 
-// The robot stands about 4 m tall. Until it's modelled it's a capsule, with a
-// visor to show which way it faces (−z at yaw 0).
+// The robot stands about 4 m tall, and collides as a capsule.
 export const HEIGHT = 4, RADIUS = 0.8;
 
 export const movement = {
@@ -26,7 +26,7 @@ const STEP = { low: 0.5, high: 1.6, deep: 2.5, held: 0.3, light: 5000 };
 // How high up it shoves, above its feet: about its hands.
 const REACH = 2.5;
 
-export function createPlayer(world: RAPIER.World, scene: THREE.Scene, spawn: { x: number; y: number; z: number; yaw: number }) {
+export function createPlayer(world: RAPIER.World, scene: THREE.Scene, spawn: { x: number; y: number; z: number; yaw: number }, robot: Robot) {
   // Spawned a little above the ground: starting in contact, it sinks.
   const body = world.createRigidBody(RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(spawn.x, spawn.y + HEIGHT / 2 + 0.1, spawn.z));
   const collider = world.createCollider(RAPIER.ColliderDesc.capsule(HEIGHT / 2 - RADIUS, RADIUS), body);
@@ -36,16 +36,7 @@ export function createPlayer(world: RAPIER.World, scene: THREE.Scene, spawn: { x
   controller.enableSnapToGround(0.5);
   controller.setMaxSlopeClimbAngle(THREE.MathUtils.degToRad(40));
 
-  const mesh = new THREE.Group();
-  const capsule = new THREE.Mesh(
-    new THREE.CapsuleGeometry(RADIUS, HEIGHT - RADIUS * 2, 8, 24),
-    new THREE.MeshStandardMaterial({ color: 0x8a6a48, roughness: 0.8 }),
-  );
-  capsule.position.y = HEIGHT / 2;
-  const visor = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.25, 0.4), new THREE.MeshStandardMaterial({ color: 0x1f1f1f }));
-  visor.position.set(0, HEIGHT - 0.6, -RADIUS + 0.1);
-  mesh.add(capsule, visor);
-  mesh.traverse(object => { object.castShadow = true; });
+  const mesh = new THREE.Group().add(robot.object);
   scene.add(mesh);
 
   // Where the feet are and which way it faces, at the last two physics steps,
@@ -53,6 +44,9 @@ export function createPlayer(world: RAPIER.World, scene: THREE.Scene, spawn: { x
   const feet = new THREE.Vector3(spawn.x, spawn.y, spawn.z), previous = feet.clone();
   let yaw = spawn.yaw, previousYaw = yaw;
   let speed = 0, fall = 0;
+  // For the animation: how fast the feet are really covering ground (less
+  // than speed when it's held up), and whether it shoved anything last step.
+  let ground = 0, pushing = false;
   const desired = new THREE.Vector3();
   const ahead = new THREE.Vector3();
 
@@ -63,6 +57,7 @@ export function createPlayer(world: RAPIER.World, scene: THREE.Scene, spawn: { x
   const shoved = new Set<number>();
   const push = (dt: number) => {
     shoved.clear();
+    pushing = false;
     let low: boolean | undefined;
     for (let i = 0; i < controller.numComputedCollisions(); i++) {
       const contact = controller.computedCollision(i);
@@ -76,6 +71,7 @@ export function createPlayer(world: RAPIER.World, scene: THREE.Scene, spawn: { x
       const v = stone.velocityAtPoint(point);
       const impulse = THREE.MathUtils.clamp(stone.mass() * (speed - (v.x * ahead.x + v.z * ahead.z)), 0, movement.push * 1000 * dt);
       stone.applyImpulseAtPoint({ x: ahead.x * impulse, y: 0, z: ahead.z * impulse }, point, true);
+      pushing = true;
     }
   };
 
@@ -172,6 +168,7 @@ export function createPlayer(world: RAPIER.World, scene: THREE.Scene, spawn: { x
         tryStepOver();
         if (stepping) return;
       }
+      ground = THREE.MathUtils.lerp(ground, Math.max(0, progress) / dt, 0.3);
       const at = body.translation();
       body.setNextKinematicTranslation({ x: at.x + moved.x, y: at.y + moved.y, z: at.z + moved.z });
       feet.set(at.x + moved.x, at.y + moved.y - HEIGHT / 2, at.z + moved.z);
@@ -183,12 +180,19 @@ export function createPlayer(world: RAPIER.World, scene: THREE.Scene, spawn: { x
       feet.set(spawn.x, spawn.y, spawn.z);
       previous.copy(feet);
       yaw = previousYaw = spawn.yaw;
-      speed = fall = 0;
+      speed = fall = ground = 0;
     },
     // Place the mesh between the last two steps.
     draw(alpha: number) {
       mesh.position.lerpVectors(previous, feet, alpha);
       mesh.rotation.y = previousYaw + (yaw - previousYaw) * alpha;
+    },
+    // Pose the robot to match, dt seconds on from the last frame.
+    animate(dt: number, step: number) {
+      robot.update(dt, {
+        speed: stepping ? 0 : ground, walk: movement.walk, run: movement.run,
+        turning: (yaw - previousYaw) / step, pushing: pushing && !stepping, stepping: stepping?.t ?? null,
+      });
     },
     get mesh() { return mesh; },
     // Which way it faces, and how fast it's going as a share of a run.

@@ -20,3 +20,6 @@ packages/bumping-heads/survey/
 
 # Reference paper for Active Strokes, local only.
 packages/active-strokes/*.pdf
+
+# Blender backup saves.
+*.blend1

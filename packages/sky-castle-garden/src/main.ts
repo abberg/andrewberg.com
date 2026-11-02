@@ -1,16 +1,18 @@
 import RAPIER from '@dimforge/rapier3d-compat';
 import * as THREE from 'three';
 import GUI from 'three/addons/libs/lil-gui.module.min.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { createFollowCamera, follow } from './followCamera';
 import { createInput } from './input';
 import { buildLevel, PLATFORM_TOP } from './level';
 import { createPlayer, movement } from './player';
+import { createRobot } from './robot';
 import { createStones } from './stones';
 
 // Sky Castle Garden, built in steps from the plan (docs/design-plan.md). So
-// far: the robot as a 4 m capsule, the follow camera and the level blocked
-// out in grey. 1 unit = 1 m, y up, north −z.
-await RAPIER.init();
+// far: the robot (modelled in blender/robot.py), the follow camera, the level
+// blocked out in grey, and stones to push about. 1 unit = 1 m, y up, north −z.
+const [, gltf] = await Promise.all([RAPIER.init(), new GLTFLoader().loadAsync('./robot.glb')]);
 const world = new RAPIER.World({ x: 0, y: -9.81, z: 0 });
 world.timestep = 1 / 60;
 
@@ -41,7 +43,7 @@ const { spawn, walls } = buildLevel(world, scene);
 const stones = createStones(world, scene);
 
 const input = createInput(renderer.domElement);
-const player = createPlayer(world, scene, { ...spawn, y: PLATFORM_TOP });
+const player = createPlayer(world, scene, { ...spawn, y: PLATFORM_TOP }, createRobot(gltf));
 const follower = createFollowCamera(camera, world, player.collider, spawn.yaw);
 
 // Tuning, folded away top right.
@@ -94,6 +96,7 @@ renderer.setAnimationLoop(time => {
     accumulator -= world.timestep;
   }
   player.draw(accumulator / world.timestep);
+  player.animate(delta, world.timestep);
   stones.sync();
   follower.update(delta, player.mesh.position, player.mesh.rotation.y, player.pace);
   sun.target.position.copy(player.mesh.position);
