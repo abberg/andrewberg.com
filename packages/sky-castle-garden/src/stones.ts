@@ -117,10 +117,13 @@ export function createStones(world: RAPIER.World, scene: THREE.Scene) {
   // robed figure in green bronze, its right arm raised with a staff, standing
   // loose on a white plinth (ruins.ts).
   const plinthStone = new ConvexGeometry(chippedBlock(2.7, 3, 2.7, 61));
-  piece(4.1, 1.5, 8.3).look(plinthStone, blockStone).hull(plinthStone);
+  // A plain box underneath: the figure never settles on the chipped hull's
+  // top, it rocks on it for ever.
+  piece(4.1, 1.5, 8.3).look(plinthStone, blockStone).box(2.7, 3, 2.7);
   const statue = statueGeometry();
   piece(4.1, 3, 8.3, turned(-0.3)).look(statue, patina)
-    .cylinder(0.5, 2.5, [0, 1.25, 0]).cylinder(0.2, 0.4, [0, 2.72, 0]).box(0.3, 1.9, 0.3, [0.66, 3.1, -0.1]);
+    // A flat square foot under the robe.
+    .box(1, 0.3, 0.8, [0, 0.15, 0]).cylinder(0.42, 2.1, [0, 1.35, 0]).cylinder(0.2, 0.4, [0, 2.72, 0]).box(0.3, 1.9, 0.3, [0.66, 3.1, -0.1]);
 
   // The broken fence by the north edge: a low wall of round arches on square
   // piers under a flat top, with a taller block at the east end. Each pier and
