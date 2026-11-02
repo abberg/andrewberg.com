@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { ConvexGeometry } from 'three/addons/geometries/ConvexGeometry.js';
 import { blockStone, capitalGeometry, chippedBlock, columnGeometry, columnStone, crack, drumGeometry, plinthGeometry, urnGeometry } from './columns';
 import { painted, palette } from './look';
+import { archBlockGeometry, patina, statueGeometry } from './ruins';
 import { stone } from './level';
 
 // Step 4: every freestanding stone object is a dynamic body the robot can
@@ -112,17 +113,40 @@ export function createStones(world: RAPIER.World, scene: THREE.Scene) {
   }
   for (const [x, z, yaw, from] of [[-25.5, 29.5, 0.4, 2], [-21.5, 40.5, 1.3, 5], [-7, 43, 2.2, 8]]) piece(x, 0.7, z, turned(yaw, Math.PI / 2)).look(drumGeometry(0.7, 1.2, from)).cylinder(0.7, 1.2);
 
-  // The statue near the north end, east of the path: the plinth, and the
-  // figure with its raised arm standing loose on top.
-  piece(4.1, 1.5, 8.3).box(2.7, 3, 2.7);
-  piece(4.1, 4.2, 8.3).cylinder(0.6, 2.4).cylinder(0.35, 0.6, [0, 1.5, 0])
-    .box(0.3, 1.6, 0.3, [0.5, 1, 0], new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, -0.4)));
+  // The statue near the north end, east of the path, as in the painting: a
+  // robed figure in green bronze, its right arm raised with a staff, standing
+  // loose on a white plinth (ruins.ts).
+  const plinthStone = new ConvexGeometry(chippedBlock(2.7, 3, 2.7, 61));
+  piece(4.1, 1.5, 8.3).look(plinthStone, blockStone).hull(plinthStone);
+  const statue = statueGeometry();
+  piece(4.1, 3, 8.3, turned(-0.3)).look(statue, patina)
+    .cylinder(0.5, 2.5, [0, 1.25, 0]).cylinder(0.2, 0.4, [0, 2.72, 0]).box(0.3, 1.9, 0.3, [0.66, 3.1, -0.1]);
 
-  // The low arch ruin by the north edge: four piers, one surviving lintel and
-  // a piece of another on the grass.
-  for (const x of [9.1, 12, 14.8, 17.6]) piece(x, 1, 2.5).box(1, 2, 1.6);
-  piece(10.55, 2.25, 2.5).box(4, 0.5, 1.6);
-  piece(16.4, 0.25, 5.2, turned(0.5)).box(2.6, 0.5, 1.4);
+  // The broken fence by the north edge: a low wall of round arches on square
+  // piers under a flat top, with a taller block at the east end. Each pier and
+  // each arched bay is a piece of its own, so it comes apart when knocked. At
+  // the west end it has already: the last pier stands broken off short, and
+  // its bay lies on the grass.
+  {
+    const bay = 1.9, pier = 0.7, deep = 1, springing = 1.3, opening = bay - pier, top = 1.1;
+    const west = 8.6, z = 2.5;
+    let n = 61;
+    for (let i = 0; i <= 5; i++) {
+      const tall = i === 0 ? 0.75 : springing, block = new ConvexGeometry(chippedBlock(pier, tall, deep, n++));
+      piece(west + i * bay, tall / 2, z).look(block, blockStone).hull(block);
+    }
+    const arch = archBlockGeometry(bay, opening, top, deep);
+    // Its colliders: the beam over the arch, and a foot on each pier.
+    const archPiece = (x: number, y: number, z: number, turn?: THREE.Quaternion) => piece(x, y, z, turn).look(arch, blockStone)
+      .box(bay, top - opening / 2, deep, [0, (top + opening / 2) / 2, 0])
+      .box(pier / 2, opening / 2, deep, [-bay / 2 + pier / 4, opening / 4, 0])
+      .box(pier / 2, opening / 2, deep, [bay / 2 - pier / 4, opening / 4, 0]);
+    for (let i = 1; i < 5; i++) archPiece(west + (i + 0.5) * bay, springing, z);
+    // The fallen bay, on its face on the grass in front.
+    archPiece(west + 0.2, deep / 2, z + 2.6, new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.PI / 2, 0.35, 0, 'YXZ')));
+    const end = new ConvexGeometry(chippedBlock(1.3, 2.9, 1.3, n++));
+    piece(west + 5 * bay + pier / 2 + 0.65, 1.45, z).look(end, blockStone).hull(end);
+  }
 
   // The colonnade arcing round the north side of the east pool: five columns
   // 6 m tall with square capitals, and lintels resting from the middle of
