@@ -16,6 +16,8 @@ const SHRUB = [0x78ad4a, 0x3a6650] as const, CORE = [0x4f8442, 0x2c5246] as cons
 // The small trees' crowns a fresher green than the shrubs, their bark warm
 // grey-brown.
 const CROWN = [0x8cc25a, 0x467458] as const, CROWN_CORE = [0x5e9446, 0x2f5848] as const, BARK = [0x8f7a5e, 0x5a5058] as const;
+// The big canopy trees a little deeper than the small ones.
+const CANOPY = [0x7eb552, 0x3c6a56] as const;
 // Cypresses dark and blue-green, the vertical accent.
 const CYPRESS = [0x55905c, 0x264a4c] as const, CYPRESS_CORE = [0x3a6a4a, 0x1e3c40] as const;
 
@@ -261,6 +263,58 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
   }
   // At the far ends of the branches.
   for (const [x, z] of [[-40.5, 10.2], [-37, 22.2], [-41, 41.2], [42.5, 7.6]]) tree(x, z, 6 + random() * 3.5);
+  // The big canopy trees, 20 to 30 m, in the garden's corners and one by the
+  // north edge leaning out over the drop: a thick trunk forking into five or
+  // six long boughs that rise and spread, each forking again, the crown a
+  // broad, flattish roof of big leaf balls throwing wide shade.
+  const canopies: THREE.Matrix4[] = [];
+  const canopy = (x: number, z: number, tall: number, spread: number, lean = new THREE.Vector3(0, 1, 0)) => {
+    const up = lean.clone().normalize(), base = new THREE.Vector3(x, 0, z);
+    const fork = base.clone().addScaledVector(up, tall * 0.34);
+    trunks.push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([base.clone().setY(-0.3), base.clone().addScaledVector(up, tall * 0.15)
+      .add(new THREE.Vector3(random() - 0.5, 0, random() - 0.5)), fork]), 10, tall * 0.035, 9));
+    const ball = (at: THREE.Vector3, across: number) => canopies.push(new THREE.Matrix4().compose(at,
+      new THREE.Quaternion().setFromEuler(new THREE.Euler(random() * 6, random() * 6, random() * 6)), new THREE.Vector3(across, across * 0.7, across)));
+    const top = fork.clone().addScaledVector(up, tall * 0.5), tips: THREE.Vector3[] = [];
+    const boughs = 5 + Math.floor(random() * 2), a0 = random() * Math.PI * 2;
+    for (let b = 0; b < boughs; b++) {
+      const a = a0 + b * Math.PI * 2 / boughs + (random() - 0.5) * 0.6, out = new THREE.Vector3(Math.cos(a), 0, Math.sin(a));
+      const reach = spread * (0.28 + random() * 0.14), rise = tall * (0.32 + random() * 0.18);
+      const tip = fork.clone().addScaledVector(out, reach).addScaledVector(up, rise);
+      const bend = fork.clone().addScaledVector(out, reach * 0.55).addScaledVector(up, rise * 0.4);
+      trunks.push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([fork, bend, tip]), 8, tall * 0.015, 7));
+      // Forking again near the end, into two, each under a ball of leaves.
+      for (const turn of [-0.5, 0.5]) {
+        const twig = tip.clone().add(new THREE.Vector3(Math.cos(a + turn), 0, Math.sin(a + turn)).multiplyScalar(spread * 0.1)).addScaledVector(up, tall * 0.05);
+        trunks.push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([bend, tip, twig]), 6, tall * 0.008, 5));
+        tips.push(twig);
+        ball(twig, spread * (0.3 + random() * 0.08));
+      }
+    }
+    // Over the top and filling between the boughs into one broad roof.
+    ball(top, spread * 0.4);
+    tips.forEach((tip, k) => {
+      ball(tip.clone().lerp(top, 0.45).addScaledVector(up, tall * 0.04), spread * (0.3 + random() * 0.06));
+      ball(tip.clone().lerp(tips[(k + 1) % tips.length], 0.5).addScaledVector(up, -tall * 0.04), spread * (0.24 + random() * 0.06));
+      // A lower one under each, hiding where the bough meets the crown.
+      if (k % 2) ball(tip.clone().lerp(fork, 0.3).addScaledVector(up, tall * 0.02), spread * (0.2 + random() * 0.05));
+    });
+    world.createCollider(RAPIER.ColliderDesc.capsule(tall * 0.15, 0.8).setTranslation(x, tall * 0.15 + 0.8, z).setCollisionGroups(WALL_GROUPS));
+  };
+  canopy(-38.5, 46, 24, 20);
+  canopy(39.5, 47.5, 27, 22);
+  canopy(36.5, 3.2, 22, 17);
+  // Leaning out over the north edge.
+  canopy(-23.5, 4.2, 21, 17, new THREE.Vector3(0.05, 1, -0.3));
+  {
+    const leaves = bothSidesAlike(painted(CANOPY, { map: leafTexture(47), alphaTest: 0.5, side: THREE.DoubleSide }));
+    for (const [shape, material] of [[ballGeometry(37), leaves], [new THREE.SphereGeometry(0.4, 12, 8), painted(CROWN_CORE)]] as const) {
+      const mesh = new THREE.InstancedMesh(shape, material, canopies.length);
+      canopies.forEach((matrix, i) => mesh.setMatrixAt(i, matrix));
+      mesh.castShadow = mesh.receiveShadow = true;
+      scene.add(mesh);
+    }
+  }
   {
     const crown = ballGeometry(31), core = new THREE.SphereGeometry(0.4, 12, 8);
     const leaves = bothSidesAlike(painted(CROWN, { map: leafTexture(43), alphaTest: 0.5, side: THREE.DoubleSide }));
