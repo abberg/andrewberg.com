@@ -12,7 +12,7 @@ import { textures } from './masonry';
 
 // The garden's edges, as curves across x.
 // The north lip bows out over the drop: a circle about 250 m across.
-const northEdge = (x: number) => 250.7 - Math.sqrt(250.7 ** 2 - x * x);
+export const northEdge = (x: number) => 250.7 - Math.sqrt(250.7 ** 2 - x * x);
 // The lawn's south edge, where the south moat starts, following the curve of
 // the city's base (city.ts).
 export const lawnSouth = (x: number) => 44.7 + x * x / 298;
@@ -36,6 +36,8 @@ export const POOLS = [[-16.1, 15.8], [15.3, 34.1]];
 
 export const SPAWN = { x: 0, z: -37, yaw: Math.PI };
 export const PLATFORM_TOP = 3.2;
+// The start platform's middle and radius.
+export const PLATFORM = { z: -34.9, r: 11.1 };
 
 export const stone = painted(palette.stone);
 const sandstoneMap = textures.sandstone.map();
@@ -167,7 +169,6 @@ export function buildLevel(world: RAPIER.World, scene: THREE.Scene) {
 
   // The start platform, the round top of a freestanding tower, with a notch
   // in its south side for the stair down to the causeway.
-  const PLATFORM = { z: -34.9, r: 11.1 };
   const notchMeets = PLATFORM.z + Math.sqrt(PLATFORM.r ** 2 - 2.5 ** 2);
   const from = Math.atan2(notchMeets - PLATFORM.z, 2.5), to = Math.PI - from;
   const rim = Array.from({ length: 65 }, (_, i) => {

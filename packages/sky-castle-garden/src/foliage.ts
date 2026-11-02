@@ -1,9 +1,9 @@
 import RAPIER from '@dimforge/rapier3d-compat';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { bothSidesAlike, leafTexture, wander } from './growth';
+import { bothSidesAlike, wander } from './growth';
 import { stroke } from './masonry';
-import { EAST_LAWN, lawnSouth, MOATS_FROM, PATHS, POOLS, WALL_GROUPS, WEST_LAWN } from './level';
+import { EAST, EAST_LAWN, lawnSouth, MOATS_FROM, northEdge, PATHS, PLATFORM, PLATFORM_TOP, POOLS, WALL_GROUPS, WEST, WEST_LAWN } from './level';
 import { painted, palette } from './look';
 
 // Step 8: the garden's planting, built like the ivy (growth.ts): leaf cards
@@ -20,26 +20,53 @@ const CROWN = [0x8cc25a, 0x467458] as const, CROWN_CORE = [0x5e9446, 0x2f5848] a
 // Cypresses dark and blue-green, the vertical accent.
 const CYPRESS = [0x55905c, 0x264a4c] as const, CYPRESS_CORE = [0x3a6a4a, 0x1e3c40] as const;
 
-// One shrub: a dome of leaf cards sitting on the ground, a metre across at
-// scale 1 and a little less high, each card facing out with its own turn,
-// normals out from a point below the middle.
-function shrubGeometry(seed: number) {
+// A cluster of broad leaves on a clear ground, for the trees and big
+// shrubs: a dozen round-ended leaves radiating from the middle and
+// overlapping, so a card's outline is a ring of lobes and never a fringe of
+// strokes. Near white, each leaf its own shade: the material gives the green.
+function clusterTexture(seed: number) {
+  const px = 256;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = px;
+  const g = canvas.getContext('2d')!;
   let s = seed;
   const random = () => (s = (s * 16807) % 2147483647) / 2147483647;
-  const positions: number[] = [], normals: number[] = [], uvs: number[] = [], indices: number[] = [];
-  const middle = new THREE.Vector3(0, 0.1, 0);
-  for (let k = 0; k < 70; k++) {
-    // A point over the dome, fewer low down.
-    const a = random() * Math.PI * 2, up = Math.asin(random() ** 0.8);
-    const out = new THREE.Vector3(Math.cos(up) * Math.cos(a), Math.sin(up), Math.cos(up) * Math.sin(a));
-    const at = new THREE.Vector3(out.x * 0.5, 0.12 + out.y * 0.36, out.z * 0.5).multiplyScalar(0.9 + random() * 0.2);
-    const turn = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), out)
-      .multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), random() * Math.PI * 2));
-    const size = 0.32 + random() * 0.14, base = positions.length / 3;
+  // Outer leaves first, the middle ones over them.
+  const leaves = Array.from({ length: 22 }, (_, k) => {
+    const r = k < 14 ? px * (0.17 + random() * 0.08) : px * (0.04 + random() * 0.1), a = k * 2.4 + random() * 0.6;
+    return { x: px / 2 + Math.cos(a) * r, y: px / 2 + Math.sin(a) * r, a: a + (random() - 0.5) * 0.7, long: px * (0.13 + random() * 0.06) };
+  });
+  for (const { x, y, a, long } of leaves) {
+    const wide = long * (0.5 + random() * 0.15), shade = 0.8 + random() * 0.2;
+    const [ux, uy, vx, vy] = [Math.cos(a), Math.sin(a), -Math.sin(a), Math.cos(a)];
+    const tx = x + ux * long, ty = y + uy * long;
+    g.fillStyle = `rgb(${255 * shade | 0},${255 * shade | 0},${242 * shade | 0})`;
+    g.beginPath();
+    g.moveTo(x, y);
+    g.bezierCurveTo(x + vx * wide * 0.7, y + vy * wide * 0.7, tx + vx * wide * 0.55 - ux * wide * 0.2, ty + vy * wide * 0.55 - uy * wide * 0.2, tx, ty);
+    g.bezierCurveTo(tx - vx * wide * 0.55 - ux * wide * 0.2, ty - vy * wide * 0.55 - uy * wide * 0.2, x - vx * wide * 0.7, y - vy * wide * 0.7, x, y);
+    g.fill();
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+// Leaf cards that always turn to face the eye: each card is one point, its
+// centre, and its corners are pushed out across the view in the vertex
+// shader, so a crown's edge is always the cards' lobed outlines and never
+// cards seen edge on, which read as hair. Normals still point out from the
+// middle of the plant, so it shades as one soft mass.
+type Card = { at: THREE.Vector3, w: number, h: number, normal: THREE.Vector3, spin: number };
+function cardGeometry(cards: Card[]) {
+  const positions: number[] = [], normals: number[] = [], corners: number[] = [], uvs: number[] = [], indices: number[] = [];
+  for (const { at, w, h, normal, spin } of cards) {
+    const base = positions.length / 3, [c, s] = [Math.cos(spin), Math.sin(spin)];
     for (const [u, v] of [[0, 0], [1, 0], [1, 1], [0, 1]]) {
-      const p = new THREE.Vector3((u - 0.5) * size, (v - 0.5) * size, 0).applyQuaternion(turn).add(at);
-      positions.push(...p.toArray());
-      normals.push(...p.clone().sub(middle).normalize().toArray());
+      const x = (u - 0.5) * w, y = (v - 0.5) * h;
+      positions.push(...at.toArray());
+      normals.push(...normal.toArray());
+      corners.push(x * c - y * s, x * s + y * c);
       uvs.push(u, v);
     }
     indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
@@ -47,9 +74,73 @@ function shrubGeometry(seed: number) {
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+  geometry.setAttribute('corner', new THREE.Float32BufferAttribute(corners, 2));
   geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
   geometry.setIndex(indices);
+  // The corners reach past the centres the bounds are made from.
+  geometry.computeBoundingSphere();
+  geometry.boundingSphere!.radius += Math.max(...cards.map(({ w, h }) => Math.hypot(w, h) / 2));
   return geometry;
+}
+
+// Spreads a card's corners across the view, at the instance's scale.
+const facing = (shader: { vertexShader: string }) => {
+  shader.vertexShader = shader.vertexShader
+    .replace('#include <common>', '#include <common>\nattribute vec2 corner;')
+    .replace('#include <project_vertex>', /* glsl */`vec4 mvPosition = vec4(transformed, 1.0);
+      float grow = length(modelMatrix[0].xyz);
+      #ifdef USE_INSTANCING
+        mvPosition = instanceMatrix * mvPosition;
+        grow *= length(instanceMatrix[0].xyz);
+      #endif
+      mvPosition = modelViewMatrix * mvPosition;
+      mvPosition.xy += corner * grow;
+      gl_Position = projectionMatrix * mvPosition;`)
+    // Every card takes its shadow at its centre, which the sun's view of the
+    // cards also passes through: looked up from a little nearer the sun, a
+    // plant isn't speckled by its own cards.
+    .replace('#include <shadowmap_vertex>', /* glsl */`#include <shadowmap_vertex>
+      #if defined(USE_SHADOWMAP) && NUM_DIR_LIGHT_SHADOWS > 0
+        vDirectionalShadowCoord[0].z -= 0.003;
+      #endif`);
+};
+// A painted leaf material for camera-facing cards, with a shadow pass that
+// turns the cards to the sun the same way.
+function leafCards(colours: readonly [number, number], map: THREE.Texture) {
+  const material = bothSidesAlike(painted(colours, { map, alphaTest: 0.5, side: THREE.DoubleSide }));
+  const paint = material.onBeforeCompile;
+  material.onBeforeCompile = (shader, renderer) => {
+    paint.call(material, shader, renderer);
+    facing(shader);
+  };
+  const depth = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map, alphaTest: 0.5, side: THREE.DoubleSide });
+  depth.onBeforeCompile = facing;
+  return { material, depth };
+}
+function instanced(geometry: THREE.BufferGeometry, leaves: ReturnType<typeof leafCards> | THREE.Material, placed: THREE.Matrix4[], scene: THREE.Scene) {
+  const mesh = new THREE.InstancedMesh(geometry, 'depth' in leaves ? leaves.material : leaves, placed.length);
+  if ('depth' in leaves) mesh.customDepthMaterial = leaves.depth;
+  placed.forEach((matrix, i) => mesh.setMatrixAt(i, matrix));
+  mesh.castShadow = mesh.receiveShadow = true;
+  scene.add(mesh);
+  return mesh;
+}
+
+// One shrub: a dome of leaf cards sitting on the ground, a metre across at
+// scale 1 and a little less high, normals out from a point below the middle.
+function shrubGeometry(seed: number) {
+  let s = seed;
+  const random = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  const middle = new THREE.Vector3(0, 0.1, 0), cards: Card[] = [];
+  for (let k = 0; k < 60; k++) {
+    // A point over the dome, fewer low down.
+    const a = random() * Math.PI * 2, up = Math.asin(random() ** 0.8);
+    const out = new THREE.Vector3(Math.cos(up) * Math.cos(a), Math.sin(up), Math.cos(up) * Math.sin(a));
+    const at = new THREE.Vector3(out.x * 0.42, 0.1 + out.y * 0.3, out.z * 0.42).multiplyScalar(0.9 + random() * 0.2);
+    const size = 0.34 + random() * 0.14;
+    cards.push({ at, w: size, h: size, normal: at.clone().sub(middle).normalize(), spin: random() * Math.PI * 2 });
+  }
+  return cardGeometry(cards);
 }
 
 // A cypress's outline, its radius at a height, both as shares of its
@@ -57,63 +148,34 @@ function shrubGeometry(seed: number) {
 // and tucked in a little at the foot.
 const cypressRadius = (h: number) => 0.13 * Math.min(1, 0.55 + h * 2.2) * (1 - h) ** 0.75;
 
-// One cypress, a unit tall: leaf cards over its whole surface facing out,
-// normals out from its axis and a little up, so it shades as one soft
-// flame of a shape.
+// One cypress, a unit tall: leaf cards over its whole surface, normals out
+// from its axis and a little up, so it shades as one soft flame of a shape.
 function cypressGeometry(seed: number) {
   let s = seed;
   const random = () => (s = (s * 16807) % 2147483647) / 2147483647;
-  const positions: number[] = [], normals: number[] = [], uvs: number[] = [], indices: number[] = [];
-  for (let k = 0; k < 220; k++) {
-    const h = random() ** 0.85 * 0.97, a = random() * Math.PI * 2, r = cypressRadius(h) * (0.85 + random() * 0.25);
-    const out = new THREE.Vector3(Math.cos(a), 0.35, Math.sin(a)).normalize();
-    const at = new THREE.Vector3(Math.cos(a) * r, h, Math.sin(a) * r);
-    // Upright cards, leaning out, each turned its own way.
-    const turn = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), out)
-      .multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), (random() - 0.5) * 1.2));
-    const w = 0.07 + random() * 0.04, tall = w * 1.5, base = positions.length / 3;
-    for (const [u, v] of [[0, 0], [1, 0], [1, 1], [0, 1]]) {
-      const p = new THREE.Vector3((u - 0.5) * w, (v - 0.5) * tall, 0).applyQuaternion(turn).add(at);
-      positions.push(...p.toArray());
-      normals.push(...new THREE.Vector3(p.x, 0, p.z).normalize().multiplyScalar(0.94).setY(0.35).normalize().toArray());
-      uvs.push(u, v);
-    }
-    indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
+  const cards: Card[] = [];
+  for (let k = 0; k < 200; k++) {
+    const h = random() ** 0.85 * 0.96, a = random() * Math.PI * 2, r = cypressRadius(h) * (0.8 + random() * 0.2);
+    // Narrow upright cards, near enough upright on screen.
+    const w = 0.06 + random() * 0.03;
+    cards.push({ at: new THREE.Vector3(Math.cos(a) * r, h, Math.sin(a) * r), w, h: w * 1.4,
+      normal: new THREE.Vector3(Math.cos(a) * 0.94, 0.35, Math.sin(a) * 0.94).normalize(), spin: (random() - 0.5) * 0.6 });
   }
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
-  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
-  geometry.setIndex(indices);
-  return geometry;
+  return cardGeometry(cards);
 }
 
 // A ball of leaf cards a metre across, centred on the origin, for tree
-// crowns: cards all over it facing out, normals out from the middle.
+// crowns and hedges: cards all over it, normals out from the middle.
 function ballGeometry(seed: number) {
   let s = seed;
   const random = () => (s = (s * 16807) % 2147483647) / 2147483647;
-  const positions: number[] = [], normals: number[] = [], uvs: number[] = [], indices: number[] = [];
-  for (let k = 0; k < 110; k++) {
+  const cards: Card[] = [];
+  for (let k = 0; k < 90; k++) {
     const out = new THREE.Vector3(random() - 0.5, random() - 0.5, random() - 0.5).normalize();
-    const at = out.clone().multiplyScalar(0.44 + random() * 0.1);
-    const turn = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), out)
-      .multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), random() * Math.PI * 2));
-    const size = 0.28 + random() * 0.12, base = positions.length / 3;
-    for (const [u, v] of [[0, 0], [1, 0], [1, 1], [0, 1]]) {
-      const p = new THREE.Vector3((u - 0.5) * size, (v - 0.5) * size, 0).applyQuaternion(turn).add(at);
-      positions.push(...p.toArray());
-      normals.push(...p.clone().normalize().toArray());
-      uvs.push(u, v);
-    }
-    indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
+    const size = 0.3 + random() * 0.12;
+    cards.push({ at: out.clone().multiplyScalar(0.36 + random() * 0.08), w: size, h: size, normal: out, spin: random() * Math.PI * 2 });
   }
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
-  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
-  geometry.setIndex(indices);
-  return geometry;
+  return cardGeometry(cards);
 }
 
 // A tuft of grass painted on a clear ground, a few broad blades fanning up
@@ -268,15 +330,10 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
   {
     const geometry = cypressGeometry(23), core = new THREE.LatheGeometry(Array.from({ length: 12 }, (_, i) => {
       const h = i / 11;
-      return new THREE.Vector2(cypressRadius(h) * 0.8, h * 0.97);
+      return new THREE.Vector2(cypressRadius(h) * 0.75, h * 0.96);
     }), 10);
-    const leaves = bothSidesAlike(painted(CYPRESS, { map: leafTexture(41), alphaTest: 0.5, side: THREE.DoubleSide }));
-    for (const [shape, material] of [[geometry, leaves], [core, painted(CYPRESS_CORE)]] as const) {
-      const mesh = new THREE.InstancedMesh(shape, material, cypresses.length);
-      cypresses.forEach((matrix, i) => mesh.setMatrixAt(i, matrix));
-      mesh.castShadow = mesh.receiveShadow = true;
-      scene.add(mesh);
-    }
+    instanced(geometry, leafCards(CYPRESS, clusterTexture(41)), cypresses, scene);
+    instanced(core, painted(CYPRESS_CORE), cypresses, scene);
   }
 
   // Small trees beside the pools and at the ends of the branch paths, each
@@ -316,14 +373,8 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
   // At the far ends of the branches.
   for (const [x, z] of [[-40.5, 10.2], [-37, 22.2], [-41, 41.2], [42.5, 7.6]]) tree(x, z, 6 + random() * 3.5);
   {
-    const crown = ballGeometry(31), core = new THREE.SphereGeometry(0.4, 12, 8);
-    const leaves = bothSidesAlike(painted(CROWN, { map: leafTexture(43), alphaTest: 0.5, side: THREE.DoubleSide }));
-    for (const [shape, material] of [[crown, leaves], [core, painted(CROWN_CORE)]] as const) {
-      const mesh = new THREE.InstancedMesh(shape, material, crowns.length);
-      crowns.forEach((matrix, i) => mesh.setMatrixAt(i, matrix));
-      mesh.castShadow = mesh.receiveShadow = true;
-      scene.add(mesh);
-    }
+    instanced(ballGeometry(31), leafCards(CROWN, clusterTexture(43)), crowns, scene);
+    instanced(new THREE.SphereGeometry(0.34, 12, 8), painted(CROWN_CORE), crowns, scene);
     const wood = new THREE.Mesh(mergeGeometries(trunks.map(g => { g.deleteAttribute('uv'); return g; }))!, painted(BARK));
     wood.castShadow = wood.receiveShadow = true;
     scene.add(wood);
@@ -362,13 +413,8 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
   hedge(8, 9.3, 17, 9.3, 1.6);
   hedge(-35, 40.3, -27, 40.3, 2.4);
   {
-    const leaves = bothSidesAlike(painted(SHRUB, { map: leafTexture(53), alphaTest: 0.5, side: THREE.DoubleSide }));
-    for (const [shape, material] of [[ballGeometry(59), leaves], [new THREE.SphereGeometry(0.42, 12, 8), painted(CORE)]] as const) {
-      const mesh = new THREE.InstancedMesh(shape, material, hedges.length);
-      hedges.forEach((matrix, i) => mesh.setMatrixAt(i, matrix));
-      mesh.castShadow = mesh.receiveShadow = true;
-      scene.add(mesh);
-    }
+    instanced(ballGeometry(59), leafCards(SHRUB, clusterTexture(53)), hedges, scene);
+    instanced(new THREE.SphereGeometry(0.36, 12, 8), painted(CORE), hedges, scene);
   }
 
   // Grass: tufts creeping over the edges of every path and into the paving
@@ -408,6 +454,38 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
       tuft(x, z, 0.6 + random() * 0.6 * (1 - d / r), random() < 0.3);
     }
   }
+  // And short grass all over every lawn, the strip north of the moats and
+  // the top of the start tower too, a tuft every 40 cm or so, running together into a carpet, taller
+  // and shorter in drifts, clear of the paving, the pools and the stonework.
+  const drifts = [wander(97, 7), wander(98, 9)], field = (x: number, z: number, y: number) => {
+    const drift = (drifts[0](x * 0.8 + z * 0.6) + drifts[1](z * 0.8 - x * 0.6)) / 2;
+    const tall = 0.22 + Math.max(0, drift) * 0.45 + random() * 0.12;
+    tufts.push(new THREE.Matrix4().compose(new THREE.Vector3(x, y, z),
+      new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), random() * Math.PI * 2), new THREE.Vector3(tall * (1.4 + random() * 0.7), tall, tall * (1.4 + random() * 0.7))));
+  };
+  const along = new THREE.Vector2(16.2, 5.8).normalize(), fallen = new THREE.Vector2(-5.6, 39.1);
+  for (let gx = WEST; gx < EAST; gx += 0.38) {
+    for (let gz = northEdge(gx) - 0.5; gz < lawnSouth(gx) + 6; gz += 0.38) {
+      const x = gx + (random() - 0.5) * 0.36, z = gz + (random() - 0.5) * 0.36;
+      if (z < northEdge(x) + 0.2) continue;
+      if (z > MOATS_FROM - 0.2 && (x < WEST_LAWN + 0.2 || x > EAST_LAWN - 0.2)) continue;
+      if (z > lawnSouth(x) - 0.2 && !(Math.abs(x) < 4.4 && z < 50.2)) continue;
+      if (PATHS.some(([x0, x1, z0, z1]) => x > x0 + 0.1 && x < x1 - 0.1 && z > z0 + 0.1 && z < z1 - 0.1)) continue;
+      if (POOLS.some(([px, pz]) => Math.hypot(x - px, z - pz) < 7.5)) continue;
+      if (STONEWORK.some(([sx, sz, sr]) => Math.hypot(x - sx, z - sz) < sr * 0.75)) continue;
+      // The colonnade's columns, and the fallen column's drums.
+      if (Math.abs(Math.hypot(x - 15.3, z - 34.1) - 9.5) < 0.8 && z < 36) continue;
+      const d = new THREE.Vector2(x, z).sub(fallen), t = THREE.MathUtils.clamp(d.dot(along), -19.5, 0);
+      if (d.sub(along.clone().multiplyScalar(t)).length() < 1) continue;
+      field(x, z, 0);
+    }
+  }
+  for (let gx = -PLATFORM.r; gx < PLATFORM.r; gx += 0.38) {
+    for (let gz = PLATFORM.z - PLATFORM.r; gz < PLATFORM.z + PLATFORM.r; gz += 0.38) {
+      const x = gx + (random() - 0.5) * 0.36, z = gz + (random() - 0.5) * 0.36;
+      if (Math.hypot(x, z - PLATFORM.z) < PLATFORM.r - 0.25) field(x, z, PLATFORM_TOP);
+    }
+  }
   {
     const shape = tuftGeometry();
     for (const [placed, material] of [
@@ -421,13 +499,7 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
     }
   }
 
-  const geometry = shrubGeometry(19), core = new THREE.SphereGeometry(0.42, 12, 8).scale(1, 0.75, 1).translate(0, 0.14, 0);
-  const leaves = bothSidesAlike(painted(SHRUB, { map: leafTexture(29), alphaTest: 0.5, side: THREE.DoubleSide }));
-  for (const [shape, material] of [[geometry, leaves], [core, painted(CORE)]] as const) {
-    const mesh = new THREE.InstancedMesh(shape, material, shrubs.length);
-    shrubs.forEach((matrix, i) => mesh.setMatrixAt(i, matrix));
-    mesh.castShadow = mesh.receiveShadow = true;
-    scene.add(mesh);
-  }
+  instanced(shrubGeometry(19), leafCards(SHRUB, clusterTexture(29)), shrubs, scene);
+  instanced(new THREE.SphereGeometry(0.36, 12, 8).scale(1, 0.75, 1).translate(0, 0.12, 0), painted(CORE), shrubs, scene);
   return { shrubs: shrubs.length, cypresses: cypresses.length, trees: crowns.length, tufts: tufts.length + blooms.length };
 }
