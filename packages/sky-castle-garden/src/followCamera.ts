@@ -1,5 +1,6 @@
 import RAPIER from '@dimforge/rapier3d-compat';
 import * as THREE from 'three';
+import { CAMERA_GROUPS } from './level';
 
 export const follow = {
   // How far back, in metres, and the wheel's range.
@@ -58,7 +59,7 @@ export function createFollowCamera(camera: THREE.PerspectiveCamera, world: RAPIE
       // Sweep a ball out from the pivot and stop short of the first thing it
       // hits: snap in at once, ease back out.
       const hit = world.castShape(pivot, { x: 0, y: 0, z: 0, w: 1 }, direction, probe, 0, follow.distance, true,
-        undefined, undefined, ignore);
+        undefined, CAMERA_GROUPS, ignore);
       const clear = hit ? Math.max(0.5, hit.time_of_impact - 0.1) : follow.distance;
       distance = clear < distance ? clear : distance + (clear - distance) * (1 - Math.exp(-dt / 0.4));
       camera.position.copy(pivot).addScaledVector(direction, distance);

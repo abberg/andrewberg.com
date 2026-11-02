@@ -36,7 +36,7 @@ const sunOffset = new THREE.Vector3(25, 60, -40);
 
 const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 1000);
 
-const { spawn } = buildLevel(world, scene);
+const { spawn, walls } = buildLevel(world, scene);
 
 const input = createInput(renderer.domElement);
 const player = createPlayer(world, scene, { ...spawn, y: PLATFORM_TOP });
@@ -57,6 +57,7 @@ following.add(follow, 'sensitivity', 0.0005, 0.008, 0.0005);
 following.add(follow, 'swing', 0, 4, 0.1).name('swing behind (s, 0 off)');
 following.add(follow, 'hold', 0, 5, 0.1).name('after mouse (s)');
 following.add(camera, 'fov', 30, 80, 1).name('fov (°)').onChange(() => camera.updateProjectionMatrix());
+gui.add(walls, 'visible').name('show invisible walls');
 gui.close();
 
 addEventListener('resize', () => {

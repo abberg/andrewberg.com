@@ -17,6 +17,14 @@ const cityFront = (x: number) => 52.5 + x * x / 292;
 // The moats down the sides, from z 6 to the south moat.
 const WEST = -52, WEST_LAWN = -44.9, EAST_LAWN = 46.3, EAST = 53.3, MOATS_FROM = 6.1;
 
+// Collision groups, as Rapier packs them: the groups a collider is in, in the
+// top 16 bits, and the groups it meets, in the bottom 16. Invisible walls are
+// in a group of their own, which the camera's sweep leaves out, so they stop
+// the robot and the stonework but never pull the camera in.
+const WALLS = 0x0002;
+export const WALL_GROUPS = (WALLS << 16) | 0xffff;
+export const CAMERA_GROUPS = (0x0001 << 16) | (0xffff & ~WALLS);
+
 export const SPAWN = { x: 0, z: -37, yaw: Math.PI };
 export const PLATFORM_TOP = 3.2;
 
@@ -243,5 +251,58 @@ export function buildLevel(world: RAPIER.World, scene: THREE.Scene) {
   column(-24, -0.3, 65.5, 13, 34.3);
   column(-24, 34, 65.5, 10, 14);
 
-  return { spawn: SPAWN };
+  // Step 3: the boundaries, as invisible walls 20 m tall. They follow the
+  // water's edge round the moats, the stair across the south moat and the
+  // pools, stand 1 m back from the north lip, and run along the causeway and
+  // round the platform's edge. Shown, for checking, from the tuning panel.
+  const walls = new THREE.Group();
+  walls.visible = false;
+  scene.add(walls);
+  const seen = new THREE.MeshBasicMaterial({ color: 0xff3c28, transparent: true, opacity: 0.25, depthWrite: false });
+  const wall = (x0: number, z0: number, x1: number, z1: number) => {
+    const length = Math.hypot(x1 - x0, z1 - z0), yaw = -Math.atan2(z1 - z0, x1 - x0);
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(length + 0.4, 20, 0.4), seen);
+    mesh.position.set((x0 + x1) / 2, 9, (z0 + z1) / 2);
+    mesh.rotation.y = yaw;
+    walls.add(mesh);
+    const q = mesh.quaternion;
+    world.createCollider(RAPIER.ColliderDesc.cuboid(length / 2 + 0.2, 10, 0.2).setTranslation(mesh.position.x, 9, mesh.position.z)
+      .setRotation({ x: q.x, y: q.y, z: q.z, w: q.w }).setCollisionGroups(WALL_GROUPS));
+  };
+  const along = (points: number[][]) => points.slice(1).forEach(([x, z], i) => wall(points[i][0], points[i][1], x, z));
+
+  // The north lip, 1 m in, with a gap for the causeway, and down the outside
+  // of the narrow strips of lawn north of the side moats.
+  const lip = (x: number) => northEdge(x) + 1;
+  along([[WEST + 1, MOATS_FROM], ...sample(lip, WEST + 1, -2.5, 24)]);
+  along([...sample(lip, 2.5, EAST - 1, 24), [EAST - 1, MOATS_FROM]]);
+  // The side moats, and where they start.
+  along([[WEST + 1, MOATS_FROM], [WEST_LAWN, MOATS_FROM], [WEST_LAWN, lawnSouth(WEST_LAWN)]]);
+  along([[EAST - 1, MOATS_FROM], [EAST_LAWN, MOATS_FROM], [EAST_LAWN, lawnSouth(EAST_LAWN)]]);
+  // The south moat, round the landing and up both sides of the stair.
+  along([...sample(lawnSouth, WEST_LAWN, -4.5, 24), [-4.5, 50.4], [-ARCH.half, 50.4], [-ARCH.half, ARCH.front + 1]]);
+  along([[ARCH.half, ARCH.front + 1], [ARCH.half, 50.4], [4.6, 50.4], ...sample(lawnSouth, 4.6, EAST_LAWN, 24)]);
+  // The causeway's sides, from the platform's notch to the lip.
+  for (const side of [-2.5, 2.5]) wall(side, notchMeets, side, lip(2.5));
+  // Round the platform, 0.5 m in from its edge, open over the stair.
+  {
+    const r = PLATFORM.r - 0.5, open = Math.asin(2.7 / r);
+    const from = Math.PI / 2 + open, to = Math.PI / 2 - open + Math.PI * 2;
+    along(Array.from({ length: 41 }, (_, i) => {
+      const a = from + (to - from) * i / 40;
+      return [Math.cos(a) * r, PLATFORM.z + Math.sin(a) * r];
+    }));
+    // Joining the ends to the notch.
+    wall(-2.5, notchMeets, Math.cos(from) * r, PLATFORM.z + Math.sin(from) * r);
+    wall(2.5, notchMeets, Math.cos(to) * r, PLATFORM.z + Math.sin(to) * r);
+  }
+  // Over the pools' water, inside the rims.
+  for (const [x, z] of [[-16.1, 15.8], [15.3, 34.1]]) {
+    const mesh = new THREE.Mesh(new THREE.CylinderGeometry(5.4, 5.4, 20, 48), seen);
+    mesh.position.set(x, 9, z);
+    walls.add(mesh);
+    world.createCollider(RAPIER.ColliderDesc.cylinder(10, 5.4).setTranslation(x, 9, z).setCollisionGroups(WALL_GROUPS));
+  }
+
+  return { spawn: SPAWN, walls };
 }
