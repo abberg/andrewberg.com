@@ -14,6 +14,9 @@ export const palette = {
   // the lawn and the cliff below it.
   sandstone: [0xdcc08a, 0x8f86a8],
   masonry: [0xd0b07a, 0x847a9f],
+  // The columns: the same sandstone, weathered paler, as in the garden
+  // painting.
+  column: [0xe8d8b2, 0x9893bc],
   lawn: [0x8dbf4a, 0x4f7f3a],
   // Moss and ivy on the stonework.
   moss: [0xb4d66a, 0x5f9468],

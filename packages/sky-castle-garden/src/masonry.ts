@@ -374,6 +374,9 @@ export const textures = {
   city: { metres: 24, map: () => masonry({ metres: 24, course: [2, 3.4], block: [1.6, 4.2], tints: city, stepped: 0.2, seed: 3 }) },
   // The garden's sandstone: the platform, causeway, stairs and terrace sides.
   sandstone: { metres: 12, map: () => masonry({ metres: 12, px: 1024, course: [1, 1.8], block: [1.4, 3.4], tints: pale, stepped: 0.35, moss: 0.04, grain: 'along', seed: 5 }) },
+  // The columns' drums: courses a little under a column's width high, two or
+  // three blocks round, wrapping once round a standing column's shaft.
+  drums: { metres: 4.4, map: () => masonry({ metres: 4.4, px: 1024, course: [0.9, 1.5], block: [1.2, 2.4], tints: pale, stepped: 0.1, moss: 0.03, seed: 17 }) },
   // Big flagstones for the paths.
   // Long slabs for the stair treads, no stepped joints.
   steps: { metres: 12, map: () => masonry({ metres: 12, px: 1024, course: [0.8, 1.3], block: [2.2, 5], tints: pale, grain: 'along', seed: 13 }) },
