@@ -23,6 +23,11 @@ type Masonry = {
   moss?: number;
   // Which way the brush mostly runs over the blocks: down (vertical) or along.
   grain?: 'down' | 'along';
+  // How far a worn corner can round, in metres.
+  round?: number;
+  // Whether the gaps rounded corners leave where joints cross fill dark, as
+  // the joints do.
+  darkCorners?: boolean;
   seed?: number;
 };
 
@@ -127,7 +132,7 @@ function strokeAlong(g: CanvasRenderingContext2D, mask: number, path: number[][]
   });
 }
 
-export function masonry({ metres, px = 2048, course, block, tints, stepped = 0, moss = 0, grain = 'down', seed = 1 }: Masonry) {
+export function masonry({ metres, px = 2048, course, block, tints, stepped = 0, moss = 0, grain = 'down', round = 0.39, darkCorners = false, seed = 1 }: Masonry) {
   let s = seed * 9301 + 49297;
   const random = () => (s = (s * 16807) % 2147483647) / 2147483647;
   const canvas = document.createElement('canvas');
@@ -215,7 +220,7 @@ export function masonry({ metres, px = 2048, course, block, tints, stepped = 0, 
       const inset = 0.03 * m;
       const cx = (left.x + rx) / 2, cy = (y0 + y1) / 2;
       // Some corners worn round, by different amounts; the rest left sharp.
-      const radii = corners.map(() => random() < 0.55 ? (0.04 + random() ** 1.5 * 0.35) * m : 0);
+      const radii = corners.map(() => random() < 0.55 ? (0.04 + random() ** 1.5 * (round - 0.04)) * m : 0);
       const wash = wobbly(rounded(corners.map(([x, y]) => [x + Math.sign(cx - x) * inset, y + Math.sign(cy - y) * inset]), radii), wobble);
       const tint = pick().offsetHSL((random() - 0.5) * 0.02, (random() - 0.5) * 0.04, (random() - 0.5) * 0.05), bleed = pick();
       const x0 = Math.min(left.x, left.x + left.step), x1 = Math.max(rx, rx + right.step);
@@ -289,6 +294,22 @@ export function masonry({ metres, px = 2048, course, block, tints, stepped = 0, 
         }
       }
       wrapped((dx, dy) => {
+        // The gap a rounded corner leaves where joints cross, in the joints'
+        // colour: the square corner less the block's wash.
+        if (darkCorners) for (const k of [0, 1, 4, 5]) {
+          if (!radii[k]) continue;
+          const [x, y] = corners[k], r = radii[k];
+          const square = [x + dx + Math.min(0, Math.sign(cx - x) * r), y + dy + Math.min(0, Math.sign(cy - y) * r), r, r] as const;
+          g.save();
+          g.beginPath();
+          g.rect(...square);
+          g.clip();
+          trace(wash, dx, dy);
+          g.rect(...square);
+          g.fillStyle = rgba(pooled, 0.75);
+          g.fill('evenodd');
+          g.restore();
+        }
         g.save();
         trace(wash, dx, dy);
         g.fillStyle = rgba(tint, 0.65);
@@ -377,7 +398,7 @@ export const textures = {
   // Big flagstones for the paths.
   // Long slabs for the stair treads, no stepped joints.
   steps: { metres: 12, map: () => masonry({ metres: 12, px: 1024, course: [0.8, 1.3], block: [2.2, 5], tints: pale, grain: 'along', seed: 13 }) },
-  paving: { metres: 10, map: () => masonry({ metres: 10, px: 1024, course: [0.9, 1.6], block: [0.9, 2], tints: pale, stepped: 0.1, grain: 'along', seed: 7 }) },
+  paving: { metres: 10, map: () => masonry({ metres: 10, px: 1024, course: [0.9, 1.6], block: [0.9, 2], tints: pale, stepped: 0.1, grain: 'along', round: 0.16, darkCorners: true, seed: 7 }) },
   // Roof tiles in the rust bands between the city's tiers.
   tiles: { metres: 8, map: () => masonry({ metres: 8, px: 1024, course: [0.35, 0.55], block: [0.5, 1.1], tints: ['#ffffff', '#f0d8c0', '#e6cdb8', '#f4e6c8', '#d8c0b0'], moss: 0.08, seed: 9 }) },
 };
