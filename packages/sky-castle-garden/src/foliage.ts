@@ -1,5 +1,6 @@
 import RAPIER from '@dimforge/rapier3d-compat';
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { bothSidesAlike, leafTexture, wander } from './growth';
 import { EAST_LAWN, lawnSouth, MOATS_FROM, PATHS, POOLS, WALL_GROUPS, WEST_LAWN } from './level';
 import { painted } from './look';
@@ -12,6 +13,9 @@ import { painted } from './look';
 // Shrubs a little deeper and cooler than the lawn so they stand off it, with
 // a dark core so you never see through them.
 const SHRUB = [0x78ad4a, 0x3a6650] as const, CORE = [0x4f8442, 0x2c5246] as const;
+// The small trees' crowns a fresher green than the shrubs, their bark warm
+// grey-brown.
+const CROWN = [0x8cc25a, 0x467458] as const, CROWN_CORE = [0x5e9446, 0x2f5848] as const, BARK = [0x8f7a5e, 0x5a5058] as const;
 // Cypresses dark and blue-green, the vertical accent.
 const CYPRESS = [0x55905c, 0x264a4c] as const, CYPRESS_CORE = [0x3a6a4a, 0x1e3c40] as const;
 
@@ -71,6 +75,34 @@ function cypressGeometry(seed: number) {
       const p = new THREE.Vector3((u - 0.5) * w, (v - 0.5) * tall, 0).applyQuaternion(turn).add(at);
       positions.push(...p.toArray());
       normals.push(...new THREE.Vector3(p.x, 0, p.z).normalize().multiplyScalar(0.94).setY(0.35).normalize().toArray());
+      uvs.push(u, v);
+    }
+    indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setIndex(indices);
+  return geometry;
+}
+
+// A ball of leaf cards a metre across, centred on the origin, for tree
+// crowns: cards all over it facing out, normals out from the middle.
+function ballGeometry(seed: number) {
+  let s = seed;
+  const random = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  const positions: number[] = [], normals: number[] = [], uvs: number[] = [], indices: number[] = [];
+  for (let k = 0; k < 110; k++) {
+    const out = new THREE.Vector3(random() - 0.5, random() - 0.5, random() - 0.5).normalize();
+    const at = out.clone().multiplyScalar(0.44 + random() * 0.1);
+    const turn = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), out)
+      .multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), random() * Math.PI * 2));
+    const size = 0.28 + random() * 0.12, base = positions.length / 3;
+    for (const [u, v] of [[0, 0], [1, 0], [1, 1], [0, 1]]) {
+      const p = new THREE.Vector3((u - 0.5) * size, (v - 0.5) * size, 0).applyQuaternion(turn).add(at);
+      positions.push(...p.toArray());
+      normals.push(...p.clone().normalize().toArray());
       uvs.push(u, v);
     }
     indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
@@ -194,6 +226,55 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
     }
   }
 
+  // Small trees beside the pools and at the ends of the branch paths, each
+  // the focal point of its garden room: a trunk forking into three or four
+  // boughs, each ending in a ball of leaves, more over the top and between,
+  // running together into one lumpy crown.
+  const trunks: THREE.BufferGeometry[] = [], crowns: THREE.Matrix4[] = [];
+  const tree = (x: number, z: number, tall: number) => {
+    if (!clear(x, z, 1)) return;
+    const lean = new THREE.Vector3((random() - 0.5) * 0.12, 1, (random() - 0.5) * 0.12).normalize();
+    const fork = new THREE.Vector3(x, 0, z).addScaledVector(lean, tall * (0.3 + random() * 0.1));
+    trunks.push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([new THREE.Vector3(x, -0.2, z), new THREE.Vector3(x, 0, z).addScaledVector(lean, tall * 0.15), fork]), 8, tall * 0.028, 7));
+    const ball = (at: THREE.Vector3, across: number) => crowns.push(new THREE.Matrix4().compose(at,
+      new THREE.Quaternion().setFromEuler(new THREE.Euler(random() * 6, random() * 6, random() * 6)), new THREE.Vector3(across, across * 0.8, across)));
+    const boughs = 3 + Math.floor(random() * 2), a0 = random() * Math.PI * 2, tips: THREE.Vector3[] = [];
+    for (let b = 0; b < boughs; b++) {
+      const a = a0 + b * Math.PI * 2 / boughs + (random() - 0.5) * 0.8, reach = tall * (0.16 + random() * 0.1);
+      const tip = fork.clone().add(new THREE.Vector3(Math.cos(a) * reach, tall * (0.25 + random() * 0.2), Math.sin(a) * reach));
+      const bend = fork.clone().lerp(tip, 0.5).add(new THREE.Vector3(Math.cos(a) * reach * 0.2, -tall * 0.03, Math.sin(a) * reach * 0.2));
+      trunks.push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([fork, bend, tip]), 6, tall * 0.016, 6));
+      tips.push(tip);
+      ball(tip, tall * (0.42 + random() * 0.12));
+    }
+    // Over the top, and filling in between the boughs, so the balls run
+    // together into one crown with lumps in it.
+    const top = fork.clone().add(new THREE.Vector3(0, tall * 0.6, 0));
+    ball(top, tall * 0.48);
+    tips.forEach((tip, k) => ball(tip.clone().lerp(tips[(k + 1) % tips.length], 0.5).lerp(top, 0.3), tall * (0.34 + random() * 0.1)));
+    world.createCollider(RAPIER.ColliderDesc.capsule(tall * 0.15, 0.4).setTranslation(x, tall * 0.15 + 0.4, z).setCollisionGroups(WALL_GROUPS));
+  };
+  // By the pools: on the west pool's far side, and the east pool's south
+  // side, away from its colonnade.
+  for (const [[px, pz], angles] of [[POOLS[0], [2.6, 3.9]], [POOLS[1], [0.6, 2.2]]] as const) {
+    for (const a of angles) tree(px + Math.cos(a) * 9.6, pz + Math.sin(a) * 9.6, 7 + random() * 3);
+  }
+  // At the far ends of the branches.
+  for (const [x, z] of [[-40.5, 10.2], [-37, 22.2], [-41, 41.2], [42.5, 7.6]]) tree(x, z, 6 + random() * 3.5);
+  {
+    const crown = ballGeometry(31), core = new THREE.SphereGeometry(0.4, 12, 8);
+    const leaves = bothSidesAlike(painted(CROWN, { map: leafTexture(43), alphaTest: 0.5, side: THREE.DoubleSide }));
+    for (const [shape, material] of [[crown, leaves], [core, painted(CROWN_CORE)]] as const) {
+      const mesh = new THREE.InstancedMesh(shape, material, crowns.length);
+      crowns.forEach((matrix, i) => mesh.setMatrixAt(i, matrix));
+      mesh.castShadow = mesh.receiveShadow = true;
+      scene.add(mesh);
+    }
+    const wood = new THREE.Mesh(mergeGeometries(trunks.map(g => { g.deleteAttribute('uv'); return g; }))!, painted(BARK));
+    wood.castShadow = wood.receiveShadow = true;
+    scene.add(wood);
+  }
+
   const geometry = shrubGeometry(19), core = new THREE.SphereGeometry(0.42, 12, 8).scale(1, 0.75, 1).translate(0, 0.14, 0);
   const leaves = bothSidesAlike(painted(SHRUB, { map: leafTexture(29), alphaTest: 0.5, side: THREE.DoubleSide }));
   for (const [shape, material] of [[geometry, leaves], [core, painted(CORE)]] as const) {
@@ -202,5 +283,5 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
     mesh.castShadow = mesh.receiveShadow = true;
     scene.add(mesh);
   }
-  return { shrubs: shrubs.length, cypresses: cypresses.length };
+  return { shrubs: shrubs.length, cypresses: cypresses.length, trees: crowns.length };
 }
