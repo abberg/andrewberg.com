@@ -35,7 +35,10 @@ const sandstoneMap = textures.sandstone.map();
 const sandstone = painted(palette.sandstone, { map: sandstoneMap }, textures.sandstone.metres);
 const steps = painted(palette.sandstone, { map: textures.steps.map() }, textures.steps.metres);
 const masonry = painted(palette.masonry, { map: sandstoneMap }, textures.sandstone.metres), lawn = painted(palette.lawn);
-const path = painted(palette.path, { map: textures.paving.map() }, textures.paving.metres), door = painted(palette.door);
+const pavingMap = textures.paving.map();
+const path = painted(palette.path, { map: pavingMap }, textures.paving.metres), door = painted(palette.door);
+// The same stone with the texture laid on by UVs, for the pool rims.
+const coping = painted(palette.path, { map: pavingMap });
 const water = painted(palette.water, { roughness: 0.2 });
 
 // A curve sampled across x, as [x, z] points.
@@ -55,6 +58,37 @@ function slab(points: number[][], bottom: number, top: number, holes: number[][]
   geometry.translate(0, bottom, 0);
   return geometry;
 }
+// A round rim from an inner to an outer radius, its edges a little rounded,
+// with the texture laid round it and across it, so the paving's courses run
+// round the rim as curved coping stones.
+function rimGeometry(inner: number, outer: number, height: number) {
+  const { metres } = textures.paving, e = 0.06;
+  const profile = [[inner, 0], [inner, height - e], [inner + e * 0.3, height - e * 0.3], [inner + e, height],
+    [outer - e, height], [outer - e * 0.3, height - e * 0.3], [outer, height - e], [outer, 0]];
+  const across = [0];
+  for (let j = 1; j < profile.length; j++) across.push(across[j - 1] + Math.hypot(profile[j][0] - profile[j - 1][0], profile[j][1] - profile[j - 1][1]));
+  const segments = 96, turns = Math.round(Math.PI * (inner + outer) / metres);
+  const positions: number[] = [], uvs: number[] = [], indices: number[] = [];
+  for (let i = 0; i <= segments; i++) {
+    const a = i / segments * Math.PI * 2;
+    profile.forEach(([r, y], j) => {
+      positions.push(Math.cos(a) * r, y, Math.sin(a) * r);
+      uvs.push(i / segments * turns, across[j] / metres);
+    });
+  }
+  const rows = profile.length;
+  for (let i = 0; i < segments; i++) for (let j = 0; j < rows - 1; j++) {
+    const a = i * rows + j, b = a + rows;
+    indices.push(a, b, a + 1, a + 1, b, b + 1);
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
 const circle = (cx: number, cz: number, r: number, steps = 48) =>
   Array.from({ length: steps }, (_, i) => { const a = i / steps * Math.PI * 2; return [cx + Math.cos(a) * r, cz + Math.sin(a) * r]; });
 
@@ -155,9 +189,13 @@ export function buildLevel(world: RAPIER.World, scene: THREE.Scene) {
   paving(-17.85, -14.35, 22.5, 24.6);
   paving(2.5, 8.5, 32.35, 35.85);
 
-  // The pools: a low stone rim round each, water inside.
+  // The pools: a low rim of the path's stone round each, laid as curved
+  // coping stones, water inside.
   for (const [x, z] of [[-16.1, 15.8], [15.3, 34.1]]) {
-    ground(slab(circle(x, z, 7.4), 0, 0.4, [circle(x, z, 5.4).reverse()]), stone);
+    add(rimGeometry(5.4, 7.4, 0.4).translate(x, 0, z), coping);
+    const solid = slab(circle(x, z, 7.4), 0, 0.4, [circle(x, z, 5.4).reverse()]);
+    world.createCollider(RAPIER.ColliderDesc.trimesh(new Float32Array(solid.getAttribute('position').array),
+      new Uint32Array(solid.index ? solid.index.array : Array.from({ length: solid.getAttribute('position').count }, (_, i) => i))));
     const pool = add(new THREE.CircleGeometry(5.4, 48), water, { cast: false });
     pool.rotation.x = -Math.PI / 2;
     pool.position.set(x, 0.05, z);
