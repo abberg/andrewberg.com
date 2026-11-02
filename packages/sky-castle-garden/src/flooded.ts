@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { cityFront } from './city';
+import { buildFish } from './fish';
 import { drowned, painted, palette } from './look';
 import { textures, WINDOW, windowTexture } from './masonry';
 
@@ -17,6 +18,8 @@ export function buildFlooded(scene: THREE.Scene, { west, westLawn, east, eastLaw
   let s = 907;
   const random = () => (s = (s * 16807) % 2147483647) / 2147483647;
   const blocks: THREE.BufferGeometry[] = [], windows: THREE.Matrix4[] = [];
+  // Each block's footprint and roof, for the fish to swim over.
+  const roofs: { x: number, z: number, heading: number, length: number, width: number, roof: number }[] = [];
 
   // A run of points down the middle of a moat, with its width at each.
   const runs: number[][][] = [];
@@ -39,6 +42,7 @@ export function buildFlooded(scene: THREE.Scene, { west, westLawn, east, eastLaw
   // A block standing on the street: its middle, which way it runs, length,
   // width, and how far up it comes (its roof, below the water).
   const block = (x: number, z: number, heading: number, length: number, width: number, roof: number) => {
+    roofs.push({ x, z, heading, length, width, roof: roof + 0.8 });
     const height = roof + flood, place = new THREE.Matrix4().makeRotationY(-heading).setPosition(x, -flood + height / 2, z);
     blocks.push(new THREE.BoxGeometry(length, height, width).applyMatrix4(place));
     // A low parapet round the roof, broken here and there.
@@ -89,4 +93,8 @@ export function buildFlooded(scene: THREE.Scene, { west, westLawn, east, eastLaw
     drowned(painted(palette.stone, { map: windowTexture(), alphaTest: 0.5 })), windows.length);
   windows.forEach((matrix, i) => glass.setMatrixAt(i, matrix));
   scene.add(glass);
+  buildFish(scene, runs, (x, z) => Math.max(-Infinity, ...roofs.map(b => {
+    const dx = x - b.x, dz = z - b.z, c = Math.cos(b.heading), s = Math.sin(b.heading);
+    return Math.abs(dx * c + dz * s) < b.length / 2 + 1 && Math.abs(-dx * s + dz * c) < b.width / 2 + 1 ? b.roof : -Infinity;
+  })));
 }

@@ -10,6 +10,7 @@ import { buildLevel, PLATFORM_TOP } from './level';
 import { createPlayer, movement } from './player';
 import { createRobot } from './robot';
 import { createStones } from './stones';
+import { updateFish } from './fish';
 import { updateWater } from './water';
 import { updateWind, wind } from './wind';
 
@@ -100,5 +101,6 @@ renderer.setAnimationLoop(time => {
   look.update(camera);
   updateWind(time / 1000);
   updateWater(time / 1000);
+  updateFish(time / 1000, delta);
   renderer.render(scene, camera);
 });
