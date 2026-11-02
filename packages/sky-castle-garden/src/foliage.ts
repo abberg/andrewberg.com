@@ -181,7 +181,7 @@ function ballGeometry(seed: number) {
 
 // Small flowers on a clear ground, for the urns: five round petals round a
 // yellow eye, a few to a card, each its own size and turn.
-function flowerTexture(seed: number) {
+function flowerTexture(seed: number, colours = ['#fff6ec', '#f6c4d4', '#f2a8c0']) {
   const px = 128;
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = px;
@@ -190,7 +190,7 @@ function flowerTexture(seed: number) {
   const random = () => (s = (s * 16807) % 2147483647) / 2147483647;
   for (let k = 0; k < 3; k++) {
     const x = px * (0.3 + random() * 0.4), y = px * (0.3 + random() * 0.4), r = px * (0.09 + random() * 0.05), turn = random() * Math.PI;
-    g.fillStyle = ['#fff6ec', '#f6c4d4', '#f2a8c0'][k];
+    g.fillStyle = colours[k % colours.length];
     for (let p = 0; p < 5; p++) {
       const a = turn + p * Math.PI * 2 / 5;
       g.beginPath();
@@ -250,6 +250,51 @@ export function urnPlant(seed: number, lip: number, radius: number, rim: number)
   const core = new THREE.Mesh(new THREE.SphereGeometry(radius * 0.88, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, 0.55, 1).translate(0, lip, 0), urnParts.core);
   core.castShadow = core.receiveShadow = true;
   group.add(core);
+  return group;
+}
+
+// The flowering vine, white-blossomed as in the first reference, spilling
+// over an edge: a ridge of leaves along the lip and strands hanging down over
+// it, longest in the middle of the run and ragged at its ends, white flowers
+// all through. lip is points along the edge, out which way is over it at
+// each; reach the longest strand. In whatever space the points are in, so a
+// vine on a ruin can move with it.
+let vineParts: { leaves: ReturnType<typeof leafCards>, blossoms: ReturnType<typeof leafCards> } | undefined;
+export function vineSpill(lip: THREE.Vector3[], out: THREE.Vector3[], reach: number, seed: number) {
+  const sway = { weight: '0.07', flutter: 0.6 };
+  vineParts ??= {
+    leaves: leafCards(palette.ivy, clusterTexture(97), sway),
+    blossoms: leafCards([0xffffff, 0x9a96c8], flowerTexture(101, ['#fffaf2', '#fff4e4', '#f8f0f0']), sway),
+  };
+  let s = seed * 7919 + 13;
+  const random = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  const leaves: Card[] = [], blossoms: Card[] = [], ragged = wander(seed * 3 + 1, 0.8);
+  const curve = new THREE.CatmullRomCurve3(lip), outs = new THREE.CatmullRomCurve3(out), length = curve.getLength();
+  const leaf = (at: THREE.Vector3, normal: THREE.Vector3, size: number) => {
+    leaves.push({ at, w: size, h: size, normal, spin: random() * Math.PI * 2 });
+    if (random() < 0.35) blossoms.push({ at: at.clone().addScaledVector(normal, 0.05), w: size * 0.9, h: size * 0.9, normal, spin: random() * Math.PI * 2 });
+  };
+  for (let d = random() * 0.1; d < length; d += 0.1 + random() * 0.07) {
+    const t = d / length, at = curve.getPointAt(t), o = outs.getPointAt(t).setY(0).normalize();
+    const up = new THREE.Vector3(0, 1, 0), lit = o.clone().multiplyScalar(0.6).add(up).normalize();
+    // The ridge along the lip, a little back from it.
+    for (let k = 0; k < 2; k++) leaf(at.clone().addScaledVector(o, -0.1 - random() * 0.35).setY(at.y + 0.06 + random() * 0.12), lit, 0.28 + random() * 0.1);
+    // A strand down over it, its length rounded over the run and ragged.
+    const long = reach * Math.max(0.1, (1 - (2 * t - 1) ** 2) ** 0.6 * (0.55 + 0.45 * ragged(d)) * (0.7 + random() * 0.3));
+    const drift = (random() - 0.5) * 0.3, side = new THREE.Vector3(-o.z, 0, o.x);
+    for (let h = 0; h < long; h += 0.08) {
+      const f = h / long, p = at.clone().addScaledVector(o, 0.07 + 0.08 * Math.sin(Math.min(1, h / 0.2) * Math.PI / 2))
+        .addScaledVector(side, drift * h).setY(at.y - h);
+      leaf(p, o.clone().setY(0.5).normalize(), (0.26 - 0.1 * f) * (0.85 + random() * 0.3));
+    }
+  }
+  const group = new THREE.Group();
+  for (const [cards, parts] of [[leaves, vineParts.leaves], [blossoms, vineParts.blossoms]] as const) {
+    const mesh = new THREE.Mesh(cardGeometry(cards), parts.material);
+    mesh.customDepthMaterial = parts.depth;
+    mesh.castShadow = mesh.receiveShadow = true;
+    group.add(mesh);
+  }
   return group;
 }
 
@@ -612,6 +657,23 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
     }
   }
 
+  // The flowering vine spilling over the garden's north lip, either side of
+  // the causeway, and over the start tower's rim either side of its stair.
+  // (The broken fence's are in stones.ts, moving with its bays.)
+  const run = (n: number, point: (t: number) => [THREE.Vector3, THREE.Vector3]) => {
+    const points = Array.from({ length: n + 1 }, (_, i) => point(i / n));
+    return [points.map(([p]) => p), points.map(([, o]) => o)] as const;
+  };
+  const north = (x0: number, x1: number) => run(8, t => {
+    const x = x0 + (x1 - x0) * t, z = northEdge(x);
+    return [new THREE.Vector3(x, 0, z), new THREE.Vector3(x, 0, z - 250.7).normalize()];
+  });
+  const rim = (a0: number, a1: number) => run(8, t => {
+    const a = a0 + (a1 - a0) * t;
+    return [new THREE.Vector3(Math.cos(a) * PLATFORM.r, PLATFORM_TOP, PLATFORM.z + Math.sin(a) * PLATFORM.r), new THREE.Vector3(Math.cos(a), 0, Math.sin(a))];
+  });
+  ([[north(-31, -24.5), 2.6], [north(21, 27.5), 2.2], [rim(Math.PI / 2 + 0.45, Math.PI / 2 + 0.95), 3.4], [rim(Math.PI / 2 - 1.5, Math.PI / 2 - 0.9), 2.8]] as const)
+    .forEach(([[lip, out], reach], i) => scene.add(vineSpill([...lip], [...out], reach, i + 1)));
   instanced(shrubGeometry(19), leafCards(SHRUB, clusterTexture(29), SWAY.shrub), shrubs, scene);
   instanced(new THREE.SphereGeometry(0.36, 12, 8).scale(1, 0.75, 1).translate(0, 0.12, 0), painted(CORE), shrubs, scene);
   return { shrubs: shrubs.length, cypresses: cypresses.length, trees: crowns.length, tufts: tufts.length + blooms.length + sward.length };

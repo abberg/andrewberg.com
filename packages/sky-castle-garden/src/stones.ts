@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { ConvexGeometry } from 'three/addons/geometries/ConvexGeometry.js';
 import { blockStone, capitalGeometry, chippedBlock, columnGeometry, columnStone, crack, drumGeometry, plinthGeometry, urnGeometry } from './columns';
 import { painted, palette } from './look';
-import { urnPlant } from './foliage';
+import { urnPlant, vineSpill } from './foliage';
 import { columnIvy } from './growth';
 import { archBlockGeometry, patina, statueGeometry } from './ruins';
 import { stone } from './level';
@@ -154,7 +154,15 @@ export function createStones(world: RAPIER.World, scene: THREE.Scene) {
       .box(bay, top - opening / 2, deep, [0, (top + opening / 2) / 2, 0])
       .box(pier / 2, opening / 2, deep, [-bay / 2 + pier / 4, opening / 4, 0])
       .box(pier / 2, opening / 2, deep, [bay / 2 - pier / 4, opening / 4, 0]);
-    for (let i = 1; i < 5; i++) archPiece(west + (i + 0.5) * bay, springing, z);
+    for (let i = 1; i < 5; i++) {
+      const parts = archPiece(west + (i + 0.5) * bay, springing, z);
+      // The flowering vine over two of the bays, down both faces of one.
+      const face = (side: number) => [[-0.8, 0.8].map(x => new THREE.Vector3(x, top, side * deep / 2 * 0.9)), [-0.8, 0.8].map(() => new THREE.Vector3(0, 0, side))];
+      if (i === 2 || i === 4) for (const side of i === 2 ? [1, -1] : [1]) {
+        const [lip, out] = face(side);
+        parts.add(vineSpill(lip, out, 1.1, 10 + i * 2 + side));
+      }
+    }
     // The fallen bay, on its face on the grass in front.
     archPiece(west + 0.2, deep / 2, z + 2.6, new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.PI / 2, 0.35, 0, 'YXZ')));
     const end = new ConvexGeometry(chippedBlock(1.3, 2.9, 1.3, n++));
