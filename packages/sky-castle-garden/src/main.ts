@@ -43,7 +43,7 @@ const stones = createStones(world, scene);
 createFoliage(world, scene);
 createLilies(scene);
 mergeStatic(scene);
-createClouds(scene);
+createClouds(scene, look.sun);
 
 const input = createInput(renderer.domElement);
 const player = createPlayer(world, scene, { ...spawn, y: PLATFORM_TOP }, createRobot(gltf));
