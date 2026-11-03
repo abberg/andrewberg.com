@@ -70,6 +70,7 @@ watery.add(waterLook, 'across', 0, 1, 0.01).name('reflection, looking across');
 watery.add(waterLook, 'blur', 0, 0.05, 0.001).name('reflection blur');
 watery.add(waterLook, 'sparse', 0.3, 0.9, 0.01).name('highlights, sparseness');
 watery.add(waterLook, 'size', 0.5, 6, 0.1).name('highlights, size (m)');
+watery.add(waterLook, 'stretch', 1, 12, 0.1).name('highlights, stretch');
 watery.add(waterLook, 'pace', 0, 1, 0.01).name('highlights, pace');
 watery.close();
 gui.add(walls, 'visible').name('show invisible walls');

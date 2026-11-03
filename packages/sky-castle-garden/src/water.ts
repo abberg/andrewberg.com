@@ -20,8 +20,8 @@ export const waterLook = {
   // How soft the reflection is (a fraction of the screen).
   blur: 0.014,
   // How much of the surface the highlights cover (higher, fewer), how big
-  // they are (m) and how fast they change.
-  sparse: 0.62, size: 2.2, pace: 0.35,
+  // they are (m), how many times longer than wide, and how fast they change.
+  sparse: 0.56, size: 1.1, stretch: 7, pace: 0.35,
 };
 
 const target = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType });
@@ -33,7 +33,9 @@ const uniforms = {
   // How much it reflects down and across, and how soft.
   uMirror: { value: new THREE.Vector3() },
   // The highlights: size, pace, sparseness.
-  uShape: { value: new THREE.Vector3() },
+  uShape: { value: new THREE.Vector4() },
+  // The camera's right, across the water, which the highlights stretch along.
+  uRight: { value: new THREE.Vector2(1, 0) },
   uHighlight: { value: new THREE.Color(0xf4fbf8) },
 };
 const materials: THREE.Material[] = [];
@@ -78,7 +80,9 @@ export function waterMaterial(colour: readonly [number, number], opacity: number
     shader.fragmentShader = shader.fragmentShader
       .replace('uniform vec3 uSun,', /* glsl */`uniform sampler2D uReflection;
         uniform float uTime;
-        uniform vec3 uMirror, uShape;
+        uniform vec3 uMirror;
+        uniform vec4 uShape;
+        uniform vec2 uRight;
         uniform vec3 uHighlight;
         varying vec4 vReflect;
         varying vec3 vWater;
@@ -86,9 +90,10 @@ export function waterMaterial(colour: readonly [number, number], opacity: number
         uniform vec3 uSun,`)
       .replace('#ifdef USE_FOG', /* glsl */`{
           // The highlights: where two slowly changing layers of noise add up
-          // past a threshold, cut hard, so they're rounded blobs with crisp
-          // edges that swell, split and fade as the surface moves.
-          vec2 p = vWater.xz / uShape.x;
+          // past a threshold, cut hard, so they're crisp-edged streaks with
+          // rounded ends, stretched out across the view, that swell, split
+          // and fade as the surface moves.
+          vec2 p = vec2(dot(vWater.xz, uRight), dot(vWater.xz, vec2(-uRight.y, uRight.x))) / (uShape.x * vec2(uShape.w, 1.0));
           float t = uTime * uShape.y;
           float n = snoise(vec3(p + vec2(0.11, 0.05) * t, t * 0.6)) * 0.65
             + snoise(vec3(p * 2.1 - vec2(0.07, -0.13) * t, t * 0.9 + 7.0)) * 0.35;
@@ -128,6 +133,8 @@ export function reflectWater(renderer: THREE.WebGLRenderer, scene: THREE.Scene, 
   if (target.width !== width || target.height !== height) target.setSize(width, height);
   // Mirror the camera: its position, and its view flipped top to bottom.
   camera.updateMatrixWorld();
+  const right = new THREE.Vector3(1, 0, 0).transformDirection(camera.matrixWorld);
+  if (Math.hypot(right.x, right.z) > 1e-3) uniforms.uRight.value.set(right.x, right.z).normalize();
   virtual.copy(camera);
   const position = new THREE.Vector3().setFromMatrixPosition(camera.matrixWorld);
   const forward = new THREE.Vector3(0, 0, -1).transformDirection(camera.matrixWorld);
@@ -182,5 +189,5 @@ export function reflectWater(renderer: THREE.WebGLRenderer, scene: THREE.Scene, 
 export function updateWater(seconds: number) {
   uniforms.uTime.value = seconds;
   uniforms.uMirror.value.set(waterLook.down, waterLook.across, waterLook.blur);
-  uniforms.uShape.value.set(waterLook.size, waterLook.pace, waterLook.sparse);
+  uniforms.uShape.value.set(waterLook.size, waterLook.pace, waterLook.sparse, waterLook.stretch);
 }
