@@ -34,7 +34,9 @@ const uniforms = {
   uMirror: { value: new THREE.Vector3() },
   // The highlights: size, pace, sparseness.
   uShape: { value: new THREE.Vector4() },
-  // The camera's right, across the water, which the highlights stretch along.
+  // Which way the highlights stretch: east-west, across the view looking
+  // south from the garden at the castle. Fixed, so they don't turn with
+  // the camera.
   uRight: { value: new THREE.Vector2(1, 0) },
   uHighlight: { value: new THREE.Color(0xf4fbf8) },
 };
@@ -91,7 +93,7 @@ export function waterMaterial(colour: readonly [number, number], opacity: number
       .replace('#ifdef USE_FOG', /* glsl */`{
           // The highlights: where two slowly changing layers of noise add up
           // past a threshold, cut hard, so they're crisp-edged streaks with
-          // rounded ends, stretched out across the view, that swell, split
+          // rounded ends, stretched out east-west, that swell, split
           // and fade as the surface moves.
           vec2 p = vec2(dot(vWater.xz, uRight), dot(vWater.xz, vec2(-uRight.y, uRight.x))) / (uShape.x * vec2(uShape.w, 1.0));
           float t = uTime * uShape.y;
@@ -133,8 +135,6 @@ export function reflectWater(renderer: THREE.WebGLRenderer, scene: THREE.Scene, 
   if (target.width !== width || target.height !== height) target.setSize(width, height);
   // Mirror the camera: its position, and its view flipped top to bottom.
   camera.updateMatrixWorld();
-  const right = new THREE.Vector3(1, 0, 0).transformDirection(camera.matrixWorld);
-  if (Math.hypot(right.x, right.z) > 1e-3) uniforms.uRight.value.set(right.x, right.z).normalize();
   virtual.copy(camera);
   const position = new THREE.Vector3().setFromMatrixPosition(camera.matrixWorld);
   const forward = new THREE.Vector3(0, 0, -1).transformDirection(camera.matrixWorld);

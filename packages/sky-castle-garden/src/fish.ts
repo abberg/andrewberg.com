@@ -137,7 +137,8 @@ export function updateFish(seconds: number, delta: number) {
     const speed = Math.min(2.4, distance * 1.2) * Math.max(0, Math.cos(Math.atan2(dz, dx) - fish.yaw));
     fish.position.x += Math.cos(fish.yaw) * speed * delta;
     fish.position.z += Math.sin(fish.yaw) * speed * delta;
-    fish.position.y += (target.y - fish.position.y) * Math.min(1, delta * 1.5);
+    // Kept under the water whatever happens.
+    fish.position.y = Math.min(-0.5, fish.position.y + (target.y - fish.position.y) * Math.min(1, delta * 1.5));
     const wobble = Math.sin(seconds * 3.5 + fish.phase) * 0.06;
     turn.setFromAxisAngle(UP, -fish.yaw + wobble);
     mesh.setMatrixAt(i, matrix.compose(fish.position, turn, size.setScalar(fish.scale)));

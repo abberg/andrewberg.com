@@ -89,7 +89,8 @@ const direction = new THREE.Vector2();
 let accumulator = 0;
 renderer.setAnimationLoop(time => {
   timer.update(time);
-  const delta = Math.min(timer.getDelta(), 0.1);
+  // Never backwards: the first frame's time can come before the timer's start.
+  const delta = Math.max(0, Math.min(timer.getDelta(), 0.1));
   const { x, y, zoom } = input.take();
   follower.look(x, y, zoom);
   // Camera-relative: forward is away from the camera.
