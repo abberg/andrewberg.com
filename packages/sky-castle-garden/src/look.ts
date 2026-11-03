@@ -58,6 +58,17 @@ const uniforms = {
   uMurk: { value: look.murk },
   uDeep: { value: new THREE.Color(DEEP) },
 };
+// The robot's ink shadow, falling on whatever it lies across (robot.ts sets
+// these each frame): on or off, the depth of the robot seen from its own
+// light, how to find a point in that view, how far to slide the shadow, and
+// its colour. Everything painted takes it but the robot itself.
+export const inkUniforms = {
+  uInkOn: { value: 0 },
+  uInkDepth: { value: null as THREE.Texture | null },
+  uInkMatrix: { value: new THREE.Matrix4() },
+  uInkShift: { value: new THREE.Vector3() },
+  uInk: { value: new THREE.Color() },
+};
 
 // Shade picked from lit by multiplying, per channel, so materials with a map
 // (the robot's) keep it in both.
@@ -79,10 +90,11 @@ export function paint(material: THREE.MeshStandardMaterial, shade?: number, tile
   if (material.map?.userData.gain) material.color.multiplyScalar(material.map.userData.gain);
   if (tile) material.defines = { TRIPLANAR: '' };
   material.onBeforeCompile = shader => {
-    Object.assign(shader.uniforms, uniforms, { uShade: { value: shadeRatio }, uTile: { value: tile ?? 1 } });
+    Object.assign(shader.uniforms, uniforms, inkUniforms, { uShade: { value: shadeRatio }, uTile: { value: tile ?? 1 } });
     shader.vertexShader = shader.vertexShader
-      .replace('#include <fog_pars_vertex>', '#include <fog_pars_vertex>\nvarying float vHeight;\nvarying vec3 vModel, vModelNormal;\n#ifdef MERGED\nattribute vec3 modelPosition, modelNormal;\n#endif')
+      .replace('#include <fog_pars_vertex>', '#include <fog_pars_vertex>\nvarying vec3 vInkAt;\nvarying float vHeight;\nvarying vec3 vModel, vModelNormal;\n#ifdef MERGED\nattribute vec3 modelPosition, modelNormal;\n#endif')
       .replace('#include <fog_vertex>', /* glsl */`#include <fog_vertex>
+        vInkAt = (inverse(viewMatrix) * mvPosition).xyz;
         vec4 placed = vec4(transformed, 1.0);
         #ifdef USE_INSTANCING
           placed = instanceMatrix * placed;
@@ -100,6 +112,11 @@ export function paint(material: THREE.MeshStandardMaterial, shade?: number, tile
         uniform vec3 uSun, uWarm, uShade;
         uniform float uMid, uFill, uRim, uDepth, uTile, uDrown, uMurk;
         uniform vec3 uDeep;
+        uniform float uInkOn;
+        uniform sampler2D uInkDepth;
+        uniform mat4 uInkMatrix;
+        uniform vec3 uInkShift, uInk;
+        varying vec3 vInkAt;
         varying float vHeight;
         varying vec3 vModel, vModelNormal;`)
       .replace('#include <map_fragment>', /* glsl */`#if defined(USE_MAP) && defined(TRIPLANAR)
@@ -135,7 +152,16 @@ export function paint(material: THREE.MeshStandardMaterial, shade?: number, tile
       // Distance fog, and fog rising from below so the cliff and the tower
       // melt into the sky.
       // Under the water, sinking into its colour instead.
-      .replace('#include <fog_fragment>', /* glsl */`#ifdef DROWNED
+      .replace('#include <fog_fragment>', /* glsl */`#ifndef CEL
+          // In the robot's shadow: further from its light than the robot is.
+          // Hard edged, in ink, then fogged like the robot's outline.
+          if (uInkOn > 0.5) {
+            vec4 inLight = uInkMatrix * vec4(vInkAt + uInkShift, 1.0);
+            vec3 at = inLight.xyz / inLight.w * 0.5 + 0.5;
+            if (all(greaterThan(at, vec3(0.0))) && all(lessThan(at, vec3(1.0))) && at.z > texture2D(uInkDepth, at.xy).r + 0.002) gl_FragColor.rgb = uInk;
+          }
+        #endif
+        #ifdef DROWNED
           gl_FragColor.rgb = mix(gl_FragColor.rgb, uDeep, uMurk * smoothstep(0.0, -uDrown, vHeight));
         #endif
         #ifdef USE_FOG

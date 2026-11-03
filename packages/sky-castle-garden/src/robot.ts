@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { GLTF } from 'three/addons/loaders/GLTFLoader.js';
-import { paint } from './look';
+import { inkUniforms, paint } from './look';
 
 // The robot model (blender/robot.py builds it and exports public/robot.glb):
 // about 4 m tall, feet at the origin, facing −z, every part rigid on one bone.
@@ -82,13 +82,49 @@ export const shadow = { sun: new THREE.Vector3(0, 1, 0), ground: 0 };
 // as a cel-animated character's does, and turned a little from the sun.
 // And slid back a little towards its heels (m), so a sliver shows under
 // them, an ink line where the feet meet the ground.
-export const shadowAngle = { turn: 15, height: 22, back: 0.12 };
+// And whether it falls across whatever is there, steps and rims and stones
+// (inkShadow), or flat on the ground under the robot (shadowed).
+export const shadowAngle = { turn: 15, height: 22, back: 0.12, across: true };
 export function aimShadow(sun: THREE.DirectionalLight) {
   const towards = shadow.sun.subVectors(sun.position, sun.target.position).normalize();
   const height = THREE.MathUtils.clamp(Math.asin(towards.y) + THREE.MathUtils.degToRad(shadowAngle.height), 0.15, Math.PI / 2 - 0.01);
   const round = Math.atan2(towards.x, -towards.z) + THREE.MathUtils.degToRad(shadowAngle.turn);
   towards.set(Math.sin(round) * Math.cos(height), Math.sin(height), -Math.cos(round) * Math.cos(height));
 }
+// The robot's shadow falling across whatever is there: the robot alone
+// drawn from the shadow's own light into a depth map, 10 m square round it,
+// about a centimetre to a texel, which everything painted then looks itself
+// up in (look.ts) and turns to ink where the robot is nearer the light.
+// Slid back towards the heels by looking up a little ahead of each point.
+const INK_LAYER = 1, INK_SIZE = 5, INK_FAR = 40;
+const inkTarget = new THREE.WebGLRenderTarget(1024, 1024, { depthTexture: new THREE.DepthTexture(1024, 1024) });
+const inkCamera = new THREE.OrthographicCamera(-INK_SIZE, INK_SIZE, INK_SIZE, -INK_SIZE, 0.1, INK_FAR);
+inkCamera.layers.set(INK_LAYER);
+inkUniforms.uInkDepth.value = inkTarget.depthTexture;
+inkUniforms.uInk.value.copy(INK);
+const centre = new THREE.Vector3();
+const flat: THREE.Material[] = [];
+export function inkShadow(renderer: THREE.WebGLRenderer, scene: THREE.Scene, robot: THREE.Object3D) {
+  inkUniforms.uInkOn.value = shadowAngle.across ? 1 : 0;
+  for (const material of flat) material.visible = !shadowAngle.across;
+  if (!shadowAngle.across) return;
+  robot.updateMatrixWorld();
+  centre.setFromMatrixPosition(robot.matrixWorld).y += 2;
+  inkCamera.position.copy(centre).addScaledVector(shadow.sun, INK_FAR / 2);
+  inkCamera.lookAt(centre);
+  inkCamera.updateMatrixWorld();
+  inkUniforms.uInkMatrix.value.multiplyMatrices(inkCamera.projectionMatrix, inkCamera.matrixWorldInverse);
+  // Forward is -z on the model.
+  inkUniforms.uInkShift.value.set(0, 0, -1).transformDirection(robot.matrixWorld).setY(0).normalize().multiplyScalar(shadowAngle.back);
+  const shadows = renderer.shadowMap.autoUpdate, before = renderer.getRenderTarget();
+  renderer.shadowMap.autoUpdate = false;
+  renderer.setRenderTarget(inkTarget);
+  renderer.clear();
+  renderer.render(scene, inkCamera);
+  renderer.setRenderTarget(before);
+  renderer.shadowMap.autoUpdate = shadows;
+}
+
 function shadowed(mesh: THREE.SkinnedMesh) {
   const material = new THREE.MeshBasicMaterial({
     // Fogged like the outline, so the two stay the same.
@@ -117,6 +153,7 @@ function shadowed(mesh: THREE.SkinnedMesh) {
         vec4 mvPosition = viewMatrix * world;
         gl_Position = projectionMatrix * mvPosition;`);
   };
+  flat.push(material);
   const cast = new THREE.SkinnedMesh(mesh.geometry, material);
   cast.bind(mesh.skeleton, mesh.bindMatrix);
   cast.position.copy(mesh.position);
@@ -146,6 +183,8 @@ export function createRobot(gltf: GLTF) {
     // The arms reach well outside the bind pose's bounds.
     child.frustumCulled = false;
     child.renderOrder = DRAWN.robot;
+    // Seen by the ink shadow's light (inkShadow).
+    child.layers.enable(INK_LAYER);
     if ((child as THREE.SkinnedMesh).isSkinnedMesh) skinned.push(child as THREE.SkinnedMesh);
   });
   for (const mesh of skinned) mesh.parent!.add(outlined(mesh), shadowed(mesh));
