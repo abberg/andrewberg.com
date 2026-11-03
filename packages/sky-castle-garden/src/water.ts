@@ -19,6 +19,11 @@ export const waterLook = {
   down: 0.18, across: 0.8,
   // How soft the reflection is (a fraction of the screen).
   blur: 0.014,
+  // How bright the reflection is, darkened into the water's own colour as
+  // real water's is, and how bright the water's wash, which also covers more
+  // of what's under it as it darkens, so the water sits darker than the
+  // stone round it.
+  reflectBright: 0.55, washBright: 0.65,
   // How much of the surface the highlights cover (higher, fewer), how big
   // they are (m), how many times longer than wide, and how fast they change.
   sparse: 0.56, size: 1.1, stretch: 7, pace: 0.25,
@@ -35,6 +40,8 @@ const uniforms = {
   uTime: { value: 0 },
   // How much it reflects down and across, and how soft.
   uMirror: { value: new THREE.Vector3() },
+  // How bright the reflection and the wash are.
+  uBright: { value: new THREE.Vector2() },
   // The highlights: size, pace, sparseness.
   uShape: { value: new THREE.Vector4() },
   // Which way the highlights stretch: east-west, across the view looking
@@ -88,6 +95,7 @@ export function waterMaterial(colour: readonly [number, number], opacity: number
       .replace('uniform vec3 uSun,', /* glsl */`uniform sampler2D uReflection;
         uniform float uTime;
         uniform vec3 uMirror;
+        uniform vec2 uBright;
         uniform vec4 uShape;
         uniform vec2 uRight, uFlow;
         uniform vec3 uHighlight;
@@ -116,6 +124,12 @@ export function waterMaterial(colour: readonly [number, number], opacity: number
             reflected += texture2D(uReflection, at + vec2(cos(a), sin(a)) * d * r * vec2(1.0, 0.6)).rgb;
           }
           reflected /= 16.0;
+          // Darker, and towards the water's own colour.
+          vec3 own = diffuse / max(max(diffuse.r, diffuse.g), max(diffuse.b, 1e-4));
+          reflected *= uBright.x * mix(vec3(1.0), own, 0.5);
+          // The wash darker too, and covering more of what's under it.
+          gl_FragColor.rgb *= uBright.y;
+          gl_FragColor.a = mix(gl_FragColor.a, 1.0, 1.0 - uBright.y);
           float across = 1.0 - abs(dot(normal, geometryViewDir));
           float mirror = mix(uMirror.x, uMirror.y, smoothstep(0.35, 0.95, across));
           gl_FragColor.rgb = mix(gl_FragColor.rgb, reflected, mirror);
@@ -194,6 +208,7 @@ export function reflectWater(renderer: THREE.WebGLRenderer, scene: THREE.Scene, 
 export function updateWater(seconds: number) {
   uniforms.uTime.value = seconds;
   uniforms.uMirror.value.set(waterLook.down, waterLook.across, waterLook.blur);
+  uniforms.uBright.value.set(waterLook.reflectBright, waterLook.washBright);
   uniforms.uShape.value.set(waterLook.size, waterLook.pace, waterLook.sparse, waterLook.stretch);
   const towards = THREE.MathUtils.degToRad(waterLook.towards);
   // North is -z.
