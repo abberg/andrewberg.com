@@ -55,6 +55,48 @@ function clusterTexture(seed: number) {
   return texture;
 }
 
+// A cypress's foliage on a clear ground: an upright spray, tiny scale
+// leaves packed into a narrow flame that points up, its edge broken into
+// little upward tufts. Near white, each scale its own shade and the lower
+// ones a little darker, so a card has some depth of its own: the material
+// gives the green.
+function sprayTexture(seed: number) {
+  const W = 192, H = 320;
+  const canvas = document.createElement('canvas');
+  canvas.width = W;
+  canvas.height = H;
+  const g = canvas.getContext('2d')!;
+  let s = seed;
+  const random = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  // Half its width at a height, 0 at the foot to 1 at the tip.
+  const half = (v: number) => 0.46 * Math.min(1, v * 5) * (1 - v) ** 0.55;
+  // Scales: the lower ones first, the upper ones laid over them.
+  const scales = Array.from({ length: 260 }, () => {
+    const v = random() * 0.97, u = (random() * 2 - 1) * half(v);
+    return { v, u };
+  }).sort((a, b) => a.v - b.v);
+  for (const { v, u } of scales) {
+    const x = W * (0.5 + u), y = H * (1 - v), long = H * (0.035 + random() * 0.025), wide = long * (0.55 + random() * 0.15);
+    // Leaning out from the middle as they go up, like a spray's sprigs.
+    const a = -Math.PI / 2 + u * 1.6 + (random() - 0.5) * 0.4;
+    const shade = (0.72 + random() * 0.2) * (0.86 + 0.14 * v);
+    g.fillStyle = `rgb(${255 * shade | 0},${255 * shade | 0},${242 * shade | 0})`;
+    g.save();
+    g.translate(x, y);
+    g.rotate(a + Math.PI / 2);
+    g.beginPath();
+    // A pointed scale, its tip up.
+    g.moveTo(0, -long);
+    g.quadraticCurveTo(wide, -long * 0.2, 0, long * 0.5);
+    g.quadraticCurveTo(-wide, -long * 0.2, 0, -long);
+    g.fill();
+    g.restore();
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
 // Leaf cards that always turn to face the eye: each card is one point, its
 // centre, and its corners are pushed out across the view in the vertex
 // shader, so a crown's edge is always the cards' lobed outlines and never
@@ -186,18 +228,24 @@ function shrubGeometry(seed: number) {
 // and tucked in a little at the foot.
 const cypressRadius = (h: number) => 0.13 * Math.min(1, 0.55 + h * 2.2) * (1 - h) ** 0.75;
 
-// One cypress, a unit tall: leaf cards over its whole surface, normals out
-// from its axis and a little up, so it shades as one soft flame of a shape.
+// One cypress, a unit tall: spray cards over its whole surface, as many
+// anywhere as its girth there asks for, so the foot and the shoulders are
+// as well covered as the middle, normals out from its axis and a little up,
+// so it shades as one soft flame of a shape. Some stand a little proud, so
+// its outline is ragged rather than a smooth cone.
 function cypressGeometry(seed: number) {
   let s = seed;
   const random = () => (s = (s * 16807) % 2147483647) / 2147483647;
   const cards: Card[] = [];
-  for (let k = 0; k < 200; k++) {
-    const h = random() ** 0.85 * 0.96, a = random() * Math.PI * 2, r = cypressRadius(h) * (0.8 + random() * 0.2);
-    // Narrow upright cards, near enough upright on screen.
-    const w = 0.06 + random() * 0.03;
-    cards.push({ at: new THREE.Vector3(Math.cos(a) * r, h, Math.sin(a) * r), w, h: w * 1.4,
-      normal: new THREE.Vector3(Math.cos(a) * 0.94, 0.35, Math.sin(a) * 0.94).normalize(), spin: (random() - 0.5) * 0.6 });
+  const widest = Math.max(...Array.from({ length: 50 }, (_, i) => cypressRadius(i / 50)));
+  while (cards.length < 420) {
+    const h = random() * 0.97;
+    if (random() > cypressRadius(h) / widest) continue;
+    const a = random() * Math.PI * 2, r = cypressRadius(h) * (0.85 + random() ** 2 * 0.35);
+    // Upright sprays, near enough upright on screen, smaller towards the tip.
+    const w = (0.07 + random() * 0.04) * (0.6 + 0.4 * Math.min(1, (1 - h) * 3));
+    cards.push({ at: new THREE.Vector3(Math.cos(a) * r, h, Math.sin(a) * r), w, h: w * 1.65,
+      normal: new THREE.Vector3(Math.cos(a) * 0.94, 0.35, Math.sin(a) * 0.94).normalize(), spin: (random() - 0.5) * 0.5 });
   }
   return cardGeometry(cards);
 }
@@ -643,7 +691,7 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
       return new THREE.Vector2(cypressRadius(h) * 0.75, h * 0.96);
     }), 10);
     const placed = cypresses.map(({ matrix }) => matrix);
-    instanced(geometry, leafCards(CYPRESS, clusterTexture(41), SWAY.cypress), placed, scene);
+    instanced(geometry, leafCards(CYPRESS, sprayTexture(41), SWAY.cypress), placed, scene);
     instanced(core, painted(CYPRESS_CORE), placed, scene);
   }
   {
