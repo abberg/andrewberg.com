@@ -1,21 +1,20 @@
 import * as THREE from 'three';
+import { PLATFORM } from './level';
 
-// Step 10: the opening fly-in. The camera starts far out and high over the
-// clouds to the north, looking at the castle floating beyond the garden,
-// sweeps down past the start tower and settles exactly where the follow
-// camera sits behind the robot, turning from the castle to the robot only in
-// the last part. Any key or click skips it, and the robot can't be moved
-// until it's done.
+// Step 10: the opening. The camera starts low beside the start tower,
+// looking up its side to the sky, rises straight up the column past the lip
+// of the platform and comes to rest where the follow camera sits behind the
+// robot, tipping down to the follow camera's angle as it arrives. Any key or
+// click skips it, and the robot can't be moved until it's done.
 
 export const flyIn = {
   // Seconds from the start to settling behind the robot.
-  seconds: 9,
+  seconds: 6,
+  // How far below its resting place it starts (m), and how far out from the
+  // tower's side.
+  rise: 40,
+  out: 8,
 };
-// Where it starts and passes through on the way in; the last point is the
-// follow camera's own, each frame.
-const PATH = [new THREE.Vector3(-110, 70, -230), new THREE.Vector3(-55, 38, -135), new THREE.Vector3(-16, 14, -68)];
-// What it looks at first: the castle, over the gate.
-const CASTLE = new THREE.Vector3(0, 40, 90);
 
 export function createFlyIn() {
   let t = 0, done = false;
@@ -25,8 +24,8 @@ export function createFlyIn() {
     addEventListener('pointerdown', skip, { once: true });
   };
   listen();
-  const curve = new THREE.CatmullRomCurve3([...PATH.map(p => p.clone()), new THREE.Vector3()], false, 'centripetal');
-  const position = new THREE.Vector3(), target = new THREE.Vector3(), pivot = new THREE.Vector3(), forward = new THREE.Vector3();
+  const rest = new THREE.Vector3(), forward = new THREE.Vector3(), away = new THREE.Vector3();
+  const target = new THREE.Vector3(), view = new THREE.Vector3();
 
   return {
     get flying() { return !done; },
@@ -43,16 +42,21 @@ export function createFlyIn() {
         removeEventListener('pointerdown', skip);
         return;
       }
-      // The follow camera's pose: where it is, and the pivot it looks at.
-      curve.points[curve.points.length - 1].copy(camera.position);
+      // Where the follow camera rests, and what it looks at.
+      rest.copy(camera.position);
       camera.getWorldDirection(forward);
-      pivot.copy(camera.position).addScaledVector(forward, 9);
-      // Slow out, slow in.
-      const eased = u * u * u * (u * (u * 6 - 15) + 10);
-      curve.getPoint(eased, position);
-      target.lerpVectors(CASTLE, pivot, THREE.MathUtils.smootherstep(u, 0.45, 1));
-      camera.position.copy(position);
-      camera.lookAt(target);
+      view.copy(rest).addScaledVector(forward, 9);
+      // Rising, fast at first and settling gently; out from the tower's side
+      // on the way up so it never clips the column.
+      const climb = 1 - (1 - u) ** 3;
+      away.set(rest.x, 0, rest.z - PLATFORM.z).normalize();
+      camera.position.copy(rest).addScaledVector(away, flyIn.out * (1 - climb));
+      camera.position.y -= flyIn.rise * (1 - climb);
+      // Looking up the column at first, tipping down to the follow camera's
+      // own view over the last part of the climb.
+      target.copy(camera.position).addScaledVector(away, -8);
+      target.y += 8;
+      camera.lookAt(target.lerp(view, THREE.MathUtils.smootherstep(u, 0.2, 0.95)));
     },
   };
 }
