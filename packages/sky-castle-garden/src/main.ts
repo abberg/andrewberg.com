@@ -2,6 +2,7 @@ import RAPIER from '@dimforge/rapier3d-compat';
 import * as THREE from 'three';
 import GUI from 'three/addons/libs/lil-gui.module.min.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { createFlyIn } from './flyIn';
 import { createFoliage } from './foliage';
 import { createClouds, updateClouds } from './clouds';
 import { createLilies, updateLilies } from './lilies';
@@ -45,6 +46,7 @@ createClouds(scene);
 const input = createInput(renderer.domElement);
 const player = createPlayer(world, scene, { ...spawn, y: PLATFORM_TOP }, createRobot(gltf));
 const follower = createFollowCamera(camera, world, player.collider, spawn.yaw);
+const flight = createFlyIn();
 
 // Tuning, folded away top right.
 const gui = new GUI({ title: 'tuning' });
@@ -83,6 +85,7 @@ gui.add(walls, 'visible').name('show invisible walls');
 // What a frame costs: frames a second, and draw calls in all its passes
 // (shadows, the water's reflection and the view).
 const cost = { fps: 0, 'draw calls': 0, triangles: '' };
+gui.add(flight, 'replay').name('replay the fly-in');
 const costs = gui.addFolder('performance');
 costs.add(cost, 'fps').listen().disable();
 costs.add(cost, 'draw calls').listen().disable();
@@ -116,9 +119,10 @@ renderer.setAnimationLoop(time => {
   // Never backwards: the first frame's time can come before the timer's start.
   const delta = Math.max(0, Math.min(timer.getDelta(), 0.1));
   const { x, y, zoom } = input.take();
-  follower.look(x, y, zoom);
+  // Nothing moves the robot or the view until the fly-in has landed.
+  if (!flight.flying) follower.look(x, y, zoom);
   // Camera-relative: forward is away from the camera.
-  const move = input.move(), yaw = follower.yaw;
+  const move = flight.flying ? { x: 0, y: 0 } : input.move(), yaw = follower.yaw;
   direction.set(move.x * Math.cos(yaw) - move.y * Math.sin(yaw), -move.x * Math.sin(yaw) - move.y * Math.cos(yaw));
   // R puts the stonework back.
   if (input.tapped('KeyR')) stones.reset();
@@ -134,6 +138,7 @@ renderer.setAnimationLoop(time => {
   player.animate(delta, world.timestep);
   stones.sync();
   follower.update(delta, player.mesh.position, player.mesh.rotation.y, player.pace);
+  flight.update(delta, camera);
   look.update(camera);
   updateWind(time / 1000);
   updateWater(time / 1000);
