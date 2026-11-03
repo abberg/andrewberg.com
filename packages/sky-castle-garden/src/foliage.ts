@@ -149,15 +149,42 @@ const facing = (shader: { vertexShader: string }) => {
         vDirectionalShadowCoord[0].z -= 0.003;
       #endif`);
 };
+// How much of the round leaves' own leaf-to-leaf shading shows, 0 (one flat
+// tone, so a crown reads only by its light: lit, mid and shade in broad
+// bands) to 1 (every leaf its own shade, as painted on the card), and how
+// far off (m) it has faded to flat, from half that distance.
+export const leafLook = { variation: 0.2, flatBy: 40 };
+const leafUniforms = { uLeafVariation: { value: leafLook.variation }, uLeafFlatBy: { value: leafLook.flatBy } };
+export const updateLeaves = () => {
+  leafUniforms.uLeafVariation.value = leafLook.variation;
+  leafUniforms.uLeafFlatBy.value = leafLook.flatBy;
+};
+// Evens out the leaves on a card towards one tone, keeping their outlines.
+const flattening = (shader: THREE.WebGLProgramParametersWithUniforms) => {
+  Object.assign(shader.uniforms, leafUniforms);
+  shader.fragmentShader = shader.fragmentShader
+    .replace('#include <common>', '#include <common>\nuniform float uLeafVariation, uLeafFlatBy;')
+    .replace('#include <color_fragment>', /* glsl */`
+      // The leaf's shade on the card, from what the map made of the colour.
+      const vec3 leafLuma = vec3(0.2126, 0.7152, 0.0722);
+      float leafShade = dot(diffuseColor.rgb, leafLuma) / max(dot(diffuse, leafLuma), 1e-4);
+      float leafKeep = uLeafVariation * (1.0 - smoothstep(uLeafFlatBy * 0.5, uLeafFlatBy, length(vViewPosition)));
+      diffuseColor.rgb = diffuse * mix(0.92, leafShade, leafKeep);
+      #include <color_fragment>`);
+};
 // A painted leaf material for camera-facing cards, with a shadow pass that
-// turns the cards to the sun the same way.
-function leafCards(colours: readonly [number, number], map: THREE.Texture, sway: Sway) {
+// turns the cards to the sun the same way. Flat, its leaves are evened out
+// to one tone (leafLook).
+function leafCards(colours: readonly [number, number], map: THREE.Texture, sway: Sway, flat = true) {
   const material = bothSidesAlike(painted(colours, { map, alphaTest: 0.5, side: THREE.DoubleSide }));
   const paint = material.onBeforeCompile;
   material.onBeforeCompile = (shader, renderer) => {
     paint.call(material, shader, renderer);
     facing(shader);
+    if (flat) flattening(shader);
   };
+  const key = material.customProgramCacheKey.bind(material);
+  material.customProgramCacheKey = () => key() + (flat ? 'flat' : '');
   const depth = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map, alphaTest: 0.5, side: THREE.DoubleSide });
   depth.onBeforeCompile = facing;
   return { material: swaying(material, sway), depth: swaying(depth, sway) };
@@ -699,7 +726,7 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
       return new THREE.Vector2(cypressRadius(h) * 0.75, h * 0.96);
     }), 10);
     const placed = cypresses.map(({ matrix }) => matrix);
-    instanced(geometry, leafCards(CYPRESS, sprayTexture(41), SWAY.cypress), placed, scene);
+    instanced(geometry, leafCards(CYPRESS, sprayTexture(41), SWAY.cypress, false), placed, scene);
     instanced(core, painted(CYPRESS_CORE), placed, scene);
   }
   {
