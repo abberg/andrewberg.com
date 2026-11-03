@@ -129,15 +129,19 @@ const pavingMap = textures.paving.map();
 // Moss on the paving: in the joints and over the stone in patches, creeping
 // in from the paths' edges and thinning towards their middles, cut hard like
 // a painted wash. The sunk slabs, outside the paths, get it the most.
+// All the paving, the causeway's too. Out over the drop, away from the
+// soil, the causeway takes only a little.
+const CAUSEWAY = [-2.5, 2.5, -27.3, 0], PAVED = [...PATHS, CAUSEWAY];
 function mossy(material: THREE.MeshStandardMaterial) {
   const paint = material.onBeforeCompile;
   material.onBeforeCompile = (shader, renderer) => {
     paint(shader, renderer);
     Object.assign(shader.uniforms, {
-      uPaths: { value: PATHS.map(([x0, x1, z0, z1]) => new THREE.Vector4(x0, x1, z0, z1)) },
+      uPaths: { value: PAVED.map(([x0, x1, z0, z1]) => new THREE.Vector4(x0, x1, z0, z1)) },
       uMoss: { value: new THREE.Color(palette.moss[0]) },
       uMossDeep: { value: new THREE.Color(palette.mossDepth[0]) },
       uMossReach: { value: mossLook },
+      uBare: { value: new THREE.Vector4(...CAUSEWAY) },
     });
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', 'varying vec2 vGround;\n#include <common>')
@@ -145,20 +149,22 @@ function mossy(material: THREE.MeshStandardMaterial) {
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>
         varying vec2 vGround;
-        uniform vec4 uPaths[${PATHS.length}];
+        uniform vec4 uPaths[${PAVED.length}];
         uniform vec3 uMoss, uMossDeep;
         uniform vec2 uMossReach;
+        uniform vec4 uBare;
         ${noise}`)
       .replace('#include <color_fragment>', /* glsl */`#include <color_fragment>
         {
           // How far in from the nearest edge of the paving.
           float inside = 0.0;
-          for (int i = 0; i < ${PATHS.length}; i++) {
+          for (int i = 0; i < ${PAVED.length}; i++) {
             vec4 r = uPaths[i];
             vec2 d = min(vGround - r.xz, r.yw - vGround);
             inside = max(inside, min(d.x, d.y));
           }
           float creep = 1.0 - smoothstep(0.0, uMossReach.x, inside);
+          if (all(greaterThan(vGround, uBare.xz)) && all(lessThan(vGround, uBare.yw))) creep *= 0.3;
           float n = snoise(vec3(vGround * 0.7, 0.0)) * 0.6 + snoise(vec3(vGround * 2.6, 3.0)) * 0.4;
           // The joints: darker than the stone's own colour.
           const vec3 luma = vec3(0.299, 0.587, 0.114);
