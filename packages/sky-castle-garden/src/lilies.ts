@@ -6,8 +6,8 @@ import { painted } from './look';
 
 // Step 9: water lilies and petals, as in the plan: clusters of pads with a
 // white flower here and there, round the pools' edges and in the quieter
-// stretches of the side moats, and white petals scattered over the water,
-// drifting slowly. Flat painted colour like the lawn.
+// stretches of the side moats, and a few white petals fallen on the water
+// beside the flowers, drifting slowly. Flat painted colour like the lawn.
 
 const PAD = [0x7fb04e, 0x3e6c52] as const, FLOWER = [0xfdf8f0, 0xb4b6d8] as const, HEART = [0xf2cc52, 0xa88c58] as const;
 // The water's levels: the moats' sheet and the pools'.
@@ -96,24 +96,17 @@ export function createLilies(scene: THREE.Scene) {
   const heartMesh = new THREE.InstancedMesh(new THREE.SphereGeometry(0.045, 10, 6).scale(1, 0.6, 1).translate(0, 0.03, 0), painted(HEART), flowers.length);
   flowers.forEach((m, i) => heartMesh.setMatrixAt(i, m));
 
-  // Petals: little white ovals scattered over the pools and the moats.
-  const scatter = (count: number, y: number, place: () => [number, number]) => {
-    for (let k = 0; k < count; k++) {
-      const [x, z] = place();
-      floating.push({ x, z, y: y + 0.012, wander: 0.3 + random() * 0.6, speed: 0.03 + random() * 0.05, turn: random() * Math.PI * 2, phase: random() * 100 });
+  // Petals: a few little white ovals dropped on the water by the flowers.
+  const from = new THREE.Vector3();
+  for (const flower of flowers) {
+    from.setFromMatrixPosition(flower);
+    for (let k = Math.floor(random() * 3); k > 0; k--) {
+      const a = random() * Math.PI * 2, d = 0.25 + random() * 0.45;
+      // On the water, under the pad it came from.
+      floating.push({ x: from.x + Math.cos(a) * d, z: from.z + Math.sin(a) * d, y: (from.y < 0 ? MOAT : POOL) + 0.012,
+        wander: 0.15 + random() * 0.25, speed: 0.03 + random() * 0.05, turn: random() * Math.PI * 2, phase: random() * 100 });
     }
-  };
-  for (const [x, z] of POOLS) scatter(45, POOL, () => {
-    const a = random() * Math.PI * 2, d = 4.4 * Math.sqrt(random());
-    return [x + Math.cos(a) * d, z + Math.sin(a) * d];
-  });
-  for (const [lawn, edge] of [[WEST_LAWN, WEST], [EAST_LAWN, EAST]]) scatter(130, MOAT, () => [
-    lawn + (edge - lawn) * (0.12 + random() * 0.76), 8 + random() * 40,
-  ]);
-  scatter(80, MOAT, () => {
-    const x = (random() < 0.5 ? -1 : 1) * (7 + random() * 36);
-    return [x, lawnSouth(x) + 0.6 + random() * 2.5];
-  });
+  }
   petals = new THREE.InstancedMesh(new THREE.CircleGeometry(1, 8).scale(0.04, 0.075, 1).rotateX(-Math.PI / 2),
     painted(FLOWER, { side: THREE.DoubleSide }), floating.length);
   petals.frustumCulled = false;
