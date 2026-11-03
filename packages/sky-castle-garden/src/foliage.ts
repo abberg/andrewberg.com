@@ -4,7 +4,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { cityFront, CROWN as CITY_TOP } from './city';
 import { bothSidesAlike, wander } from './growth';
 import { stroke } from './masonry';
-import { EAST, EAST_LAWN, lawnSouth, ledgeEdge, ledgeFront, MOATS_FROM, northEdge, PATHS, PLATFORM, OUTER, PLATFORM_TOP, POOLS, WALL_GROUPS, WEST, WEST_LAWN } from './level';
+import { EAST, EAST_LAWN, lawnSouth, ledgeEdge, ledgeFront, MOATS_FROM, northEdge, onSunk, PATHS, PLATFORM, OUTER, PLATFORM_TOP, POOLS, WALL_GROUPS, WEST, WEST_LAWN } from './level';
 import { painted, palette } from './look';
 import { SWAY, type Sway, swaying } from './wind';
 
@@ -393,6 +393,7 @@ function clear(x: number, z: number, r: number) {
   const along = new THREE.Vector2(16.2, 5.8).normalize(), from = new THREE.Vector2(-5.6, 39.1), d = new THREE.Vector2(x, z).sub(from);
   const t = THREE.MathUtils.clamp(d.dot(along), -19.5, 0);
   if (d.clone().sub(along.clone().multiplyScalar(t)).length() < r + 0.9) return false;
+  if (onSunk(x, z, r * 0.6)) return false;
   return !STONEWORK.some(([sx, sz, sr]) => Math.hypot(x - sx, z - sz) < sr + r * 0.8);
 }
 
@@ -711,6 +712,8 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
       if (PATHS.some(([x0, x1, z0, z1]) => x > x0 + 0.1 && x < x1 - 0.1 && z > z0 + 0.1 && z < z1 - 0.1)) continue;
       if (POOLS.some(([px, pz]) => Math.hypot(x - px, z - pz) < 7.5)) continue;
       if (STONEWORK.some(([sx, sz, sr]) => Math.hypot(x - sx, z - sz) < sr * 0.75)) continue;
+      // Up to the sunk paving's edges, not through it.
+      if (onSunk(x, z, 0.05)) continue;
       // The colonnade's columns, and the fallen column's drums.
       if (Math.abs(Math.hypot(x - 15.3, z - 34.1) - 9.5) < 0.8 && z < 36) continue;
       const d = new THREE.Vector2(x, z).sub(fallen), t = THREE.MathUtils.clamp(d.dot(along), -19.5, 0);

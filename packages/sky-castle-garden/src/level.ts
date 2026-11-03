@@ -1,6 +1,8 @@
 import RAPIER from '@dimforge/rapier3d-compat';
 import * as THREE from 'three';
+import { ConvexGeometry } from 'three/addons/geometries/ConvexGeometry.js';
 import { ARCH, buildCity, cityFront } from './city';
+import { chippedBlock } from './columns';
 import { drowned, painted, palette } from './look';
 import { textures } from './masonry';
 import { buildFlooded } from './flooded';
@@ -35,6 +37,39 @@ export const PATHS = [[-2.5, 2.5, 0, 50.4], [-44.1, -2.5, 4.4, 7.7], [-40.7, -2.
   [2.5, 46.2, 10.9, 14.2], [-17.85, -14.35, 22.5, 24.6], [2.5, 8.5, 32.35, 35.85]];
 // The pools' middles; their rims are 7.4 m across the outside.
 export const POOLS = [[-16.1, 15.8], [15.3, 34.1]];
+
+// Old paving, sunk and tilted in the grass beside the paths: what's left of
+// edging and paths long gone, in little runs of two or three slabs. Each
+// run as its middle and whether it runs along x or z; the slabs as their
+// middle, half sizes and turn, for the grass to keep off them.
+const SUNK_RUNS: [number, number, 'x' | 'z'][] = [
+  [3.7, 29.5, 'z'], [-3.7, 1.6, 'z'], [3.7, 38.5, 'z'], [-14, 3.4, 'x'], [-33, 8.7, 'x'], [-18, 29, 'x'],
+  [-36, 23.6, 'x'], [-13, 34.4, 'x'], [-30, 39.6, 'x'], [15, 10, 'x'], [28, 15.2, 'x'], [40.5, 15.3, 'x'],
+];
+export const SUNK = (() => {
+  let s = 433;
+  const random = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  const slabs: { x: number, z: number, w: number, d: number, turn: number, tilt: [number, number], top: number }[] = [];
+  for (const [cx, cz, axis] of SUNK_RUNS) {
+    const count = 2 + Math.floor(random() * 2);
+    let along = -(count - 1) * 0.95;
+    for (let k = 0; k < count; k++) {
+      const w = 1.1 + random() * 0.8, d = 0.9 + random() * 0.6, turn = (random() - 0.5) * 0.5 + (axis === 'x' ? 0 : Math.PI / 2);
+      const off = (random() - 0.5) * 0.5;
+      slabs.push({
+        x: cx + (axis === 'x' ? along : off), z: cz + (axis === 'z' ? along : off), w, d, turn,
+        tilt: [(random() - 0.5) * 0.12, (random() - 0.5) * 0.12], top: 0.08 + random() * 0.12,
+      });
+      along += 1.6 + random() * 0.6;
+    }
+  }
+  return slabs;
+})();
+// Is a point on one of them (with a margin)?
+export const onSunk = (x: number, z: number, margin = 0) => SUNK.some(({ x: sx, z: sz, w, d, turn }) => {
+  const dx = x - sx, dz = z - sz, c = Math.cos(turn), s = Math.sin(turn);
+  return Math.abs(dx * c - dz * s) < w / 2 + margin && Math.abs(dx * s + dz * c) < d / 2 + margin;
+});
 
 // Beyond the garden's sides the castle's base runs on out under the outer
 // towers, a ledge of lawn sweeping forward beside the garden to its north
@@ -401,6 +436,17 @@ export function buildLevel(world: RAPIER.World, scene: THREE.Scene) {
     walls.add(mesh);
     world.createCollider(RAPIER.ColliderDesc.cylinder(10, 5.4).setTranslation(x, 9, z).setCollisionGroups(WALL_GROUPS));
   }
+
+  // The sunk paving: chipped slabs of the path's stone, tipped a little,
+  // just proud of the grass.
+  SUNK.forEach(({ x, z, w, d, turn, tilt, top }, k) => {
+    const height = 0.3, turned = new THREE.Quaternion().setFromEuler(new THREE.Euler(tilt[0], -turn, tilt[1], 'YXZ'));
+    const mesh = add(new ConvexGeometry(chippedBlock(w, height, d, 300 + k)), path);
+    mesh.position.set(x, top - height / 2, z);
+    mesh.quaternion.copy(turned);
+    world.createCollider(RAPIER.ColliderDesc.cuboid(w / 2, height / 2, d / 2).setTranslation(x, top - height / 2, z)
+      .setRotation({ x: turned.x, y: turned.y, z: turned.z, w: turned.w }));
+  });
 
   return { spawn: SPAWN, walls };
 }
