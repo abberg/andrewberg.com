@@ -71,6 +71,17 @@ function outlined(mesh: THREE.SkinnedMesh) {
 // the grass doesn't hide it. The shade is the scene's own: what the
 // painted look multiplies a lit colour by in shade (look.ts's COOL).
 export const shadow = { sun: new THREE.Vector3(0, 1, 0), ground: 0 };
+// Its own light, turned from the sun's: round (degrees, east of north) and
+// up, so it can fall at a different angle from the rest of the shadows:
+// by default higher, so it gathers close round the robot's feet,
+// as a cel-animated character's does, and turned a little from the sun.
+export const shadowAngle = { turn: 15, height: 22 };
+export function aimShadow(sun: THREE.DirectionalLight) {
+  const towards = shadow.sun.subVectors(sun.position, sun.target.position).normalize();
+  const height = THREE.MathUtils.clamp(Math.asin(towards.y) + THREE.MathUtils.degToRad(shadowAngle.height), 0.15, Math.PI / 2 - 0.01);
+  const round = Math.atan2(towards.x, -towards.z) + THREE.MathUtils.degToRad(shadowAngle.turn);
+  towards.set(Math.sin(round) * Math.cos(height), Math.sin(height), -Math.cos(round) * Math.cos(height));
+}
 const LIT = new THREE.Color(0xd8c8a0), SHADE = new THREE.Color(0x7f9aa8);
 const SHADOW = new THREE.Color(SHADE.r / LIT.r, SHADE.g / LIT.g, SHADE.b / LIT.b);
 function shadowed(mesh: THREE.SkinnedMesh) {
