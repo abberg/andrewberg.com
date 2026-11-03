@@ -158,7 +158,9 @@ function slab(points: number[][], bottom: number, top: number, holes: number[][]
     return shape;
   };
   const shape = toShape(points, new THREE.Shape()) as THREE.Shape;
-  shape.holes = holes.map(hole => toShape(hole, new THREE.Path()));
+  // Holes wound against the outline, or their walls face into the stone.
+  const clockwise = (outline: number[][]) => THREE.ShapeUtils.isClockWise(outline.map(([x, z]) => new THREE.Vector2(x, -z)));
+  shape.holes = holes.map(hole => toShape(clockwise(hole) === clockwise(points) ? [...hole].reverse() : hole, new THREE.Path()));
   const geometry = new THREE.ExtrudeGeometry(shape, { depth: top - bottom, bevelEnabled: false, curveSegments: 48 });
   geometry.rotateX(-Math.PI / 2);
   geometry.translate(0, bottom, 0);
