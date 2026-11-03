@@ -682,6 +682,18 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
       }
     }
   });
+  // Small tufts in the paving's cracks, thick near the edges where the moss
+  // creeps in, now and then out in the middle.
+  const inside = (x: number, z: number) => Math.max(0, ...PATHS.map(([x0, x1, z0, z1]) => Math.min(x - x0, x1 - x, z - z0, z1 - z)));
+  apart(653, () => {
+    for (const [x0, x1, z0, z1] of PATHS) {
+      for (let k = Math.round((x1 - x0) * (z1 - z0) * 1.2); k > 0; k--) {
+        const x = x0 + random() * (x1 - x0), z = z0 + random() * (z1 - z0), d = inside(x, z);
+        if (d < 0.25 || random() > 0.03 + 0.3 * Math.max(0, 1 - d / 1.4)) continue;
+        tuft(x, z, 0.18 + random() * 0.2);
+      }
+    }
+  });
   // Tall grass and flowers in patches: round the broken fence, the fallen
   // column and the column feet, and where the branches leave the main path.
   for (const [cx, cz, r] of [[11, 4.5, 4], [17, 1, 3], [-12, 35, 4], [-18, 37.5, 3], [-4, 40, 2.5], [-6, 15, 2], [-6, 23, 2],

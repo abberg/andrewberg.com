@@ -48,7 +48,7 @@ const uniforms = {
 const materials: THREE.Material[] = [];
 
 // 3D simplex noise (Ashima Arts / Stefan Gustavson, MIT).
-const noise = /* glsl */`
+export const noise = /* glsl */`
   vec4 permute(vec4 x) { return mod(((x * 34.0) + 1.0) * x, 289.0); }
   float snoise(vec3 v) {
     const vec2 C = vec2(1.0 / 6.0, 1.0 / 3.0);

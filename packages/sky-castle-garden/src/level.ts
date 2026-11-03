@@ -6,7 +6,7 @@ import { chippedBlock } from './columns';
 import { drowned, painted, palette } from './look';
 import { textures } from './masonry';
 import { buildFlooded } from './flooded';
-import { waterMaterial } from './water';
+import { noise, waterMaterial } from './water';
 
 // Step 2 of the plan: every asset as a grey primitive at its final size,
 // placed from the zone plan (docs/zone-plan.png). The snapshot's scale bar
@@ -126,7 +126,55 @@ const sandstone = painted(palette.sandstone, { map: sandstoneMap }, textures.san
 const steps = painted(palette.sandstone, { map: textures.steps.map() }, textures.steps.metres);
 const masonry = painted(palette.masonry, { map: sandstoneMap }, textures.sandstone.metres), lawn = painted(palette.lawn);
 const pavingMap = textures.paving.map();
-const path = painted(palette.path, { map: pavingMap }, textures.paving.metres), door = painted(palette.door);
+// Moss on the paving: in the joints and over the stone in patches, creeping
+// in from the paths' edges and thinning towards their middles, cut hard like
+// a painted wash. The sunk slabs, outside the paths, get it the most.
+function mossy(material: THREE.MeshStandardMaterial) {
+  const paint = material.onBeforeCompile;
+  material.onBeforeCompile = (shader, renderer) => {
+    paint(shader, renderer);
+    Object.assign(shader.uniforms, {
+      uPaths: { value: PATHS.map(([x0, x1, z0, z1]) => new THREE.Vector4(x0, x1, z0, z1)) },
+      uMoss: { value: new THREE.Color(palette.moss[0]) },
+      uMossDeep: { value: new THREE.Color(palette.mossDepth[0]) },
+      uMossReach: { value: mossLook },
+    });
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', 'varying vec2 vGround;\n#include <common>')
+      .replace('#include <fog_vertex>', '#include <fog_vertex>\nvGround = (modelMatrix * vec4(transformed, 1.0)).xz;');
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', `#include <common>
+        varying vec2 vGround;
+        uniform vec4 uPaths[${PATHS.length}];
+        uniform vec3 uMoss, uMossDeep;
+        uniform vec2 uMossReach;
+        ${noise}`)
+      .replace('#include <color_fragment>', /* glsl */`#include <color_fragment>
+        {
+          // How far in from the nearest edge of the paving.
+          float inside = 0.0;
+          for (int i = 0; i < ${PATHS.length}; i++) {
+            vec4 r = uPaths[i];
+            vec2 d = min(vGround - r.xz, r.yw - vGround);
+            inside = max(inside, min(d.x, d.y));
+          }
+          float creep = 1.0 - smoothstep(0.0, uMossReach.x, inside);
+          float n = snoise(vec3(vGround * 0.7, 0.0)) * 0.6 + snoise(vec3(vGround * 2.6, 3.0)) * 0.4;
+          // The joints: darker than the stone's own colour.
+          const vec3 luma = vec3(0.299, 0.587, 0.114);
+          float joint = 1.0 - smoothstep(0.5, 0.7, dot(diffuseColor.rgb, luma) / dot(diffuse, luma));
+          float grow = n + creep * 0.6;
+          float inJoint = joint * step(0.45, grow);
+          float edge = fwidth(grow) * 0.7;
+          float patches = smoothstep(uMossReach.y - edge, uMossReach.y + edge, grow);
+          diffuseColor.rgb = mix(diffuseColor.rgb, mix(uMoss, uMossDeep, max(joint, 0.55 + 0.4 * n)), max(inJoint, patches));
+        }`);
+  };
+  return material;
+}
+// How far in from the edges moss creeps (m), and how sparse its patches are.
+const mossLook = new THREE.Vector2(1.4, 0.92);
+const path = mossy(painted(palette.path, { map: pavingMap }, textures.paving.metres)), door = painted(palette.door);
 // The same stone with the texture laid on by UVs, for the pool rims.
 const coping = painted(palette.path, { map: pavingMap });
 const water = waterMaterial(palette.canal, 0.55), poolWater = waterMaterial(palette.water, 0.92);
