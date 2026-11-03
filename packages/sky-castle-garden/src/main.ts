@@ -63,6 +63,7 @@ moving.add(movement, 'push', 20, 800, 10).name('push (kN)');
 moving.add(movement, 'stepOver', 0.5, 3, 0.1).name('step-over (s)');
 moving.add(shadowAngle, 'turn', -180, 180, 1).name('shadow, turned from the sun (°)');
 moving.add(shadowAngle, 'height', -40, 40, 1).name('shadow, sun higher by (°)');
+moving.add(shadowAngle, 'back', 0, 0.5, 0.01).name('shadow, slid back (m)');
 const following = gui.addFolder('camera');
 following.add(follow, 'distance', follow.nearest, follow.farthest, 0.5).name('distance (m)').listen();
 following.add(follow, 'shoulder', 1, 5, 0.1).name('pivot height (m)');

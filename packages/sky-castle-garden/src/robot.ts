@@ -80,7 +80,9 @@ export const shadow = { sun: new THREE.Vector3(0, 1, 0), ground: 0 };
 // up, so it can fall at a different angle from the rest of the shadows:
 // by default higher, so it gathers close round the robot's feet,
 // as a cel-animated character's does, and turned a little from the sun.
-export const shadowAngle = { turn: 15, height: 22 };
+// And slid back a little towards its heels (m), so a sliver shows under
+// them, an ink line where the feet meet the ground.
+export const shadowAngle = { turn: 15, height: 22, back: 0.12 };
 export function aimShadow(sun: THREE.DirectionalLight) {
   const towards = shadow.sun.subVectors(sun.position, sun.target.position).normalize();
   const height = THREE.MathUtils.clamp(Math.asin(towards.y) + THREE.MathUtils.degToRad(shadowAngle.height), 0.15, Math.PI / 2 - 0.01);
@@ -103,11 +105,15 @@ function shadowed(mesh: THREE.SkinnedMesh) {
   material.onBeforeCompile = shader => {
     shader.uniforms.uSun = { value: shadow.sun };
     shader.uniforms.uGround = { get value() { return shadow.ground; } };
+    shader.uniforms.uBack = { get value() { return shadowAngle.back; } };
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nuniform vec3 uSun;\nuniform float uGround;')
+      .replace('#include <common>', '#include <common>\nuniform vec3 uSun;\nuniform float uGround, uBack;')
       .replace('#include <project_vertex>', /* glsl */`vec4 world = modelMatrix * vec4(transformed, 1.0);
         world.xyz -= uSun * max(world.y - uGround, 0.0) / max(uSun.y, 0.05);
         world.y = uGround + 0.08;
+        // Back is +z on the model, which faces -z.
+        vec3 back = (modelMatrix * vec4(0.0, 0.0, 1.0, 0.0)).xyz;
+        world.xz += normalize(back.xz) * uBack;
         vec4 mvPosition = viewMatrix * world;
         gl_Position = projectionMatrix * mvPosition;`);
   };
