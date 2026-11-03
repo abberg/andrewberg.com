@@ -7,6 +7,7 @@ import { createFoliage } from './foliage';
 import { createClouds, updateClouds } from './clouds';
 import { createLilies, updateLilies } from './lilies';
 import { mergeStatic } from './merge';
+import { createPost } from './post';
 import { createFollowCamera, follow } from './followCamera';
 import { createInput } from './input';
 import { createLook } from './look';
@@ -47,6 +48,7 @@ const input = createInput(renderer.domElement);
 const player = createPlayer(world, scene, { ...spawn, y: PLATFORM_TOP }, createRobot(gltf));
 const follower = createFollowCamera(camera, world, player.collider, spawn.yaw);
 const flight = createFlyIn();
+const finish = createPost(renderer, scene, camera);
 
 // Tuning, folded away top right.
 const gui = new GUI({ title: 'tuning' });
@@ -86,6 +88,7 @@ gui.add(walls, 'visible').name('show invisible walls');
 // (shadows, the water's reflection and the view).
 const cost = { fps: 0, 'draw calls': 0, triangles: '' };
 gui.add(flight, 'replay').name('replay the fly-in');
+finish.tune(gui);
 const costs = gui.addFolder('performance');
 costs.add(cost, 'fps').listen().disable();
 costs.add(cost, 'draw calls').listen().disable();
@@ -99,6 +102,7 @@ addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
+  finish.resize();
 });
 
 // Physics at a fixed 60 Hz, drawn at whatever the display runs at.
@@ -146,5 +150,5 @@ renderer.setAnimationLoop(time => {
   updateLilies(time / 1000);
   updateClouds(time / 1000, camera);
   reflectWater(renderer, scene, camera);
-  renderer.render(scene, camera);
+  finish.render();
 });
