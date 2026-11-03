@@ -31,7 +31,7 @@ export type RobotState = {
 // normals by a set fraction of its distance, so the line keeps one width on
 // screen however near or far. The normals are averaged where the robot's
 // flat faces meet, so the line doesn't split at the corners.
-const INK = new THREE.Color(0x2b2220), WIDTH = 0.0028;
+const INK = new THREE.Color(0x2b2220), WIDTH = 0.002;
 function outlined(mesh: THREE.SkinnedMesh) {
   const geometry = mesh.geometry, position = geometry.getAttribute('position'), normal = geometry.getAttribute('normal');
   const sums = new Map<string, THREE.Vector3>(), key = (i: number) =>
