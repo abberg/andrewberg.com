@@ -24,6 +24,5 @@ packages/active-strokes/*.pdf
 # Blender backup saves.
 *.blend1
 
-# Sky Castle Garden: footstep audio cut from the film, local only for now.
+# Sky Castle Garden: the source audio exports.
 packages/sky-castle-garden/public/*.aiff
-packages/sky-castle-garden/public/sounds/

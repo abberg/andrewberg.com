@@ -20,6 +20,7 @@ const STYLE = /* css */`
   #pause dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; margin: 16px 0 0; font-size: 13px; text-align: left; color: #5e5a68; }
   #pause dt { font-weight: bold; white-space: nowrap; }
   #pause dd { margin: 0; }
+  #pause .credit { margin: 14px 0 0; color: #8a8696; font-size: 11px; line-height: 1.4; }
 `;
 
 export function createPause(canvas: HTMLCanvasElement, actions: { reset: () => void, replay: () => void }) {
@@ -41,6 +42,7 @@ export function createPause(canvas: HTMLCanvasElement, actions: { reset: () => v
       <dt>R</dt><dd>put the stones back</dd>
       <dt>Esc</dt><dd>pause</dd>
     </dl>
+    <p class="credit">Music and the robot's footsteps from <i>Castle in the Sky</i> (1986), music by Joe Hisaishi, © Studio Ghibli. Used non-commercially.</p>
   </div>`;
   document.body.append(menu);
   const hint = document.getElementById('controls');
