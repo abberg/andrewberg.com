@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import GUI from 'three/addons/libs/lil-gui.module.min.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { createFoliage } from './foliage';
+import { createClouds, updateClouds } from './clouds';
 import { createLilies, updateLilies } from './lilies';
 import { mergeStatic } from './merge';
 import { createFollowCamera, follow } from './followCamera';
@@ -39,6 +40,7 @@ const stones = createStones(world, scene);
 createFoliage(world, scene);
 createLilies(scene);
 mergeStatic(scene);
+createClouds(scene);
 
 const input = createInput(renderer.domElement);
 const player = createPlayer(world, scene, { ...spawn, y: PLATFORM_TOP }, createRobot(gltf));
@@ -137,6 +139,7 @@ renderer.setAnimationLoop(time => {
   updateWater(time / 1000);
   updateFish(time / 1000, delta);
   updateLilies(time / 1000);
+  updateClouds(time / 1000);
   reflectWater(renderer, scene, camera);
   renderer.render(scene, camera);
 });
