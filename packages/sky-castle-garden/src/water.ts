@@ -159,12 +159,12 @@ export function reflectWater(renderer: THREE.WebGLRenderer, scene: THREE.Scene, 
   projection[14] = plane.w;
   virtual.projectionMatrixInverse.copy(virtual.projectionMatrix).invert();
 
-  // Leave out the water itself and everything under it.
+  // Leave out the water itself, everything under it, and what lies on it.
   hidden ??= (() => {
     const found: THREE.Object3D[] = [];
     scene.traverse(o => {
       const material = (o as THREE.Mesh).material as THREE.Material | undefined;
-      if (material && !Array.isArray(material) && (materials.includes(material) || 'DROWNED' in (material.defines ?? {}))) found.push(o);
+      if (o.userData.unreflected || material && !Array.isArray(material) && (materials.includes(material) || 'DROWNED' in (material.defines ?? {}))) found.push(o);
     });
     return found;
   })();
