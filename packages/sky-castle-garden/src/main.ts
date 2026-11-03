@@ -7,6 +7,7 @@ import { createFoliage, fadeAround } from './foliage';
 import { createClouds, updateClouds } from './clouds';
 import { createLilies, updateLilies } from './lilies';
 import { mergeStatic } from './merge';
+import { createPause } from './pause';
 import { createPost } from './post';
 import { createFollowCamera, follow } from './followCamera';
 import { createInput } from './input';
@@ -49,6 +50,7 @@ const player = createPlayer(world, scene, { ...spawn, y: PLATFORM_TOP }, createR
 const follower = createFollowCamera(camera, world, player.collider, spawn.yaw);
 const flight = createFlyIn();
 const finish = createPost(renderer, scene, camera);
+const pause = createPause(renderer.domElement, { reset: () => stones.reset(), replay: () => flight.replay() });
 
 // Tuning, folded away top right.
 const gui = new GUI({ title: 'tuning' });
@@ -109,7 +111,7 @@ addEventListener('resize', () => {
 const timer = new THREE.Timer();
 timer.connect(document);
 const direction = new THREE.Vector2();
-let accumulator = 0;
+let accumulator = 0, seconds = 0;
 renderer.setAnimationLoop(time => {
   cost['draw calls'] = renderer.info.render.calls;
   cost.triangles = `${(renderer.info.render.triangles / 1e6).toFixed(1)} M`;
@@ -121,15 +123,17 @@ renderer.setAnimationLoop(time => {
   }
   timer.update(time);
   // Never backwards: the first frame's time can come before the timer's start.
-  const delta = Math.max(0, Math.min(timer.getDelta(), 0.1));
+  // Paused, nothing moves: the garden's own clock stands still.
+  const delta = pause.paused ? 0 : Math.max(0, Math.min(timer.getDelta(), 0.1));
+  seconds += delta;
   const { x, y, zoom } = input.take();
   // Nothing moves the robot or the view until the fly-in has landed.
-  if (!flight.flying) follower.look(x, y, zoom);
+  if (!flight.flying && !pause.paused) follower.look(x, y, zoom);
   // Camera-relative: forward is away from the camera.
-  const move = flight.flying ? { x: 0, y: 0 } : input.move(), yaw = follower.yaw;
+  const move = flight.flying || pause.paused ? { x: 0, y: 0 } : input.move(), yaw = follower.yaw;
   direction.set(move.x * Math.cos(yaw) - move.y * Math.sin(yaw), -move.x * Math.sin(yaw) - move.y * Math.cos(yaw));
   // R puts the stonework back.
-  if (input.tapped('KeyR')) stones.reset();
+  if (input.tapped('KeyR') && !pause.paused) stones.reset();
   accumulator += delta;
   while (accumulator >= world.timestep) {
     player.step(world.timestep, direction, input.run());
@@ -145,11 +149,11 @@ renderer.setAnimationLoop(time => {
   fadeAround(player.mesh.position);
   flight.update(delta, camera);
   look.update(camera);
-  updateWind(time / 1000);
-  updateWater(time / 1000);
-  updateFish(time / 1000, delta);
-  updateLilies(time / 1000);
-  updateClouds(time / 1000, camera);
+  updateWind(seconds);
+  updateWater(seconds);
+  updateFish(seconds, delta);
+  updateLilies(seconds);
+  updateClouds(seconds, camera);
   reflectWater(renderer, scene, camera);
   finish.render();
 });
