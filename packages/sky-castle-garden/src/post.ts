@@ -11,7 +11,7 @@ import type GUI from 'three/addons/libs/lil-gui.module.min.js';
 // more saturation, to finish the painted look. No paper or brush overlay
 // (Andrew didn't want one).
 
-export const post = { bloom: 0.3, threshold: 0.82, spread: 0.5, saturation: 1.1 };
+export const post = { bloom: 0.2, threshold: 0.86, spread: 0.5, saturation: 1.1 };
 
 export function createPost(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera) {
   const size = renderer.getDrawingBufferSize(new THREE.Vector2());
