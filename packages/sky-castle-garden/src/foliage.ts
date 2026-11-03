@@ -208,15 +208,19 @@ function instanced(geometry: THREE.BufferGeometry, leaves: ReturnType<typeof lea
 
 // One shrub: a dome of leaf cards sitting on the ground, a metre across at
 // scale 1 and a little less high, normals out from a point below the middle.
+// Spread evenly over the dome, down to its foot, some standing proud for a
+// ragged outline, and a layer further in, so a gap shows leaves behind
+// rather than the core.
 function shrubGeometry(seed: number) {
   let s = seed;
   const random = () => (s = (s * 16807) % 2147483647) / 2147483647;
   const middle = new THREE.Vector3(0, 0.1, 0), cards: Card[] = [];
-  for (let k = 0; k < 120; k++) {
-    // A point over the dome, fewer low down.
-    const a = random() * Math.PI * 2, up = Math.asin(random() ** 0.8);
+  for (let k = 0; k < 200; k++) {
+    // A point over the dome, as many low down as high up.
+    const a = random() * Math.PI * 2, up = Math.asin(random());
     const out = new THREE.Vector3(Math.cos(up) * Math.cos(a), Math.sin(up), Math.cos(up) * Math.sin(a));
-    const at = new THREE.Vector3(out.x * 0.42, 0.1 + out.y * 0.3, out.z * 0.42).multiplyScalar(0.9 + random() * 0.2);
+    const depth = k < 150 ? 0.92 + random() ** 2 * 0.22 : 0.6 + random() * 0.2;
+    const at = new THREE.Vector3(out.x * 0.42, 0.1 + out.y * 0.3, out.z * 0.42).multiplyScalar(depth);
     const size = 0.34 + random() * 0.14;
     cards.push({ at, w: size, h: size, normal: at.clone().sub(middle).normalize(), spin: random() * Math.PI * 2 });
   }
@@ -251,15 +255,19 @@ function cypressGeometry(seed: number) {
 }
 
 // A ball of leaf cards a metre across, centred on the origin, for tree
-// crowns and hedges: cards all over it, normals out from the middle.
-function ballGeometry(seed: number) {
+// crowns and hedges: cards spread evenly all over it, normals out from the
+// middle, some standing proud for a ragged outline, and inner of them a
+// layer further in, so a gap shows leaves behind rather than the core.
+function ballGeometry(seed: number, outer = 90, inner = 0) {
   let s = seed;
   const random = () => (s = (s * 16807) % 2147483647) / 2147483647;
   const cards: Card[] = [];
-  for (let k = 0; k < 90; k++) {
-    const out = new THREE.Vector3(random() - 0.5, random() - 0.5, random() - 0.5).normalize();
-    const size = 0.3 + random() * 0.12;
-    cards.push({ at: out.clone().multiplyScalar(0.36 + random() * 0.08), w: size, h: size, normal: out, spin: random() * Math.PI * 2 });
+  for (let k = 0; k < outer + inner; k++) {
+    // Even over the sphere: a height and a turn.
+    const y = random() * 2 - 1, a = random() * Math.PI * 2, round = Math.sqrt(1 - y * y);
+    const out = new THREE.Vector3(round * Math.cos(a), y, round * Math.sin(a));
+    const size = 0.3 + random() * 0.12, at = k < outer ? 0.36 + random() ** 2 * 0.12 : 0.22 + random() * 0.08;
+    cards.push({ at: out.clone().multiplyScalar(at), w: size, h: size, normal: out, spin: random() * Math.PI * 2 });
   }
   return cardGeometry(cards);
 }
@@ -695,8 +703,8 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
     instanced(core, painted(CYPRESS_CORE), placed, scene);
   }
   {
-    instanced(ballGeometry(31), leafCards(CROWN, clusterTexture(43), SWAY.crown), crowns, scene);
-    instanced(new THREE.SphereGeometry(0.34, 12, 8), painted(CROWN_CORE), crowns, scene);
+    instanced(ballGeometry(31, 130, 40), leafCards(CROWN, clusterTexture(43), SWAY.crown), crowns, scene);
+    instanced(new THREE.SphereGeometry(0.26, 12, 8), painted(CROWN_CORE), crowns, scene);
     const wood = new THREE.Mesh(mergeGeometries(trunks.map(g => { g.deleteAttribute('uv'); return g; }))!, painted(BARK));
     wood.castShadow = wood.receiveShadow = true;
     scene.add(wood);
@@ -735,8 +743,8 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
   hedge(8, 9.3, 17, 9.3, 1.6);
   hedge(-35, 40.3, -27, 40.3, 2.4);
   {
-    instanced(ballGeometry(59), leafCards(SHRUB, clusterTexture(53), SWAY.crown), hedges, scene);
-    instanced(new THREE.SphereGeometry(0.36, 12, 8), painted(CORE), hedges, scene);
+    instanced(ballGeometry(59, 130, 40), leafCards(SHRUB, clusterTexture(53), SWAY.crown), hedges, scene);
+    instanced(new THREE.SphereGeometry(0.28, 12, 8), painted(CORE), hedges, scene);
   }
 
   // Grass: tufts creeping over the edges of every path and into the paving
@@ -870,6 +878,6 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
     .forEach(([[lip, out], reach], i) => scene.add(vineSpill([...lip], [...out], reach, i + 1)));
   giantTree(scene);
   instanced(shrubGeometry(19), leafCards(SHRUB, clusterTexture(29), SWAY.shrub), shrubs, scene);
-  instanced(new THREE.SphereGeometry(0.36, 12, 8).scale(1, 0.75, 1).translate(0, 0.12, 0), painted(CORE), shrubs, scene);
+  instanced(new THREE.SphereGeometry(0.3, 12, 8).scale(1, 0.7, 1).translate(0, 0.1, 0), painted(CORE), shrubs, scene);
   return { shrubs: shrubs.length, cypresses: cypresses.length, trees: crowns.length, tufts: tufts.length + blooms.length + sward.length };
 }
