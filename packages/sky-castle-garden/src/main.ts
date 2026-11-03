@@ -139,7 +139,7 @@ renderer.setAnimationLoop(time => {
   updateWater(time / 1000);
   updateFish(time / 1000, delta);
   updateLilies(time / 1000);
-  updateClouds(time / 1000);
+  updateClouds(time / 1000, camera);
   reflectWater(renderer, scene, camera);
   renderer.render(scene, camera);
 });
