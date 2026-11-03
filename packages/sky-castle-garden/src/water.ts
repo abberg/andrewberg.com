@@ -176,7 +176,7 @@ export function reflectWater(renderer: THREE.WebGLRenderer, scene: THREE.Scene, 
     const found: THREE.Object3D[] = [];
     scene.traverse(o => {
       const material = (o as THREE.Mesh).material as THREE.Material | undefined;
-      if (o.userData.unreflected || material && !Array.isArray(material) && (materials.includes(material) || 'DROWNED' in (material.defines ?? {}))) found.push(o);
+      if (o.userData.unreflected === true || o.userData.unreflected === 'low' && new THREE.Box3().setFromObject(o).max.y < 3 || material && !Array.isArray(material) && (materials.includes(material) || 'DROWNED' in (material.defines ?? {}))) found.push(o);
     });
     return found;
   })();

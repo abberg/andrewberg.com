@@ -4,6 +4,7 @@ import GUI from 'three/addons/libs/lil-gui.module.min.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { createFoliage } from './foliage';
 import { createLilies, updateLilies } from './lilies';
+import { mergeStatic } from './merge';
 import { createFollowCamera, follow } from './followCamera';
 import { createInput } from './input';
 import { createLook } from './look';
@@ -37,6 +38,7 @@ const { spawn, walls } = buildLevel(world, scene);
 const stones = createStones(world, scene);
 createFoliage(world, scene);
 createLilies(scene);
+mergeStatic(scene);
 
 const input = createInput(renderer.domElement);
 const player = createPlayer(world, scene, { ...spawn, y: PLATFORM_TOP }, createRobot(gltf));
@@ -76,6 +78,16 @@ watery.add(waterLook, 'flow', 0, 3, 0.05).name('highlights, drift (m/s)');
 watery.add(waterLook, 'towards', -180, 180, 1).name('drift towards, east of north (°)');
 watery.close();
 gui.add(walls, 'visible').name('show invisible walls');
+// What a frame costs: frames a second, and draw calls in all its passes
+// (shadows, the water's reflection and the view).
+const cost = { fps: 0, 'draw calls': 0, triangles: '' };
+const costs = gui.addFolder('performance');
+costs.add(cost, 'fps').listen().disable();
+costs.add(cost, 'draw calls').listen().disable();
+costs.add(cost, 'triangles').listen().disable();
+costs.close();
+renderer.info.autoReset = false;
+let frames = 0, since = performance.now();
 gui.close();
 
 addEventListener('resize', () => {
@@ -90,6 +102,14 @@ timer.connect(document);
 const direction = new THREE.Vector2();
 let accumulator = 0;
 renderer.setAnimationLoop(time => {
+  cost['draw calls'] = renderer.info.render.calls;
+  cost.triangles = `${(renderer.info.render.triangles / 1e6).toFixed(1)} M`;
+  renderer.info.reset();
+  if (++frames, performance.now() - since > 500) {
+    cost.fps = Math.round(frames * 1000 / (performance.now() - since));
+    frames = 0;
+    since = performance.now();
+  }
   timer.update(time);
   // Never backwards: the first frame's time can come before the timer's start.
   const delta = Math.max(0, Math.min(timer.getDelta(), 0.1));

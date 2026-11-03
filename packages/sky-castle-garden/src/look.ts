@@ -81,7 +81,7 @@ export function paint(material: THREE.MeshStandardMaterial, shade?: number, tile
   material.onBeforeCompile = shader => {
     Object.assign(shader.uniforms, uniforms, { uShade: { value: shadeRatio }, uTile: { value: tile ?? 1 } });
     shader.vertexShader = shader.vertexShader
-      .replace('#include <fog_pars_vertex>', '#include <fog_pars_vertex>\nvarying float vHeight;\nvarying vec3 vModel, vModelNormal;')
+      .replace('#include <fog_pars_vertex>', '#include <fog_pars_vertex>\nvarying float vHeight;\nvarying vec3 vModel, vModelNormal;\n#ifdef MERGED\nattribute vec3 modelPosition, modelNormal;\n#endif')
       .replace('#include <fog_vertex>', /* glsl */`#include <fog_vertex>
         vec4 placed = vec4(transformed, 1.0);
         #ifdef USE_INSTANCING
@@ -89,7 +89,12 @@ export function paint(material: THREE.MeshStandardMaterial, shade?: number, tile
         #endif
         vHeight = (modelMatrix * placed).y;
         vModel = transformed;
-        vModelNormal = objectNormal;`);
+        vModelNormal = objectNormal;
+        // Merged into one mesh (merge.ts): where it was on its own model.
+        #ifdef MERGED
+          vModel = modelPosition;
+          vModelNormal = modelNormal;
+        #endif`);
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <fog_pars_fragment>', /* glsl */`#include <fog_pars_fragment>
         uniform vec3 uSun, uWarm, uShade;

@@ -757,6 +757,8 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
       const mesh = new THREE.InstancedMesh(shape, material, placed.length);
       placed.forEach((matrix, i) => mesh.setMatrixAt(i, matrix));
       mesh.receiveShadow = true;
+      // Too low and too fine to tell in the water's blurred reflection.
+      mesh.userData.unreflected = true;
       scene.add(mesh);
     }
   }

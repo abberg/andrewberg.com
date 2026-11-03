@@ -30,6 +30,8 @@ export function createStones(world: RAPIER.World, scene: THREE.Scene) {
       .setLinearDamping(0.1).setAngularDamping(0.8)
       .setSleeping(true));
     const group = new THREE.Group();
+    // Left out of the water's reflection if it's low (water.ts).
+    group.userData.unreflected = 'low';
     scene.add(group);
     pieces.push({ body, group, position: new THREE.Vector3(x, y, z), rotation: rotation.clone() });
     // Once a finished shape is shown, the parts after it are colliders only.
