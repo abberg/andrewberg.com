@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import GUI from 'three/addons/libs/lil-gui.module.min.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { createFlyIn } from './flyIn';
-import { createFoliage } from './foliage';
+import { createFoliage, fadeAround } from './foliage';
 import { createClouds, updateClouds } from './clouds';
 import { createLilies, updateLilies } from './lilies';
 import { mergeStatic } from './merge';
@@ -142,6 +142,7 @@ renderer.setAnimationLoop(time => {
   player.animate(delta, world.timestep);
   stones.sync();
   follower.update(delta, player.mesh.position, player.mesh.rotation.y, player.pace);
+  fadeAround(player.mesh.position);
   flight.update(delta, camera);
   look.update(camera);
   updateWind(time / 1000);

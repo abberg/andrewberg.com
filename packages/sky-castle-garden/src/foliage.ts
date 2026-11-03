@@ -119,8 +119,43 @@ function leafCards(colours: readonly [number, number], map: THREE.Texture, sway:
   depth.onBeforeCompile = facing;
   return { material: swaying(material, sway), depth: swaying(depth, sway) };
 }
+// Plants between the camera and the robot dissolve away, in a fine dither
+// so there's nothing to sort, and come back as the view clears: anything
+// near the line from the eye to the robot's middle, short of the robot.
+// The robot's middle is set each frame (fadeAround).
+const fadeUniforms = { uFocus: { value: new THREE.Vector3() }, uFadeRadius: { value: 2.4 } };
+export const fadeAround = (feet: THREE.Vector3) => fadeUniforms.uFocus.value.copy(feet).setY(feet.y + 2.4);
+function fading(material: THREE.Material) {
+  if (material.userData.fading) return material;
+  material.userData.fading = true;
+  const before = material.onBeforeCompile;
+  material.onBeforeCompile = (shader, renderer) => {
+    before.call(material, shader, renderer);
+    Object.assign(shader.uniforms, fadeUniforms);
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vFadeAt;')
+      .replace('#include <clipping_planes_vertex>', '#include <clipping_planes_vertex>\nvFadeAt = (inverse(viewMatrix) * mvPosition).xyz;');
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vFadeAt;\nuniform vec3 uFocus;\nuniform float uFadeRadius;')
+      .replace('#include <clipping_planes_fragment>', /* glsl */`#include <clipping_planes_fragment>
+        {
+          vec3 line = uFocus - cameraPosition;
+          float along = dot(vFadeAt - cameraPosition, line) / dot(line, line);
+          float off = distance(vFadeAt, cameraPosition + line * clamp(along, 0.0, 1.0));
+          float fade = (1.0 - smoothstep(uFadeRadius * 0.45, uFadeRadius, off)) * smoothstep(0.0, 0.12, along) * (1.0 - smoothstep(0.82, 0.96, along));
+          // A 4 x 4 ordered dither.
+          ivec2 p = ivec2(mod(gl_FragCoord.xy, 4.0));
+          int k = p.x + p.y * 4;
+          float bayer[16] = float[16](0.0, 8.0, 2.0, 10.0, 12.0, 4.0, 14.0, 6.0, 3.0, 11.0, 1.0, 9.0, 15.0, 7.0, 13.0, 5.0);
+          if (fade > (bayer[k] + 0.5) / 16.0) discard;
+        }`);
+  };
+  const key = material.customProgramCacheKey.bind(material);
+  material.customProgramCacheKey = () => key() + 'fading';
+  return material;
+}
 function instanced(geometry: THREE.BufferGeometry, leaves: ReturnType<typeof leafCards> | THREE.Material, placed: THREE.Matrix4[], scene: THREE.Scene) {
-  const mesh = new THREE.InstancedMesh(geometry, 'depth' in leaves ? leaves.material : leaves, placed.length);
+  const mesh = new THREE.InstancedMesh(geometry, fading('depth' in leaves ? leaves.material : leaves), placed.length);
   if ('depth' in leaves) mesh.customDepthMaterial = leaves.depth;
   placed.forEach((matrix, i) => mesh.setMatrixAt(i, matrix));
   mesh.castShadow = mesh.receiveShadow = true;
