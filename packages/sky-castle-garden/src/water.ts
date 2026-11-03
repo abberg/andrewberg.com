@@ -21,7 +21,10 @@ export const waterLook = {
   blur: 0.014,
   // How much of the surface the highlights cover (higher, fewer), how big
   // they are (m), how many times longer than wide, and how fast they change.
-  sparse: 0.56, size: 1.1, stretch: 7, pace: 0.35,
+  sparse: 0.56, size: 1.1, stretch: 7, pace: 0.25,
+  // How fast they drift over the water (m/s), and towards which way (degrees
+  // east of north).
+  flow: 0.7, towards: 110,
 };
 
 const target = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType });
@@ -38,6 +41,8 @@ const uniforms = {
   // south from the garden at the castle. Fixed, so they don't turn with
   // the camera.
   uRight: { value: new THREE.Vector2(1, 0) },
+  // Their drift, in metres a second.
+  uFlow: { value: new THREE.Vector2() },
   uHighlight: { value: new THREE.Color(0xf4fbf8) },
 };
 const materials: THREE.Material[] = [];
@@ -84,7 +89,7 @@ export function waterMaterial(colour: readonly [number, number], opacity: number
         uniform float uTime;
         uniform vec3 uMirror;
         uniform vec4 uShape;
-        uniform vec2 uRight;
+        uniform vec2 uRight, uFlow;
         uniform vec3 uHighlight;
         varying vec4 vReflect;
         varying vec3 vWater;
@@ -94,11 +99,11 @@ export function waterMaterial(colour: readonly [number, number], opacity: number
           // The highlights: where two slowly changing layers of noise add up
           // past a threshold, cut hard, so they're crisp-edged streaks with
           // rounded ends, stretched out east-west, that swell, split
-          // and fade as the surface moves.
-          vec2 p = vec2(dot(vWater.xz, uRight), dot(vWater.xz, vec2(-uRight.y, uRight.x))) / (uShape.x * vec2(uShape.w, 1.0));
+          // and fade as the surface moves, all drifting one way.
+          vec2 drifted = vWater.xz - uFlow * uTime;
+          vec2 p = vec2(dot(drifted, uRight), dot(drifted, vec2(-uRight.y, uRight.x))) / (uShape.x * vec2(uShape.w, 1.0));
           float t = uTime * uShape.y;
-          float n = snoise(vec3(p + vec2(0.11, 0.05) * t, t * 0.6)) * 0.65
-            + snoise(vec3(p * 2.1 - vec2(0.07, -0.13) * t, t * 0.9 + 7.0)) * 0.35;
+          float n = snoise(vec3(p, t * 0.6)) * 0.65 + snoise(vec3(p * 2.1, t * 0.9 + 7.0)) * 0.35;
           float edge = fwidth(n) * 0.7;
           float highlight = smoothstep(uShape.z - edge, uShape.z + edge, n);
 
@@ -190,4 +195,7 @@ export function updateWater(seconds: number) {
   uniforms.uTime.value = seconds;
   uniforms.uMirror.value.set(waterLook.down, waterLook.across, waterLook.blur);
   uniforms.uShape.value.set(waterLook.size, waterLook.pace, waterLook.sparse, waterLook.stretch);
+  const towards = THREE.MathUtils.degToRad(waterLook.towards);
+  // North is -z.
+  uniforms.uFlow.value.set(Math.sin(towards), -Math.cos(towards)).multiplyScalar(waterLook.flow);
 }
