@@ -60,15 +60,19 @@ function outlined(mesh: THREE.SkinnedMesh) {
   outline.quaternion.copy(mesh.quaternion);
   outline.scale.copy(mesh.scale);
   outline.frustumCulled = false;
+  outline.renderOrder = DRAWN.robot;
   return outline;
 }
 
 // Its shadow, flat and hard edged as a cel-animated character's: the mesh
 // again, skinned with it, every point slid along the sun's direction down
 // onto the ground under the robot (shadow.ground), and filled solid in the
-// outline's ink. Each pixel is drawn once, however many limbs fall on it (by
-// the stencil), and as if a little nearer the camera so the grass doesn't
-// hide it.
+// outline's ink. Drawn in its own turn: after the ground, before the lawn's
+// grass, which leaves out what it covers (by the stencil, foliage.ts), and
+// before the robot, so the robot always stands on top of it. Lifted 2 cm and
+// offset in depth so it doesn't flicker in the ground it lies on.
+// The order it's all drawn in, and the stencil value the shadow leaves.
+export const DRAWN = { shadow: 1, grass: 2, robot: 3 }, SHADOW_STENCIL = 1;
 export const shadow = { sun: new THREE.Vector3(0, 1, 0), ground: 0 };
 // Its own light, turned from the sun's: round (degrees, east of north) and
 // up, so it can fall at a different angle from the rest of the shadows:
@@ -85,12 +89,13 @@ function shadowed(mesh: THREE.SkinnedMesh) {
   const material = new THREE.MeshBasicMaterial({
     // Fogged like the outline, so the two stay the same.
     color: INK,
-    // (Drawn after the ground it lies on, but opaque.)
-    transparent: true,
     depthWrite: false,
+    polygonOffset: true,
+    polygonOffsetFactor: -1,
+    polygonOffsetUnits: -4,
     stencilWrite: true,
-    stencilRef: 1,
-    stencilFunc: THREE.NotEqualStencilFunc,
+    stencilRef: SHADOW_STENCIL,
+    stencilFunc: THREE.AlwaysStencilFunc,
     stencilZPass: THREE.ReplaceStencilOp,
   });
   material.onBeforeCompile = shader => {
@@ -100,10 +105,8 @@ function shadowed(mesh: THREE.SkinnedMesh) {
       .replace('#include <common>', '#include <common>\nuniform vec3 uSun;\nuniform float uGround;')
       .replace('#include <project_vertex>', /* glsl */`vec4 world = modelMatrix * vec4(transformed, 1.0);
         world.xyz -= uSun * max(world.y - uGround, 0.0) / max(uSun.y, 0.05);
+        world.y = uGround + 0.02;
         vec4 mvPosition = viewMatrix * world;
-        // Brought nearer along the line of sight, so it lands in the same
-        // place on screen but over the lawn's grass rather than under it.
-        mvPosition.xyz *= max(1.0 - 0.7 / length(mvPosition.xyz), 0.1);
         gl_Position = projectionMatrix * mvPosition;`);
   };
   const cast = new THREE.SkinnedMesh(mesh.geometry, material);
@@ -112,6 +115,7 @@ function shadowed(mesh: THREE.SkinnedMesh) {
   cast.quaternion.copy(mesh.quaternion);
   cast.scale.copy(mesh.scale);
   cast.frustumCulled = false;
+  cast.renderOrder = DRAWN.shadow;
   // Not in the water's reflection.
   cast.userData.unreflected = true;
   return cast;
@@ -133,6 +137,7 @@ export function createRobot(gltf: GLTF) {
     material.defines = { ...material.defines, CEL: '' };
     // The arms reach well outside the bind pose's bounds.
     child.frustumCulled = false;
+    child.renderOrder = DRAWN.robot;
     if ((child as THREE.SkinnedMesh).isSkinnedMesh) skinned.push(child as THREE.SkinnedMesh);
   });
   for (const mesh of skinned) mesh.parent!.add(outlined(mesh), shadowed(mesh));

@@ -7,6 +7,7 @@ import { stroke } from './masonry';
 import { EAST, EAST_LAWN, lawnSouth, ledgeEdge, ledgeFront, MOATS_FROM, northEdge, onSunk, PATHS, PLATFORM, OUTER, PLATFORM_TOP, POOLS, WALL_GROUPS, WEST, WEST_LAWN } from './level';
 import { painted, palette } from './look';
 import { SWAY, type Sway, swaying } from './wind';
+import { DRAWN, SHADOW_STENCIL } from './robot';
 
 // Step 8: the garden's planting, built like the ivy (growth.ts): leaf cards
 // whose normals point out from the middle of the plant, so the light shades
@@ -794,6 +795,10 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
       mesh.receiveShadow = true;
       // Too low and too fine to tell in the water's blurred reflection.
       mesh.userData.unreflected = true;
+      // Drawn after the robot's flat shadow, and left out where it lies, so
+      // the shadow is one clean shape on the lawn (robot.ts).
+      mesh.renderOrder = DRAWN.grass;
+      Object.assign(material, { stencilWrite: true, stencilWriteMask: 0, stencilRef: SHADOW_STENCIL, stencilFunc: THREE.NotEqualStencilFunc });
       scene.add(mesh);
     }
   }
