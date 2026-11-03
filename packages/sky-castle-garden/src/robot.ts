@@ -27,15 +27,59 @@ export type RobotState = {
   stepping: number | null;
 };
 
+// An ink outline: the mesh again, drawn from behind and pushed out along its
+// normals by a set fraction of its distance, so the line keeps one width on
+// screen however near or far. The normals are averaged where the robot's
+// flat faces meet, so the line doesn't split at the corners.
+const INK = new THREE.Color(0x2b2220), WIDTH = 0.0028;
+function outlined(mesh: THREE.SkinnedMesh) {
+  const geometry = mesh.geometry, position = geometry.getAttribute('position'), normal = geometry.getAttribute('normal');
+  const sums = new Map<string, THREE.Vector3>(), key = (i: number) =>
+    `${position.getX(i).toFixed(3)},${position.getY(i).toFixed(3)},${position.getZ(i).toFixed(3)}`;
+  for (let i = 0; i < position.count; i++) {
+    const sum = sums.get(key(i)) ?? sums.set(key(i), new THREE.Vector3()).get(key(i))!;
+    sum.x += normal.getX(i); sum.y += normal.getY(i); sum.z += normal.getZ(i);
+  }
+  const smooth = new Float32Array(position.count * 3);
+  for (let i = 0; i < position.count; i++) sums.get(key(i))!.clone().normalize().toArray(smooth, i * 3);
+  geometry.setAttribute('outlineNormal', new THREE.BufferAttribute(smooth, 3));
+  const material = new THREE.MeshBasicMaterial({ color: INK, side: THREE.BackSide });
+  material.onBeforeCompile = shader => {
+    shader.uniforms.uWidth = { value: WIDTH };
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nattribute vec3 outlineNormal;\nuniform float uWidth;')
+      .replace('#include <beginnormal_vertex>', 'vec3 objectNormal = outlineNormal;')
+      .replace('#include <project_vertex>', /* glsl */`vec4 mvPosition = modelViewMatrix * vec4(transformed, 1.0);
+        // (Not transformedNormal: drawn from behind, that's turned inwards.)
+        mvPosition.xyz += normalize(normalMatrix * objectNormal) * uWidth * -mvPosition.z;
+        gl_Position = projectionMatrix * mvPosition;`);
+  };
+  const outline = new THREE.SkinnedMesh(geometry, material);
+  outline.bind(mesh.skeleton, mesh.bindMatrix);
+  outline.position.copy(mesh.position);
+  outline.quaternion.copy(mesh.quaternion);
+  outline.scale.copy(mesh.scale);
+  outline.frustumCulled = false;
+  return outline;
+}
+
 export function createRobot(gltf: GLTF) {
   const object = gltf.scene;
+  const skinned: THREE.SkinnedMesh[] = [];
   object.traverse(child => {
     if (!(child as THREE.Mesh).isMesh) return;
     child.castShadow = child.receiveShadow = true;
-    paint((child as THREE.Mesh).material as THREE.MeshStandardMaterial);
+    // Cel shaded in two flat steps, lit and shade, with no shine.
+    const material = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+    material.metalness = 0;
+    material.roughness = 1;
+    paint(material);
+    material.defines = { ...material.defines, CEL: '' };
     // The arms reach well outside the bind pose's bounds.
     child.frustumCulled = false;
+    if ((child as THREE.SkinnedMesh).isSkinnedMesh) skinned.push(child as THREE.SkinnedMesh);
   });
+  for (const mesh of skinned) mesh.parent!.add(outlined(mesh));
   const mixer = new THREE.AnimationMixer(object);
   const clip = (name: string) => gltf.animations.find(c => c.name === name)!;
   // A clip split into the legs and hips, and the upper body, so the push can

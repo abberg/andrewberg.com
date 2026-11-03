@@ -117,10 +117,21 @@ export function paint(material: THREE.MeshStandardMaterial, shade?: number, tile
         float full = dot(diffuseColor.rgb * uSun * RECIPROCAL_PI, luma);
         float lit = full > 1e-5 ? clamp(dot(reflectedLight.directDiffuse, luma) / full, 0.0, 1.0) : 0.0;
         float band = smoothstep(0.0, 0.12, lit) * uMid + smoothstep(0.3, 0.45, lit) * (1.0 - uMid);
+        // Cel shaded (the robot): just the two, cut hard, nothing between.
+        // The turn from lit to shade comes from the surface's angle to the sun
+        // alone, so the line is clean; shadows only switch it to shade where
+        // they clearly fall, so the shadow map's speckle stays out of it.
+        #if defined(CEL) && NUM_DIR_LIGHTS > 0
+          float facing = dot(normal, directionalLights[0].direction);
+          float shadowed = facing > 0.05 ? lit / facing : 1.0;
+          band = smoothstep(0.3, 0.34, facing) * step(0.5, shadowed);
+        #endif
         vec3 totalDiffuse = mix(diffuseColor.rgb * uShade, diffuseColor.rgb * uWarm, band);
-        float rim = pow(1.0 - saturate(dot(normal, geometryViewDir)), 3.0);
-        totalDiffuse += diffuseColor.rgb * uWarm * rim * band * uRim;
-        totalDiffuse += reflectedLight.indirectDiffuse * uFill;`)
+        #ifndef CEL
+          float rim = pow(1.0 - saturate(dot(normal, geometryViewDir)), 3.0);
+          totalDiffuse += diffuseColor.rgb * uWarm * rim * band * uRim;
+          totalDiffuse += reflectedLight.indirectDiffuse * uFill;
+        #endif`)
       // Distance fog, and fog rising from below so the cliff and the tower
       // melt into the sky.
       // Under the water, sinking into its colour instead.
