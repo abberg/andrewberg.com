@@ -69,8 +69,10 @@ function outlined(mesh: THREE.SkinnedMesh) {
 // onto the ground under the robot (shadow.ground), and filled solid in the
 // outline's ink. Drawn in its own turn: after the ground, before the lawn's
 // grass, which leaves out what it covers (by the stencil, foliage.ts), and
-// before the robot, so the robot always stands on top of it. Lifted 2 cm and
-// offset in depth so it doesn't flicker in the ground it lies on.
+// before the robot, so the robot always stands on top of it. Lifted 8 cm,
+// clear of the paving laid on the lawn (4 cm deep, with no collider of its
+// own, so the ground under the robot is the lawn's), and offset in depth so
+// it doesn't flicker in the ground it lies on.
 // The order it's all drawn in, and the stencil value the shadow leaves.
 export const DRAWN = { shadow: 1, grass: 2, robot: 3 }, SHADOW_STENCIL = 1;
 export const shadow = { sun: new THREE.Vector3(0, 1, 0), ground: 0 };
@@ -105,7 +107,7 @@ function shadowed(mesh: THREE.SkinnedMesh) {
       .replace('#include <common>', '#include <common>\nuniform vec3 uSun;\nuniform float uGround;')
       .replace('#include <project_vertex>', /* glsl */`vec4 world = modelMatrix * vec4(transformed, 1.0);
         world.xyz -= uSun * max(world.y - uGround, 0.0) / max(uSun.y, 0.05);
-        world.y = uGround + 0.02;
+        world.y = uGround + 0.08;
         vec4 mvPosition = viewMatrix * world;
         gl_Position = projectionMatrix * mvPosition;`);
   };
