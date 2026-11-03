@@ -63,12 +63,63 @@ function outlined(mesh: THREE.SkinnedMesh) {
   return outline;
 }
 
+// Its shadow, flat and hard edged as a cel-animated character's: the mesh
+// again, skinned with it, every point slid along the sun's direction down
+// onto the ground under the robot (shadow.ground), and the ground darkened
+// there by one flat shade. Each pixel is darkened once, however many limbs
+// fall on it (by the stencil), and drawn as if a little nearer the camera so
+// the grass doesn't hide it. The shade is the scene's own: what the
+// painted look multiplies a lit colour by in shade (look.ts's COOL).
+export const shadow = { sun: new THREE.Vector3(0, 1, 0), ground: 0 };
+const LIT = new THREE.Color(0xd8c8a0), SHADE = new THREE.Color(0x7f9aa8);
+const SHADOW = new THREE.Color(SHADE.r / LIT.r, SHADE.g / LIT.g, SHADE.b / LIT.b);
+function shadowed(mesh: THREE.SkinnedMesh) {
+  const material = new THREE.MeshBasicMaterial({
+    color: SHADOW,
+    fog: false,
+    transparent: true,
+    depthWrite: false,
+    // ground × shade.
+    blending: THREE.CustomBlending,
+    blendSrc: THREE.ZeroFactor,
+    blendDst: THREE.SrcColorFactor,
+    stencilWrite: true,
+    stencilRef: 1,
+    stencilFunc: THREE.NotEqualStencilFunc,
+    stencilZPass: THREE.ReplaceStencilOp,
+  });
+  material.onBeforeCompile = shader => {
+    shader.uniforms.uSun = { value: shadow.sun };
+    shader.uniforms.uGround = { get value() { return shadow.ground; } };
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nuniform vec3 uSun;\nuniform float uGround;')
+      .replace('#include <project_vertex>', /* glsl */`vec4 world = modelMatrix * vec4(transformed, 1.0);
+        world.xyz -= uSun * max(world.y - uGround, 0.0) / max(uSun.y, 0.05);
+        vec4 mvPosition = viewMatrix * world;
+        // Brought nearer along the line of sight, so it lands in the same
+        // place on screen but over the lawn's grass rather than under it.
+        mvPosition.xyz *= max(1.0 - 0.7 / length(mvPosition.xyz), 0.1);
+        gl_Position = projectionMatrix * mvPosition;`);
+  };
+  const cast = new THREE.SkinnedMesh(mesh.geometry, material);
+  cast.bind(mesh.skeleton, mesh.bindMatrix);
+  cast.position.copy(mesh.position);
+  cast.quaternion.copy(mesh.quaternion);
+  cast.scale.copy(mesh.scale);
+  cast.frustumCulled = false;
+  // Not in the water's reflection.
+  cast.userData.unreflected = true;
+  return cast;
+}
+
 export function createRobot(gltf: GLTF) {
   const object = gltf.scene;
   const skinned: THREE.SkinnedMesh[] = [];
   object.traverse(child => {
     if (!(child as THREE.Mesh).isMesh) return;
-    child.castShadow = child.receiveShadow = true;
+    // Its own flat shadow (shadowed) instead of the sun's soft one; still
+    // shaded by the trees and columns when it walks under them.
+    child.receiveShadow = true;
     // Cel shaded in two flat steps, lit and shade, with no shine.
     const material = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
     material.metalness = 0;
@@ -79,7 +130,7 @@ export function createRobot(gltf: GLTF) {
     child.frustumCulled = false;
     if ((child as THREE.SkinnedMesh).isSkinnedMesh) skinned.push(child as THREE.SkinnedMesh);
   });
-  for (const mesh of skinned) mesh.parent!.add(outlined(mesh));
+  for (const mesh of skinned) mesh.parent!.add(outlined(mesh), shadowed(mesh));
   const mixer = new THREE.AnimationMixer(object);
   const clip = (name: string) => gltf.animations.find(c => c.name === name)!;
   // A clip split into the legs and hips, and the upper body, so the push can

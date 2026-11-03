@@ -14,7 +14,7 @@ import { createInput } from './input';
 import { createLook } from './look';
 import { buildLevel, PLATFORM_TOP } from './level';
 import { createPlayer, movement } from './player';
-import { createRobot } from './robot';
+import { createRobot, shadow } from './robot';
 import { createStones } from './stones';
 import { updateFish } from './fish';
 import { reflectWater, updateWater, waterLook } from './water';
@@ -111,6 +111,8 @@ addEventListener('resize', () => {
 const timer = new THREE.Timer();
 timer.connect(document);
 const direction = new THREE.Vector2();
+// Straight down from the robot, for the ground its shadow falls on.
+const down = new RAPIER.Ray({ x: 0, y: 0, z: 0 }, { x: 0, y: -1, z: 0 });
 let accumulator = 0, seconds = 0;
 renderer.setAnimationLoop(time => {
   cost['draw calls'] = renderer.info.render.calls;
@@ -143,6 +145,12 @@ renderer.setAnimationLoop(time => {
     accumulator -= world.timestep;
   }
   player.draw(accumulator / world.timestep);
+  // Its shadow: along the sun, onto the ground under it.
+  const at = player.mesh.position;
+  down.origin = { x: at.x, y: at.y + 1, z: at.z };
+  const hit = world.castRay(down, 30, true, undefined, undefined, player.collider);
+  shadow.ground = hit ? at.y + 1 - hit.timeOfImpact : at.y;
+  shadow.sun.subVectors(look.sun.position, look.sun.target.position).normalize();
   player.animate(delta, world.timestep);
   stones.sync();
   follower.update(delta, player.mesh.position, player.mesh.rotation.y, player.pace);

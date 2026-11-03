@@ -15,8 +15,9 @@ export const post = { bloom: 0.2, threshold: 0.86, spread: 0.5, saturation: 1.1 
 
 export function createPost(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera) {
   const size = renderer.getDrawingBufferSize(new THREE.Vector2());
-  // Multisampled, so edges stay as smooth as drawing straight to the screen.
-  const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(size.x, size.y, { type: THREE.HalfFloatType, samples: 4 }));
+  // Multisampled, so edges stay as smooth as drawing straight to the screen,
+  // with a stencil for the robot's shadow (robot.ts).
+  const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(size.x, size.y, { type: THREE.HalfFloatType, samples: 4, stencilBuffer: true }));
   composer.addPass(new RenderPass(scene, camera));
   const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), post.bloom, post.spread, post.threshold);
   composer.addPass(bloom);
