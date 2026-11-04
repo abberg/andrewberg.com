@@ -9,7 +9,7 @@ import * as THREE from 'three';
 // a key pressed, so it starts when the garden's entered (start.ts). If the sounds aren't there (they're kept
 // out of git), it's silent and nothing else changes.
 
-export const footsteps = { volume: 0.05, muted: false };
+export const footsteps = { volume: 0.02, muted: false };
 
 const SOUNDS = [1, 2, 3, 4].map(k => `./sounds/step-${k}.m4a`);
 // A foot is down once its bone is this close to where it stands planted
