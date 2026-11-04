@@ -66,7 +66,7 @@ export function createPause(canvas: HTMLCanvasElement, actions: { reset: () => v
       <dt><kbd>M</kbd></dt><dd>music on or off</dd>
       <dt><kbd>H</kbd></dt><dd>show or hide the controls bar</dd>
     </dl></div>
-    <p class="credit">Music and the robot's footsteps from <i>Castle in the Sky</i> (1986), music by Joe Hisaishi, © Studio Ghibli. Used non-commercially.</p>
+    <p class="credit">Scene based on <i>Laputa: Castle in the Sky</i> (Studio Ghibli, 1986), with background and concept paintings by Nizo Yamamoto and character design by Hayao Miyazaki. Music: “The Forgotten Robot Soldier” by Joe Hisaishi; robot footsteps from the film. Used non-commercially.</p>
   </div>`;
   document.body.append(menu);
   const hint = document.getElementById('controls');
