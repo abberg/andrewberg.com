@@ -118,7 +118,7 @@ leafy.add(leafLook, 'variation', 0, 1, 0.01).name('leaf variation (1: as before)
 leafy.add(leafLook, 'flatBy', 5, 200, 1).name('flat from (m)');
 leafy.close();
 const sound = gui.addFolder('sound');
-sound.add(footsteps, 'volume', 0, 1, 0.01).name('footsteps');
+sound.add(footsteps, 'volume', 0, 0.1, 0.001).name('footsteps');
 sound.add(footsteps, 'muted').name('mute footsteps');
 sound.add(music, 'volume', 0, 1, 0.01).name('music');
 sound.add(music, 'muted').name('mute music').onChange(rememberMute).listen();
