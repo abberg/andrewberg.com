@@ -30,7 +30,7 @@ export function createPause(canvas: HTMLCanvasElement, actions: { reset: () => v
   const menu = document.createElement('div');
   menu.id = 'pause';
   menu.innerHTML = `<div class="panel" role="dialog" aria-label="Paused">
-    <h1>Sky Castle Garden</h1>
+    <h1>Sky Castle Gardener</h1>
     <p class="sub">Paused</p>
     <button class="primary" data-act="resume">Resume</button>
     <button data-act="reset">Put the stones back</button>
