@@ -10,16 +10,30 @@ const STYLE = /* css */`
     background: rgba(251, 248, 238, 0.94); box-shadow: 0 10px 40px rgba(30, 40, 60, 0.25); color: #3d3a46;
     font-family: 'Comfortaa', sans-serif; font-size: 15px; line-height: 1.5; text-align: center; }
   /* The start screen's Troika for the title, smaller and tilted the same way. */
-  #pause h1 { margin: 0 0 6px; font-family: 'Troika', 'Impact', sans-serif; font-size: 34px; font-weight: normal; line-height: 0.95;
+  #pause h1 { margin: 0 0 6px; font-family: 'Troika', 'Impact', sans-serif; font-size: 34px; font-weight: normal; line-height: 1;
     transform: rotate(-1deg); }
   #pause .sub { margin: 0 0 18px; color: #7a7686; font-size: 13px; font-style: italic; }
-  #pause button { display: block; width: 100%; margin: 8px 0; padding: 9px 12px; border: 1px solid #d8d0bc; border-radius: 8px;
+  #pause .actions { display: grid; gap: 8px; }
+  /* Pills, like the start screen's enter button. */
+  #pause button { display: block; width: 100%; margin: 0; padding: 10px 20px; border: 1px solid #d8d0bc; border-radius: 999px;
     background: #fffdf6; color: inherit; font: inherit; cursor: pointer; }
   #pause button:hover { background: #f3ecd9; }
   #pause button:focus-visible { outline: 2px solid #98cc2f; outline-offset: 2px; }
   #pause button.primary { background: rgb(76, 137, 15); border-color: rgb(76, 137, 15); color: #fbf8ee; }
   #pause button.primary:hover { background: rgb(64, 118, 10); }
-  #pause dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; align-items: baseline; margin: 16px 0 0; font-size: 13px; text-align: left; color: #5e5a68; }
+  /* The keys: one list on a phone (the two halves share one grid), two
+     columns side by side on a wider screen. */
+  #pause .keys { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; align-items: baseline; margin: 16px 0 0;
+    font-size: 13px; text-align: left; color: #5e5a68; }
+  #pause dl { display: contents; margin: 0; }
+  @media (min-width: 900px) {
+    #pause .panel { width: min(720px, calc(100vw - 32px)); padding: 28px 36px 24px; }
+    /* In a row, each on one line; Resume takes what's left over. */
+    #pause .actions { grid-template-columns: 1fr auto auto; }
+    #pause .actions button { white-space: nowrap; }
+    #pause .keys { grid-template-columns: 1fr 1fr; gap: 0 32px; margin-top: 20px; }
+    #pause dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; align-items: baseline; align-content: start; }
+  }
   #pause dt { font-weight: bold; white-space: nowrap; }
   #pause dd { margin: 0; }
   /* The shared keycaps (index.html), light on the light panel. */
@@ -37,18 +51,21 @@ export function createPause(canvas: HTMLCanvasElement, actions: { reset: () => v
   menu.innerHTML = `<div class="panel" role="dialog" aria-label="Paused">
     <h1>Sky Castle Gardener</h1>
     <p class="sub">Paused</p>
-    <button class="primary" data-act="resume">Resume</button>
-    <button data-act="reset">Put the stones back</button>
-    <button data-act="replay">Watch the opening again</button>
-    <dl>
+    <div class="actions">
+      <button class="primary" data-act="resume">Resume</button>
+      <button data-act="reset">Put the stones back</button>
+      <button data-act="replay">Watch the opening again</button>
+    </div>
+    <div class="keys"><dl>
       <dt><svg class="mouse" viewBox="0 0 16 24" role="img" aria-label="Mouse"><rect x="1.5" y="1.5" width="13" height="21" rx="6.5" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="8" y1="5.5" x2="8" y2="9.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></dt><dd>look around, wheel to zoom</dd>
       <dt><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></dt><dd>walk, <kbd>Shift</kbd> to run</dd>
-      <dt>Walk into stone</dt><dd>shove it</dd>
+      <dt>Stones</dt><dd>walk into one to shove it</dd>
       <dt><kbd>R</kbd></dt><dd>put the stones back</dd>
+    </dl><dl>
       <dt><kbd>Esc</kbd></dt><dd>pause</dd>
-      <dt><kbd>M</kbd></dt><dd>music on or off (also top right)</dd>
-      <dt><kbd>H</kbd></dt><dd>show or hide the controls along the bottom</dd>
-    </dl>
+      <dt><kbd>M</kbd></dt><dd>music on or off</dd>
+      <dt><kbd>H</kbd></dt><dd>show or hide the controls bar</dd>
+    </dl></div>
     <p class="credit">Music and the robot's footsteps from <i>Castle in the Sky</i> (1986), music by Joe Hisaishi, © Studio Ghibli. Used non-commercially.</p>
   </div>`;
   document.body.append(menu);
