@@ -44,17 +44,19 @@
     #start .bar { width: min(220px, 60vw); height: 2px; margin: 0 auto 10px; background: rgba(187, 184, 138, 0.3); overflow: hidden; }
     #start .bar span { display: block; height: 100%; width: 0; background: #bbb88a; transition: width 0.2s; }
     #start .status { margin: 0; color: #bbb88a; font-size: 13px; font-style: italic; }
-    #start .enter, #start .sound { display: none; border: 0; font: inherit; color: inherit; cursor: pointer; }
+    /* The loader and what replaces it share one space below the title, as tall
+       as the taller of the two, so the title doesn't move when they swap. */
+    #start .below { display: grid; }
+    #start .below > * { grid-area: 1 / 1; align-self: start; }
+    #start[data-state="ready"] .loader, #start:not([data-state="ready"]) .ready { visibility: hidden; }
+    #start .enter, #start .sound { display: block; border: 0; font: inherit; color: inherit; cursor: pointer; }
     #start .enter { margin: 2px auto 0; padding: 10px 26px; border-radius: 999px; background: rgba(76, 137, 15, 0.92);
       box-shadow: 0 6px 24px rgba(30, 40, 60, 0.18); font-size: 18px; }
     #start .enter:hover { background: rgb(76, 137, 15); }
-    #start .keys { display: none; margin: 14px 0 6px; color: #bbb88a; font-size: 14px; }
+    #start .keys { margin: 14px 0 6px; color: #bbb88a; font-size: 14px; }
     #start .sound { margin: 0 auto; padding: 3px 10px; border-radius: 6px; background: rgba(251, 248, 238, 0.8); font-size: 12px; color: #5e5a68; }
     #start .sound:hover { background: rgba(251, 248, 238, 0.85); }
     #start button:focus-visible { outline: 2px solid #98cc2f; outline-offset: 2px; }
-    #start[data-state="ready"] .bar, #start[data-state="ready"] .status { display: none; }
-    #start[data-state="ready"] .enter, #start[data-state="ready"] .sound { display: block; }
-    #start[data-state="ready"] .keys { display: block; }
     @media (prefers-reduced-motion: reduce) {
       #start { transition: opacity 0.4s; }
       #start .bar span { transition: none; }
@@ -69,11 +71,17 @@
 <div id="start" data-state="loading">
   <div>
     <h1><span class="line-1">Sky Castle</span><span class="line-2">Gardener</span></h1>
-    <div class="bar" role="progressbar" aria-label="Loading" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span></span></div>
-    <p class="status" role="status">Loading</p>
-    <button class="enter" type="button">Click to enter</button>
-    <p class="keys">Mouse to look · W A S D to walk · Shift to run · Esc to pause</p>
-    <button class="sound" type="button" aria-pressed="false">Music on</button>
+    <div class="below">
+      <div class="loader">
+        <div class="bar" role="progressbar" aria-label="Loading" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span></span></div>
+        <p class="status" role="status">Loading</p>
+      </div>
+      <div class="ready">
+        <button class="enter" type="button">Click to enter</button>
+        <p class="keys">Mouse to look · W A S D to walk · Shift to run · Esc to pause</p>
+        <button class="sound" type="button" aria-pressed="false">Music on</button>
+      </div>
+    </div>
   </div>
 </div>
 <div id="controls">Click to look around · WASD to move · Shift to run · walk into stone to shove it · R to reset the stones · wheel to zoom · Esc to pause</div>
