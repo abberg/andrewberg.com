@@ -47,7 +47,8 @@ export function createPause(canvas: HTMLCanvasElement, actions: { reset: () => v
   document.body.append(menu);
   const hint = document.getElementById('controls');
 
-  let paused = false, locked = false;
+  // Nothing to pause until the garden's been entered (start.ts).
+  let paused = false, locked = false, enabled = false;
   const show = (on: boolean) => {
     paused = on;
     menu.classList.toggle('shown', on);
@@ -68,7 +69,7 @@ export function createPause(canvas: HTMLCanvasElement, actions: { reset: () => v
   });
   // Esc with the mouse already free toggles it.
   addEventListener('keydown', event => {
-    if (event.code !== 'Escape' || locked) return;
+    if (event.code !== 'Escape' || locked || !enabled) return;
     if (paused) resume();
     else show(true);
   });
@@ -81,7 +82,7 @@ export function createPause(canvas: HTMLCanvasElement, actions: { reset: () => v
     else if (event.target === menu) resume();
   });
   // Hidden tab: pause, so nothing runs on unseen.
-  document.addEventListener('visibilitychange', () => { if (document.hidden && !paused) show(true); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden && !paused && enabled) show(true); });
 
-  return { get paused() { return paused; } };
+  return { get paused() { return paused; }, enable() { enabled = true; } };
 }

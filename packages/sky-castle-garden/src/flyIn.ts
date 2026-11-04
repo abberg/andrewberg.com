@@ -23,12 +23,16 @@ export function createFlyIn() {
     addEventListener('keydown', skip, { once: true });
     addEventListener('pointerdown', skip, { once: true });
   };
-  listen();
   const rest = new THREE.Vector3(), forward = new THREE.Vector3(), away = new THREE.Vector3();
   const target = new THREE.Vector3(), view = new THREE.Vector3();
 
   return {
     get flying() { return !done; },
+    // Off the start screen: from now a key or click skips it. Not until the
+    // event that entered the garden has finished, or that would skip it.
+    begin() { setTimeout(listen); },
+    // Straight to the end (the thumbnail capture).
+    skip,
     // From the start again (the tuning panel's button).
     replay() { t = 0; done = false; listen(); },
     // After the follow camera has placed itself: take over until landed.

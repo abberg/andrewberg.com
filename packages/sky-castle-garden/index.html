@@ -11,9 +11,51 @@
     #controls { position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%); padding: 6px 12px;
       border-radius: 6px; background: rgba(31, 31, 31, 0.7); color: #eee; font: 13px/1.5 system-ui, sans-serif;
       pointer-events: none; white-space: nowrap; }
+    /* Loading, then the start screen (src/start.ts): shown from the first byte,
+       opaque sky while the garden's built, then see-through and blurred over its
+       first frame until a click, tap or key enters it. */
+    #start { position: fixed; inset: 0; z-index: 2000; display: grid; place-items: center; padding: 16px; box-sizing: border-box;
+      background: #000 no-repeat url("relief.jpeg"); color: #3d3a46; text-align: center;
+      font: 15px/1.5 Georgia, 'Times New Roman', serif; transition: background 0.6s, backdrop-filter 0.6s, opacity 0.8s; }
+    #start[data-state="ready"] {  cursor: pointer; }
+    #start[data-state="gone"] { opacity: 0; pointer-events: none; background: rgba(196, 225, 239, 0); backdrop-filter: blur(0); -webkit-backdrop-filter: blur(0); }
+    #start h1 { margin: 0 0 18px; font-size: clamp(30px, 6vw, 46px); font-weight: normal; letter-spacing: 0.03em;
+      text-shadow: 0 1px 12px rgba(255, 255, 255, 0.6); }
+    #start .bar { width: min(220px, 60vw); height: 2px; margin: 0 auto 10px; background: rgba(61, 58, 70, 0.16); overflow: hidden; }
+    #start .bar span { display: block; height: 100%; width: 0; background: #3d3a46; transition: width 0.2s; }
+    #start .status { margin: 0; color: #5e5a68; font-size: 13px; font-style: italic; }
+    #start .enter, #start .sound { display: none; border: 0; font: inherit; color: inherit; cursor: pointer; }
+    #start .enter { margin: 2px auto 0; padding: 10px 26px; border-radius: 999px; background: rgba(251, 248, 238, 0.92);
+      box-shadow: 0 6px 24px rgba(30, 40, 60, 0.18); font-size: 18px; }
+    #start .enter:hover { background: #fffdf6; }
+    #start .keys { display: none; margin: 14px 0 6px; color: #3d3a46; font-size: 13px; }
+    #start .sound { margin: 0 auto; padding: 3px 10px; border-radius: 6px; background: rgba(251, 248, 238, 0.55); font-size: 12px; color: #5e5a68; }
+    #start .sound:hover { background: rgba(251, 248, 238, 0.85); }
+    #start button:focus-visible { outline: 2px solid #8a9ac8; outline-offset: 2px; }
+    #start[data-state="ready"] .bar, #start[data-state="ready"] .status { display: none; }
+    #start[data-state="ready"] .enter, #start[data-state="ready"] .sound { display: block; }
+    #start[data-state="ready"] .keys { display: block; }
+    @media (prefers-reduced-motion: reduce) {
+      #start { transition: opacity 0.4s; }
+      #start .bar span { transition: none; }
+    }
+    /* The rest of the furniture waits until the garden's entered. */
+    body:not([data-entered]) #controls, body:not([data-entered]) .lil-gui.root { visibility: hidden; }
+    /* The thumbnail capture (?thumbnail=1) shows the garden alone. */
+    body[data-thumbnail] #controls, body[data-thumbnail] .lil-gui.root, body[data-thumbnail] #start { display: none !important; }
   </style>
 </head>
 <body>
+<div id="start" data-state="loading">
+  <div>
+    <h1>Sky Castle Garden</h1>
+    <div class="bar" role="progressbar" aria-label="Loading" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span></span></div>
+    <p class="status" role="status">Loading</p>
+    <button class="enter" type="button">Click to enter</button>
+    <p class="keys">Mouse to look · W A S D to walk · Shift to run · Esc to pause</p>
+    <button class="sound" type="button" aria-pressed="false">Music on</button>
+  </div>
+</div>
 <div id="controls">Click to look around · WASD to move · Shift to run · walk into stone to shove it · R to reset the stones · wheel to zoom · Esc to pause</div>
 <script type="module" src="./src/main.ts"></script>
 </body>

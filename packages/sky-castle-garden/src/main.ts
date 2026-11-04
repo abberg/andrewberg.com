@@ -17,6 +17,7 @@ import { createLook } from './look';
 import { buildLevel, PLATFORM_TOP } from './level';
 import { createPlayer, movement } from './player';
 import { aimShadow, createRobot, inkShadow, shadow, shadowAngle } from './robot';
+import { createStart } from './start';
 import { createStones } from './stones';
 import { updateFish } from './fish';
 import { reflectWater, updateWater, waterLook } from './water';
@@ -25,7 +26,26 @@ import { updateWind, wind } from './wind';
 // Sky Castle Garden, built in steps from the plan (docs/design-plan.md). So
 // far: the robot (modelled in blender/robot.py), the follow camera, the level
 // blocked out, stones to push about, and the light, sky and palette (look.ts). 1 unit = 1 m, y up, north −z.
-const [, gltf] = await Promise.all([RAPIER.init(), new GLTFLoader().loadAsync('./robot.glb')]);
+//
+// The loading bar (start.ts) follows what actually takes the time: the robot
+// downloading (by its bytes), the garden being built (step by step, letting
+// the bar redraw between them), the shaders compiling and the first frame
+// drawn. The robot downloads while the garden's built.
+const start = createStart();
+const progress = { robot: 0, built: 0, compiled: 0 };
+const report = () => start.progress(0.35 * progress.robot + 0.45 * progress.built + 0.15 * progress.compiled);
+// Until the browser's had a chance to draw the bar (or, in a hidden tab, a moment).
+const breathe = () => new Promise<void>(resolve => {
+  const go = () => setTimeout(resolve);
+  const timeout = setTimeout(go, 100);
+  requestAnimationFrame(() => { clearTimeout(timeout); go(); });
+});
+const built = async (share: number) => { progress.built = share; report(); await breathe(); };
+const robotGlb = new GLTFLoader().loadAsync('./robot.glb', event => {
+  if (event.total) { progress.robot = event.loaded / event.total; report(); }
+});
+await RAPIER.init();
+await built(0.1);
 const world = new RAPIER.World({ x: 0, y: -9.81, z: 0 });
 world.timestep = 1 / 60;
 
@@ -41,11 +61,18 @@ const look = createLook(scene);
 const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 1000);
 
 const { spawn, walls } = buildLevel(world, scene);
+await built(0.35);
 const stones = createStones(world, scene);
+await built(0.45);
 createFoliage(world, scene);
+await built(0.75);
 createLilies(scene);
 mergeStatic(scene);
+await built(0.9);
 createClouds(scene, look.sun);
+await built(1);
+const gltf = await robotGlb;
+progress.robot = 1;
 
 const input = createInput(renderer.domElement);
 const player = createPlayer(world, scene, { ...spawn, y: PLATFORM_TOP }, createRobot(gltf));
@@ -55,6 +82,10 @@ const follower = createFollowCamera(camera, world, player.collider, spawn.yaw);
 const flight = createFlyIn();
 const finish = createPost(renderer, scene, camera);
 const pause = createPause(renderer.domElement, { reset: () => stones.reset(), replay: () => flight.replay() });
+// ?thumbnail=1 (scripts/thumbnails.mjs at the root): no start screen and no
+// opening, just the garden from behind the robot.
+const thumbnail = new URLSearchParams(location.search).has('thumbnail');
+if (thumbnail) document.body.dataset.thumbnail = '';
 
 // Tuning, folded away top right.
 const gui = new GUI({ title: 'tuning' });
@@ -86,7 +117,7 @@ const sound = gui.addFolder('sound');
 sound.add(footsteps, 'volume', 0, 1, 0.01).name('footsteps');
 sound.add(footsteps, 'muted').name('mute footsteps');
 sound.add(music, 'volume', 0, 1, 0.01).name('music');
-sound.add(music, 'muted').name('mute music').onChange(rememberMute);
+sound.add(music, 'muted').name('mute music').onChange(rememberMute).listen();
 sound.close();
 const blowing = gui.addFolder('wind');
 blowing.add(wind, 'strength', 0, 3, 0.1);
@@ -120,12 +151,35 @@ renderer.info.autoReset = false;
 let frames = 0, since = performance.now();
 gui.close();
 
+// Whether the start screen's been clicked through, the first frame drawn,
+// and the still frame behind the start screen needs drawing again.
+let entered = false, drawn = false, redraw = false;
 addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
   finish.resize();
+  redraw = true;
 });
+
+// The shaders, compiled before the first frame rather than during it.
+await renderer.compileAsync(scene, camera);
+progress.compiled = 1;
+report();
+
+// Held on the start screen, with nothing moving, until it's clicked through.
+const enter = () => {
+  entered = true;
+  soundtrack.start();
+  steps.start();
+  pause.enable();
+  flight.begin();
+  // No pointer lock on a phone; elsewhere it can still be refused, and then
+  // a click on the view takes the mouse (input.ts).
+  if (!matchMedia('(pointer: coarse)').matches) {
+    try { Promise.resolve(renderer.domElement.requestPointerLock()).catch(() => {}); } catch { /* the same */ }
+  }
+};
 
 // Physics at a fixed 60 Hz, drawn at whatever the display runs at.
 const timer = new THREE.Timer();
@@ -135,6 +189,9 @@ const direction = new THREE.Vector2();
 const down = new RAPIER.Ray({ x: 0, y: 0, z: 0 }, { x: 0, y: -1, z: 0 });
 let accumulator = 0, seconds = 0;
 renderer.setAnimationLoop(time => {
+  // On the start screen, one still frame is enough (drawn again on resize).
+  if (!entered && drawn && !redraw) return;
+  redraw = false;
   cost['draw calls'] = renderer.info.render.calls;
   cost.triangles = `${(renderer.info.render.triangles / 1e6).toFixed(1)} M`;
   renderer.info.reset();
@@ -146,16 +203,18 @@ renderer.setAnimationLoop(time => {
   timer.update(time);
   // Never backwards: the first frame's time can come before the timer's start.
   // Paused, nothing moves: the garden's own clock stands still.
-  const delta = pause.paused ? 0 : Math.max(0, Math.min(timer.getDelta(), 0.1));
+  // Before entering, too.
+  const held = pause.paused || !entered;
+  const delta = held ? 0 : Math.max(0, Math.min(timer.getDelta(), 0.1));
   seconds += delta;
   const { x, y, zoom } = input.take();
   // Nothing moves the robot or the view until the fly-in has landed.
-  if (!flight.flying && !pause.paused) follower.look(x, y, zoom);
+  if (!flight.flying && !held) follower.look(x, y, zoom);
   // Camera-relative: forward is away from the camera.
-  const move = flight.flying || pause.paused ? { x: 0, y: 0 } : input.move(), yaw = follower.yaw;
+  const move = flight.flying || held ? { x: 0, y: 0 } : input.move(), yaw = follower.yaw;
   direction.set(move.x * Math.cos(yaw) - move.y * Math.sin(yaw), -move.x * Math.sin(yaw) - move.y * Math.cos(yaw));
   // R puts the stonework back.
-  if (input.tapped('KeyR') && !pause.paused) stones.reset();
+  if (input.tapped('KeyR') && !held) stones.reset();
   accumulator += delta;
   while (accumulator >= world.timestep) {
     player.step(world.timestep, direction, input.run());
@@ -188,4 +247,14 @@ renderer.setAnimationLoop(time => {
   updateClouds(seconds, camera);
   reflectWater(renderer, scene, camera);
   finish.render();
+  // The first frame's drawn: the bar gives way to the start screen.
+  if (!drawn) {
+    drawn = true;
+    if (thumbnail) {
+      entered = true;
+      flight.skip();
+      start.dismiss();
+      setTimeout(() => { document.documentElement.dataset.thumbnailReady = 'true'; }, 2000);
+    } else start.ready(enter);
+  }
 });

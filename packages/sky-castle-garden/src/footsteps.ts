@@ -6,7 +6,7 @@ import * as THREE from 'three';
 // steps each time, a little higher or lower and louder or softer so they
 // don't repeat, louder the faster it goes and quieter the further off the
 // camera is. Browsers only let a page make sound once it's been clicked or
-// a key pressed, so it starts then. If the sounds aren't there (they're kept
+// a key pressed, so it starts when the garden's entered (start.ts). If the sounds aren't there (they're kept
 // out of git), it's silent and nothing else changes.
 
 export const footsteps = { volume: 0.05, muted: false };
@@ -27,8 +27,7 @@ export function createFootsteps(robot: THREE.Object3D) {
 
   let context: AudioContext | undefined, buffers: AudioBuffer[] = [], next = 0;
   const start = () => {
-    removeEventListener('pointerdown', start);
-    removeEventListener('keydown', start);
+    if (context) return;
     try {
       context = new AudioContext();
     } catch {
@@ -40,8 +39,6 @@ export function createFootsteps(robot: THREE.Object3D) {
       .then(loaded => { buffers = loaded; })
       .catch(() => { buffers = []; });
   };
-  addEventListener('pointerdown', start);
-  addEventListener('keydown', start);
 
   const play = (loudness: number) => {
     if (!context || !buffers.length || footsteps.muted || footsteps.volume <= 0) return;
@@ -56,6 +53,8 @@ export function createFootsteps(robot: THREE.Object3D) {
   };
 
   return {
+    // From the click or key that enters the garden.
+    start,
     // After the robot's been posed for this frame: pace is its speed as a
     // share of a run.
     update(camera: THREE.Camera, pace: number) {

@@ -1,5 +1,5 @@
-// The music, from the film: it fades in on the first click or key press
-// (browsers allow no sound before one), loops for as long as the garden is
+// The music, from the film: it fades in once the garden's entered from the
+// start screen (start.ts; browsers allow no sound before a click or key), loops for as long as the garden is
 // open, each time round overlapping its end with its start so it never
 // drops out, and sinks back, muffled, while the garden's paused. Streamed
 // through two audio elements taking turns rather than decoded whole. If it
@@ -26,8 +26,7 @@ export function createMusic() {
   let overlapping = false, failed = false;
 
   const start = () => {
-    removeEventListener('pointerdown', start);
-    removeEventListener('keydown', start);
+    if (context) return;
     try {
       context = new AudioContext();
       master = context.createGain();
@@ -52,8 +51,6 @@ export function createMusic() {
       failed = true;
     }
   };
-  addEventListener('pointerdown', start);
-  addEventListener('keydown', start);
   // Nothing plays in a hidden tab.
   document.addEventListener('visibilitychange', () => {
     if (!context) return;
@@ -63,6 +60,8 @@ export function createMusic() {
 
   let heard = -1, muffled = -1;
   return {
+    // From the click or key that enters the garden.
+    start,
     update(paused: boolean) {
       if (!context || !master || !filter || failed) return;
       const now = context.currentTime;
