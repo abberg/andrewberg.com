@@ -15,7 +15,8 @@ export function createStart() {
   const touch = matchMedia('(pointer: coarse)').matches;
   if (touch) {
     enter.textContent = 'Tap to enter';
-    screen.querySelector('.keys')!.textContent = 'Best with a keyboard and mouse: W A S D to walk, the mouse to look, Esc to pause';
+    // The same keys, with a word first that they're for a computer.
+    screen.querySelector('.keys')!.insertAdjacentHTML('afterbegin', '<span class="touch">Best with a keyboard and mouse:</span>');
   }
   const showSound = () => {
     sound.textContent = music.muted ? 'Music off' : 'Music on';
