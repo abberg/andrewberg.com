@@ -12,6 +12,7 @@ import { mergeStatic } from './merge';
 import { createPause } from './pause';
 import { createPost } from './post';
 import { createFollowCamera, follow } from './followCamera';
+import { createHint } from './hint';
 import { createInput } from './input';
 import { createLook } from './look';
 import { buildLevel, PLATFORM_TOP } from './level';
@@ -81,6 +82,7 @@ const soundtrack = createMusic();
 const follower = createFollowCamera(camera, world, player.collider, spawn.yaw);
 const flight = createFlyIn();
 const finish = createPost(renderer, scene, camera);
+createHint();
 const pause = createPause(renderer.domElement, { reset: () => stones.reset(), replay: () => flight.replay() });
 // ?thumbnail=1 (scripts/thumbnails.mjs at the root): no start screen and no
 // opening, just the garden from behind the robot.

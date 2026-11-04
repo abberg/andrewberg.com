@@ -41,6 +41,7 @@ export function createPause(canvas: HTMLCanvasElement, actions: { reset: () => v
       <dt>Walk into stone</dt><dd>shove it</dd>
       <dt>R</dt><dd>put the stones back</dd>
       <dt>Esc</dt><dd>pause</dd>
+      <dt>H</dt><dd>show or hide the controls along the bottom</dd>
     </dl>
     <p class="credit">Music and the robot's footsteps from <i>Castle in the Sky</i> (1986), music by Joe Hisaishi, © Studio Ghibli. Used non-commercially.</p>
   </div>`;

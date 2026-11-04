@@ -1,34 +1,20 @@
-import { music, rememberMute } from './music';
-
 // The loading and start screen (its markup and look are in index.html, so it
 // shows from the first byte). While the garden's built, a thin bar follows
 // real progress (main.ts says how far along it is); once the first frame's
-// drawn, the bar gives way to "Click to enter" over that frame, softly
-// blurred. That one click, tap, Enter or Space is what browsers need before
+// drawn, the bar gives way to "Click to enter". That one click, tap, Enter or Space is what browsers need before
 // they'll play sound, so it's what starts the music, takes the mouse and
 // sets the opening going. Nothing in the garden moves until then.
 
 export function createStart() {
   const screen = document.getElementById('start')!;
   const bar = screen.querySelector<HTMLElement>('.bar')!, fill = bar.querySelector<HTMLElement>('span')!;
-  const enter = screen.querySelector<HTMLButtonElement>('.enter')!, sound = screen.querySelector<HTMLButtonElement>('.sound')!;
+  const enter = screen.querySelector<HTMLButtonElement>('.enter')!;
   const touch = matchMedia('(pointer: coarse)').matches;
   if (touch) {
     enter.textContent = 'Tap to enter';
     // The same keys, with a word first that they're for a computer.
     screen.querySelector('.keys')!.insertAdjacentHTML('afterbegin', '<span class="touch">Best with a keyboard and mouse:</span>');
   }
-  const showSound = () => {
-    sound.textContent = music.muted ? 'Music off' : 'Music on';
-    sound.setAttribute('aria-pressed', String(music.muted));
-  };
-  showSound();
-  sound.addEventListener('click', event => {
-    event.stopPropagation();
-    music.muted = !music.muted;
-    rememberMute();
-    showSound();
-  });
 
   let shown = 0;
   return {
@@ -61,8 +47,6 @@ export function createStart() {
       };
       const key = (event: KeyboardEvent) => {
         if (event.repeat || (event.code !== 'Enter' && event.code !== 'Space' && event.code !== 'NumpadEnter')) return;
-        // Space or Enter on the music button toggles it instead.
-        if (event.target === sound) return;
         go(event);
       };
       screen.addEventListener('click', go);
