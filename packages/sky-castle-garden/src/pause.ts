@@ -1,7 +1,7 @@
 // Step 10: the pause menu. Esc lets the mouse go, which pauses the garden
 // (the robot, the stones, wind, water and clouds all stop where they are);
-// Esc again, a click on the view or Resume carries on. From the menu: put
-// the stones back, or watch the opening again.
+// Esc again, a click on the view or Resume carries on. (R puts the stones
+// back; the tuning panel can replay the opening.)
 
 const STYLE = /* css */`
   #pause { position: fixed; inset: 0; display: none; place-items: center; background: rgba(40, 52, 64, 0.28); }
@@ -13,7 +13,6 @@ const STYLE = /* css */`
   #pause h1 { margin: 0 0 6px; font-family: 'Troika', 'Impact', sans-serif; font-size: 34px; font-weight: normal; line-height: 1;
     transform: rotate(-1deg); }
   #pause .sub { margin: 0 0 18px; color: #7a7686; font-size: 13px; font-style: italic; }
-  #pause .actions { display: grid; gap: 8px; }
   /* Pills, like the start screen's enter button. */
   #pause button { display: block; width: 100%; margin: 0; padding: 10px 20px; border: 1px solid #d8d0bc; border-radius: 999px;
     background: #fffdf6; color: inherit; font: inherit; cursor: pointer; }
@@ -29,8 +28,8 @@ const STYLE = /* css */`
   @media (min-width: 900px) {
     #pause .panel { width: min(720px, calc(100vw - 32px)); padding: 28px 36px 24px; }
     /* In a row, each on one line; Resume takes what's left over. */
-    #pause .actions { grid-template-columns: 1fr auto auto; }
-    #pause .actions button { white-space: nowrap; }
+    /* A pill of its own rather than the panel's full width. */
+    #pause button.primary { width: auto; min-width: 240px; margin: 0 auto; }
     #pause .keys { grid-template-columns: 1fr 1fr; gap: 0 32px; margin-top: 20px; }
     #pause dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; align-items: baseline; align-content: start; }
   }
@@ -42,7 +41,7 @@ const STYLE = /* css */`
   #pause .credit { margin: 14px 0 0; color: #8a8696; font-size: 11px; line-height: 1.4; }
 `;
 
-export function createPause(canvas: HTMLCanvasElement, actions: { reset: () => void, replay: () => void }) {
+export function createPause(canvas: HTMLCanvasElement) {
   const style = document.createElement('style');
   style.textContent = STYLE;
   document.head.append(style);
@@ -51,11 +50,7 @@ export function createPause(canvas: HTMLCanvasElement, actions: { reset: () => v
   menu.innerHTML = `<div class="panel" role="dialog" aria-label="Paused">
     <h1>Sky Castle Gardener</h1>
     <p class="sub">Paused</p>
-    <div class="actions">
-      <button class="primary" data-act="resume">Resume</button>
-      <button data-act="reset">Put the stones back</button>
-      <button data-act="replay">Watch the opening again</button>
-    </div>
+    <button class="primary" data-act="resume">Resume</button>
     <div class="keys"><dl>
       <dt><svg class="mouse" viewBox="0 0 16 24" role="img" aria-label="Mouse"><rect x="1.5" y="1.5" width="13" height="21" rx="6.5" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="8" y1="5.5" x2="8" y2="9.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></dt><dd>look around, wheel to zoom</dd>
       <dt><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></dt><dd>walk, <kbd>Shift</kbd> to run</dd>
@@ -66,7 +61,7 @@ export function createPause(canvas: HTMLCanvasElement, actions: { reset: () => v
       <dt><kbd>M</kbd></dt><dd>music on or off</dd>
       <dt><kbd>H</kbd></dt><dd>show or hide the controls bar</dd>
     </dl></div>
-    <p class="credit">Scene based on <i>Laputa: Castle in the Sky</i> (Studio Ghibli, 1986), with background and concept paintings by Nizo Yamamoto and character design by Hayao Miyazaki. Music: “The Forgotten Robot Soldier” by Joe Hisaishi; robot footsteps from the film. Used non-commercially.</p>
+    <p class="credit">Scene based on <i>Laputa: Castle in the Sky</i> (Studio Ghibli, 1986), using background and concept paintings by Nizo Yamamoto and character designs by Hayao Miyazaki. Music: “The Forgotten Robot Soldier” by Joe Hisaishi; robot footsteps from the film.</p>
   </div>`;
   document.body.append(menu);
   const hint = document.getElementById('controls');
@@ -98,10 +93,7 @@ export function createPause(canvas: HTMLCanvasElement, actions: { reset: () => v
     else show(true);
   });
   menu.addEventListener('click', event => {
-    const act = (event.target as HTMLElement).closest('button')?.dataset.act;
-    if (act === 'reset') actions.reset();
-    if (act === 'replay') actions.replay();
-    if (act) resume();
+    if ((event.target as HTMLElement).closest('button')) resume();
     // A click outside the panel carries on too.
     else if (event.target === menu) resume();
   });

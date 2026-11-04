@@ -85,7 +85,7 @@ const flight = createFlyIn();
 const finish = createPost(renderer, scene, camera);
 createHint();
 createSpeaker();
-const pause = createPause(renderer.domElement, { reset: () => stones.reset(), replay: () => flight.replay() });
+const pause = createPause(renderer.domElement);
 // ?thumbnail=1 (scripts/thumbnails.mjs at the root): no start screen and no
 // opening, just the garden from behind the robot.
 const thumbnail = new URLSearchParams(location.search).has('thumbnail');
