@@ -8,18 +8,23 @@ const STYLE = /* css */`
   #pause.shown { display: grid; }
   #pause .panel { width: min(340px, calc(100vw - 32px)); box-sizing: border-box; padding: 26px 28px 22px; border-radius: 14px;
     background: rgba(251, 248, 238, 0.94); box-shadow: 0 10px 40px rgba(30, 40, 60, 0.25); color: #3d3a46;
-    font: 15px/1.5 Georgia, 'Times New Roman', serif; text-align: center; }
-  #pause h1 { margin: 0 0 4px; font-size: 24px; font-weight: normal; letter-spacing: 0.02em; }
+    font-family: 'Comfortaa', sans-serif; font-size: 15px; line-height: 1.5; text-align: center; }
+  /* The start screen's Troika for the title, smaller and tilted the same way. */
+  #pause h1 { margin: 0 0 6px; font-family: 'Troika', 'Impact', sans-serif; font-size: 34px; font-weight: normal; line-height: 0.95;
+    transform: rotate(-1deg); }
   #pause .sub { margin: 0 0 18px; color: #7a7686; font-size: 13px; font-style: italic; }
   #pause button { display: block; width: 100%; margin: 8px 0; padding: 9px 12px; border: 1px solid #d8d0bc; border-radius: 8px;
     background: #fffdf6; color: inherit; font: inherit; cursor: pointer; }
   #pause button:hover { background: #f3ecd9; }
-  #pause button:focus-visible { outline: 2px solid #8a9ac8; outline-offset: 2px; }
-  #pause button.primary { background: #6f8f5a; border-color: #6f8f5a; color: #fbf8ee; }
-  #pause button.primary:hover { background: #5f7e4b; }
-  #pause dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; margin: 16px 0 0; font-size: 13px; text-align: left; color: #5e5a68; }
+  #pause button:focus-visible { outline: 2px solid #98cc2f; outline-offset: 2px; }
+  #pause button.primary { background: rgb(76, 137, 15); border-color: rgb(76, 137, 15); color: #fbf8ee; }
+  #pause button.primary:hover { background: rgb(64, 118, 10); }
+  #pause dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; align-items: baseline; margin: 16px 0 0; font-size: 13px; text-align: left; color: #5e5a68; }
   #pause dt { font-weight: bold; white-space: nowrap; }
   #pause dd { margin: 0; }
+  /* The shared keycaps (index.html), light on the light panel. */
+  #pause kbd { border-color: #cfc6ad; background: #fffdf6; color: #3d3a46; font-weight: normal; }
+  #pause .mouse { color: #3d3a46; vertical-align: -0.35em; }
   #pause .credit { margin: 14px 0 0; color: #8a8696; font-size: 11px; line-height: 1.4; }
 `;
 
@@ -36,13 +41,13 @@ export function createPause(canvas: HTMLCanvasElement, actions: { reset: () => v
     <button data-act="reset">Put the stones back</button>
     <button data-act="replay">Watch the opening again</button>
     <dl>
-      <dt>Mouse</dt><dd>look around, wheel to zoom</dd>
-      <dt>W A S D</dt><dd>walk, Shift to run</dd>
+      <dt><svg class="mouse" viewBox="0 0 16 24" role="img" aria-label="Mouse"><rect x="1.5" y="1.5" width="13" height="21" rx="6.5" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="8" y1="5.5" x2="8" y2="9.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></dt><dd>look around, wheel to zoom</dd>
+      <dt><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></dt><dd>walk, <kbd>Shift</kbd> to run</dd>
       <dt>Walk into stone</dt><dd>shove it</dd>
-      <dt>R</dt><dd>put the stones back</dd>
-      <dt>Esc</dt><dd>pause</dd>
-      <dt>M</dt><dd>music on or off (also top right)</dd>
-      <dt>H</dt><dd>show or hide the controls along the bottom</dd>
+      <dt><kbd>R</kbd></dt><dd>put the stones back</dd>
+      <dt><kbd>Esc</kbd></dt><dd>pause</dd>
+      <dt><kbd>M</kbd></dt><dd>music on or off (also top right)</dd>
+      <dt><kbd>H</kbd></dt><dd>show or hide the controls along the bottom</dd>
     </dl>
     <p class="credit">Music and the robot's footsteps from <i>Castle in the Sky</i> (1986), music by Joe Hisaishi, © Studio Ghibli. Used non-commercially.</p>
   </div>`;
