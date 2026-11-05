@@ -225,6 +225,7 @@ export function buildCity(world: RAPIER.World, scene: THREE.Scene) {
       const body = bulging(r, -0.3, tall, 0.8), [r0] = body[0], [r1, t1] = body[body.length - 1];
       const dome = Array.from({ length: 8 }, (_, k) => { const u = k / 7 * Math.PI / 2; return [(r1 + 0.4) * Math.cos(u) + 0.01, t1 - 0.3 + r1 * 0.8 * Math.sin(u)]; });
       towers.push({ x: at.x, z: at.z, r: r0, depth, body, dome });
+      const k0 = scene.children.length; // TEMP
       add(round(at.x, at.z, body, textures.city.metres, 56), city);
       if (!depth) sunk(at.x, at.z, r0, 56);
       add(round(at.x, at.z, dome, textures.tiles.metres, 56), tiles);
@@ -234,6 +235,7 @@ export function buildCity(world: RAPIER.World, scene: THREE.Scene) {
         add(round(at.x, at.z, Array.from({ length: 7 }, (_, k) => { const u = k / 6 * Math.PI / 2; return [(r2 + 0.3) * Math.cos(u) + 0.01, t2 - 0.2 + r2 * 0.9 * Math.sin(u)]; }), textures.tiles.metres, 32), tiles);
         ringOfWindows(at.x, at.z, [r2, t1 + r1 * 0.5, t2, 0.3], [[t2 - 4, 3, 0.8]]);
       }
+      scene.children.slice(k0).forEach(o => o.name = `t${depth}:${x}`); // TEMP
       // Floors of windows: sparse low down, more higher up.
       const floors: number[][] = [];
       for (let y = 6; y < t1 - 2.5; y += 4.3) floors.push([y, 3.6, y < 18 ? 0.25 : 0.7]);

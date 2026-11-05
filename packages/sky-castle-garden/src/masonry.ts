@@ -388,16 +388,72 @@ export function windowTexture() {
 }
 
 // The textures the level uses.
+// Wear painted over a texture of big stones (metres across): broad drifts
+// of warmer and cooler colour, so pieces cut from different places differ;
+// clumps of stains in the stone's own violets and a dirty ochre; pale scuffs
+// where feet have worn it; and a few long cracks, lit on one side.
+function worn(texture: THREE.CanvasTexture, metres: number) {
+  const canvas = texture.image as HTMLCanvasElement, g = canvas.getContext('2d')!, px = canvas.width, m = px / metres;
+  let s = 4111;
+  const random = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  const tiled = (draw: (dx: number, dy: number) => void) => { for (const dx of [-px, 0, px]) for (const dy of [-px, 0, px]) draw(dx, dy); };
+  const mark = (x: number, y: number, a: number, long: number, wide: number, colour: string) => {
+    const mask = Math.floor(random() * 10);
+    tiled((dx, dy) => stroke(g, mask, x + dx, y + dy, x + dx + Math.cos(a) * long, y + dy + Math.sin(a) * long, wide, colour));
+  };
+  // Drifts a slab or two across.
+  for (let k = 0; k < 26; k++) {
+    const warm = random() < 0.5;
+    mark(random() * px, random() * px, random() * Math.PI, (0.8 + random() * 1.4) * m, (0.6 + random() * 0.8) * m,
+      warm ? `rgba(214,168,104,${0.26 + random() * 0.2})` : `rgba(164,152,204,${0.24 + random() * 0.2})`);
+  }
+  // Stains, clumped.
+  for (let c = 0; c < 14; c++) {
+    const cx = random() * px, cy = random() * px, ochre = random() < 0.4;
+    for (let k = 0, n = 3 + Math.floor(random() * 6); k < n; k++) {
+      mark(cx + (random() - 0.5) * 0.5 * m, cy + (random() - 0.5) * 0.5 * m, random() * Math.PI, (0.12 + random() * 0.25) * m, (0.1 + random() * 0.14) * m,
+        ochre ? `rgba(176,140,86,${0.18 + random() * 0.14})` : random() < 0.4 ? `rgba(128,120,184,${0.16 + random() * 0.14})` : `rgba(156,150,206,${0.18 + random() * 0.14})`);
+    }
+  }
+  // Scuffs: pale, long and thin, worn along the way the slabs are walked.
+  for (let k = 0; k < 30; k++) {
+    mark(random() * px, random() * px, (random() - 0.5) * 0.5, (0.2 + random() * 0.4) * m, (0.04 + random() * 0.06) * m, `rgba(255,252,240,${0.35 + random() * 0.25})`);
+  }
+  // Cracks.
+  g.lineCap = 'round';
+  const crack = (x: number, y: number, a: number, steps: number, w: number) => {
+    for (let k = 0; k < steps; k++) {
+      a += (random() - 0.5) * 0.9;
+      const len = 0.06 * m + random() * 0.1 * m, nx = x + Math.cos(a) * len, ny = y + Math.sin(a) * len, width = w * (1 - k / steps * 0.6);
+      tiled((dx, dy) => {
+        const line = (ox: number, oy: number, colour: string, lw: number) => {
+          g.strokeStyle = colour; g.lineWidth = lw;
+          g.beginPath(); g.moveTo(x + dx + ox, y + dy + oy); g.lineTo(nx + dx + ox, ny + dy + oy); g.stroke();
+        };
+        line(-1, -1, 'rgba(150,130,170,0.2)', width * 5);
+        line(width * 0.9, width * 0.9, 'rgba(255,255,245,1)', width * 1.1);
+        line(0, 0, 'rgba(104,88,140,0.85)', width);
+      });
+      x = nx; y = ny;
+    }
+  };
+  for (let k = 0; k < 6; k++) crack(random() * px, random() * px, random() * Math.PI * 2, 14 + Math.floor(random() * 14), 2 + random() * 1.5);
+  texture.needsUpdate = true;
+  return texture;
+}
+
 const pale = ['#ffffff', '#fff7e6', '#f6eedc', '#eeeaf6', '#fbf1d6'];
 const city = ['#ffffff', '#fffaf0', '#fbf6ea', '#f4f2fb', '#f7f5fe', '#fffbe8'];
 export const textures = {
   // The city: tall pale blocks, some cream, some lilac.
-  city: { metres: 24, map: () => masonry({ metres: 24, course: [2, 3.4], block: [1.6, 4.2], tints: city, stepped: 0.2, seed: 3 }) },
+  city: { metres: 24, map: () => masonry({ metres: 24, course: [2, 3.4], block: [1.6, 4.2], tints: city, stepped: 0.2, round: 0.16, darkCorners: true, seed: 3 }) },
   // The garden's sandstone: the platform, causeway, stairs and terrace sides.
-  sandstone: { metres: 12, map: () => masonry({ metres: 12, px: 1024, course: [1, 1.8], block: [1.4, 3.4], tints: pale, stepped: 0.35, moss: 0.04, grain: 'along', seed: 5 }) },
+  sandstone: { metres: 12, map: () => masonry({ metres: 12, px: 1024, course: [1, 1.8], block: [1.4, 3.4], tints: pale, stepped: 0.35, moss: 0.04, grain: 'along', round: 0.16, darkCorners: true, seed: 5 }) },
   // Big flagstones for the paths.
   // Long slabs for the stair treads, no stepped joints.
-  steps: { metres: 12, map: () => masonry({ metres: 12, px: 1024, course: [0.8, 1.3], block: [2.2, 5], tints: pale, grain: 'along', seed: 13 }) },
+  steps: { metres: 12, map: () => masonry({ metres: 12, px: 1024, course: [0.8, 1.3], block: [2.2, 5], tints: pale, grain: 'along', round: 0.16, darkCorners: true, seed: 13 }) },
+  // One big stone a tile, the paving's own, for loose slabs cut from it.
+  slab: { metres: 6, map: () => worn(masonry({ metres: 6, px: 1024, course: [6, 6], block: [6, 6], tints: pale, grain: 'along', round: 0.16, seed: 17 }), 6) },
   paving: { metres: 10, map: () => masonry({ metres: 10, px: 1024, course: [0.9, 1.6], block: [0.9, 2], tints: pale, stepped: 0.1, grain: 'along', round: 0.16, darkCorners: true, seed: 7 }) },
   // Roof tiles in the rust bands between the city's tiers.
   tiles: { metres: 8, map: () => masonry({ metres: 8, px: 1024, course: [0.35, 0.55], block: [0.5, 1.1], tints: ['#ffffff', '#f0d8c0', '#e6cdb8', '#f4e6c8', '#d8c0b0'], moss: 0.08, seed: 9 }) },

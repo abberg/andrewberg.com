@@ -79,8 +79,11 @@ export const noise = /* glsl */`
 
 // The water's material, in one of the palette's pairs. Opacity is how much of
 // the wash covers what's under it, looking straight down.
-export function waterMaterial(colour: readonly [number, number], opacity: number) {
+// Unmirrored for water up off the moats' level (the start tower's pool),
+// which the one mirrored view can't reflect.
+export function waterMaterial(colour: readonly [number, number], opacity: number, mirrored = true) {
   const material = painted(colour, { transparent: true, opacity, depthWrite: false });
+  if (!mirrored) material.defines = { ...material.defines, UNMIRRORED: '' };
   materials.push(material);
   const paint = material.onBeforeCompile;
   material.onBeforeCompile = (shader, renderer) => {
@@ -132,6 +135,9 @@ export function waterMaterial(colour: readonly [number, number], opacity: number
           gl_FragColor.a = mix(gl_FragColor.a, 1.0, 1.0 - uBright.y);
           float across = 1.0 - abs(dot(normal, geometryViewDir));
           float mirror = mix(uMirror.x, uMirror.y, smoothstep(0.35, 0.95, across));
+          #ifdef UNMIRRORED
+          mirror = 0.0;
+          #endif
           gl_FragColor.rgb = mix(gl_FragColor.rgb, reflected, mirror);
           gl_FragColor.a = mix(gl_FragColor.a, 1.0, mirror);
 

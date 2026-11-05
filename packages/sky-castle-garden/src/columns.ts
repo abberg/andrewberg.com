@@ -78,8 +78,86 @@ function shaftTexture() {
 
 const shaft = shaftTexture();
 export const columnStone = painted(palette.stone, { map: shaft, vertexColors: true });
-// The same stone laid on from three sides, for blocks with no UVs to speak of.
-export const blockStone = painted(palette.stone, { map: shaft }, 4.4);
+// The same white stone for the blocky pieces (plinths, the arch fence,
+// blocks, the urns' feet), without the flutes' stripes: soft washes of warm
+// and cool in every direction, and weathered: blotchy discolouring, a little
+// lichen and fine forking cracks.
+function blockTexture() {
+  const px = 1024, canvas = document.createElement('canvas');
+  canvas.width = canvas.height = px;
+  const g = canvas.getContext('2d')!;
+  let s = 59;
+  const random = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  g.fillStyle = '#fbf9f2';
+  g.fillRect(0, 0, px, px);
+  // Drawn three times over, shifted by the tile, so the washes run on across
+  // its edges without a seam.
+  const tiled = (draw: (dx: number, dy: number) => void) => { for (const dx of [-px, 0, px]) for (const dy of [-px, 0, px]) draw(dx, dy); };
+  for (let k = 0; k < 40; k++) {
+    const x = random() * px, y = random() * px, a = random() * Math.PI, long = px * (0.15 + random() * 0.25), wide = px * (0.08 + random() * 0.12);
+    const colour = random() < 0.5 ? 'rgba(244,236,214,0.45)' : 'rgba(236,234,248,0.45)', mask = Math.floor(random() * 10);
+    tiled((dx, dy) => stroke(g, mask, x + dx, y + dy, x + dx + Math.cos(a) * long, y + dy + Math.sin(a) * long, wide, colour));
+  }
+  // Age: stains in the column's own colours (its two violets and its green),
+  // with a big brush, gathered into clumps of overlapping marks rather than
+  // scattered one by one.
+  for (let c = 0; c < 9; c++) {
+    const cx = random() * px, cy = random() * px, green = random() < 0.35, spread = px * (0.05 + random() * 0.07);
+    for (let k = 0, n = 4 + Math.floor(random() * 6); k < n; k++) {
+      const x = cx + (random() - 0.5) * spread * 2, y = cy + (random() - 0.5) * spread * 2, a = random() * Math.PI;
+      const long = px * (0.05 + random() * 0.09), wide = px * (0.04 + random() * 0.05), mask = Math.floor(random() * 10);
+      const colour = green ? `rgba(150,176,96,${0.2 + random() * 0.15})`
+        : random() < 0.3 ? `rgba(128,120,184,${0.18 + random() * 0.15})` : `rgba(156,150,206,${0.2 + random() * 0.15})`;
+      tiled((dx, dy) => stroke(g, mask, x + dx, y + dy, x + dx + Math.cos(a) * long, y + dy + Math.sin(a) * long, wide, colour));
+    }
+  }
+  // Cracks: a few long thin dark lines that wander and seldom fork (a
+  // fork never forks again), each with a
+  // white lit edge beside it, in a faint shade, so it reads as cut into the
+  // stone.
+  const crackLine = (x: number, y: number, a: number, steps: number, width: number, fork = true): void => {
+    for (let k = 0; k < steps; k++) {
+      a += (random() - 0.5) * 0.9;
+      const len = 10 + random() * 18, nx = x + Math.cos(a) * len, ny = y + Math.sin(a) * len, w = width * (1 - k / steps * 0.6);
+      tiled((dx, dy) => {
+        const line = (ox: number, oy: number, colour: string, width: number) => {
+          g.strokeStyle = colour;
+          g.lineWidth = width;
+          g.beginPath(); g.moveTo(x + dx + ox, y + dy + oy); g.lineTo(nx + dx + ox, ny + dy + oy); g.stroke();
+        };
+        g.lineCap = 'round';
+        // A soft shade along the crack, so the highlight has something to
+        // show against on the near-white stone; then the lit edge on the
+        // light's side, then the dark line itself.
+        line(-1, -1, 'rgba(176,168,206,0.22)', w * 5);
+        line(w * 0.9, w * 0.9, 'rgba(255,255,255,1)', w * 1.1);
+        line(0, 0, 'rgba(104,92,160,0.85)', w);
+      });
+      if (fork && random() < 0.05 && steps - k > 6) crackLine(nx, ny, a + (random() < 0.5 ? -1 : 1) * (0.6 + random() * 0.5), Math.floor((steps - k) * 0.4), w * 0.7, false);
+      x = nx; y = ny;
+    }
+  };
+  for (let k = 0; k < 5; k++) crackLine(random() * px, random() * px, random() * Math.PI * 2, 22 + Math.floor(random() * 14), 2.5 + random() * 1.5);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+  texture.anisotropy = 8;
+  return texture;
+}
+// Laid on from three sides, for blocks with no UVs to speak of. Each piece
+// takes it from its own place in the stone (shifted), so copies of a shape
+// don't wear the same stains and cracks.
+export const blockStone = painted(palette.stone, { map: blockTexture() }, 4.4);
+blockStone.defines = { ...blockStone.defines, TEX_SHIFT: '' };
+let shifts = 0;
+export function shifted(geometry: THREE.BufferGeometry, span = 4.4, margin = 0) {
+  const copy = geometry.clone(), n = copy.getAttribute('position').count, k = ++shifts;
+  // Spread well apart across the tile, the same for every corner of the piece.
+  const place = (f: number) => margin + (f % 1) * (span - 2 * margin);
+  const shift = [place(k * 0.618034), place(k * 0.414214), place(k * 0.732051)];
+  copy.setAttribute('texShift', new THREE.Float32BufferAttribute(Array.from({ length: n }, () => shift).flat(), 3));
+  return copy;
+}
 
 // A profile ([radius, y, cut] points, bottom first) turned round the y
 // axis. Points cut 1 are fluted, scalloped flutes with sharp ridges between;
@@ -200,6 +278,42 @@ export function columnGeometry(radius: number, height: number, capital: 'cup' | 
     return radius * (1 - 0.12 * t * t + 0.025 * Math.sin(t * Math.PI));
   };
   return lathe([...base, ...fluted(taper, shaftFoot, shaftTop, bottom), ...capitalProfile(radius, shaftTop, top, capital)], bottom);
+}
+
+// A broken column, as on the start tower in Andrew's stills of it: the round
+// moulded base and a plain shaft of drums, no flutes, snapped off with a
+// slanting, ragged top. Standing on the origin.
+export function brokenColumnGeometry(radius: number, height: number, seed: number, tile: number) {
+  const k = radius / 0.7, foot = 0.7 * k;
+  const base = [
+    [0, 0], [1.02 * k, 0], [1.02 * k, 0.2 * k],
+    ...arc(0.86 * k, 0.36 * k, 0.16 * k, -Math.PI / 2, Math.PI / 2),
+    [0.8 * k, 0.54 * k],
+    ...arc(0.78 * k, 0.6 * k, 0.07 * k, -Math.PI / 2, Math.PI / 2, 4),
+  ];
+  // The drums, a shallow groove at every seam, the last whole one well
+  // under the break.
+  const shaftPoints: number[][] = [[radius, foot]];
+  for (let y = foot + 0.75; y < height - 0.7; y += 0.8) {
+    shaftPoints.push([radius, y - 0.03], [radius * 0.97, y - 0.01], [radius * 0.97, y + 0.01], [radius, y + 0.03]);
+  }
+  shaftPoints.push([radius, height - 0.5], [radius, height], [0, height]);
+  const geometry = lathe([...base, ...shaftPoints], -3);
+  // The break: the rim slants down one way and wanders, the middle a little
+  // proud of it, like a snapped-off stump.
+  const p = geometry.getAttribute('position'), rows = base.length + shaftPoints.length;
+  for (let v = 0; v < p.count; v++) {
+    const j = v % rows, x = p.getX(v), z = p.getZ(v), a = Math.atan2(x, z);
+    if (j === rows - 2) p.setY(v, height + 0.22 * x / radius + 0.07 * Math.sin(3 * a + seed) + 0.04 * Math.sin(7 * a + seed * 2.3));
+    if (j === rows - 1) p.setY(v, height + 0.08);
+  }
+  // Laid on by UVs for a block texture, shrunk by tile (metres of texture
+  // to a metre of stone) so the blocks are to the shaft's scale, and the
+  // same size all the way round.
+  const uv = geometry.getAttribute('uv'), segments = p.count / rows - 1, round = Math.PI * 2 * radius;
+  for (let v = 0; v < p.count; v++) uv.setXY(v, Math.floor(v / rows) / segments * round / tile, p.getY(v) / tile);
+  geometry.computeVertexNormals();
+  return geometry;
 }
 
 // A plain length of fluted shaft, centred on the origin along y, cut from

@@ -1,7 +1,7 @@
 import RAPIER from '@dimforge/rapier3d-compat';
 import * as THREE from 'three';
 import { ConvexGeometry } from 'three/addons/geometries/ConvexGeometry.js';
-import { blockStone, capitalGeometry, chippedBlock, columnGeometry, columnStone, crack, drumGeometry, plinthGeometry, urnGeometry } from './columns';
+import { blockStone, capitalGeometry, shifted, chippedBlock, columnGeometry, columnStone, crack, drumGeometry, plinthGeometry, urnGeometry } from './columns';
 import { painted, palette } from './look';
 import { urnPlant, vineSpill } from './foliage';
 import { columnIvy } from './growth';
@@ -37,7 +37,7 @@ export function createStones(world: RAPIER.World, scene: THREE.Scene) {
     // Once a finished shape is shown, the parts after it are colliders only.
     let shown = false;
     const show = (geometry: THREE.BufferGeometry, material: THREE.Material, offset: Offset, turn: THREE.Quaternion) => {
-      const mesh = new THREE.Mesh(geometry, material);
+      const mesh = new THREE.Mesh(material === blockStone ? shifted(geometry) : geometry, material);
       mesh.position.set(...offset);
       mesh.quaternion.copy(turn);
       mesh.castShadow = mesh.receiveShadow = true;
@@ -110,7 +110,7 @@ export function createStones(world: RAPIER.World, scene: THREE.Scene) {
     const tipped = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0).cross(along.clone().negate()).normalize(), 0.26)
       .multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), 0.1));
     const sunk = plinthGeometry(2.3, 1.3, 0.35, 1.7).applyQuaternion(tipped).translate(plinth.x, -0.6, plinth.z);
-    const mesh = new THREE.Mesh(sunk, blockStone);
+    const mesh = new THREE.Mesh(shifted(sunk), blockStone);
     mesh.castShadow = mesh.receiveShadow = true;
     scene.add(mesh);
     world.createCollider(RAPIER.ColliderDesc.convexHull(new Float32Array(sunk.getAttribute('position').array))!.setFriction(0.8),

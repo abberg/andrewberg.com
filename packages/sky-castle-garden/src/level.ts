@@ -2,8 +2,10 @@ import RAPIER from '@dimforge/rapier3d-compat';
 import * as THREE from 'three';
 import { ConvexGeometry } from 'three/addons/geometries/ConvexGeometry.js';
 import { ARCH, buildCity, cityFront } from './city';
-import { chippedBlock } from './columns';
-import { drowned, painted, palette } from './look';
+import { DRIFTS, drifting } from './drift';
+import { brokenColumnGeometry, chippedBlock, shifted } from './columns';
+import { columnIvy } from './growth';
+import { DEEP, drowned, painted, palette } from './look';
 import { textures } from './masonry';
 import { buildFlooded } from './flooded';
 import { noise, waterMaterial } from './water';
@@ -119,29 +121,83 @@ export const SPAWN = { x: 0, z: -37, yaw: Math.PI };
 export const PLATFORM_TOP = 3.2;
 // The start platform's middle and radius.
 export const PLATFORM = { z: -34.9, r: 11.1 };
+// On its top, from Andrew's two stills of the tower from the south-east: a
+// small pool sunk in the lawn west of the stair, what's left of an L of
+// paving just north of the spawn, a broken column on a stepped plinth near
+// the north-west rim, and a square notch in the east face's rim, where a
+// big block has fallen out.
+// The pool by its middle and half sizes (the water; the coping round it is
+// COPING wide), the column by its middle, the notch by its angle round the
+// tower (from east towards south), half width, how far it cuts in and how
+// far down it goes from the top of the grass.
+export const PLATFORM_POOL = { x: -4.8, z: -29.8, hx: 1.5, hz: 0.85 };
+const COPING = 0.3;
+export const PLATFORM_COLUMN = { x: -4.6, z: -42.6, plinth: 2 };
+export const PLATFORM_NOTCH = { angle: 0.5, half: 0.9, depth: 1.3, drop: 2.2 };
+// The paving's two arms, as x and z extents, and its slabs: laid in courses
+// along each arm, two across, some gone, more of them towards the arms'
+// ragged ends. Each as its middle, size, turn, tilt and top.
+const PLATFORM_ARMS = [[-6.8, -0.6, -38.2, -36.2, 'x'], [-2.4, -0.4, -42.4, -38.2, 'z']] as const;
+export const PLATFORM_SLABS = (() => {
+  let s = 977;
+  const random = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  const slabs: { x: number, z: number, w: number, d: number, turn: number, tilt: [number, number], top: number }[] = [];
+  for (const [x0, x1, z0, z1, axis] of PLATFORM_ARMS) {
+    const [a0, a1, b0, b1] = axis === 'x' ? [x0, x1, z0, z1] : [z1, z0, x0, x1];
+    const length = Math.abs(a1 - a0), dir = Math.sign(a1 - a0), across = (b1 - b0) / 2;
+    for (let row = 0; row < 2; row++) {
+      // Each row's courses start at their own place, so the joints break.
+      for (let at = row ? -0.4 * random() : 0; at < length;) {
+        const long = 0.8 + random() * 0.6, from = Math.max(0, at), to = Math.min(length, at + long);
+        at += long;
+        // Gone: now and then, and more and more towards the far end.
+        if (random() < 0.08 + 0.5 * Math.max(0, (to / length - 0.6) / 0.4) ** 2) continue;
+        const a = a0 + dir * (from + to) / 2, b = b0 + across * (row + 0.5);
+        const [x, z] = axis === 'x' ? [a, b] : [b, a], [w, d] = axis === 'x' ? [to - from, across] : [across, to - from];
+        slabs.push({ x, z, w: w - 0.07, d: d - 0.07, turn: (random() - 0.5) * 0.04, tilt: [(random() - 0.5) * 0.03, (random() - 0.5) * 0.03], top: PLATFORM_TOP + 0.03 + random() * 0.03 });
+      }
+    }
+  }
+  return slabs;
+})();
+// Is a point on the platform's pool, paving, column or notch (with a margin)?
+// The plinth takes its own margin: grass grows right up against it.
+export const onPlatformFeature = (x: number, z: number, margin = 0, plinthMargin = margin) => {
+  const { x: px, z: pz, hx, hz } = PLATFORM_POOL;
+  if (Math.abs(x - px) < hx + COPING + margin && Math.abs(z - pz) < hz + COPING + margin) return true;
+  const { x: cx, z: cz, plinth } = PLATFORM_COLUMN;
+  if (Math.abs(x - cx) < plinth / 2 + plinthMargin && Math.abs(z - cz) < plinth / 2 + plinthMargin) return true;
+  const { angle, half, depth } = PLATFORM_NOTCH, dz = z - PLATFORM.z;
+  const out = x * Math.cos(angle) + dz * Math.sin(angle), side = -x * Math.sin(angle) + dz * Math.cos(angle);
+  if (out > PLATFORM.r - depth - margin && Math.abs(side) < half + margin) return true;
+  return PLATFORM_SLABS.some(({ x: sx, z: sz, w, d }) => Math.abs(x - sx) < w / 2 + margin && Math.abs(z - sz) < d / 2 + margin);
+};
 
 export const stone = painted(palette.stone);
 const sandstoneMap = textures.sandstone.map();
 const sandstone = painted(palette.sandstone, { map: sandstoneMap }, textures.sandstone.metres);
 const steps = painted(palette.sandstone, { map: textures.steps.map() }, textures.steps.metres);
-const masonry = painted(palette.masonry, { map: sandstoneMap }, textures.sandstone.metres), lawn = painted(palette.lawn);
+const masonry = painted(palette.masonry, { map: sandstoneMap }, textures.sandstone.metres), lawn = drifting(painted(palette.grass), DRIFTS.lawn), meadow = drifting(painted(palette.grass), DRIFTS.meadow);
 const pavingMap = textures.paving.map();
 // Moss on the paving: in the joints and over the stone in patches, creeping
 // in from the paths' edges and thinning towards their middles, cut hard like
-// a painted wash. The sunk slabs, outside the paths, get it the most.
+// a painted wash.
 // All the paving, the causeway's too. Out over the drop, away from the
 // soil, the causeway takes only a little.
-const CAUSEWAY = [-2.5, 2.5, -27.3, 0], PAVED = [...PATHS, CAUSEWAY];
-function mossy(material: THREE.MeshStandardMaterial) {
+const CAUSEWAY = [-2.5, 2.5, -27.3, 0], PAVED = [...PATHS, CAUSEWAY, ...PLATFORM_ARMS.map(([x0, x1, z0, z1]) => [x0, x1, z0, z1])];
+// The sunk slabs, out in the grass, would be all edge: they take only some
+// of the creep (spread), so their moss stays in a few cracks and patches.
+function mossy(material: THREE.MeshStandardMaterial, spread = 1) {
   const paint = material.onBeforeCompile;
   material.onBeforeCompile = (shader, renderer) => {
     paint(shader, renderer);
     Object.assign(shader.uniforms, {
       uPaths: { value: PAVED.map(([x0, x1, z0, z1]) => new THREE.Vector4(x0, x1, z0, z1)) },
-      uMoss: { value: new THREE.Color(palette.moss[0]) },
-      uMossDeep: { value: new THREE.Color(palette.mossDepth[0]) },
+      uMoss: { value: new THREE.Color(PATH_MOSS[0]) },
+      uMossDeep: { value: new THREE.Color(PATH_MOSS[1]) },
       uMossReach: { value: mossLook },
       uBare: { value: new THREE.Vector4(...CAUSEWAY) },
+      uSpread: { value: spread },
     });
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', 'varying vec2 vGround;\n#include <common>')
@@ -153,6 +209,7 @@ function mossy(material: THREE.MeshStandardMaterial) {
         uniform vec3 uMoss, uMossDeep;
         uniform vec2 uMossReach;
         uniform vec4 uBare;
+        uniform float uSpread;
         ${noise}`)
       .replace('#include <color_fragment>', /* glsl */`#include <color_fragment>
         {
@@ -165,25 +222,70 @@ function mossy(material: THREE.MeshStandardMaterial) {
           }
           float creep = 1.0 - smoothstep(0.0, uMossReach.x, inside);
           if (all(greaterThan(vGround, uBare.xz)) && all(lessThan(vGround, uBare.yw))) creep *= 0.3;
-          float n = snoise(vec3(vGround * 0.7, 0.0)) * 0.6 + snoise(vec3(vGround * 2.6, 3.0)) * 0.4;
-          // The joints: darker than the stone's own colour.
+          creep *= uSpread;
+          // Three sizes of noise, so the patches' edges are ragged, not blobs.
+          vec2 at = vGround;
+          float n = snoise(vec3(at * 0.7, 0.0)) * 0.55 + snoise(vec3(at * 2.6, 3.0)) * 0.33 + snoise(vec3(at * 7.0, 5.0)) * 0.12;
+          // The same a little towards the light: where both cover, the lit
+          // top of the cushion; the rest of it, along its far side, is the
+          // deeper green, so each patch has a lighter shape inside a darker.
+          vec2 lit = at + vec2(0.05, -0.065);
+          float m = snoise(vec3(lit * 0.7, 0.0)) * 0.55 + snoise(vec3(lit * 2.6, 3.0)) * 0.33 + snoise(vec3(lit * 7.0, 5.0)) * 0.12;
+          // The joints: much darker than the stone's own colour, so the cracks
+          // and not the stone's own darker marks. Moss is rare, and mostly in
+          // these; out on the stone only where it's grown thickest.
           const vec3 luma = vec3(0.299, 0.587, 0.114);
-          float joint = 1.0 - smoothstep(0.5, 0.7, dot(diffuseColor.rgb, luma) / dot(diffuse, luma));
-          float grow = n + creep * 0.6;
-          float inJoint = joint * step(0.45, grow);
+          float joint = 1.0 - smoothstep(0.4, 0.55, dot(diffuseColor.rgb, luma) / dot(diffuse, luma));
+          // How close a crack is: the darkest of the paving's texture a hand's
+          // width around. Moss grows out from the cracks, so it gets a head
+          // start near one.
+          float near = 0.0;
+          #if defined(USE_MAP) && defined(TRIPLANAR)
+            for (int k = 0; k < 8; k++) {
+              float a = float(k) * 0.785398;
+              vec2 q = (vModel.xz + vec2(cos(a), sin(a)) * 0.1) / uTile;
+              near = max(near, 1.0 - smoothstep(0.3, 0.42, dot(texture2D(map, q).rgb, luma)));
+            }
+          #endif
+          // Only along some stretches of crack, where the noise is up anyway.
+          near *= smoothstep(0.25, 0.55, n);
+          float grow = n + creep * 0.6 + near * 0.7, top = m + creep * 0.6 + near * 0.7;
+          float inJoint = joint * step(0.62, grow);
           float edge = fwidth(grow) * 0.7;
           float patches = smoothstep(uMossReach.y - edge, uMossReach.y + edge, grow);
-          diffuseColor.rgb = mix(diffuseColor.rgb, mix(uMoss, uMossDeep, max(joint, 0.55 + 0.4 * n)), max(inJoint, patches));
+          // The lit top: where the shifted field is well over the line this
+          // moss grew past (the joints' or the patches'), so the deeper green
+          // is left along each shape's far side.
+          float line = patches > 0.5 ? uMossReach.y : 0.62;
+          float crown = smoothstep(line + 0.08 - edge, line + 0.08 + edge, top);
+          // In the cracks alone it's in shadow: the deeper green.
+          vec3 moss = mix(uMossDeep, uMoss, crown * patches);
+          diffuseColor.rgb = mix(diffuseColor.rgb, moss, max(inJoint, patches));
         }`);
   };
   return material;
 }
+// The paths' moss, as its lit top and its deeper body: cool greens, near
+// the meadow's, so it sits with the grass rather than glowing against it.
+const PATH_MOSS = [0x7fa655, 0x4a7646];
 // How far in from the edges moss creeps (m), and how sparse its patches are.
-const mossLook = new THREE.Vector2(1.4, 0.92);
+const mossLook = new THREE.Vector2(1.4, 0.95);
 const path = mossy(painted(palette.path, { map: pavingMap }, textures.paving.metres)), door = painted(palette.door);
 // The same stone with the texture laid on by UVs, for the pool rims.
 const coping = painted(palette.path, { map: pavingMap });
+// The platform's loose slabs: each one stone, from a texture of one big
+// stone a tile, each slab taken from its own place inside it, clear of the
+// tile's edges (columns.ts).
+const SLAB_TILE = textures.slab.metres;
+const slabMap = textures.slab.map();
+const slabStone = mossy(painted(palette.path, { map: slabMap }, SLAB_TILE));
+slabStone.defines = { ...slabStone.defines, TEX_SHIFT: '' };
+// The same stone for the sunk slabs, with less moss.
+const sunkStone = mossy(painted(palette.path, { map: slabMap }, SLAB_TILE), 0.5);
+sunkStone.defines = { ...sunkStone.defines, TEX_SHIFT: '' };
 const water = waterMaterial(palette.canal, 0.55), poolWater = waterMaterial(palette.water, 0.92);
+// The tower's pool, darker than the garden's: deep and in shade.
+const towerWater = waterMaterial([DEEP, 0x163a4e], 0.97, false);
 // The moats' walls and the streets at their foot.
 const drownedMasonry = drowned(painted(palette.masonry, { map: sandstoneMap }, textures.sandstone.metres));
 
@@ -195,6 +297,8 @@ const sample = (curve: (x: number) => number, from: number, to: number, steps = 
 // on round the curves without the seam the three-sided mapping leaves where
 // the wall turns from facing one way to another.
 const outside = painted(palette.masonry, { map: textures.sandstone.map() });
+// The tower's column in the same blocks, smaller, by its own UVs.
+const columnBlocks = painted(palette.sandstone, { map: sandstoneMap });
 // A slab's sides given UVs along and up the wall, in blocks, and normals
 // smoothed round its curves (not round its sharp corners).
 function walled(geometry: THREE.BufferGeometry, outline?: number[][]) {
@@ -377,14 +481,77 @@ export function buildLevel(world: RAPIER.World, scene: THREE.Scene) {
   // in its south side for the stair down to the causeway.
   const notchMeets = PLATFORM.z + Math.sqrt(PLATFORM.r ** 2 - 2.5 ** 2);
   const from = Math.atan2(notchMeets - PLATFORM.z, 2.5), to = Math.PI - from;
-  const rim = Array.from({ length: 65 }, (_, i) => {
-    const a = to + (from + Math.PI * 2 - to) * i / 64;
+  const round = (a0: number, a1: number, n: number) => Array.from({ length: n + 1 }, (_, i) => {
+    const a = a0 + (a1 - a0) * i / n;
     return [Math.cos(a) * PLATFORM.r, PLATFORM.z + Math.sin(a) * PLATFORM.r];
   });
-  // Grass on top of the tower's stone.
-  const outline = [...rim, [2.5, -27.3], [-2.5, -27.3]];
-  ground(slab(outline, -60, PLATFORM_TOP - 0.3), sandstone);
-  ground(slab(outline, PLATFORM_TOP - 0.3, PLATFORM_TOP), lawn);
+  const rim = round(to, from + Math.PI * 2, 64);
+  // The east notch: a block's space cut square out of the rim.
+  const { angle, half, depth, drop } = PLATFORM_NOTCH;
+  const across = (out: number, side: number) => [out * Math.cos(angle) - side * Math.sin(angle), PLATFORM.z + out * Math.sin(angle) + side * Math.cos(angle)];
+  const spread = Math.asin(half / PLATFORM.r), inner = PLATFORM.r - depth;
+  const notched = [...round(to, angle + Math.PI * 2 - spread, 56), across(inner, -half), across(inner, half), ...round(angle + Math.PI * 2 + spread, from + Math.PI * 2, 8)];
+  // The pool's hole: the water's size through the stone, and wider through
+  // the grass, for the coping.
+  const { x: px, z: pz, hx, hz } = PLATFORM_POOL;
+  const rect = (wx: number, wz: number) => [[px - wx, pz - wz], [px + wx, pz - wz], [px + wx, pz + wz], [px - wx, pz + wz]];
+  const stair = [[2.5, -27.3], [-2.5, -27.3]], apex = PLATFORM_TOP - drop;
+  // The pool's floor sits in the notched part, so that goes down far enough.
+  const cut = Math.min(apex, PLATFORM_TOP - 1.5);
+  // Grass on top of the tower's stone: plain below the notch, cut above it.
+  ground(slab([...rim, ...stair], -60, cut), sandstone);
+  // Between the notch's floor and the pool's, cut for the pool alone.
+  if (cut < apex) ground(slab([...rim, ...stair], cut, apex, [rect(hx, hz)]), sandstone);
+  // The stone runs right up to the grass, so the rim's face is all stone
+  // and the green is only a skin on top, the blades hiding where they meet.
+  ground(slab([...notched, ...stair], apex, PLATFORM_TOP - 0.3, [rect(hx, hz)]), sandstone);
+  ground(slab([...notched, ...stair], PLATFORM_TOP - 0.3, PLATFORM_TOP - 0.02, [rect(hx + COPING, hz + COPING)]), sandstone);
+  ground(slab([...notched, ...stair], PLATFORM_TOP - 0.02, PLATFORM_TOP, [rect(hx + COPING, hz + COPING)]), meadow);
+  {
+    // The pool: a floor a metre down, coping round it just proud of the
+    // grass, and still water a little under the coping's top.
+    box(px, (cut + PLATFORM_TOP - 1.2) / 2, pz, hx * 2, PLATFORM_TOP - 1.2 - cut, hz * 2, sandstone);
+    const top = PLATFORM_TOP + 0.05, y = (top + PLATFORM_TOP - 0.4) / 2, tall = top - (PLATFORM_TOP - 0.4);
+    for (const side of [-1, 1]) {
+      box(px, y, pz + side * (hz + COPING / 2), (hx + COPING) * 2, tall, COPING, path);
+      box(px + side * (hx + COPING / 2), y, pz, COPING, tall, hz * 2, path);
+    }
+    const surface = new THREE.PlaneGeometry(hx * 2, hz * 2), uvs = surface.getAttribute('uv');
+    for (let k = 0; k < uvs.count; k++) uvs.setXY(k, uvs.getX(k) * hx * 2, uvs.getY(k) * hz * 2);
+    const pool = add(surface, towerWater, { cast: false });
+    pool.rotation.x = -Math.PI / 2;
+    pool.position.set(px, PLATFORM_TOP - 0.15, pz);
+  }
+  {
+    // The column: a plinth of two worn steps, and the broken shaft on it,
+    // ivy climbing its west side.
+    const { x: cx, z: cz, plinth } = PLATFORM_COLUMN;
+    let base = PLATFORM_TOP - 0.1;
+    for (const [k, [w, h]] of [[plinth, 0.45], [plinth * 0.76, 0.35]].entries()) {
+      const mesh = add(new ConvexGeometry(chippedBlock(w, h, w, 41 + k)), sandstone);
+      mesh.position.set(cx, base + h / 2, cz);
+      world.createCollider(RAPIER.ColliderDesc.cuboid(w / 2, h / 2, w / 2).setTranslation(cx, base + h / 2, cz));
+      base += h;
+    }
+    const radius = 0.45, height = 2.5;
+    // In the tower's own block texture, as in the stills, at 0.4 the size
+    // so a few blocks go round it.
+    const column = add(brokenColumnGeometry(radius, height, 3, textures.sandstone.metres * 0.4), columnBlocks);
+    column.position.set(cx, base, cz);
+    column.rotation.y = 0.6;
+    world.createCollider(RAPIER.ColliderDesc.cylinder(height / 2, radius * 1.1).setTranslation(cx, base + height / 2, cz));
+    column.add(columnIvy(17, 0.5, height - 0.4, () => radius, -Math.PI / 2 - 0.6));
+  }
+  // The paving: worn slabs of the path's stone, just proud of the grass,
+  // solid as a thin slab under each arm.
+  PLATFORM_SLABS.forEach(({ x, z, w, d, turn, tilt, top }, k) => {
+    const height = 0.25, mesh = add(shifted(new ConvexGeometry(chippedBlock(w, height, d, 700 + k)), SLAB_TILE, 1), slabStone);
+    mesh.position.set(x, top - height / 2, z);
+    mesh.quaternion.setFromEuler(new THREE.Euler(tilt[0], turn, tilt[1], 'YXZ'));
+  });
+  for (const [x0, x1, z0, z1] of PLATFORM_ARMS) {
+    world.createCollider(RAPIER.ColliderDesc.cuboid((x1 - x0) / 2, 0.1, (z1 - z0) / 2).setTranslation((x0 + x1) / 2, PLATFORM_TOP - 0.06, (z0 + z1) / 2));
+  }
   // The causeway, 5 m wide, from inside the notch to the garden's lip.
   box(0, -12.5, -13.65, 5, 25, 27.3, sandstone);
   paving(-2.5, 2.5, -27.3, 0);
@@ -482,6 +649,17 @@ export function buildLevel(world: RAPIER.World, scene: THREE.Scene) {
     // Joining the ends to the notch.
     wall(-2.5, notchMeets, Math.cos(from) * r, PLATFORM.z + Math.sin(from) * r);
     wall(2.5, notchMeets, Math.cos(to) * r, PLATFORM.z + Math.sin(to) * r);
+    // Across the mouth of the east notch, joined out to the ring.
+    const { angle, half, depth } = PLATFORM_NOTCH, out = PLATFORM.r - depth - 0.3, far = half + 1.2;
+    const at = (o: number, s: number) => [o * Math.cos(angle) - s * Math.sin(angle), PLATFORM.z + o * Math.sin(angle) + s * Math.cos(angle)];
+    along([at(r + 0.2, -far), at(out, -far), at(out, far), at(r + 0.2, far)]);
+  }
+  // Round the tower's pool.
+  {
+    const { x, z, hx, hz } = PLATFORM_POOL, mesh = new THREE.Mesh(new THREE.BoxGeometry((hx + 0.1) * 2, 20, (hz + 0.1) * 2), seen);
+    mesh.position.set(x, PLATFORM_TOP + 9, z);
+    walls.add(mesh);
+    world.createCollider(RAPIER.ColliderDesc.cuboid(hx + 0.1, 10, hz + 0.1).setTranslation(x, PLATFORM_TOP + 9, z).setCollisionGroups(WALL_GROUPS));
   }
   // Over the pools' water, inside the rims.
   for (const [x, z] of POOLS) {
@@ -491,11 +669,11 @@ export function buildLevel(world: RAPIER.World, scene: THREE.Scene) {
     world.createCollider(RAPIER.ColliderDesc.cylinder(10, 5.4).setTranslation(x, 9, z).setCollisionGroups(WALL_GROUPS));
   }
 
-  // The sunk paving: chipped slabs of the path's stone, tipped a little,
-  // just proud of the grass.
+  // The sunk paving: chipped slabs, tipped a little, just proud of the
+  // grass, each one stone like the platform's.
   SUNK.forEach(({ x, z, w, d, turn, tilt, top }, k) => {
     const height = 0.3, turned = new THREE.Quaternion().setFromEuler(new THREE.Euler(tilt[0], -turn, tilt[1], 'YXZ'));
-    const mesh = add(new ConvexGeometry(chippedBlock(w, height, d, 300 + k)), path);
+    const mesh = add(shifted(new ConvexGeometry(chippedBlock(w, height, d, 300 + k)), SLAB_TILE, 1), sunkStone);
     mesh.position.set(x, top - height / 2, z);
     mesh.quaternion.copy(turned);
     world.createCollider(RAPIER.ColliderDesc.cuboid(w / 2, height / 2, d / 2).setTranslation(x, top - height / 2, z)

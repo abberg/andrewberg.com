@@ -2,8 +2,8 @@ import RAPIER from '@dimforge/rapier3d-compat';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { cityFront, CROWN as CITY_TOP } from './city';
+import { DRIFTS, drifting } from './drift';
 import { bothSidesAlike, wander } from './growth';
-import { stroke } from './masonry';
 import { EAST, EAST_LAWN, lawnSouth, ledgeEdge, ledgeFront, MOATS_FROM, northEdge, onSunk, PATHS, PLATFORM, OUTER, PLATFORM_TOP, POOLS, WALL_GROUPS, WEST, WEST_LAWN } from './level';
 import { painted, palette } from './look';
 import { SWAY, type Sway, swaying } from './wind';
@@ -418,11 +418,71 @@ export function vineSpill(lip: THREE.Vector3[], out: THREE.Vector3[], reach: num
   return group;
 }
 
+// One blade's (or leaf's) own shade, from one random number: within a few
+// per cent of white, a touch yellower or bluer, so stalks side by side are
+// told apart without the lawn going noisy. The green and the drifts are the
+// material's (drift.ts).
+function bladeShade(r: number) {
+  const v = 0.965 + 0.035 * r, hue = ((r * 7.31) % 1 - 0.5) * 0.03;
+  return `rgb(${Math.round(255 * v)},${Math.round(255 * v)},${Math.round(255 * v * (1 - hue))})`;
+}
+
+// A painted card as a texture, with the empty pixels around each shape
+// given the shapes' own near-white rather than the canvas's transparent
+// black. Filtering and mipmaps blend an edge with its neighbours, and
+// black there drew a dark outline round every blade.
+function bled(canvas: HTMLCanvasElement, fill = [246, 246, 246]) {
+  const { width, height } = canvas, data = canvas.getContext('2d')!.getImageData(0, 0, width, height).data;
+  const flipped = new Uint8Array(data.length), row = width * 4;
+  for (let y = 0; y < height; y++) {
+    const from = y * row, to = (height - 1 - y) * row;
+    for (let k = 0; k < row; k += 4) {
+      const a = data[from + k + 3];
+      for (let c = 0; c < 3; c++) flipped[to + k + c] = a === 0 ? fill[c] : data[from + k + c];
+      flipped[to + k + 3] = a;
+    }
+  }
+  const texture = new THREE.DataTexture(flipped, width, height);
+  Object.assign(texture, { colorSpace: THREE.SRGBColorSpace, magFilter: THREE.LinearFilter, minFilter: THREE.LinearMipmapLinearFilter, generateMipmaps: true, needsUpdate: true });
+  return texture;
+}
+
+// A blade of grass, one smooth flat shape from its foot (x0, y0) to its tip:
+// broad at the foot, narrowing to a small rounded tip, along a gentle arc.
+// The arc bows by `bend` (a share of its length, + to the blade's right as
+// it rises), so a blade leaning out can rise near upright and curve away.
+function blade(g: CanvasRenderingContext2D, x0: number, y0: number, x1: number, y1: number, width: number, colour: string, bend = 0) {
+  const length = Math.hypot(x1 - x0, y1 - y0), w = width / 2, tip = w * 0.35, n = 14;
+  const cx = length / 2, cy = bend * length;
+  const left: number[][] = [], right: number[][] = [];
+  for (let k = 0; k <= n; k++) {
+    const t = k / n;
+    const px = 2 * (1 - t) * t * cx + t * t * length, py = 2 * (1 - t) * t * cy;
+    const dx = 2 * (1 - t) * cx + 2 * t * (length - cx), dy = 2 * (1 - t) * cy - 2 * t * cy, d = Math.hypot(dx, dy);
+    const half = Math.max(tip, w * (1 - 0.65 * t ** 1.6)), nx = -dy / d, ny = dx / d;
+    left.push([px + nx * half, py + ny * half]);
+    right.push([px - nx * half, py - ny * half]);
+  }
+  const [ex, ey] = [length, 0], end = Math.atan2(-cy * 2, length - cx);
+  g.save();
+  g.translate(x0, y0);
+  g.rotate(Math.atan2(y1 - y0, x1 - x0));
+  g.fillStyle = colour;
+  g.beginPath();
+  g.moveTo(right[0][0], right[0][1]);
+  for (const [x, y] of right) g.lineTo(x, y);
+  g.arc(ex, ey, tip, end - Math.PI / 2, end + Math.PI / 2);
+  for (const [x, y] of left.reverse()) g.lineTo(x, y);
+  g.closePath();
+  g.fill();
+  g.restore();
+}
+
 // A tuft of grass painted on a clear ground, a few broad blades fanning up
-// from the foot in strokes, paler towards their tips: near white, the
-// material gives the lawn's green. With flowers, the blades are painted in
+// from the foot, each near white in its own shade: the material
+// gives the lawn's green. With flowers, the blades are painted in
 // green and the tips carry dots of white, pink and yellow.
-function tuftTexture(seed: number, flowers: boolean) {
+export function tuftTexture(seed: number, flowers: boolean) {
   const px = 256;
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = px;
@@ -430,11 +490,13 @@ function tuftTexture(seed: number, flowers: boolean) {
   let s = seed;
   const random = () => (s = (s * 16807) % 2147483647) / 2147483647;
   const tips: number[][] = [];
-  for (let k = 0; k < 11; k++) {
-    const x = px / 2 + (random() - 0.5) * px * 0.3, a = -Math.PI / 2 + (random() - 0.5) * 1.1, long = px * (0.45 + random() * 0.45);
+  for (let k = 0; k < 5; k++) {
+    // Fanned by where it stands, so blades spread apart and never cross.
+    const off = random() - 0.5, x = px / 2 + off * px * 0.3, a = -Math.PI / 2 + off * 0.55 + 0 * random(), long = px * (0.45 + random() * 0.45);
     const tx = x + Math.cos(a) * long, ty = px + Math.sin(a) * long, shade = 0.78 + random() * 0.22;
-    const colour = flowers ? `rgba(${120 * shade | 0},${178 * shade | 0},${78 * shade | 0},1)` : `rgba(${255 * shade | 0},${255 * shade | 0},${255 * shade | 0},1)`;
-    stroke(g, Math.floor(random() * 10), x, px, tx, ty, px * (0.07 + random() * 0.04), colour);
+    const colour = flowers ? `rgba(${120 * shade | 0},${178 * shade | 0},${78 * shade | 0},1)` : bladeShade((shade - 0.78) / 0.22);
+    random();
+    blade(g, x, px, tx, ty, px * (0.14 + random() * 0.04), colour, -Math.sign(off) * 0.06);
     tips.push([tx, ty]);
   }
   if (flowers) for (const [x, y] of tips.slice(0, 6)) {
@@ -443,47 +505,111 @@ function tuftTexture(seed: number, flowers: boolean) {
     g.arc(x, y + 6, 7 + random() * 4, 0, Math.PI * 2);
     g.fill();
   }
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  return texture;
+  return bled(canvas, flowers ? [100, 150, 66] : undefined);
 }
 
-// A patch of the lawn's grass: many thin blades side by side across the
-// card, all within a shade of the lawn, so tufts packed together run into
-// one carpet the same colour as the ground.
-function swardTexture(seed: number) {
+// A patch of the lawn's grass: a dozen or so blades side by side across the
+// card, each near white in its own shade, so tufts packed together run
+// into one carpet the same colour as the ground.
+export function swardTexture(seed: number) {
   const px = 256;
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = px;
   const g = canvas.getContext('2d')!;
   let s = seed;
   const random = () => (s = (s * 16807) % 2147483647) / 2147483647;
-  for (let k = 0; k < 30; k++) {
-    const x = px * (0.06 + random() * 0.88), a = -Math.PI / 2 + (random() - 0.5) * 0.6, long = px * (0.45 + random() * 0.5);
-    const shade = 0.9 + random() * 0.1, c = 255 * shade | 0;
-    stroke(g, Math.floor(random() * 10), x, px, x + Math.cos(a) * long, px + Math.sin(a) * long, px * (0.035 + random() * 0.025), `rgba(${c},${c},${c},1)`);
+  for (let k = 0; k < 14; k++) {
+    const x = px * (0.06 + random() * 0.88), off = x / px - 0.5, a = -Math.PI / 2 + off * 0.35 + 0 * random(), long = px * (0.45 + random() * 0.5);
+    const shade = bladeShade(random());
+    random();
+    blade(g, x, px, x + Math.cos(a) * long, px + Math.sin(a) * long, px * (0.085 + random() * 0.03), shade, -Math.sign(off) * 0.05);
   }
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  return texture;
+  return bled(canvas);
 }
 
-// A tuft: three upright cards crossing at its middle, a unit tall and wide,
+// A tuft: two upright cards crossing at its middle, a unit tall and wide,
 // standing on the origin, its normals all straight up so it shades just as
 // the lawn under it does.
-function tuftGeometry(sward = false) {
+export function tuftGeometry(sward = false) {
   const cards = sward
-    // The lawn's own grass: four cards leaning out from the middle, so from
-    // above they cover the ground between them rather than showing as thin
-    // crosses.
-    ? [0, 1, 2, 3].map(k => new THREE.PlaneGeometry(1, 1).translate(0, 0.5, 0).rotateX(-0.75).translate(0, 0, 0.08).rotateY(k * Math.PI / 2))
-    : [0, 1, 2].map(k => new THREE.PlaneGeometry(1, 1).translate(0, 0.5, 0).rotateY(k * Math.PI / 3));
+    // The lawn's own grass: three upright cards set a little out from the
+    // middle. Upright, with upright blades, so nothing crosses at an angle
+    // (crossing blades read as noise).
+    ? [0, 1, 2].map(k => new THREE.PlaneGeometry(1, 1).translate(0, 0.5, 0).translate(0, 0, 0.08).rotateY(k * Math.PI * 2 / 3))
+    : [0, 1].map(k => new THREE.PlaneGeometry(1, 1).translate(0, 0.5, 0).rotateY(k * Math.PI / 2));
   const positions: number[] = [], normals: number[] = [], uvs: number[] = [];
   for (const card of cards) {
     const nonIndexed = card.toNonIndexed();
     positions.push(...nonIndexed.getAttribute('position').array);
     uvs.push(...nonIndexed.getAttribute('uv').array);
     for (let k = 0; k < nonIndexed.getAttribute('position').count; k++) normals.push(0, 1, 0);
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  return geometry;
+}
+
+// A smooth field over the ground, about -1 to 1: a few long waves crossing
+// at their own angles.
+export function field2(seed: number, scale: number) {
+  let s = seed * 7919 + 5;
+  const random = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  const waves = Array.from({ length: 4 }, (_, k) => {
+    const a = random() * Math.PI * 2, f = (0.7 + random() * 0.6) * 2 ** (k * 0.7) / scale;
+    return [Math.cos(a) * f, Math.sin(a) * f, random() * Math.PI * 2, 1 / 2 ** (k * 0.8)];
+  });
+  const total = waves.reduce((sum, w) => sum + w[3], 0);
+  return (x: number, z: number) => waves.reduce((sum, [fx, fz, p, amp]) => sum + Math.sin(x * fx + z * fz + p) * amp, 0) / total * 1.6;
+}
+
+// Clover, seen from above: a mat of three-part leaves, each leaflet a
+// rounded heart, on a clear ground. Near white, each leaf its own shade,
+// so its green comes from the material, as the grass's does.
+export function cloverTexture(seed: number) {
+  const px = 256, canvas = document.createElement('canvas');
+  canvas.width = canvas.height = px;
+  const g = canvas.getContext('2d')!;
+  let s = seed;
+  const random = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  for (let k = 0; k < 26; k++) {
+    // Thicker towards the middle, so the mat's edge is ragged.
+    const a = random() * Math.PI * 2, d = Math.sqrt(random()) * px * 0.36, x = px / 2 + Math.cos(a) * d, y = px / 2 + Math.sin(a) * d;
+    const size = px * (0.05 + random() * 0.03), turn = random() * Math.PI * 2;
+    const shade = bladeShade(random());
+    for (let l = 0; l < 3; l++) {
+      const b = turn + l * Math.PI * 2 / 3, lx = x + Math.cos(b) * size * 0.9, ly = y + Math.sin(b) * size * 0.9;
+      // A heart: two lobes at the outer end, narrowing to the middle.
+      g.fillStyle = shade;
+      for (const side of [-1, 1]) {
+        g.beginPath();
+        g.arc(lx + Math.cos(b + side * 0.9) * size * 0.35, ly + Math.sin(b + side * 0.9) * size * 0.35, size * 0.55, 0, Math.PI * 2);
+        g.fill();
+      }
+      g.beginPath();
+      g.moveTo(x, y);
+      g.lineTo(lx + Math.cos(b + 1.6) * size * 0.6, ly + Math.sin(b + 1.6) * size * 0.6);
+      g.lineTo(lx + Math.cos(b - 1.6) * size * 0.6, ly + Math.sin(b - 1.6) * size * 0.6);
+      g.closePath();
+      g.fill();
+    }
+  }
+  return bled(canvas);
+}
+// A clover mat: a level card a little off the ground and three more leaning
+// low out from it, a unit wide and tall, normals straight up.
+export function cloverGeometry() {
+  const cards = [
+    new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2).translate(0, 0.6, 0),
+    ...[0, 1, 2].map(k => new THREE.PlaneGeometry(0.8, 0.8).translate(0, 0.4, 0).rotateX(-1.25).translate(0, 0.1, 0.1).rotateY(k * Math.PI * 2 / 3 + 0.4)),
+  ];
+  const positions: number[] = [], normals: number[] = [], uvs: number[] = [];
+  for (const card of cards) {
+    const flat = card.toNonIndexed();
+    positions.push(...flat.getAttribute('position').array);
+    uvs.push(...flat.getAttribute('uv').array);
+    for (let k = 0; k < flat.getAttribute('position').count; k++) normals.push(0, 1, 0);
   }
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
@@ -554,6 +680,9 @@ function giantTree(scene: THREE.Scene) {
   }
   scene.add(new THREE.Mesh(mergeGeometries(wood.map(g => { g.deleteAttribute('uv'); return g.index ? g.toNonIndexed() : g; }))!, painted(BARK)));
 }
+
+// Where the garden's flowers stand, for meadow.ts to plant (white, to start).
+export const gardenFlowers: THREE.Vector3[] = [];
 
 export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
   let s = 4243;
@@ -778,6 +907,7 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
   // near them, in patches, and tall grass and wildflowers where paths meet
   // the lawn and round the ruins.
   const tufts: THREE.Matrix4[] = [], blooms: THREE.Matrix4[] = [];
+  gardenFlowers.length = 0;
   const tuft = (x: number, z: number, tall: number, flowering = false) => {
     if (!flowering && random() < 0.08) flowering = true;
     (flowering ? blooms : tufts).push(new THREE.Matrix4().compose(new THREE.Vector3(x, 0, z),
@@ -820,6 +950,8 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
     for (let k = Math.round(r * r * 7); k > 0; k--) {
       const a = random() * Math.PI * 2, d = Math.sqrt(random()) * r, x = cx + Math.cos(a) * d, z = cz + Math.sin(a) * d;
       if (PATHS.some(([px0, px1, pz0, pz1]) => x > px0 + 0.3 && x < px1 - 0.3 && z > pz0 + 0.3 && z < pz1 - 0.3)) continue;
+      // On the lawn: the fence's patch reaches past the garden's north lip.
+      if (z < northEdge(x) + 0.2 || z > lawnSouth(x) - 0.2) continue;
       tuft(x, z, 0.6 + random() * 0.6 * (1 - d / r), random() < 0.3);
     }
   }
@@ -834,10 +966,32 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
       new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), random() * Math.PI * 2), new THREE.Vector3(tall * (1.6 + random() * 0.6), tall, tall * (1.6 + random() * 0.6))));
   };
   const along = new THREE.Vector2(16.2, 5.8).normalize(), fallen = new THREE.Vector2(-5.6, 39.1);
+  // Out in the lawn's open middle, at least some way from any paving, pool
+  // or stonework: where the clover and the long grass grow.
+  const open = (x: number, z: number, clear: number) => z > northEdge(x) + clear && z < lawnSouth(x) - clear && x > WEST + clear && x < EAST - clear
+    && !(z > MOATS_FROM - clear && (x < WEST_LAWN + clear || x > EAST_LAWN - clear))
+    && !PATHS.some(([x0, x1, z0, z1]) => x > x0 - clear && x < x1 + clear && z > z0 - clear && z < z1 + clear)
+    && !POOLS.some(([px, pz]) => Math.hypot(x - px, z - pz) < 7.5 + clear)
+    && !STONEWORK.some(([sx, sz, sr]) => Math.hypot(x - sx, z - sz) < sr + clear) && !onSunk(x, z, clear);
+  // Clover patches first, so the grass keeps out of their middles. With
+  // their own random numbers, so the rest of the planting stays put.
+  let cs = 4447;
+  const crandom = () => (cs = (cs * 16807) % 2147483647) / 2147483647;
+  // Mostly in the garden's middle, where the robot walks; the rest anywhere
+  // on the lawn.
+  const somewhere = () => crandom() < 0.7 ? [-24 + crandom() * 48, crandom() * 46] : [WEST_LAWN + crandom() * (EAST_LAWN - WEST_LAWN), crandom() * 46];
+  const cloverPatches: { cx: number, cz: number, radius: number, count: number }[] = [];
+  for (let tries = 0; cloverPatches.length < 260 && tries < 20000; tries++) {
+    const [cx, cz] = somewhere();
+    if (!open(cx, cz, 0.5)) continue;
+    const count = 6 + Math.floor(crandom() * 12);
+    cloverPatches.push({ cx, cz, radius: 0.3 + Math.sqrt(count) * 0.22, count });
+  }
   for (let gx = WEST; gx < EAST; gx += 0.32) {
     for (let gz = northEdge(gx) - 0.5; gz < lawnSouth(gx) + 6; gz += 0.32) {
       const x = gx + (random() - 0.5) * 0.3, z = gz + (random() - 0.5) * 0.3;
       if (z < northEdge(x) + 0.2) continue;
+      if (cloverPatches.some(({ cx, cz, radius }) => Math.hypot(x - cx, z - cz) < radius * (0.5 + 0.4 * (((x * 7.3 + z * 3.1) % 1 + 1) % 1)))) continue;
       if (z > MOATS_FROM - 0.2 && (x < WEST_LAWN + 0.2 || x > EAST_LAWN - 0.2)) continue;
       if (z > lawnSouth(x) - 0.2 && !(Math.abs(x) < 4.4 && z < 50.2)) continue;
       if (PATHS.some(([x0, x1, z0, z1]) => x > x0 + 0.1 && x < x1 - 0.1 && z > z0 + 0.1 && z < z1 - 0.1)) continue;
@@ -860,21 +1014,61 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
       for (let gz = ledgeFront(gx) + 0.2; gz < cityFront(gx) + 0.5; gz += 0.4) field(gx + (random() - 0.5) * 0.36, gz + (random() - 0.5) * 0.36, 0);
     }
   } });
-  for (let gx = -PLATFORM.r; gx < PLATFORM.r; gx += 0.32) {
-    for (let gz = PLATFORM.z - PLATFORM.r; gz < PLATFORM.z + PLATFORM.r; gz += 0.32) {
-      const x = gx + (random() - 0.5) * 0.3, z = gz + (random() - 0.5) * 0.3;
-      // Not in the notch the stair comes up through.
-      if (Math.hypot(x, z - PLATFORM.z) < PLATFORM.r - 0.25 && !(Math.abs(x) < 2.7 && z > -27.5)) field(x, z, PLATFORM_TOP);
+  // Clover mats in those patches, and long grass in clumps of its own out
+  // in the open lawn, not just along the edges.
+  const clover: THREE.Matrix4[] = [];
+  const level = (x: number, z: number, tall: number, wide: number) => new THREE.Matrix4().compose(new THREE.Vector3(x, 0, z),
+    new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), crandom() * Math.PI * 2), new THREE.Vector3(wide, tall, wide));
+  for (const { cx, cz, radius, count } of cloverPatches) {
+    for (let k = 0; k < count; k++) {
+      const b = crandom() * Math.PI * 2, r = radius * crandom() ** 0.6, x = cx + Math.cos(b) * r, z = cz + Math.sin(b) * r;
+      if (open(x, z, 0.1)) clover.push(level(x, z, 0.2 + crandom() * 0.08, 0.45 + crandom() * 0.3));
     }
   }
+  const long: THREE.Matrix4[] = [];
+  for (let clumps = 0, tries = 0; clumps < 240 && tries < 20000; tries++) {
+    const [cx, cz] = somewhere();
+    if (!open(cx, cz, 0.6)) continue;
+    clumps++;
+    const count = 5 + Math.floor(crandom() * 12), radius = 0.2 + Math.sqrt(count) * 0.13;
+    for (let k = 0; k < count; k++) {
+      const b = crandom() * Math.PI * 2, r = radius * crandom() ** 0.8, x = cx + Math.cos(b) * r, z = cz + Math.sin(b) * r;
+      const tall = 0.6 + crandom() * 0.5;
+      if (open(x, z, 0.2)) long.push(level(x, z, tall, tall * (0.8 + crandom() * 0.4)));
+    }
+  }
+  // The flowers are the tower top's (meadow.ts plants them): where a tuft
+  // would have flowered (one in three), and a few small clumps of their own
+  // out in the open lawn.
+  blooms.forEach((bloom, k) => { if (k % 3 === 0) gardenFlowers.push(new THREE.Vector3().setFromMatrixPosition(bloom)); });
+  for (let clumps = 0, tries = 0; clumps < 55 && tries < 20000; tries++) {
+    const [cx, cz] = somewhere();
+    if (!open(cx, cz, 0.4)) continue;
+    clumps++;
+    const count = 3 + Math.floor(crandom() * 8), radius = 0.2 + Math.sqrt(count) * 0.1;
+    for (let k = 0; k < count; k++) {
+      const b = crandom() * Math.PI * 2, r = radius * crandom() ** 0.8, x = cx + Math.cos(b) * r, z = cz + Math.sin(b) * r;
+      if (open(x, z, 0.1)) gardenFlowers.push(new THREE.Vector3(x, 0, z));
+    }
+  }
+  // The start tower's top is a meadow of its own (meadow.ts).
   {
+    const DARKER = new THREE.Color(0.85, 0.85, 0.85), COOLER = new THREE.Color(0.8, 0.92, 0.92), SAME = new THREE.Color(1, 1, 1);
+    // The lawn's green, in the same drifts as the ground under it (drift.ts).
+    const grassy = (map: THREE.Texture) => drifting(swaying(bothSidesAlike(painted(palette.grass, { map, alphaTest: 0.5, alphaToCoverage: true, side: THREE.DoubleSide })), SWAY.grass), DRIFTS.lawn);
     for (const [placed, material, shape] of [
-      [sward, swaying(bothSidesAlike(painted(palette.lawn, { map: swardTexture(71), alphaTest: 0.5, side: THREE.DoubleSide })), SWAY.grass), tuftGeometry(true)],
-      [tufts, swaying(bothSidesAlike(painted(palette.lawn, { map: tuftTexture(61, false), alphaTest: 0.5, side: THREE.DoubleSide })), SWAY.grass), tuftGeometry()],
-      [blooms, swaying(bothSidesAlike(painted([0xffffff, 0x8a8cc0], { map: tuftTexture(67, true), alphaTest: 0.5, side: THREE.DoubleSide })), SWAY.grass), tuftGeometry()],
+      [sward, grassy(swardTexture(71)), tuftGeometry(true)],
+      [tufts, grassy(tuftTexture(61, false)), tuftGeometry()],
+      [long, grassy(tuftTexture(63, false)), tuftGeometry()],
+      [clover, grassy(cloverTexture(69)), cloverGeometry()],
     ] as const) {
       const mesh = new THREE.InstancedMesh(shape, material, placed.length);
-      placed.forEach((matrix, i) => mesh.setMatrixAt(i, matrix));
+      placed.forEach((matrix, i) => {
+        mesh.setMatrixAt(i, matrix);
+        // The colour is the ground's; the long grass a little darker, the
+        // clover cooler and deeper.
+        mesh.setColorAt(i, placed === long ? DARKER : placed === clover ? COOLER : SAME);
+      });
       mesh.receiveShadow = true;
       // Too low and too fine to tell in the water's blurred reflection.
       mesh.userData.unreflected = true;
@@ -901,10 +1095,10 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
     const a = a0 + (a1 - a0) * t;
     return [new THREE.Vector3(Math.cos(a) * PLATFORM.r, PLATFORM_TOP, PLATFORM.z + Math.sin(a) * PLATFORM.r), new THREE.Vector3(Math.cos(a), 0, Math.sin(a))];
   });
-  ([[north(-31, -24.5), 2.6], [north(21, 27.5), 2.2], [rim(Math.PI / 2 + 0.45, Math.PI / 2 + 0.95), 3.4], [rim(Math.PI / 2 - 1.5, Math.PI / 2 - 0.9), 2.8]] as const)
+  ([[north(-31, -24.5), 2.6], [north(21, 27.5), 2.2], [rim(Math.PI / 2 + 0.45, Math.PI / 2 + 0.95), 3.4], [rim(0.66, 1.16), 2.8]] as const)
     .forEach(([[lip, out], reach], i) => scene.add(vineSpill([...lip], [...out], reach, i + 1)));
   giantTree(scene);
   instanced(shrubGeometry(19), leafCards(SHRUB, clusterTexture(29), SWAY.shrub), shrubs, scene);
   instanced(new THREE.SphereGeometry(0.3, 12, 8).scale(1, 0.7, 1).translate(0, 0.1, 0), painted(CORE), shrubs, scene);
-  return { shrubs: shrubs.length, cypresses: cypresses.length, trees: crowns.length, tufts: tufts.length + blooms.length + sward.length };
+  return { shrubs: shrubs.length, cypresses: cypresses.length, trees: crowns.length, tufts: tufts.length + sward.length, flowers: gardenFlowers.length };
 }

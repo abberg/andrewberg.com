@@ -36,7 +36,9 @@ export function createPost(renderer: THREE.WebGLRenderer, scene: THREE.Scene, ca
       void main() {
         vec4 colour = texture2D(tDiffuse, vUv);
         float grey = dot(colour.rgb, vec3(0.2126, 0.7152, 0.0722));
-        gl_FragColor = vec4(max(mix(vec3(grey), colour.rgb, amount), 0.0), colour.a);
+        // Opaque: the grass's soft alpha-to-coverage edges leave alpha under
+        // one in the frame, which the page would show through as pale rims.
+        gl_FragColor = vec4(max(mix(vec3(grey), colour.rgb, amount), 0.0), 1.0);
       }`,
   });
   composer.addPass(saturate);

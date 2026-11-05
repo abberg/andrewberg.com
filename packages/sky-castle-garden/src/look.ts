@@ -14,7 +14,9 @@ export const palette = {
   // the lawn and the cliff below it.
   sandstone: [0xdcc08a, 0x8f86a8],
   masonry: [0xd0b07a, 0x847a9f],
-  lawn: [0x8dbf4a, 0x4f7f3a],
+  // All the grass, and the ground it grows from: the garden's lawn and the
+  // start tower's meadow alike (what was the meadow's own green).
+  grass: [0x5a9a4a, 0x2c5848],
   // Moss and ivy on the stonework.
   moss: [0xb4d66a, 0x5f9468],
   ivy: [0x98c85c, 0x4f8664],
@@ -92,7 +94,7 @@ export function paint(material: THREE.MeshStandardMaterial, shade?: number, tile
   material.onBeforeCompile = shader => {
     Object.assign(shader.uniforms, uniforms, inkUniforms, { uShade: { value: shadeRatio }, uTile: { value: tile ?? 1 } });
     shader.vertexShader = shader.vertexShader
-      .replace('#include <fog_pars_vertex>', '#include <fog_pars_vertex>\nvarying vec3 vInkAt;\nvarying float vHeight;\nvarying vec3 vModel, vModelNormal;\n#ifdef MERGED\nattribute vec3 modelPosition, modelNormal;\n#endif')
+      .replace('#include <fog_pars_vertex>', '#include <fog_pars_vertex>\nvarying vec3 vInkAt;\nvarying float vHeight;\nvarying vec3 vModel, vModelNormal;\n#ifdef MERGED\nattribute vec3 modelPosition, modelNormal;\n#endif\n#ifdef TEX_SHIFT\nattribute vec3 texShift;\n#endif')
       .replace('#include <fog_vertex>', /* glsl */`#include <fog_vertex>
         vInkAt = (inverse(viewMatrix) * mvPosition).xyz;
         vec4 placed = vec4(transformed, 1.0);
@@ -106,6 +108,10 @@ export function paint(material: THREE.MeshStandardMaterial, shade?: number, tile
         #ifdef MERGED
           vModel = modelPosition;
           vModelNormal = modelNormal;
+        #endif
+        // Each piece's own place in the stone's texture (columns.ts).
+        #ifdef TEX_SHIFT
+          vModel += texShift;
         #endif`);
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <fog_pars_fragment>', /* glsl */`#include <fog_pars_fragment>
