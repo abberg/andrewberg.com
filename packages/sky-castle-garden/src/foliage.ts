@@ -373,26 +373,23 @@ export function urnPlant(seed: number, lip: number, radius: number, rim: number)
   return group;
 }
 
-// The flowering vine, white-blossomed as in the first reference, spilling
-// over an edge: a ridge of leaves along the lip and strands hanging down over
-// it, longest in the middle of the run and ragged at its ends, white flowers
-// all through. lip is points along the edge, out which way is over it at
+// The vine spilling over an edge, as in the first reference (without its
+// white blossoms): a ridge of leaves along the lip and strands hanging down
+// over it, longest in the middle of the run and ragged at its ends. lip is points along the edge, out which way is over it at
 // each; reach the longest strand. In whatever space the points are in, so a
 // vine on a ruin can move with it.
-let vineParts: { leaves: ReturnType<typeof leafCards>, blossoms: ReturnType<typeof leafCards> } | undefined;
+let vineParts: { leaves: ReturnType<typeof leafCards> } | undefined;
 export function vineSpill(lip: THREE.Vector3[], out: THREE.Vector3[], reach: number, seed: number) {
   const sway = { weight: '0.07', flutter: 0.6 };
-  vineParts ??= {
-    leaves: leafCards(palette.ivy, clusterTexture(97), sway),
-    blossoms: leafCards([0xffffff, 0x9a96c8], flowerTexture(101, ['#fffaf2', '#fff4e4', '#f8f0f0']), sway),
-  };
+  vineParts ??= { leaves: leafCards(palette.ivy, clusterTexture(97), sway) };
   let s = seed * 7919 + 13;
   const random = () => (s = (s * 16807) % 2147483647) / 2147483647;
-  const leaves: Card[] = [], blossoms: Card[] = [], ragged = wander(seed * 3 + 1, 0.8);
+  const leaves: Card[] = [], ragged = wander(seed * 3 + 1, 0.8);
   const curve = new THREE.CatmullRomCurve3(lip), outs = new THREE.CatmullRomCurve3(out), length = curve.getLength();
   const leaf = (at: THREE.Vector3, normal: THREE.Vector3, size: number) => {
     leaves.push({ at, w: size, h: size, normal, spin: random() * Math.PI * 2 });
-    if (random() < 0.35) blossoms.push({ at: at.clone().addScaledVector(normal, 0.05), w: size * 0.9, h: size * 0.9, normal, spin: random() * Math.PI * 2 });
+    // (Where a blossom was: its draws kept, so the leaves stay put.)
+    if (random() < 0.35) random();
   };
   for (let d = random() * 0.1; d < length; d += 0.1 + random() * 0.07) {
     const t = d / length, at = curve.getPointAt(t), o = outs.getPointAt(t).setY(0).normalize();
@@ -409,12 +406,10 @@ export function vineSpill(lip: THREE.Vector3[], out: THREE.Vector3[], reach: num
     }
   }
   const group = new THREE.Group();
-  for (const [cards, parts] of [[leaves, vineParts.leaves], [blossoms, vineParts.blossoms]] as const) {
-    const mesh = new THREE.Mesh(cardGeometry(cards), parts.material);
-    mesh.customDepthMaterial = parts.depth;
-    mesh.castShadow = mesh.receiveShadow = true;
-    group.add(mesh);
-  }
+  const mesh = new THREE.Mesh(cardGeometry(leaves), vineParts.leaves.material);
+  mesh.customDepthMaterial = vineParts.leaves.depth;
+  mesh.castShadow = mesh.receiveShadow = true;
+  group.add(mesh);
   return group;
 }
 
@@ -1014,6 +1009,49 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
       for (let gz = ledgeFront(gx) + 0.2; gz < cityFront(gx) + 0.5; gz += 0.4) field(gx + (random() - 0.5) * 0.36, gz + (random() - 0.5) * 0.36, 0);
     }
   } });
+  // The front lip, ledges and all: the grass grows a little way over it, as
+  // round the start tower's rim (meadow.ts), so the lawn doesn't stop on a
+  // ruled line. A soft lip leaning out all along, ragged in how far it
+  // reaches, and in runs a fringe tipped right over and blades hanging down
+  // the top of the wall. Kept clear of the causeway. With its own random
+  // numbers, so the rest of the planting stays put. Lit as if they still
+  // stood upright, so the blades tipped over the edge keep the lawn's own
+  // green instead of going dark as their faces turn from the sun.
+  const drape: THREE.Matrix4[] = [];
+  {
+    let es = 6151;
+    const erandom = () => (es = (es * 16807) % 2147483647) / 2147483647;
+    const up = new THREE.Vector3(0, 1, 0), runs = wander(613, 3), reach = wander(617, 1.2);
+    const lip = [...ledgeEdge(-1, 400).reverse(), ...Array.from({ length: 401 }, (_, i) => { const x = WEST + (EAST - WEST) * i / 400; return [x, northEdge(x)]; }).slice(1, -1), ...ledgeEdge(1, 400)];
+    const hang = (x: number, y: number, z: number, ox: number, oz: number, lean: number, tall: number) => {
+      const tilt = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(oz, 0, -ox), lean);
+      const turn = new THREE.Quaternion().setFromAxisAngle(up, erandom() * Math.PI * 2);
+      drape.push(new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), tilt.multiply(turn), new THREE.Vector3(tall * (1.4 + erandom() * 0.4), tall, tall * (1.4 + erandom() * 0.4))));
+    };
+    let along = 0;
+    for (let i = 1; i < lip.length; i++) {
+      const [ax, az] = lip[i - 1], [bx, bz] = lip[i], step = Math.hypot(bx - ax, bz - az);
+      if (!step) continue;
+      // Out over the edge: the line runs west to east round the front, so
+      // out is to its left.
+      const nx = (bz - az) / step, nz = -(bx - ax) / step;
+      for (let d = along > 0 ? 0 : erandom() * 0.1; d < step; d += 0.12 + erandom() * 0.1) {
+        const x = ax + (bx - ax) * d / step, z = az + (bz - az) * d / step, u = along + d;
+        if (Math.abs(x) < 2.8) continue;
+        const far = 0.5 + 0.5 * reach(u);
+        // The lip: leaning out a little back from the edge, then tipped out
+        // over it, and a fringe hanging down all along over the turf's own
+        // edge, ragged in how far down it gets, so no straight line shows.
+        hang(x - nx * (0.15 + erandom() * 0.3), 0, z - nz * (0.15 + erandom() * 0.3), nx, nz, 0.15 + erandom() * 0.25, 0.24 + erandom() * 0.14);
+        hang(x - nx * (0.02 + erandom() * 0.08), 0, z - nz * (0.02 + erandom() * 0.08), nx, nz, 0.6 + 0.4 * far + erandom() * 0.3, 0.22 + 0.1 * far + erandom() * 0.1);
+        hang(x + nx * 0.03, -0.02, z + nz * 0.03, nx, nz, 1.9 + erandom() * 0.5, 0.3 + 0.25 * far + erandom() * 0.12);
+        // In runs, longer blades down the top of the wall.
+        const run = runs(u);
+        if (run > 0.1 && erandom() < 0.3 + run * 0.6) hang(x + nx * 0.05, -0.08 - erandom() * 0.15, z + nz * 0.05, nx, nz, 2.6 + erandom() * 0.35, 0.35 + run * 0.45 + erandom() * 0.15);
+      }
+      along += step;
+    }
+  }
   // Clover mats in those patches, and long grass in clumps of its own out
   // in the open lawn, not just along the edges.
   const clover: THREE.Matrix4[] = [];
@@ -1055,12 +1093,24 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
   {
     const DARKER = new THREE.Color(0.85, 0.85, 0.85), COOLER = new THREE.Color(0.8, 0.92, 0.92), SAME = new THREE.Color(1, 1, 1);
     // The lawn's green, in the same drifts as the ground under it (drift.ts).
+    // Normals straight up in the world, whatever way an instance is turned.
+    const upright = (material: THREE.MeshStandardMaterial) => {
+      const paint = material.onBeforeCompile;
+      material.onBeforeCompile = (shader, renderer) => {
+        paint.call(material, shader, renderer);
+        shader.vertexShader = shader.vertexShader.replace('#include <defaultnormal_vertex>', 'vec3 transformedNormal = normalize(normalMatrix * vec3(0.0, 1.0, 0.0));');
+      };
+      const key = material.customProgramCacheKey.bind(material);
+      material.customProgramCacheKey = () => key() + 'upright';
+      return material;
+    };
     const grassy = (map: THREE.Texture) => drifting(swaying(bothSidesAlike(painted(palette.grass, { map, alphaTest: 0.5, alphaToCoverage: true, side: THREE.DoubleSide })), SWAY.grass), DRIFTS.lawn);
     for (const [placed, material, shape] of [
       [sward, grassy(swardTexture(71)), tuftGeometry(true)],
       [tufts, grassy(tuftTexture(61, false)), tuftGeometry()],
       [long, grassy(tuftTexture(63, false)), tuftGeometry()],
       [clover, grassy(cloverTexture(69)), cloverGeometry()],
+      [drape, upright(grassy(swardTexture(71))), tuftGeometry(true)],
     ] as const) {
       const mesh = new THREE.InstancedMesh(shape, material, placed.length);
       placed.forEach((matrix, i) => {
