@@ -79,9 +79,11 @@ function shaftTexture() {
 const shaft = shaftTexture();
 export const columnStone = painted(palette.stone, { map: shaft, vertexColors: true });
 // The same white stone for the blocky pieces (plinths, the arch fence,
-// blocks, the urns' feet), without the flutes' stripes: soft washes of warm
-// and cool in every direction, and weathered: blotchy discolouring, a little
-// lichen and fine forking cracks.
+// blocks, the urns' feet), without the flutes: just soft washes of warm and
+// cool and clouding. Flat faces have no flutes for stains to follow, so their
+// weathering goes by the block's own shape instead, in the shader (look.ts,
+// STONE_BLOCK): pooled at the rims of each face, gathered under the top edge,
+// a few short drips, damp at the foot.
 function blockTexture() {
   const px = 1024, canvas = document.createElement('canvas');
   canvas.width = canvas.height = px;
@@ -90,54 +92,24 @@ function blockTexture() {
   const random = () => (s = (s * 16807) % 2147483647) / 2147483647;
   g.fillStyle = '#fbf9f2';
   g.fillRect(0, 0, px, px);
-  // Drawn three times over, shifted by the tile, so the washes run on across
-  // its edges without a seam.
+  // Drawn three times over each way, shifted by the tile, so everything runs
+  // on across its edges without a seam.
   const tiled = (draw: (dx: number, dy: number) => void) => { for (const dx of [-px, 0, px]) for (const dy of [-px, 0, px]) draw(dx, dy); };
   for (let k = 0; k < 40; k++) {
     const x = random() * px, y = random() * px, a = random() * Math.PI, long = px * (0.15 + random() * 0.25), wide = px * (0.08 + random() * 0.12);
     const colour = random() < 0.5 ? 'rgba(244,236,214,0.45)' : 'rgba(236,234,248,0.45)', mask = Math.floor(random() * 10);
     tiled((dx, dy) => stroke(g, mask, x + dx, y + dy, x + dx + Math.cos(a) * long, y + dy + Math.sin(a) * long, wide, colour));
   }
-  // Age: stains in the column's own colours (its two violets and its green),
-  // with a big brush, gathered into clumps of overlapping marks rather than
-  // scattered one by one.
-  for (let c = 0; c < 9; c++) {
-    const cx = random() * px, cy = random() * px, green = random() < 0.35, spread = px * (0.05 + random() * 0.07);
-    for (let k = 0, n = 4 + Math.floor(random() * 6); k < n; k++) {
-      const x = cx + (random() - 0.5) * spread * 2, y = cy + (random() - 0.5) * spread * 2, a = random() * Math.PI;
-      const long = px * (0.05 + random() * 0.09), wide = px * (0.04 + random() * 0.05), mask = Math.floor(random() * 10);
-      const colour = green ? `rgba(150,176,96,${0.2 + random() * 0.15})`
-        : random() < 0.3 ? `rgba(128,120,184,${0.18 + random() * 0.15})` : `rgba(156,150,206,${0.2 + random() * 0.15})`;
-      tiled((dx, dy) => stroke(g, mask, x + dx, y + dy, x + dx + Math.cos(a) * long, y + dy + Math.sin(a) * long, wide, colour));
-    }
+  // Clouding: big soft patches a shade warmer or cooler, blurred right out so
+  // they have no edges at all, as marble's own colour drifts.
+  g.save();
+  g.filter = 'blur(40px)';
+  for (let k = 0; k < 14; k++) {
+    const x = random() * px, y = random() * px, r = px * (0.06 + random() * 0.1), a = random() * Math.PI;
+    const colour = random() < 0.6 ? `rgba(226,214,186,${0.25 + random() * 0.2})` : `rgba(210,208,226,${0.25 + random() * 0.2})`;
+    tiled((dx, dy) => { g.fillStyle = colour; g.beginPath(); g.ellipse(x + dx, y + dy, r * 1.6, r, a, 0, Math.PI * 2); g.fill(); });
   }
-  // Cracks: a few long thin dark lines that wander and seldom fork (a
-  // fork never forks again), each with a
-  // white lit edge beside it, in a faint shade, so it reads as cut into the
-  // stone.
-  const crackLine = (x: number, y: number, a: number, steps: number, width: number, fork = true): void => {
-    for (let k = 0; k < steps; k++) {
-      a += (random() - 0.5) * 0.9;
-      const len = 10 + random() * 18, nx = x + Math.cos(a) * len, ny = y + Math.sin(a) * len, w = width * (1 - k / steps * 0.6);
-      tiled((dx, dy) => {
-        const line = (ox: number, oy: number, colour: string, width: number) => {
-          g.strokeStyle = colour;
-          g.lineWidth = width;
-          g.beginPath(); g.moveTo(x + dx + ox, y + dy + oy); g.lineTo(nx + dx + ox, ny + dy + oy); g.stroke();
-        };
-        g.lineCap = 'round';
-        // A soft shade along the crack, so the highlight has something to
-        // show against on the near-white stone; then the lit edge on the
-        // light's side, then the dark line itself.
-        line(-1, -1, 'rgba(176,168,206,0.22)', w * 5);
-        line(w * 0.9, w * 0.9, 'rgba(255,255,255,1)', w * 1.1);
-        line(0, 0, 'rgba(104,92,160,0.85)', w);
-      });
-      if (fork && random() < 0.05 && steps - k > 6) crackLine(nx, ny, a + (random() < 0.5 ? -1 : 1) * (0.6 + random() * 0.5), Math.floor((steps - k) * 0.4), w * 0.7, false);
-      x = nx; y = ny;
-    }
-  };
-  for (let k = 0; k < 5; k++) crackLine(random() * px, random() * px, random() * Math.PI * 2, 22 + Math.floor(random() * 14), 2.5 + random() * 1.5);
+  g.restore();
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
@@ -146,9 +118,64 @@ function blockTexture() {
 }
 // Laid on from three sides, for blocks with no UVs to speak of. Each piece
 // takes it from its own place in the stone (shifted), so copies of a shape
-// don't wear the same stains and cracks.
+// don't wear the same marks. The piece's bounds go with it, so the shader
+// knows how far each point is from its edges.
 export const blockStone = painted(palette.stone, { map: blockTexture() }, 4.4);
-blockStone.defines = { ...blockStone.defines, TEX_SHIFT: '' };
+blockStone.defines = { ...blockStone.defines, TEX_SHIFT: '', STONE_BLOCK: '' };
+// The brush for the blocks' weathering (look.ts, STONE_BLOCK): the shafts'
+// strokes, white on black, in four rows that each run on round the strip, so
+// the shader can lay a stroke along any edge. Each row's middle is its
+// centre line; the strokes thin out towards its edges.
+function brushStrip() {
+  const w = 1024, h = 512, row = h / 4, canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const g = canvas.getContext('2d')!;
+  let s = 71;
+  const random = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  g.fillStyle = '#000';
+  g.fillRect(0, 0, w, h);
+  for (let r = 0; r < 4; r++) {
+    g.save();
+    g.beginPath();
+    g.rect(0, r * row, w, row);
+    g.clip();
+    for (let k = 0; k < 9; k++) {
+      const x = random() * w, long = w * (0.25 + random() * 0.3), y = (r + 0.5) * row + (random() - 0.5) * row * 0.25;
+      const wide = row * (0.55 + random() * 0.4), colour = `rgba(255,255,255,${0.3 + random() * 0.35})`, mask = Math.floor(random() * 10);
+      for (const dx of [-w, 0]) stroke(g, mask, x + dx, y, x + dx + long, y + (random() - 0.5) * 6, wide, colour);
+    }
+    g.restore();
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.anisotropy = 8;
+  return texture;
+}
+// Whole strokes of the same brush for the blocks' drips, one down each of
+// eight columns, landing at the top.
+function dripStrokes() {
+  const w = 1024, h = 512, column = w / 8, canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const g = canvas.getContext('2d')!;
+  g.fillStyle = '#000';
+  g.fillRect(0, 0, w, h);
+  for (let k = 0; k < 8; k++) {
+    const x = (k + 0.5) * column;
+    stroke(g, k, x, 2, x + (k % 3 - 1) * 4, h - 2, column * 0.85, 'rgba(255,255,255,0.85)');
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.anisotropy = 8;
+  return texture;
+}
+const brush = brushStrip(), drips = dripStrokes();
+const paintBlock = blockStone.onBeforeCompile;
+blockStone.onBeforeCompile = (shader, renderer) => {
+  paintBlock(shader, renderer);
+  shader.uniforms.uBrush = { value: brush };
+  shader.uniforms.uDrips = { value: drips };
+};
 let shifts = 0;
 export function shifted(geometry: THREE.BufferGeometry, span = 4.4, margin = 0) {
   const copy = geometry.clone(), n = copy.getAttribute('position').count, k = ++shifts;
@@ -156,6 +183,10 @@ export function shifted(geometry: THREE.BufferGeometry, span = 4.4, margin = 0) 
   const place = (f: number) => margin + (f % 1) * (span - 2 * margin);
   const shift = [place(k * 0.618034), place(k * 0.414214), place(k * 0.732051)];
   copy.setAttribute('texShift', new THREE.Float32BufferAttribute(Array.from({ length: n }, () => shift).flat(), 3));
+  copy.computeBoundingBox();
+  const { min, max } = copy.boundingBox!;
+  copy.setAttribute('boxMin', new THREE.Float32BufferAttribute(Array.from({ length: n }, () => min.toArray()).flat(), 3));
+  copy.setAttribute('boxMax', new THREE.Float32BufferAttribute(Array.from({ length: n }, () => max.toArray()).flat(), 3));
   return copy;
 }
 

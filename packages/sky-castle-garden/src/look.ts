@@ -94,7 +94,7 @@ export function paint(material: THREE.MeshStandardMaterial, shade?: number, tile
   material.onBeforeCompile = shader => {
     Object.assign(shader.uniforms, uniforms, inkUniforms, { uShade: { value: shadeRatio }, uTile: { value: tile ?? 1 } });
     shader.vertexShader = shader.vertexShader
-      .replace('#include <fog_pars_vertex>', '#include <fog_pars_vertex>\nvarying vec3 vInkAt;\nvarying float vHeight;\nvarying vec3 vModel, vModelNormal;\n#ifdef MERGED\nattribute vec3 modelPosition, modelNormal;\n#endif\n#ifdef TEX_SHIFT\nattribute vec3 texShift;\n#endif')
+      .replace('#include <fog_pars_vertex>', '#include <fog_pars_vertex>\nvarying vec3 vInkAt;\nvarying float vHeight;\nvarying vec3 vModel, vModelNormal;\n#ifdef MERGED\nattribute vec3 modelPosition, modelNormal;\n#endif\n#ifdef TEX_SHIFT\nattribute vec3 texShift;\n#endif\n#ifdef STONE_BLOCK\nattribute vec3 boxMin, boxMax;\nvarying vec3 vBlock, vBoxMin, vBoxMax;\n#endif')
       .replace('#include <fog_vertex>', /* glsl */`#include <fog_vertex>
         vInkAt = (inverse(viewMatrix) * mvPosition).xyz;
         vec4 placed = vec4(transformed, 1.0);
@@ -110,6 +110,12 @@ export function paint(material: THREE.MeshStandardMaterial, shade?: number, tile
           vModelNormal = modelNormal;
         #endif
         // Each piece's own place in the stone's texture (columns.ts).
+        // Where it is in the block, before the shift, and the block's bounds.
+        #ifdef STONE_BLOCK
+          vBlock = vModel;
+          vBoxMin = boxMin;
+          vBoxMax = boxMax;
+        #endif
         #ifdef TEX_SHIFT
           vModel += texShift;
         #endif`);
@@ -124,12 +130,89 @@ export function paint(material: THREE.MeshStandardMaterial, shade?: number, tile
         uniform vec3 uInkShift, uInk;
         varying vec3 vInkAt;
         varying float vHeight;
-        varying vec3 vModel, vModelNormal;`)
+        varying vec3 vModel, vModelNormal;
+        #ifdef STONE_BLOCK
+          varying vec3 vBlock, vBoxMin, vBoxMax;
+          float stoneHash(float p) { return fract(sin(p * 127.1) * 43758.5453); }
+          float stoneNoise(float p) { float i = floor(p), f = fract(p); return mix(stoneHash(i), stoneHash(i + 1.0), f * f * (3.0 - 2.0 * f)); }
+          // The brush strip holds four rows of strokes running along it: one
+          // at u along the stroke, v across it (0 at its middle, 1 at its
+          // edge either side, so a mark half off a face can sit on the edge).
+          uniform sampler2D uBrush;
+          // Eight whole strokes side by side, each running down its column
+          // from where the brush lands (columns.ts, dripStrokes): u across a
+          // stroke, v along it, both 0 to 1.
+          uniform sampler2D uDrips;
+          float dripStroke(float u, float v, float k) {
+            if (u <= 0.0 || u >= 1.0 || v <= 0.0 || v >= 1.0) return 0.0;
+            return texture2D(uDrips, vec2((k + u) / 8.0, 1.0 - v)).r;
+          }
+          float brushStroke(float u, float v, float row) {
+            v = abs(v);
+            if (v >= 1.0) return 0.0;
+            // Faded out before the band's edge, so it never ends in a line.
+            return texture2D(uBrush, vec2(u, (row + 0.5 + 0.45 * v) * 0.25)).r * smoothstep(1.0, 0.6, v);
+          }
+        #endif`)
       .replace('#include <map_fragment>', /* glsl */`#if defined(USE_MAP) && defined(TRIPLANAR)
           vec3 side = pow(abs(normalize(vModelNormal)), vec3(8.0));
           side /= side.x + side.y + side.z;
           vec3 at = vModel / uTile;
-          diffuseColor *= texture2D(map, at.zy) * side.x + texture2D(map, at.xz) * side.y + texture2D(map, at.xy) * side.z;
+          #ifdef STONE_BLOCK
+            // Each face of a block from its own part of the stone, so
+            // neighbouring and opposite faces never repeat each other.
+            vec3 facing = step(0.0, vModelNormal);
+            vec2 onX = at.zy + vec2(0.37, 0.61) + facing.x * vec2(0.5, 0.21);
+            vec2 onY = at.xz + vec2(0.13, 0.29) + facing.y * vec2(0.27, 0.5);
+            vec2 onZ = at.xy + vec2(0.71, 0.07) + facing.z * vec2(0.45, 0.33);
+            diffuseColor *= texture2D(map, onX) * side.x + texture2D(map, onY) * side.y + texture2D(map, onZ) * side.z;
+            // Weathering by the block's shape, painted with the shafts' brush
+            // (columns.ts, brushStrip): strokes laid along the rim of each
+            // face, down its upright corners and under its top edge where rain
+            // sits, a few short drips from that edge, and damp at the foot.
+            // Distances in metres.
+            {
+              vec3 n = abs(normalize(vModelNormal));
+              vec3 low = vBlock - vBoxMin, high = vBoxMax - vBlock;
+              vec3 edge = min(low, high);
+              // Upright faces only, not the plinths' sloping tops.
+              bool upright = n.y < 0.35;
+              bool level = n.y > 0.9;
+              float across = n.x > n.z ? edge.z : edge.x;
+              float along = n.x > n.z ? vModel.z : vModel.x;
+              float wobble = stoneNoise(along * 3.0 + vModel.y * 2.0) * 0.7 + stoneNoise(along * 9.0 + vModel.y * 5.0) * 0.3;
+              float stain = 0.0;
+              if (upright) {
+                float top = high.y, foot = low.y;
+                // Under the top edge: a stroke along it, half off the face,
+                // its lower edge ragged where the bristles run out.
+                stain += brushStroke(along / 1.7, top / (0.18 + 0.14 * wobble), 0.0) * 0.7;
+                // Down each upright corner.
+                stain += brushStroke(vModel.y / 1.7 + 0.3, across / (0.18 + 0.14 * wobble), 1.0) * 0.75;
+                // Along the foot, lighter.
+                stain += brushStroke(along / 1.7 + 0.6, foot / 0.2, 2.0) * 0.4;
+                // Drips: here and there along the top, each one whole stroke
+                // of the shafts' brush run down from the edge, landing,
+                // thinning and breaking up dry as theirs do.
+                float which = floor(along * 4.0), cell = fract(along * 4.0);
+                float reach = stoneHash(which + 7.0) < 0.65 ? 0.25 + 1.4 * stoneHash(which + 3.0) * stoneHash(which + 19.0) : 0.0;
+                float centre = 0.3 + 0.4 * stoneHash(which + 11.0), width = 0.07 + 0.08 * stoneHash(which + 5.0);
+                float dark = stoneHash(which + 13.0) < 0.3 ? 1.6 : 1.1;
+                stain += dripStroke((cell - centre) / 4.0 / width + 0.5, (top - 0.01) / max(reach, 0.01), floor(stoneHash(which + 17.0) * 8.0)) * dark;
+                // Damp at the foot, greener.
+                float damp = smoothstep(0.4 + 0.3 * wobble, 0.0, foot);
+                diffuseColor.rgb *= mix(vec3(1.0), vec3(0.8, 0.86, 0.66), damp * 0.7);
+              } else {
+                // On tops and slopes, strokes round the rim.
+                float rim = min(edge.x, edge.z), circuit = edge.x < edge.z ? vModel.z : vModel.x;
+                stain += brushStroke(circuit / 1.7, rim / (0.16 + 0.12 * wobble), 1.0) * (level ? 0.6 : 0.45);
+              }
+              // In the shafts' stain violet.
+              diffuseColor.rgb *= mix(vec3(1.0), vec3(0.62, 0.6, 0.85), clamp(stain, 0.0, 1.0) * 0.8);
+            }
+          #else
+            diffuseColor *= texture2D(map, at.zy) * side.x + texture2D(map, at.xz) * side.y + texture2D(map, at.xy) * side.z;
+          #endif
         #else
           #include <map_fragment>
         #endif`)
