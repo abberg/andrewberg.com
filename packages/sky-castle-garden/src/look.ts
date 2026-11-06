@@ -41,7 +41,7 @@ export const look = {
   fill: 0.25,
   rim: 0.25,
   // Fog below the garden: clear down to y = 0, gone by this far down.
-  depth: 25,
+  depth: 35,
   // Under the moats' water: how far down until things are lost in its
   // colour, and how much of it they take at most.
   drown: 13,
@@ -176,6 +176,16 @@ export function paint(material: THREE.MeshStandardMaterial, shade?: number, tile
             fogFactor = max(fogFactor, smoothstep(0.0, -uDepth, vHeight));
           #endif
           gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, fogFactor);
+          // Deep in the fog below the garden, the stone thins away (by
+          // alpha to coverage, a little dithered) so the sky and the low
+          // clouds behind it show, instead of a cut-out in the fog's colour.
+          #if defined(FADE_DEEP) && !defined(DROWNED)
+            float keep = 1.0 - smoothstep(-0.6 * uDepth, -uDepth, vHeight);
+            if (keep < 1.0) {
+              float noise = fract(52.9829189 * fract(dot(floor(gl_FragCoord.xy), vec2(0.06711056, 0.00583715))));
+              gl_FragColor.a = clamp(keep + (noise - 0.5) * 0.3 * (1.0 - keep), 0.0, 1.0);
+            }
+          #endif
         #endif`);
   };
   return material;
@@ -184,6 +194,14 @@ export function paint(material: THREE.MeshStandardMaterial, shade?: number, tile
 // The same, for what's under the moats' water.
 export const drowned = <T extends THREE.Material>(material: T) => {
   material.defines = { ...material.defines, DROWNED: '' };
+  return material;
+};
+
+// For stone that reaches far down into the fog below the garden: it fades
+// out as the fog thickens, so what's behind it shows (see the fog above).
+export const fadesDeep = <T extends THREE.Material>(material: T) => {
+  material.defines = { ...material.defines, FADE_DEEP: '' };
+  material.alphaToCoverage = true;
   return material;
 };
 

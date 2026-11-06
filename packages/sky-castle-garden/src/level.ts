@@ -5,10 +5,12 @@ import { ARCH, buildCity, cityFront } from './city';
 import { DRIFTS, drifting } from './drift';
 import { brokenColumnGeometry, chippedBlock, shifted } from './columns';
 import { columnIvy } from './growth';
-import { DEEP, drowned, painted, palette } from './look';
+import { DEEP, drowned, fadesDeep, painted, palette } from './look';
 import { textures } from './masonry';
 import { buildFlooded } from './flooded';
 import { noise, waterMaterial } from './water';
+import { crossings, wallGeometry, wallInset, wallLine } from './wall';
+import { bridgeBranch, buildRoots, rootHoles } from './roots';
 
 // Step 2 of the plan: every asset as a grey primitive at its final size,
 // placed from the zone plan (docs/zone-plan.png). The snapshot's scale bar
@@ -22,8 +24,11 @@ export const northEdge = (x: number) => 250.7 - Math.sqrt(250.7 ** 2 - x * x);
 // The lawn's south edge, where the south moat starts, following the curve of
 // the city's base (city.ts).
 export const lawnSouth = (x: number) => 44.7 + x * x / 298;
-// The moats down the sides, from z 6 to the south moat.
-export const WEST = -52, WEST_LAWN = -44.9, EAST_LAWN = 46.3, EAST = 53.3, MOATS_FROM = 6.1;
+// The moats down the sides, from z 18 to the south moat: far enough back
+// that their north ends sit behind the foot of the retaining wall's vault
+// (wall.ts), which runs at full depth right round the garden's corners.
+// (They used to start at z 6.1, right behind the lip.)
+export const WEST = -52, WEST_LAWN = -44.9, EAST_LAWN = 46.3, EAST = 53.3, MOATS_FROM = 18;
 
 // Collision groups, as Rapier packs them: the groups a collider is in, in the
 // top 16 bits, and the groups it meets, in the bottom 16. Invisible walls are
@@ -121,6 +126,11 @@ export const SPAWN = { x: 0, z: -37, yaw: Math.PI };
 export const PLATFORM_TOP = 3.2;
 // The start platform's middle and radius.
 export const PLATFORM = { z: -34.9, r: 11.1 };
+// The bridge's arch: the height it springs from at both ends, and its crown
+// under the deck.
+const BRIDGE = { spring: -4, crown: -1.4 };
+// The lawn's underside, where the retaining wall starts.
+const TOP_OF_WALL = -0.3;
 // On its top, from Andrew's two stills of the tower from the south-east: a
 // small pool sunk in the lawn west of the stair, what's left of an L of
 // paving just north of the spawn, a broken column on a stepped plinth near
@@ -297,6 +307,10 @@ const sample = (curve: (x: number) => number, from: number, to: number, steps = 
 // on round the curves without the seam the three-sided mapping leaves where
 // the wall turns from facing one way to another.
 const outside = painted(palette.masonry, { map: textures.sandstone.map() });
+// The retaining wall in the same blocks, shaded at its joints by its colours.
+const retaining = painted(palette.masonry, { map: outside.map, vertexColors: true });
+// The stone that runs on down into the fog thins away in it.
+for (const m of [retaining, outside, masonry, sandstone]) fadesDeep(m);
 // The tower's column in the same blocks, smaller, by its own UVs.
 const columnBlocks = painted(palette.sandstone, { map: sandstoneMap });
 // A slab's sides given UVs along and up the wall, in blocks, and normals
@@ -445,16 +459,34 @@ export function buildLevel(world: RAPIER.World, scene: THREE.Scene) {
   const north = sample(northEdge, WEST, EAST, 64);
   // Out under the castle either side and back under all of it, rounded off
   // behind.
-  const outer = (side: number) => {
-    const front = ledgeEdge(side);
-    const back = [[OUTER, cityFront(OUTER) + 6], [104, 135], [80, 178], [40, 198]].map(([x, z]) => [side * x, z]);
-    return side > 0 ? [...front, ...back] : [...back.reverse(), ...front.reverse()];
-  };
+  const back = (side: number) => [[OUTER, cityFront(OUTER) + 6], [104, 135], [80, 178], [40, 198]].map(([x, z]) => [side * x, z]);
+  // The retaining wall along the front (wall.ts): the lip, the curve back in
+  // under the garden with its arches, and the plumb face below. Kept off
+  // the moats, which come right up behind the lip at the garden's corners.
+  const keepOff = [[WEST, WEST_LAWN], [EAST_LAWN, EAST]];
+  const room = (x: number, z: number) => Math.min(...keepOff.map(([x0, x1]) =>
+    Math.hypot(Math.max(x0 - x, 0, x - x1), Math.max(MOATS_FROM - z, 0))));
+  const front = [...ledgeEdge(-1, 400).reverse(), ...sample(northEdge, WEST, EAST, 400).slice(1, -1), ...ledgeEdge(1, 400)];
+  const line = wallLine(front, room);
   {
-    const outline = [...north, ...outer(1), ...outer(-1)];
-    const base = walled(slab(outline, -40, -0.3, [moat(-1), moat(1)]), outline);
-    ground(base, [masonry, outside, drownedMasonry] as unknown as THREE.Material);
-    for (const side of [-1, 1]) ground(slab(moat(side), -40, -FLOOD), drownedMasonry);
+    // Roots from the garden come out of holes in its lip and cling to it
+    // all the way down (roots.ts).
+    const holes = rootHoles(line);
+    const wall = add(wallGeometry(line, textures.sandstone.metres, holes), retaining, { cast: false });
+    wall.name = 'retaining wall';
+    scene.add(buildRoots(line, holes));
+    // The stone behind it stops at the curve's foot, so it doesn't show
+    // through; the lawn on top covers the gap under the lip.
+    const outline = [...wallInset(line), ...back(1), ...back(-1).reverse()];
+    const problems = crossings(outline) + crossings(outline, moat(-1)) + crossings(outline, moat(1));
+    if (problems) console.error(`retaining wall: the stone's outline crosses itself or a moat ${problems} times`);
+    // Cut for the moats only down to their floors, solid below, so nothing
+    // in the moats' drowned stone shows through as the base fades out deep
+    // in the fog; each moat floored with a thin slab of it.
+    const stones = [masonry, outside, drownedMasonry] as unknown as THREE.Material;
+    ground(walled(slab(outline, -0.3 - (FLOOD - 0.2), -0.3, [moat(-1), moat(1)]), outline), stones);
+    ground(walled(slab(outline, -40, -0.1 - FLOOD), outline), stones);
+    for (const side of [-1, 1]) ground(slab(moat(side), -FLOOD - 0.3, -FLOOD), drownedMasonry);
   }
   // The ledges' lawn, from the front edge back under the towers' feet.
   for (const side of [-1, 1]) {
@@ -552,8 +584,41 @@ export function buildLevel(world: RAPIER.World, scene: THREE.Scene) {
   for (const [x0, x1, z0, z1] of PLATFORM_ARMS) {
     world.createCollider(RAPIER.ColliderDesc.cuboid((x1 - x0) / 2, 0.1, (z1 - z0) / 2).setTranslation((x0 + x1) / 2, PLATFORM_TOP - 0.06, (z0 + z1) / 2));
   }
-  // The causeway, 5 m wide, from inside the notch to the garden's lip.
-  box(0, -12.5, -13.65, 5, 25, 27.3, sandstone);
+  // The bridge, 5 m wide, from the tower to the garden: a flat deck on one
+  // segmental arch, sprung at the same height from the tower's side and
+  // from the retaining wall's lip, landing squarely on the lip's plumb face.
+  // Its deck is solid as a thin slab.
+  {
+    const face = -24.5, spring = BRIDGE.spring;
+    // From where the tower's rim meets the bridge's sides to the lip.
+    const from = notchMeets, land = northEdge(0), span = land - from, rise = BRIDGE.crown - spring;
+    const radius = (span * span / 4 + rise * rise) / (2 * rise), cz = from + span / 2, cy = BRIDGE.crown - radius;
+    const shape = new THREE.Shape();
+    shape.moveTo(face, 0);
+    shape.lineTo(land, 0);
+    // Closed a little way in behind the lip's face.
+    shape.lineTo(land, TOP_OF_WALL - 0.02);
+    shape.lineTo(land + 0.3, TOP_OF_WALL - 0.02);
+    shape.lineTo(land + 0.3, spring);
+    for (let i = 0; i <= 48; i++) {
+      const z = land - span * i / 48;
+      shape.lineTo(z, cy + Math.sqrt(radius * radius - (z - cz) ** 2));
+    }
+    shape.lineTo(face, spring);
+    const geometry = new THREE.ExtrudeGeometry(shape, { depth: 5, bevelEnabled: false, curveSegments: 1 });
+    geometry.rotateY(-Math.PI / 2);
+    geometry.translate(2.5, 0, 0);
+    add(geometry, sandstone).name = 'bridge';
+    world.createCollider(RAPIER.ColliderDesc.cuboid(2.5, 0.15, -face / 2).setTranslation(0, -0.15, face / 2));
+    // The tower's stair notch filled in below the deck, down into the
+    // clouds: back to the bridge's end, and under the arch's spring out to
+    // the tower's curve.
+    box(0, -30, (-27.3 + face) / 2, 5, 60, face + 27.3, sandstone);
+    const curve = Array.from({ length: 13 }, (_, i) => { const x = 2.5 - 5 * i / 12; return [x, PLATFORM.z + Math.sqrt(PLATFORM.r ** 2 - x * x)]; });
+    add(slab([[-2.5, face], [2.5, face], ...curve], -60, spring), sandstone);
+    // A branch of the big root west of the bridge wraps round it (roots.ts).
+    scene.add(bridgeBranch(line, rootHoles(line), z => z > from && z < land ? cy + Math.sqrt(radius * radius - (z - cz) ** 2) : spring));
+  }
   paving(-2.5, 2.5, -27.3, 0);
   // Eight 0.4 m steps down off the platform onto it.
   for (let i = 0; i < 7; i++) {
