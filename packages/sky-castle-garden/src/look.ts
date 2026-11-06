@@ -94,7 +94,7 @@ export function paint(material: THREE.MeshStandardMaterial, shade?: number, tile
   material.onBeforeCompile = shader => {
     Object.assign(shader.uniforms, uniforms, inkUniforms, { uShade: { value: shadeRatio }, uTile: { value: tile ?? 1 } });
     shader.vertexShader = shader.vertexShader
-      .replace('#include <fog_pars_vertex>', '#include <fog_pars_vertex>\nvarying vec3 vInkAt;\nvarying float vHeight;\nvarying vec3 vModel, vModelNormal;\n#ifdef MERGED\nattribute vec3 modelPosition, modelNormal;\n#endif\n#ifdef TEX_SHIFT\nattribute vec3 texShift;\n#endif\n#ifdef STONE_BLOCK\nattribute vec3 boxMin, boxMax;\nvarying vec3 vBlock, vBoxMin, vBoxMax;\n#endif')
+      .replace('#include <fog_pars_vertex>', '#include <fog_pars_vertex>\nvarying vec3 vInkAt;\nvarying float vHeight;\nvarying vec3 vModel, vModelNormal;\n#ifdef MERGED\nattribute vec3 modelPosition, modelNormal;\n#endif\n#ifdef TEX_SHIFT\nattribute vec3 texShift;\n#endif\n#ifdef STONE_BLOCK\nattribute vec3 boxMin, boxMax;\nvarying vec3 vBlock, vBoxMin, vBoxMax, vShift;\n#endif')
       .replace('#include <fog_vertex>', /* glsl */`#include <fog_vertex>
         vInkAt = (inverse(viewMatrix) * mvPosition).xyz;
         vec4 placed = vec4(transformed, 1.0);
@@ -115,6 +115,7 @@ export function paint(material: THREE.MeshStandardMaterial, shade?: number, tile
           vBlock = vModel;
           vBoxMin = boxMin;
           vBoxMax = boxMax;
+          vShift = texShift;
         #endif
         #ifdef TEX_SHIFT
           vModel += texShift;
@@ -132,7 +133,7 @@ export function paint(material: THREE.MeshStandardMaterial, shade?: number, tile
         varying float vHeight;
         varying vec3 vModel, vModelNormal;
         #ifdef STONE_BLOCK
-          varying vec3 vBlock, vBoxMin, vBoxMax;
+          varying vec3 vBlock, vBoxMin, vBoxMax, vShift;
           float stoneHash(float p) { return fract(sin(p * 127.1) * 43758.5453); }
           float stoneNoise(float p) { float i = floor(p), f = fract(p); return mix(stoneHash(i), stoneHash(i + 1.0), f * f * (3.0 - 2.0 * f)); }
           // The brush strip holds four rows of strokes running along it: one
@@ -146,6 +147,49 @@ export function paint(material: THREE.MeshStandardMaterial, shade?: number, tile
           float dripStroke(float u, float v, float k) {
             if (u <= 0.0 || u >= 1.0 || v <= 0.0 || v >= 1.0) return 0.0;
             return texture2D(uDrips, vec2((k + u) / 8.0, 1.0 - v)).r;
+          }
+          // A face's own random numbers, the same all over it.
+          float faceHash(vec3 face, float i) {
+            vec3 p = fract(vec3(face.xy, face.z + i * 1.618) * 0.1031);
+            p += dot(p, p.zyx + 31.32);
+            return fract((p.x + p.y) * p.z);
+          }
+          // The cracks (columns.ts, crackStrip): eight in a strip, each
+          // running from one end of its row to the other, laid between a and
+          // b on the face. Red the crack, green its lit edge, blue the wash.
+          uniform sampler2D uCracks;
+          // Random heights joined by straight lines.
+          float jag(float x) { float i = floor(x); return mix(stoneHash(i), stoneHash(i + 1.0), x - i); }
+          vec3 crackMarks(vec2 p, vec2 a, vec2 b, float halfWidth, float k) {
+            vec2 d = b - a;
+            float len = length(d);
+            vec2 t = d / len;
+            // The strip's own wavering is squashed flat when a row is
+            // stretched along a crack, so the crack is bent here, in metres
+            // whatever its length: a slow wander and sharper jags on it, each
+            // straight between kinks, as stone breaks.
+            float u = dot(p - a, t) / len, along = u * len, seed = k * 7.31 + a.x * 3.1 + a.y * 1.7;
+            float bend = (jag(along * 1.6 + seed) - 0.5) * 0.22 + (jag(along * 6.0 + seed * 1.3) - 0.5) * 0.08;
+            float v = (dot(p - a, vec2(-t.y, t.x)) - bend) / halfWidth;
+            if (u <= 0.0 || u >= 1.0 || abs(v) >= 1.0) return vec3(0.0);
+            return texture2D(uCracks, vec2(u, (k + 0.5 + 0.5 * v) / 8.0)).rgb;
+          }
+          // A point on one of a face's four edges (0 the foot, then round
+          // anticlockwise), t along it, and the way into the face from there.
+          vec2 edgePoint(float e, float t, vec2 size) {
+            return e < 0.5 ? vec2(t * size.x, 0.0) : e < 1.5 ? vec2(size.x, t * size.y) : e < 2.5 ? vec2(t * size.x, size.y) : vec2(0.0, t * size.y);
+          }
+          vec2 inward(float e) {
+            return e < 0.5 ? vec2(0.0, 1.0) : e < 1.5 ? vec2(-1.0, 0.0) : e < 2.5 ? vec2(0.0, -1.0) : vec2(1.0, 0.0);
+          }
+          vec2 turn(vec2 v, float a) { return vec2(v.x * cos(a) - v.y * sin(a), v.x * sin(a) + v.y * cos(a)); }
+          // A crack run in from edge e of a face, part way across.
+          vec3 edgeCrack(vec2 p, vec2 size, vec3 face, float e, float i, float k) {
+            vec2 in_ = inward(e);
+            vec2 a = edgePoint(e, 0.15 + 0.7 * faceHash(face, i), size) - in_ * 0.04;
+            float across = e < 0.5 || (e > 1.5 && e < 2.5) ? size.y : size.x;
+            vec2 b = a + turn(in_, (faceHash(face, i + 1.0) - 0.5) * 1.3) * across * (0.3 + 0.35 * faceHash(face, i + 2.0));
+            return crackMarks(p, a, clamp(b, size * 0.06, size * 0.94), 0.26, k);
           }
           float brushStroke(float u, float v, float row) {
             v = abs(v);
@@ -169,7 +213,8 @@ export function paint(material: THREE.MeshStandardMaterial, shade?: number, tile
             // Weathering by the block's shape, painted with the shafts' brush
             // (columns.ts, brushStrip): strokes laid along the rim of each
             // face, down its upright corners and under its top edge where rain
-            // sits, a few short drips from that edge, and damp at the foot.
+            // sits, a few short drips from that edge, damp at the foot and a
+            // green stroke up from it here and there.
             // Distances in metres.
             {
               vec3 n = abs(normalize(vModelNormal));
@@ -194,7 +239,12 @@ export function paint(material: THREE.MeshStandardMaterial, shade?: number, tile
                 // Drips: here and there along the top, each one whole stroke
                 // of the shafts' brush run down from the edge, landing,
                 // thinning and breaking up dry as theirs do.
-                float which = floor(along * 4.0), cell = fract(along * 4.0);
+                // Each face of the block its own: which way it faces, and
+                // the piece's own place in the stone, so a square plinth's
+                // sides don't match.
+                vec3 facing3 = sign(vModelNormal);
+                float faceKey = (n.x > n.z ? facing3.x : 2.0 + facing3.z) * 41.0 + dot(floor(vShift * 64.0 + 0.5), vec3(0.13, 0.071, 0.037));
+                float which = floor(along * 4.0) + faceKey, cell = fract(along * 4.0);
                 float reach = stoneHash(which + 7.0) < 0.65 ? 0.25 + 1.4 * stoneHash(which + 3.0) * stoneHash(which + 19.0) : 0.0;
                 float centre = 0.3 + 0.4 * stoneHash(which + 11.0), width = 0.07 + 0.08 * stoneHash(which + 5.0);
                 float dark = stoneHash(which + 13.0) < 0.3 ? 1.6 : 1.1;
@@ -202,6 +252,14 @@ export function paint(material: THREE.MeshStandardMaterial, shade?: number, tile
                 // Damp at the foot, greener.
                 float damp = smoothstep(0.4 + 0.3 * wobble, 0.0, foot);
                 diffuseColor.rgb *= mix(vec3(1.0), vec3(0.8, 0.86, 0.66), damp * 0.7);
+                // Green, as at the shafts' feet: now and then a broad stroke
+                // of the same brush laid up the face from the ground, landing
+                // at the foot and running out dry as it rises.
+                float tuft = floor(along * 2.0 + 0.37) + faceKey, place = fract(along * 2.0 + 0.37);
+                float rise = stoneHash(tuft + 23.0) < 0.22 ? 0.45 + 0.8 * stoneHash(tuft + 29.0) : 0.0;
+                float middle = 0.3 + 0.4 * stoneHash(tuft + 31.0), broad = 0.12 + 0.1 * stoneHash(tuft + 37.0);
+                float green = dripStroke((place - middle) / 2.0 / broad + 0.5, (foot - 0.01) / max(rise, 0.01), floor(stoneHash(tuft + 41.0) * 8.0));
+                diffuseColor.rgb *= mix(vec3(1.0), vec3(0.56, 0.72, 0.34), clamp(green * 1.3, 0.0, 1.0) * 0.85);
               } else {
                 // On tops and slopes, strokes round the rim.
                 float rim = min(edge.x, edge.z), circuit = edge.x < edge.z ? vModel.z : vModel.x;
@@ -209,6 +267,44 @@ export function paint(material: THREE.MeshStandardMaterial, shade?: number, tile
               }
               // In the shafts' stain violet.
               diffuseColor.rgb *= mix(vec3(1.0), vec3(0.62, 0.6, 0.85), clamp(stain, 0.0, 1.0) * 0.8);
+              // Cracks, by the face: on some, one anywhere; on some, two, each
+              // run in from an edge; now and then one right across, edge to
+              // edge; never more than two. Not on faces too narrow for them.
+              {
+                vec3 d = normalize(vModelNormal), box = vBoxMax - vBoxMin, inBox = vBlock - vBoxMin;
+                bool onX = n.x >= n.y && n.x >= n.z, onY = !onX && n.y >= n.z;
+                vec2 p = onX ? inBox.zy : onY ? inBox.xz : inBox.xy;
+                vec2 size = onX ? box.zy : onY ? box.xz : box.xy;
+                float axis = onX ? 0.0 : onY ? 1.0 : 2.0;
+                float facingSign = (onX ? d.x : onY ? d.y : d.z) > 0.0 ? 1.0 : 0.0;
+                vec3 face = floor(vShift * 64.0 + 0.5) + vec3(axis * 17.0 + facingSign * 5.0);
+                float r = faceHash(face, 0.0), k = floor(faceHash(face, 1.0) * 8.0);
+                vec3 marks = vec3(0.0);
+                if (min(size.x, size.y) > 0.35) {
+                  if (r < 0.08) {
+                    // Right across, mostly the short way.
+                    bool lengthways = (faceHash(face, 2.0) < 0.3) == (size.x > size.y);
+                    float y0 = 0.2 + 0.6 * faceHash(face, 3.0), y1 = 0.2 + 0.6 * faceHash(face, 4.0);
+                    vec2 a = lengthways ? vec2(-0.04, y0 * size.y) : vec2(y0 * size.x, -0.04);
+                    vec2 b = lengthways ? vec2(size.x + 0.04, y1 * size.y) : vec2(y1 * size.x, size.y + 0.04);
+                    marks = crackMarks(p, a, b, 0.3, k);
+                  } else if (r < 0.45) {
+                    // One, anywhere.
+                    vec2 c = size * (0.25 + 0.5 * vec2(faceHash(face, 5.0), faceHash(face, 6.0)));
+                    vec2 t = turn(vec2(1.0, 0.0), faceHash(face, 7.0) * 6.2832) * min(size.x, size.y) * (0.2 + 0.15 * faceHash(face, 8.0));
+                    marks = crackMarks(p, clamp(c - t, size * 0.06, size * 0.94), clamp(c + t, size * 0.06, size * 0.94), 0.24, k);
+                  } else if (r < 0.7) {
+                    // Two, from different edges.
+                    float e0 = floor(faceHash(face, 9.0) * 4.0), e1 = mod(e0 + 1.0 + floor(faceHash(face, 10.0) * 3.0), 4.0);
+                    marks = max(edgeCrack(p, size, face, e0, 11.0, k), edgeCrack(p, size, face, e1, 14.0, mod(k + 3.0, 8.0)));
+                  }
+                }
+                // Only where the face is flat, not round the worn edges.
+                marks *= smoothstep(0.7, 0.95, max(side.x, max(side.y, side.z)));
+                diffuseColor.rgb *= mix(vec3(1.0), vec3(0.84, 0.82, 0.95), marks.b * 0.6);
+                diffuseColor.rgb = mix(diffuseColor.rgb, vec3(1.0), marks.g * 0.6);
+                diffuseColor.rgb *= mix(vec3(1.0), vec3(0.3, 0.27, 0.58), marks.r);
+              }
             }
           #else
             diffuseColor *= texture2D(map, at.zy) * side.x + texture2D(map, at.xz) * side.y + texture2D(map, at.xy) * side.z;

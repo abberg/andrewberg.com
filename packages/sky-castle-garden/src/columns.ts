@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { ConvexGeometry } from 'three/addons/geometries/ConvexGeometry.js';
 import { painted, palette } from './look';
-import { stroke } from './masonry';
+import { stroke, strokeAlong } from './masonry';
 
 // Step 7: the columns, as in the garden painting: white stone, fluted, built
 // of stacked drums so the only joints are the horizontal seams between them.
@@ -83,7 +83,7 @@ export const columnStone = painted(palette.stone, { map: shaft, vertexColors: tr
 // cool and clouding. Flat faces have no flutes for stains to follow, so their
 // weathering goes by the block's own shape instead, in the shader (look.ts,
 // STONE_BLOCK): pooled at the rims of each face, gathered under the top edge,
-// a few short drips, damp at the foot.
+// a few short drips, damp at the foot, and a crack or two on some faces.
 function blockTexture() {
   const px = 1024, canvas = document.createElement('canvas');
   canvas.width = canvas.height = px;
@@ -169,12 +169,69 @@ function dripStrokes() {
   texture.anisotropy = 8;
   return texture;
 }
-const brush = brushStrip(), drips = dripStrokes();
+// The blocks' cracks (look.ts, STONE_BLOCK), eight of them, one along each
+// row: a stroke of the shafts' brush bent along a wandering line, so it lands
+// thin, swells a little and breaks up dry where the brush runs out, mostly
+// with a shorter branch or two slanting off it. Each mark in its own channel,
+// so the shader can colour them: red the crack itself, green a thin lit edge
+// beside it on one side, so it reads as cut in, blue a broad faint wash either
+// side. Each crack runs from the strip's left end to its right; the shader
+// lays a row between two points on a face.
+function crackStrip() {
+  const w = 2048, h = 1024, row = h / 8, canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const g = canvas.getContext('2d')!;
+  let s = 83;
+  const random = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  g.fillStyle = '#000';
+  g.fillRect(0, 0, w, h);
+  g.globalCompositeOperation = 'lighter';
+  for (let r = 0; r < 8; r++) {
+    const mid = (r + 0.5) * row, mask = Math.floor(random() * 10), width = row * (0.025 + random() * 0.012);
+    // The crack keeps near the row's middle; its branches have the rest of
+    // the row to wander off into.
+    const wander = (x0: number, x1: number, y: number, steps: number, reach: number, drift = 0) => {
+      const path = [[x0, y]];
+      for (let k = 1; k <= steps; k++) {
+        y += drift + (random() - 0.5) * row * 0.07;
+        y = Math.min(mid + row * reach, Math.max(mid - row * reach, y));
+        path.push([x0 + (x1 - x0) * k / steps, y]);
+      }
+      return path;
+    };
+    const paths = [wander(0, w, mid, 18, 0.12)];
+    // Most cracks branch, some twice, a branch leaving at a slant to either
+    // side, and never branching again.
+    const branches = random() < 0.2 ? 0 : random() < 0.35 ? 2 : 1;
+    for (let b = 0; b < branches; b++) {
+      const from = Math.floor(18 * (0.2 + random() * 0.6)), [bx, by] = paths[0][from], side = random() < 0.5 ? -1 : 1;
+      const long = w * (0.1 + random() * 0.18), steps = 5 + Math.floor(random() * 3);
+      paths.push(wander(bx, Math.min(w, bx + long), by, steps, 0.45, side * row * (0.06 + random() * 0.04)));
+    }
+    g.save();
+    g.beginPath();
+    g.rect(0, r * row, w, row);
+    g.clip();
+    paths.forEach((path, k) => {
+      const wide = width * (k ? 0.7 : 1), shifted = path.map(([x, y]) => [x, y + wide * 0.9]);
+      strokeAlong(g, mask + k, path, wide * 7, 'rgba(0,0,255,0.6)');
+      strokeAlong(g, mask + k, shifted, wide * 1.2, 'rgba(0,255,0,0.9)');
+      strokeAlong(g, mask + k, path, wide * 1.4, `rgba(255,0,0,${random() < 0.4 ? 0.95 : 0.8})`);
+    });
+    g.restore();
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.anisotropy = 8;
+  return texture;
+}
+const brush = brushStrip(), drips = dripStrokes(), cracks = crackStrip();
 const paintBlock = blockStone.onBeforeCompile;
 blockStone.onBeforeCompile = (shader, renderer) => {
   paintBlock(shader, renderer);
   shader.uniforms.uBrush = { value: brush };
   shader.uniforms.uDrips = { value: drips };
+  shader.uniforms.uCracks = { value: cracks };
 };
 let shifts = 0;
 export function shifted(geometry: THREE.BufferGeometry, span = 4.4, margin = 0) {

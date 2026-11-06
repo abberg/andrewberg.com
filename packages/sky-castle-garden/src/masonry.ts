@@ -108,7 +108,7 @@ export function stroke(g: CanvasRenderingContext2D, mask: number, x0: number, y0
 
 // The same along a path: the brush mask is cut into slices, one per segment,
 // so the stroke bends round corners.
-function strokeAlong(g: CanvasRenderingContext2D, mask: number, path: number[][], width: number, colour: string) {
+export function strokeAlong(g: CanvasRenderingContext2D, mask: number, path: number[][], width: number, colour: string) {
   const d = dye.getContext('2d')!;
   d.globalCompositeOperation = 'copy';
   d.fillStyle = colour;
