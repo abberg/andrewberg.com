@@ -4,7 +4,7 @@ import { ConvexGeometry } from 'three/addons/geometries/ConvexGeometry.js';
 import { blockStone, capitalGeometry, shifted, chippedBlock, columnGeometry, columnStone, crack, drumGeometry, plinthGeometry, urnGeometry } from './columns';
 import { painted, palette } from './look';
 import { urnPlant, vineSpill } from './foliage';
-import { columnIvy } from './growth';
+import { blockIvy, columnIvy, shroudIvy } from './growth';
 import { archBlockGeometry, patina, statueGeometry } from './ruins';
 import { stone } from './level';
 
@@ -88,12 +88,14 @@ export function createStones(world: RAPIER.World, scene: THREE.Scene) {
   // the shaft and a capital (columns.ts), as one very heavy body.
   // Each on a square plinth with a sloped top.
   const standing = columnGeometry(0.7, 12.7, 'cup', true), plinth = plinthGeometry(2.3, 1.3, 0.35, 1.7).translate(0, -7, 0);
-  // The nearest has ivy climbing it, as in the painting.
+  // The nearest has ivy climbing it, as in the painting; the other two a
+  // little at their feet.
   const shaft = (y: number) => { const t = (y + 5.52) / 11.07; return 0.7 * (1 - 0.12 * t * t + 0.025 * Math.sin(t * Math.PI)); };
   for (const z of [14.6, 22.7, 31.2]) {
     const column = piece(-4.1, 7, z).look(plinth, blockStone).look(standing, columnStone, [0, 0.65, 0])
       .hull(plinth).cylinder(0.7, 12.1, [0, 0.35, 0]).cylinder(1.15, 0.6, [0, 6.7, 0]);
     if (z === 14.6) column.add(columnIvy(5, -5.6, 5.4, shaft, Math.PI * 0.7));
+    else column.add(columnIvy(z === 22.7 ? 8 : 11, -5.6, 5.4, shaft, z === 22.7 ? Math.PI * 0.3 : Math.PI * 1.2, true));
   }
 
   // A fourth column in the row fell west, across the lowest west branch. Its
@@ -131,9 +133,14 @@ export function createStones(world: RAPIER.World, scene: THREE.Scene) {
   const plinthStone = new ConvexGeometry(chippedBlock(2.7, 3, 2.7, 61));
   // A plain box underneath: the figure never settles on the chipped hull's
   // top, it rocks on it for ever.
-  piece(4.1, 1.5, 8.3).look(plinthStone, blockStone).box(2.7, 3, 2.7);
+  // Both overgrown: the figure all but buried in ivy, a little of the face
+  // and the raised hand and staff showing, and the ivy spilling from its feet
+  // down two sides of the plinth (the path's and the back), one corner of
+  // the top left bare.
+  piece(4.1, 1.5, 8.3).look(plinthStone, blockStone).box(2.7, 3, 2.7).add(blockIvy(3, 2.7, 3, 2.7, 0.7, [-1, 1]));
   const statue = statueGeometry();
   piece(4.1, 3, 8.3, turned(-0.3)).look(statue, patina)
+    .add(shroudIvy(4, statue, 0.26, 0.1, p => p.y > 3.3 ? 0.9 : p.x > 0.45 && p.y > 2.6 ? 0.55 : p.y > 2.55 && p.z < -0.05 ? 0.6 : 0))
     // A flat square foot under the robe.
     .box(1, 0.3, 0.8, [0, 0.15, 0]).cylinder(0.42, 2.1, [0, 1.35, 0]).cylinder(0.2, 0.4, [0, 2.72, 0]).box(0.3, 1.9, 0.3, [0.66, 3.1, -0.1]);
 

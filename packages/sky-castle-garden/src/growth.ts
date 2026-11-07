@@ -267,7 +267,8 @@ export function createGrowth() {
 // the shaft's radius at a height, so it can move with the column; facing is
 // the angle round the shaft (from +z towards +x) the ivy grows mostly on.
 let vineParts: { leaves: THREE.MeshStandardMaterial; stem: THREE.MeshStandardMaterial; clump: THREE.BufferGeometry } | undefined;
-export function columnIvy(seed: number, foot: number, top: number, radius: (y: number) => number, facing: number) {
+// sparse thins it: fewer vines, none reaching the top, a smaller foot.
+export function columnIvy(seed: number, foot: number, top: number, radius: (y: number) => number, facing: number, sparse = false) {
   vineParts ??= {
     leaves: swaying(bothSidesAlike(painted(palette.ivy, { map: leafTexture(37), alphaTest: 0.5, side: THREE.DoubleSide })), SWAY.ivy),
     stem: painted(palette.ivyDepth),
@@ -286,11 +287,11 @@ export function columnIvy(seed: number, foot: number, top: number, radius: (y: n
       .multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), (random() - 0.5) * 0.8));
     placed.push(new THREE.Matrix4().compose(at, turn, new THREE.Vector3(size, size, size)));
   };
-  const vines = 3 + Math.floor(random() * 2), start = facing;
+  const vines = (sparse ? 2 : 3) + Math.floor(random() * 2), start = facing;
   for (let v = 0; v < vines; v++) {
     // Starting round one side of the foot, climbing to some height; the
     // first all the way.
-    const a0 = start + (random() - 0.5) * 2.4, reach = v === 0 ? top - foot : (top - foot) * (0.3 + random() * 0.6);
+    const a0 = start + (random() - 0.5) * 2.4, reach = v === 0 && !sparse ? top - foot : (top - foot) * (sparse ? 0.12 + random() * 0.28 : 0.3 + random() * 0.6);
     const twist = (random() - 0.5) * 1.6, drift = wander(seed * 13 + v, 2.5);
     const points: THREE.Vector3[] = [];
     for (let d = 0; d <= reach; d += 0.15) {
@@ -311,13 +312,131 @@ export function columnIvy(seed: number, foot: number, top: number, radius: (y: n
   }
   // The bushy foot: clumps heaped round the bottom of the shaft on the side
   // the vines start from, and a few lower over the edge.
-  for (let k = 0; k < 14; k++) {
-    const a = start + (random() - 0.5) * 3.2, y = foot + random() ** 2 * 1.2;
+  for (let k = 0; k < (sparse ? 7 : 14); k++) {
+    const a = start + (random() - 0.5) * (sparse ? 2.4 : 3.2), y = foot + random() ** 2 * (sparse ? 0.8 : 1.2);
     clump(y, a, 0.6 + random() * 0.35, 0.12 + random() * 0.15);
   }
-  const leaves = new THREE.InstancedMesh(vineParts.clump, vineParts.leaves, placed.length);
+  group.add(leafMesh(placed));
+  return group;
+}
+
+function leafMesh(placed: THREE.Matrix4[]) {
+  const leaves = new THREE.InstancedMesh(vineParts!.clump, vineParts!.leaves, placed.length);
   placed.forEach((matrix, i) => leaves.setMatrixAt(i, matrix));
   leaves.castShadow = leaves.receiveShadow = true;
-  group.add(leaves);
-  return group;
+  return leaves;
+}
+
+// A clump at a point on a surface, out along its normal, the shingles
+// hanging down it.
+function surfaceClump(at: THREE.Vector3, out: THREE.Vector3, size: number, twist: number) {
+  const up = new THREE.Vector3(0, 1, 0).addScaledVector(out, -out.y);
+  // Facing straight up or down: any way round.
+  if (up.lengthSq() < 1e-3) up.set(1, 0, 0).addScaledVector(out, -out.x);
+  up.normalize();
+  const turn = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(up.clone().cross(out), up, out))
+    .multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), twist));
+  return new THREE.Matrix4().compose(at, turn, new THREE.Vector3(size, size, size));
+}
+
+// Ivy all over a shape, as on the statue: clumps strewn evenly over its
+// surface (by area), lifted off it, except where a soft wandering patch
+// leaves the stone or bronze showing. bare(p) says how much to leave bare
+// at a point, 0 to 1; size the clumps' size; spacing the gap between them.
+export function shroudIvy(seed: number, geometry: THREE.BufferGeometry, size: number, spacing: number, bare: (p: THREE.Vector3) => number) {
+  vineParts ??= {
+    leaves: swaying(bothSidesAlike(painted(palette.ivy, { map: leafTexture(37), alphaTest: 0.5, side: THREE.DoubleSide })), SWAY.ivy),
+    stem: painted(palette.ivyDepth),
+    clump: clumpGeometry(47),
+  };
+  let s = seed * 7919 + 17;
+  const random = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  const source = geometry.index ? geometry.toNonIndexed() : geometry, p = source.getAttribute('position');
+  const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), n = new THREE.Vector3();
+  const triangles: { a: THREE.Vector3; b: THREE.Vector3; c: THREE.Vector3; area: number }[] = [];
+  let total = 0;
+  for (let k = 0; k < p.count; k += 3) {
+    a.fromBufferAttribute(p, k); b.fromBufferAttribute(p, k + 1); c.fromBufferAttribute(p, k + 2);
+    const area = n.subVectors(c, b).cross(a.clone().sub(b)).length() / 2;
+    if (area < 1e-6) continue;
+    triangles.push({ a: a.clone(), b: b.clone(), c: c.clone(), area });
+    total += area;
+  }
+  const placed: THREE.Matrix4[] = [], count = Math.round(total / (spacing * spacing));
+  const cumulative: number[] = [];
+  triangles.reduce((sum, t) => (cumulative.push(sum + t.area), sum + t.area), 0);
+  for (let k = 0; k < count; k++) {
+    const pick = random() * total;
+    let lo = 0, hi = cumulative.length - 1;
+    while (lo < hi) { const mid = (lo + hi) >> 1; if (cumulative[mid] < pick) lo = mid + 1; else hi = mid; }
+    const t = triangles[lo];
+    let u = random(), v = random();
+    if (u + v > 1) { u = 1 - u; v = 1 - v; }
+    const at = t.a.clone().addScaledVector(t.b.clone().sub(t.a), u).addScaledVector(t.c.clone().sub(t.a), v);
+    if (random() < bare(at)) continue;
+    // Outward: the triangle's normal, flipped if it points in towards the
+    // shape's axis (the lathe's winding is not to be trusted).
+    const out = new THREE.Vector3().subVectors(t.b, t.a).cross(t.c.clone().sub(t.a)).normalize();
+    const radial = at.clone().setY(0);
+    if (radial.lengthSq() > 0.01 && out.dot(radial) < 0 && Math.abs(out.y) < 0.9) out.negate();
+    // Nothing on the undersides.
+    if (out.y < -0.5) continue;
+    placed.push(surfaceClump(at.addScaledVector(out, 0.02 + random() * 0.04), out, size * (0.75 + random() * 0.5), (random() - 0.5) * 0.8));
+  }
+  return leafMesh(placed);
+}
+
+// Ivy over a block (width, height, depth, centred on the origin), as if
+// spilling down from whatever stands on it: a mat over the top, rolling over
+// the edges of two neighbouring sides (spill: +x or -x, +z or -z) and
+// hanging down them in ragged curtains, heavy at the top and thinning as they
+// fall, a strand or two nearly to the ground. The mat thins away from them,
+// leaving the far corner bare.
+export function blockIvy(seed: number, width: number, height: number, depth: number, size: number, spill: [number, number]) {
+  vineParts ??= {
+    leaves: swaying(bothSidesAlike(painted(palette.ivy, { map: leafTexture(37), alphaTest: 0.5, side: THREE.DoubleSide })), SWAY.ivy),
+    stem: painted(palette.ivyDepth),
+    clump: clumpGeometry(47),
+  };
+  let s = seed * 7919 + 23;
+  const random = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  const placed: THREE.Matrix4[] = [], step = size * 0.5, up = new THREE.Vector3(0, 1, 0);
+  // The mat on top, leaning out towards the nearer edge, its edge a
+  // wandering line across the top from the bare corner.
+  const rim = wander(seed * 17, 1);
+  for (let x = -width / 2 + random() * step; x < width / 2; x += step * (0.8 + random() * 0.4)) {
+    for (let z = -depth / 2 + random() * step; z < depth / 2; z += step * (0.8 + random() * 0.4)) {
+      // 0 at the bare corner, 2 at the corner the two sides meet.
+      const toward = x / width * spill[0] + z / depth * spill[1] + 1;
+      if (toward < 0.85 + 0.25 * rim(x - z) + random() * 0.2) continue;
+      const lean = new THREE.Vector3(x / width, 0, z / depth).multiplyScalar(0.8);
+      placed.push(surfaceClump(new THREE.Vector3(x, height / 2 + 0.06 + random() * 0.06, z), up.clone().add(lean).normalize(), size * (0.8 + random() * 0.4), random() * Math.PI * 2));
+    }
+  }
+  const faces: [THREE.Vector3, THREE.Vector3, number, number][] = [
+    [new THREE.Vector3(0, 0, 1), new THREE.Vector3(1, 0, 0), width, depth],
+    [new THREE.Vector3(0, 0, -1), new THREE.Vector3(-1, 0, 0), width, depth],
+    [new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 0, -1), depth, width],
+    [new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 0, 1), depth, width],
+  ];
+  faces.forEach(([out, across, span, thick], f) => {
+    if (out.x * spill[0] + out.z * spill[1] < 0.5) return;
+    // How far down it hangs along the face: wandering, from a short fringe
+    // to most of the way down.
+    const edge = wander(seed * 31 + f, span * 0.35);
+    for (let x = -span / 2 + random() * step; x < span / 2; x += step * (0.7 + random() * 0.4)) {
+      const fall = height * THREE.MathUtils.clamp(0.35 + 0.45 * edge(x + span) + (random() - 0.5) * 0.2, 0.1, 0.85);
+      // Rolling over the edge first.
+      placed.push(surfaceClump(out.clone().multiplyScalar(thick / 2 + 0.02).addScaledVector(across, x).setY(height / 2 + 0.04),
+        up.clone().lerp(out, 0.6).normalize(), size * (0.9 + random() * 0.4), (random() - 0.5) * 0.8));
+      for (let d = random() * step * 0.4; d < fall; d += step * (0.7 + random() * 0.4)) {
+        // Thinner, and smaller, as it falls.
+        const t = d / fall;
+        if (random() < 0.5 * t * t) continue;
+        const at = out.clone().multiplyScalar(thick / 2 + 0.05 + random() * 0.06).addScaledVector(across, x + (random() - 0.5) * step * 0.4).setY(height / 2 - d);
+        placed.push(surfaceClump(at, out, size * (0.65 + random() * 0.4) * (1 - 0.35 * t), (random() - 0.5) * 0.8));
+      }
+    }
+  });
+  return leafMesh(placed);
 }
