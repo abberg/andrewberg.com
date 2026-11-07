@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { CASTLE } from './city';
-import { type Card, cardGeometry, clusterTexture, instanced, leafCards, SHRUB } from './foliage';
+import { type Card, cardGeometry, clusterTexture, instanced, leafCards, SHRUB, slopeTree } from './foliage';
 import { painted } from './look';
 import { WINDOW } from './masonry';
 import { SWAY } from './wind';
@@ -413,6 +413,22 @@ export async function createMantle(scene: THREE.Scene) {
       const inside = Math.hypot(x - drum.cx, z - drum.cz) < drum.r - 0.3;
       return [new THREE.Vector3(x, y, z), inside ? 1 : 0];
     }, step), true, () => new THREE.Vector3(0, 1, 0));
+    // The tree on the slope (Andrew's crop of the reference): out on the
+    // slope from the great tower's shoulder, up and to the left of the
+    // turret as seen from the garden. Its crown low, over the windows just
+    // above the great tower's shoulder band, and well under the roofline;
+    // kept clear of the great tower and the slim tower behind it.
+    const keepOut = (p: THREE.Vector3, room: number) => {
+      for (const [cx, cz, R] of [[0, gate.z, gate.radiusAt(Math.max(0, p.y - gate.foot))], [slim.x, slim.z, slim.r]]) {
+        const dx = p.x - cx, dz = p.z - cz, d = Math.hypot(dx, dz), want = R + room;
+        if (d < want) { p.x = cx + dx / d * want; p.z = cz + dz / d * want; }
+      }
+      return p;
+    };
+    const fx = -14, fz = 60;
+    slopeTree(scene, new THREE.Vector3(fx, height(fx, fz) + 0.4, fz), 15, keepOut, 5,
+      // Rooted further back up the slope, against the castle (Andrew).
+      new THREE.Vector3(-17, height(-17, 64.5) + 0.4, 64.5));
   }
 
   // The east tower's terracotta band, from Andrew's reference: tufts along

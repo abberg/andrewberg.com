@@ -1152,3 +1152,53 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
   instanced(new THREE.SphereGeometry(0.3, 12, 8).scale(1, 0.7, 1).translate(0, 0.1, 0), painted(CORE), shrubs, scene);
   return { shrubs: shrubs.length, cypresses: cypresses.length, trees: crowns.length, tufts: tufts.length + sward.length, flowers: gardenFlowers.length };
 }
+
+// The tree on the castle's green slope (Andrew's crop of the reference,
+// 2026-11-07): a clump of slender trunks from one foot, leaning out in a
+// fan and forking, under a broad crown of overlapping masses, wider than it
+// is tall, built like the garden's small trees (leaf balls over a dark
+// core). A little deeper and bluer green than the garden's trees, as the
+// painting has it against the stone.
+const SLOPE_CROWN = [0x7cb452, 0x335e54] as const, SLOPE_CORE = [0x4e8644, 0x264a46] as const;
+// keepOut moves a point (with this much room round it) out of the towers.
+// foot is where the crown is set from; lift (m) raises it on longer trunks;
+// the trunks grow from root (by default the foot), leaning out to the crown.
+export function slopeTree(scene: THREE.Scene, foot: THREE.Vector3, tall: number, keepOut: (p: THREE.Vector3, room: number) => THREE.Vector3, lift = 0, root = foot, seed = 911) {
+  let s = seed;
+  const random = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  const wood: THREE.BufferGeometry[] = [], crowns: THREE.Matrix4[] = [];
+  const ball = (at: THREE.Vector3, across: number) => crowns.push(new THREE.Matrix4().compose(keepOut(at, across * 0.5),
+    new THREE.Quaternion().setFromEuler(new THREE.Euler(random() * 6, random() * 6, random() * 6)), new THREE.Vector3(across * 1.15, across * 0.72, across * 1.15)));
+  const tips: THREE.Vector3[] = [];
+  const stems = 4;
+  for (let k = 0; k < stems; k++) {
+    // Fanned out from the foot, sideways and forward, away from the towers
+    // behind it (-z is towards the garden).
+    const a = Math.PI + (k + 0.5) / stems * Math.PI + (random() - 0.5) * 0.4;
+    const out = new THREE.Vector3(Math.cos(a), 0, Math.sin(a) * 0.5);
+    const start = root.clone().addScaledVector(out, 0.25).setY(root.y - 0.4);
+    const lean = 0.16 + random() * 0.1;
+    const fork = foot.clone().addScaledVector(out, tall * lean).setY(foot.y + lift + tall * (0.24 + random() * 0.08));
+    const bend = start.clone().lerp(fork, 0.45).addScaledVector(out, -tall * 0.03);
+    wood.push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([start, bend, fork]), 10, tall * (0.022 + random() * 0.006), 7));
+    // Two boughs from each fork, up and out.
+    for (let b = 0; b < 2; b++) {
+      const turn = a + (b - 0.5) * 0.9 + (random() - 0.5) * 0.4;
+      const reach = tall * (0.12 + random() * 0.08);
+      const tip = fork.clone().add(new THREE.Vector3(Math.cos(turn) * reach, tall * (0.14 + random() * 0.12), Math.sin(turn) * reach * 0.6));
+      wood.push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([fork, fork.clone().lerp(tip, 0.5).add(new THREE.Vector3(0, -tall * 0.02, 0)), tip]), 6, tall * 0.011, 6));
+      keepOut(tip, 0.5);
+      tips.push(tip);
+      ball(tip.clone().add(new THREE.Vector3(0, tall * 0.06, 0)), tall * (0.5 + random() * 0.14));
+    }
+  }
+  // Over the top and in between, so the masses run into one broad crown.
+  const middle = tips.reduce((sum, t) => sum.add(t), new THREE.Vector3()).divideScalar(tips.length);
+  ball(middle.clone().add(new THREE.Vector3(0, tall * 0.14, 0)), tall * 0.62);
+  tips.forEach((tip, k) => ball(tip.clone().lerp(tips[(k + 1) % tips.length], 0.5).lerp(middle, 0.25).add(new THREE.Vector3(0, tall * 0.1, 0)), tall * (0.42 + random() * 0.1)));
+  instanced(ballGeometry(97, 130, 40), leafCards(SLOPE_CROWN, clusterTexture(101), SWAY.crown), crowns, scene);
+  instanced(new THREE.SphereGeometry(0.26, 12, 8), painted(SLOPE_CORE), crowns, scene);
+  const trunk = new THREE.Mesh(mergeGeometries(wood.map(g => { g.deleteAttribute('uv'); return g; }))!, painted(BARK));
+  trunk.castShadow = trunk.receiveShadow = true;
+  scene.add(trunk);
+}
