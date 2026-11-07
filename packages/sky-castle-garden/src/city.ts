@@ -129,10 +129,13 @@ export function buildCity(world: RAPIER.World, scene: THREE.Scene) {
   // Windows, as one instanced quad each, set into the face where it is at
   // their height and tilted with it.
   const windows: THREE.Matrix4[] = [];
+  // The little tower's and the hung turret's windows, to their scale.
+  const SMALL = 0.75;
   const UP = new THREE.Vector3(0, 1, 0);
-  const setWindow = (at: THREE.Vector3, facing: THREE.Vector3) => {
+  // Smaller (size, a share of the full window) on the little towers.
+  const setWindow = (at: THREE.Vector3, facing: THREE.Vector3, size = 1) => {
     const up = UP.clone().addScaledVector(facing, -facing.dot(UP)).normalize(), right = up.clone().cross(facing);
-    windows.push(new THREE.Matrix4().makeBasis(right, up, facing).setPosition(at.addScaledVector(facing, 0.04)));
+    windows.push(new THREE.Matrix4().makeBasis(right, up, facing).scale(new THREE.Vector3(size, size, 1)).setPosition(at.addScaledVector(facing, 0.04)));
   };
   // A window on the great tower at height h, s metres round from the front
   // centre, leaving the arch and the colonnade clear.
@@ -358,18 +361,19 @@ export function buildCity(world: RAPIER.World, scene: THREE.Scene) {
       for (let y = foot; y < lip; y += 0.5) wall.push([radiusAt(y), y]);
       wall.push([R, lip]);
       add(round(tx, tz, wall, textures.city.metres, 48), city);
-      // Rises straight off the wall and rounds over at the very top, rather
-      // than closing to a point.
-      const L = R * 1.5;
-      littleTop = lip + L;
+      // Rises straight off the wall and rounds over: half an ellipse,
+      // 15% lower than the old bullet (Andrew). The tall tower's windows
+      // stay set from the old crown.
+      const L = R * 1.5 * 0.85;
+      littleTop = lip + R * 1.5;
       add(round(tx, tz, Array.from({ length: 25 }, (_, k) => {
-        const x = k / 24 * L;
-        return [Math.max(0.01, R * Math.sqrt(Math.max(0, 1 - (x / L) ** 1.5))), lip + x];
+        const t = k / 24 * Math.PI / 2;
+        return [Math.max(0.01, R * Math.cos(t)), lip + L * Math.sin(t)];
       }), textures.tiles.metres, 48), tiles);
       const slope = (BASE - R) / (lip - foot), windowAt = lip - 1.6;
       for (let k = 0; k < 9; k++) {
         const w = a + k / 9 * Math.PI * 2, facing = new THREE.Vector3(Math.sin(w), 0, -Math.cos(w));
-        setWindow(new THREE.Vector3(tx, windowAt, tz).addScaledVector(facing, radiusAt(windowAt)), facing.clone().addScaledVector(UP, slope).normalize());
+        setWindow(new THREE.Vector3(tx, windowAt, tz).addScaledVector(facing, radiusAt(windowAt)), facing.clone().addScaledVector(UP, slope).normalize(), SMALL);
       }
       world.createCollider(RAPIER.ColliderDesc.cylinder(tall / 2 + 2, BASE).setTranslation(tx, foot + tall / 2 + 2, tz));
     }
@@ -565,7 +569,7 @@ export function buildCity(world: RAPIER.World, scene: THREE.Scene) {
           const w = (k + row * 0.5) / 10 * Math.PI * 2, out = new THREE.Vector3(Math.sin(w), 0, -Math.cos(w));
           const x = tx + out.x * R, z = tz + out.z * R;
           if (Math.hypot(x, z - GATE.z) < gateAt(y - GATE_FOOT)[0] + 0.8 || Math.hypot(x - ex, z - cz) < radiusAt(y)[0] + 0.8) continue;
-          setWindow(new THREE.Vector3(x, y, z), out);
+          setWindow(new THREE.Vector3(x, y, z), out, SMALL);
         }
       });
       world.createCollider(RAPIER.ColliderDesc.cylinder((lip - foot) / 2, R).setTranslation(tx, (foot + lip) / 2, tz));
