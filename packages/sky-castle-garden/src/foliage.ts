@@ -16,7 +16,7 @@ import { DRAWN, SHADOW_STENCIL } from './robot';
 
 // Shrubs a little deeper and cooler than the lawn so they stand off it, with
 // a dark core so you never see through them.
-const SHRUB = [0x78ad4a, 0x3a6650] as const, CORE = [0x4f8442, 0x2c5246] as const;
+export const SHRUB = [0x78ad4a, 0x3a6650] as const, CORE = [0x4f8442, 0x2c5246] as const;
 // The small trees' crowns a fresher green than the shrubs, their bark warm
 // grey-brown.
 const CROWN = [0x8cc25a, 0x467458] as const, CROWN_CORE = [0x5e9446, 0x2f5848] as const, BARK = [0x8f7a5e, 0x5a5058] as const;
@@ -27,7 +27,7 @@ const CYPRESS = [0x55905c, 0x264a4c] as const, CYPRESS_CORE = [0x3a6a4a, 0x1e3c4
 // shrubs: a dozen round-ended leaves radiating from the middle and
 // overlapping, so a card's outline is a ring of lobes and never a fringe of
 // strokes. Near white, each leaf its own shade: the material gives the green.
-function clusterTexture(seed: number) {
+export function clusterTexture(seed: number) {
   const px = 256;
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = px;
@@ -102,8 +102,8 @@ function sprayTexture(seed: number) {
 // shader, so a crown's edge is always the cards' lobed outlines and never
 // cards seen edge on, which read as hair. Normals still point out from the
 // middle of the plant, so it shades as one soft mass.
-type Card = { at: THREE.Vector3, w: number, h: number, normal: THREE.Vector3, spin: number };
-function cardGeometry(cards: Card[]) {
+export type Card = { at: THREE.Vector3, w: number, h: number, normal: THREE.Vector3, spin: number };
+export function cardGeometry(cards: Card[]) {
   const positions: number[] = [], normals: number[] = [], corners: number[] = [], uvs: number[] = [], indices: number[] = [];
   for (const { at, w, h, normal, spin } of cards) {
     const base = positions.length / 3, [c, s] = [Math.cos(spin), Math.sin(spin)];
@@ -175,7 +175,7 @@ const flattening = (shader: THREE.WebGLProgramParametersWithUniforms) => {
 // A painted leaf material for camera-facing cards, with a shadow pass that
 // turns the cards to the sun the same way. Flat, its leaves are evened out
 // to one tone (leafLook).
-function leafCards(colours: readonly [number, number], map: THREE.Texture, sway: Sway, flat = true) {
+export function leafCards(colours: readonly [number, number], map: THREE.Texture, sway: Sway, flat = true) {
   const material = bothSidesAlike(painted(colours, { map, alphaTest: 0.5, side: THREE.DoubleSide }));
   const paint = material.onBeforeCompile;
   material.onBeforeCompile = (shader, renderer) => {
@@ -224,7 +224,7 @@ function fading(material: THREE.Material) {
   material.customProgramCacheKey = () => key() + 'fading';
   return material;
 }
-function instanced(geometry: THREE.BufferGeometry, leaves: ReturnType<typeof leafCards> | THREE.Material, placed: THREE.Matrix4[], scene: THREE.Scene) {
+export function instanced(geometry: THREE.BufferGeometry, leaves: ReturnType<typeof leafCards> | THREE.Material, placed: THREE.Matrix4[], scene: THREE.Scene) {
   const mesh = new THREE.InstancedMesh(geometry, fading('depth' in leaves ? leaves.material : leaves), placed.length);
   if ('depth' in leaves) mesh.customDepthMaterial = leaves.depth;
   placed.forEach((matrix, i) => mesh.setMatrixAt(i, matrix));
@@ -238,7 +238,7 @@ function instanced(geometry: THREE.BufferGeometry, leaves: ReturnType<typeof lea
 // Spread evenly over the dome, down to its foot, some standing proud for a
 // ragged outline, and a layer further in, so a gap shows leaves behind
 // rather than the core.
-function shrubGeometry(seed: number) {
+export function shrubGeometry(seed: number) {
   let s = seed;
   const random = () => (s = (s * 16807) % 2147483647) / 2147483647;
   const middle = new THREE.Vector3(0, 0.1, 0), cards: Card[] = [];

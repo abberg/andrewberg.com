@@ -9,6 +9,7 @@ import { createFoliage, fadeAround, leafLook, updateLeaves } from './foliage';
 import { createClouds, updateClouds } from './clouds';
 import { createLilies, updateLilies } from './lilies';
 import { createMeadow } from './meadow';
+import { createMantle } from './mantle';
 import { mergeStatic } from './merge';
 import { createPause } from './pause';
 import { createPost } from './post';
@@ -64,6 +65,7 @@ const look = createLook(scene);
 const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 1000);
 
 const { spawn, walls } = buildLevel(world, scene);
+await createMantle(scene);
 await built(0.35);
 const stones = createStones(world, scene);
 await built(0.45);

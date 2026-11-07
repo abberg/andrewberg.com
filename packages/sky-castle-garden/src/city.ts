@@ -54,7 +54,35 @@ function surface(along: number[], section: number[][], place: (column: number, o
   return geometry;
 }
 
+// The castle's main shapes, filled in by buildCity, for the growth over it
+// (mantle.ts): the great tower's radius at a height, the colonnade drum, the
+// slim tower on its roof and the little turret.
+export const CASTLE = {
+  gate: { z: 0, foot: 0, radiusAt: (_h: number) => 0 },
+  // piers: the angles round the drum of the arcade's piers between its bays
+  // (as round() takes them), each pierHalf (m) either side.
+  drum: { cx: 0, cz: 0, r: 0, top: 0, piers: [] as number[], pierHalf: 0 },
+  slim: { x: 0, z: 0, r: 0 },
+  turret: { x: 0, z: 0, r: 0, lip: 0 },
+  // Every window's middle and size (a share of the full window).
+  windows: [] as { at: THREE.Vector3, size: number }[],
+  // The arch's opening height a distance across from its middle, grown
+  // outwards by some metres (its lining is 0.8 m wide).
+  archAt: (_x: number, _grow = 0) => -Infinity,
+  // The turret hung in the seam between the great tower and the east tower:
+  // its middle, radius, foot (the lip under it), the top of its wall, its
+  // dome's rise, the cone's tip under it, the seam's line at a height and
+  // the east tower (middle, radius at a height and its terracotta band's
+  // foot and top).
+  hung: {
+    x: 0, z: 0, r: 0, foot: 0, lip: 0, rise: 0, tipY: 0, tip: [0, 0],
+    seamAt: (_y: number) => [0, 0],
+    east: { x: 0, z: 0, radiusAt: (_y: number) => 0, bandLow: 0, bandHigh: 0 },
+  },
+};
+
 export function buildCity(world: RAPIER.World, scene: THREE.Scene) {
+  CASTLE.windows = [];
   const city = painted(palette.stone, { map: textures.city.map() });
   // The towers' feet go on down into the flooded moats.
   const cityDrowned = drowned(painted(palette.stone, { map: textures.city.map() }));
@@ -81,7 +109,7 @@ export function buildCity(world: RAPIER.World, scene: THREE.Scene) {
   // is a distance across from its middle.
   const archTop = ARCH.floor + ARCH.height;
   const c = 0.5, R = ARCH.half + c, rise = Math.sqrt(R * R - c * c), spring = archTop - rise;
-  const archAt = (x: number, grow = 0) => Math.abs(x) < ARCH.half + grow ? spring + Math.sqrt((R + grow) ** 2 - (Math.abs(x) + c) ** 2) : -Infinity;
+  const archAt = CASTLE.archAt = (x: number, grow = 0) => Math.abs(x) < ARCH.half + grow ? spring + Math.sqrt((R + grow) ** 2 - (Math.abs(x) + c) ** 2) : -Infinity;
   // The great tower in the middle of the front, the arch at its foot, from
   // Andrew's drawing of its profile (traced at a 26 m base, widened to GATE.r below). Its
   // outline as [radius, height above the foot] going up: the foot leaning
@@ -135,6 +163,7 @@ export function buildCity(world: RAPIER.World, scene: THREE.Scene) {
   // Smaller (size, a share of the full window) on the little towers.
   const setWindow = (at: THREE.Vector3, facing: THREE.Vector3, size = 1) => {
     const up = UP.clone().addScaledVector(facing, -facing.dot(UP)).normalize(), right = up.clone().cross(facing);
+    CASTLE.windows.push({ at: at.clone(), size });
     windows.push(new THREE.Matrix4().makeBasis(right, up, facing).scale(new THREE.Vector3(size, size, 1)).setPosition(at.addScaledVector(facing, 0.04)));
   };
   // A window on the great tower at height h, s metres round from the front
@@ -180,6 +209,8 @@ export function buildCity(world: RAPIER.World, scene: THREE.Scene) {
     const cz = ARCH.front + r, seamZ = GATE.z - Math.sqrt(GATE.r ** 2 - seam ** 2);
     return { r, cz, cx: seam - Math.sqrt(r * r - (seamZ - cz) ** 2), arcade: 6.8 };
   })();
+  CASTLE.gate = { z: GATE.z, foot: GATE_FOOT, radiusAt: h => gateAt(h)[0] };
+  CASTLE.drum = { cx: COLONNADE.cx, cz: COLONNADE.cz, r: COLONNADE.r, top: GATE_FOOT + STRETCHES[2][0], piers: [], pierHalf: 0 };
   const inColonnade = (x: number, y: number, z: number) => y < COLONNADE.arcade && Math.hypot(x - COLONNADE.cx, z - COLONNADE.cz) < COLONNADE.r - 0.5;
   STRETCHES.forEach(([from, to, paint], i) => add(round(0, GATE.z, gateSection(from, to, i ? 0.5 : 0.15), (paint === 'wall' ? textures.city : textures.tiles).metres,
     i ? 96 : Math.ceil(Math.PI * 2 * GATE.r / 0.25), i ? undefined : (x, y, z) => (z < GATE.z && y + 0.15 < archAt(x, 0.5)) || inColonnade(x, y, z)), paint === 'wall' ? city : tiles));
@@ -276,6 +307,8 @@ export function buildCity(world: RAPIER.World, scene: THREE.Scene) {
     const bays = Math.floor((a1 - a0) * r / 4.3), turn = (a1 - a0) / bays;
     // Each bay as wide as the chord across its share of the curve.
     const bay = 2 * r * Math.sin(turn / 2);
+    CASTLE.drum.piers = Array.from({ length: bays - 1 }, (_, i) => a0 + turn * (i + 1));
+    CASTLE.drum.pierHalf = bay / 2 - half;
     const arch = (x: number, half: number) => new THREE.Path().moveTo(x - half, plinth).lineTo(x + half, plinth).lineTo(x + half, spring)
       .absarc(x, spring, half, 0, Math.PI, false).lineTo(x - half, plinth);
     const wall = (bottom: number, top: number, holes: THREE.Path[], depth: number, at: number) => {
@@ -361,6 +394,7 @@ export function buildCity(world: RAPIER.World, scene: THREE.Scene) {
       for (let y = foot; y < lip; y += 0.5) wall.push([radiusAt(y), y]);
       wall.push([R, lip]);
       add(round(tx, tz, wall, textures.city.metres, 48), city);
+      CASTLE.turret = { x: tx, z: tz, r: BASE, lip };
       // Rises straight off the wall and rounds over: half an ellipse,
       // 15% lower than the old bullet (Andrew). The tall tower's windows
       // stay set from the old crown.
@@ -391,6 +425,7 @@ export function buildCity(world: RAPIER.World, scene: THREE.Scene) {
       const centre = () => at(b, d);
       while (b > a0 && Math.hypot(centre()[0] - turretAt[0], centre()[1] - turretAt[1]) < R2 + 3.2 + gap) b -= 0.002;
       const [sx, sz] = centre();
+      CASTLE.slim = { x: sx, z: sz, r: R2 };
       const wallTop = GATE_FOOT + STRETCHES[STRETCHES.length - 1][0] - 1, base = top - 0.2;
       const straight = (from: number, to: number) => {
         const steps = Math.max(2, Math.ceil((to - from) / 0.5));
@@ -563,6 +598,7 @@ export function buildCity(world: RAPIER.World, scene: THREE.Scene) {
         cone.computeVertexNormals();
       }
       add(cone, city);
+      CASTLE.hung = { x: tx, z: tz, r: R, foot, lip, rise: R * 0.75, tipY, tip: [qx, qz], seamAt, east: { x: ex, z: cz, radiusAt: y => radiusAt(y)[0], bandLow, bandHigh } };
       // Two rows of windows, wherever the wall stands clear of both towers.
       [foot + 3, foot + 7].forEach((y, row) => {
         for (let k = 0; k < 10; k++) {
