@@ -185,9 +185,13 @@ export function wallGeometry(line: WallLine, metres: number, rootHoles: RootHole
         if (Math.abs(ds) > hole.r * 2 || Math.abs(dt) > hole.r * 2) continue;
         const angle = Math.atan2(dt, ds), rough = 1 + 0.16 * Math.sin(3 * angle + hole.seed) + 0.09 * Math.sin(5 * angle + hole.seed * 2.3);
         const d = Math.hypot(ds, dt) / (hole.r * rough);
-        const m = 1 - smooth(0.82, 1.02, d);
-        sink += 0.5 * m;
-        shade *= 1 - 0.82 * m;
+        // A steep ragged rim, then a deep throat going black at the back,
+        // so the hole reads as running far into the stone.
+        // Darkening gradually down it, through the stone's deepest shadow,
+        // to black at the back (with the dark disc there, roots.ts).
+        const m = 1 - smooth(0.82, 1.02, d), deep = 1 - smooth(0.55, 0.9, d), dim = 1 - smooth(0.2, 1.0, d);
+        sink += 0.45 * m + 1.1 * deep;
+        shade *= (1 - 0.45 * m) * (1 - 0.9 * dim);
         if (hole.seed % 3 < 1.6) moss = Math.max(moss, (1 - smooth(1.0, 1.5, d)) * smooth(0.85, 1.0, d) * (dt < 0 ? 1 : 0.5));
       }
       inset -= ni * sink; y -= ny * sink;
