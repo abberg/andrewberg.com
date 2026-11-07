@@ -120,8 +120,23 @@ function blockTexture() {
 // takes it from its own place in the stone (shifted), so copies of a shape
 // don't wear the same marks. The piece's bounds go with it, so the shader
 // knows how far each point is from its edges.
-export const blockStone = painted(palette.stone, { map: blockTexture() }, 4.4);
-blockStone.defines = { ...blockStone.defines, TEX_SHIFT: '', STONE_BLOCK: '' };
+// Made by blockMaterial(), so a piece that needs more of the material (the
+// great tower's arch, darkened into its passage by vertex colours) can have
+// its own copy of it. Geometry goes through shifted() first.
+const blockMap = blockTexture();
+export function blockMaterial(options: THREE.MeshStandardMaterialParameters = {}) {
+  const material = painted(palette.stone, { map: blockMap, ...options }, 4.4);
+  material.defines = { ...material.defines, TEX_SHIFT: '', STONE_BLOCK: '' };
+  const paintBlock = material.onBeforeCompile;
+  material.onBeforeCompile = (shader, renderer) => {
+    paintBlock(shader, renderer);
+    shader.uniforms.uBrush = { value: brush };
+    shader.uniforms.uDrips = { value: drips };
+    shader.uniforms.uCracks = { value: cracks };
+  };
+  return material;
+}
+export const blockStone = blockMaterial();
 // The brush for the blocks' weathering (look.ts, STONE_BLOCK): the shafts'
 // strokes, white on black, in four rows that each run on round the strip, so
 // the shader can lay a stroke along any edge. Each row's middle is its
@@ -226,13 +241,6 @@ function crackStrip() {
   return texture;
 }
 const brush = brushStrip(), drips = dripStrokes(), cracks = crackStrip();
-const paintBlock = blockStone.onBeforeCompile;
-blockStone.onBeforeCompile = (shader, renderer) => {
-  paintBlock(shader, renderer);
-  shader.uniforms.uBrush = { value: brush };
-  shader.uniforms.uDrips = { value: drips };
-  shader.uniforms.uCracks = { value: cracks };
-};
 let shifts = 0;
 export function shifted(geometry: THREE.BufferGeometry, span = 4.4, margin = 0) {
   const copy = geometry.clone(), n = copy.getAttribute('position').count, k = ++shifts;

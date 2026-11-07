@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { ConvexGeometry } from 'three/addons/geometries/ConvexGeometry.js';
 import { ARCH, buildCity, cityFront } from './city';
 import { DRIFTS, drifting } from './drift';
-import { brokenColumnGeometry, chippedBlock, shifted } from './columns';
+import { blockStone, brokenColumnGeometry, chippedBlock, shifted } from './columns';
 import { columnIvy } from './growth';
 import { DEEP, drowned, fadesDeep, painted, palette } from './look';
 import { textures } from './masonry';
@@ -187,6 +187,8 @@ export const stone = painted(palette.stone);
 const sandstoneMap = textures.sandstone.map();
 const sandstone = painted(palette.sandstone, { map: sandstoneMap }, textures.sandstone.metres);
 const steps = painted(palette.sandstone, { map: textures.steps.map() }, textures.steps.metres);
+// The arch's passage floor, in the tower's own stone.
+const passageFloor = painted(palette.stone, { map: textures.city.map() }, textures.city.metres);
 const masonry = painted(palette.masonry, { map: sandstoneMap }, textures.sandstone.metres), lawn = drifting(painted(palette.grass), DRIFTS.lawn), meadow = drifting(painted(palette.grass), DRIFTS.meadow);
 const pavingMap = textures.paving.map();
 // Moss on the paving: in the joints and over the stone in patches, creeping
@@ -650,24 +652,24 @@ export function buildLevel(world: RAPIER.World, scene: THREE.Scene) {
   buildCity(world, scene);
   buildFlooded(scene, { west: WEST, westLawn: WEST_LAWN, east: EAST, eastLawn: EAST_LAWN, from: MOATS_FROM, lawnSouth, flood: FLOOD });
 
-  // The arch: a stair of twelve 0.3 m steps up from the grass to its floor,
-  // the sealed door at the back and a frame round the opening. 0.4 m risers
-  // on treads this short climb at over 40°, too steep for the robot. The
-  // steps are for show: it walks up a hidden ramp laid over their noses.
-  const run = 0.475, landing = ARCH.stair + run * 12;
-  for (let i = 0; i < 12; i++) {
+  // The arch: a stair of 0.3 m marble steps up from the grass to its floor,
+  // the sealed door at the back and a frame round the opening. Risers on
+  // treads this short climb too steeply for the robot. The steps are for
+  // show: it walks up a hidden ramp laid over their noses.
+  const run = 0.475, count = ARCH.steps, landing = ARCH.stair + run * count;
+  for (let i = 0; i < count; i++) {
     const top = 0.3 * (i + 1);
-    step(0, (top - 0.3) / 2, ARCH.stair + run * (i + 0.5), ARCH.half * 2, top + 0.3, run, false);
+    add(shifted(new THREE.BoxGeometry(ARCH.half * 2, top + 0.3, run)), blockStone).position.set(0, (top - 0.3) / 2, ARCH.stair + run * (i + 0.5));
   }
   {
-    const length = Math.hypot(run * 12, ARCH.floor), slope = Math.atan2(ARCH.floor, run * 12);
-    const middle = new THREE.Vector3(0, ARCH.floor / 2, ARCH.stair + run * 6);
+    const length = Math.hypot(run * count, ARCH.floor), slope = Math.atan2(ARCH.floor, run * count);
+    const middle = new THREE.Vector3(0, ARCH.floor / 2, ARCH.stair + run * count / 2);
     middle.y -= Math.cos(slope) * 0.2;
     middle.z += Math.sin(slope) * 0.2;
     world.createCollider(RAPIER.ColliderDesc.cuboid(ARCH.half, 0.2, length / 2).setTranslation(middle.x, middle.y, middle.z)
       .setRotation(new THREE.Quaternion().setFromEuler(new THREE.Euler(-slope, 0, 0))));
   }
-  box(0, (ARCH.floor - 0.3) / 2, (landing + ARCH.back) / 2, ARCH.half * 2, ARCH.floor + 0.3, ARCH.back - landing, sandstone);
+  box(0, (ARCH.floor - 0.3) / 2, (landing + ARCH.back) / 2, ARCH.half * 2, ARCH.floor + 0.3, ARCH.back - landing, passageFloor);
   box(0, ARCH.floor + ARCH.height / 2, ARCH.back + 0.5, ARCH.half * 2 + 0.6, ARCH.height, 1, door);
 
   // Step 3: the boundaries, as invisible walls 20 m tall. They follow the
@@ -698,9 +700,10 @@ export function buildLevel(world: RAPIER.World, scene: THREE.Scene) {
   // The side moats, and where they start.
   along([[WEST + 1, MOATS_FROM], [WEST_LAWN, MOATS_FROM], [WEST_LAWN, lawnSouth(WEST_LAWN)]]);
   along([[EAST - 1, MOATS_FROM], [EAST_LAWN, MOATS_FROM], [EAST_LAWN, lawnSouth(EAST_LAWN)]]);
-  // The south moat, round the landing and up both sides of the stair.
-  along([...sample(lawnSouth, WEST_LAWN, -4.5, 24), [-4.5, 50.4], [-ARCH.half, 50.4], [-ARCH.half, ARCH.front + 1]]);
-  along([[ARCH.half, ARCH.front + 1], [ARCH.half, 50.4], [4.6, 50.4], ...sample(lawnSouth, 4.6, EAST_LAWN, 24)]);
+  // The south moat, round the landing, up both sides of the stair and on
+  // along the passage's walls to the door.
+  along([...sample(lawnSouth, WEST_LAWN, -4.5, 24), [-4.5, 50.4], [-ARCH.half, 50.4], [-ARCH.half, ARCH.back], [ARCH.half, ARCH.back]]);
+  along([[ARCH.half, ARCH.back], [ARCH.half, 50.4], [4.6, 50.4], ...sample(lawnSouth, 4.6, EAST_LAWN, 24)]);
   // The causeway's sides, from the platform's notch to the lip.
   for (const side of [-2.5, 2.5]) wall(side, notchMeets, side, lip(2.5));
   // Round the platform, 0.5 m in from its edge, open over the stair.
