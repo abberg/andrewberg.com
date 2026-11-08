@@ -192,9 +192,13 @@ function flowerGeometry(i: number) {
   return geometry;
 }
 
-// How many flowers in all, how big their clumps are, and how many dark
+// Each kind's height (m), its head scaled with it: the pink and yellow
+// brought down toward the white and blue (Andrew, 2026-11-08).
+const FLOWER_SIZE = [0.5, 0.3, 0.62, 0.34];
+
+// How many flowers in all, how big their patches are, and how many dark
 // grass tufts and clover mats.
-export const meadowLook = { flowers: 750, clump: 1, tufts: 420, clover: 300 };
+export const meadowLook = { flowers: 2000, clump: 1, tufts: 1150, clover: 300 };
 
 export function createMeadow(scene: THREE.Scene) {
   let s = 4243;
@@ -241,25 +245,6 @@ export function createMeadow(scene: THREE.Scene) {
       swardTint.push(tint(x, z));
     }
   }
-  // The flowers, in tight clumps: about as many as before, but gathered.
-  // A clump's kind is set by where it falls (two fields taken together by
-  // their angle, so the four kinds share the ground evenly), so clumps of a
-  // kind sit near each other in loose drifts; its flowers crowd its middle.
-  // Broad-bladed tufts, darker, gathered into clumps of their own the same
-  // way, any of them a little apart from the rest.
-  for (let grown = 0; grown < meadowLook.tufts;) {
-    const a = random() * Math.PI * 2, d = Math.sqrt(random()) * PLATFORM.r, cx = Math.cos(a) * d, cz = PLATFORM.z + Math.sin(a) * d;
-    if (!onTop(cx, cz)) continue;
-    const count = 5 + Math.floor(random() * 12), radius = 0.2 + Math.sqrt(count) * 0.12;
-    for (let k = 0; k < count; k++) {
-      const b = random() * Math.PI * 2, r = radius * random() ** 0.8, x = cx + Math.cos(b) * r, z = cz + Math.sin(b) * r;
-      if (!onTop(x, z)) continue;
-      const t = 0.35 + random() * 0.3;
-      tufts.push(place(x, z, t, t * (0.8 + random() * 0.4)));
-      tuftTint.push(tint(x, z).multiplyScalar(0.78));
-      grown++;
-    }
-  }
   // Clover in low mats, spreading in patches where it's crowded out the
   // grass.
   for (const { cx, cz, radius, count } of patches) {
@@ -272,22 +257,47 @@ export function createMeadow(scene: THREE.Scene) {
       cloverTint.push(tint(x, z).multiply(new THREE.Color(0.9, 1.0, 1.0)));
     }
   }
-  let planted = 0;
-  while (planted < meadowLook.flowers) {
+  // The flowers and the long dark grass grow together in patches (Andrew's
+  // still of the hillside): every patch has all four kinds, each kind in a
+  // few little knots of its own, through clumps of dark broad-bladed tufts.
+  // The patches are scattered over the meadow with plain grass between.
+  // Odds of each kind's knots, and how many flowers to a knot.
+  const SHARE = [0.36, 0.14, 0.2, 0.3], KNOT = [[3, 6], [2, 4], [2, 5], [4, 8]];
+  const pick = () => { let r = random(); const k = SHARE.findIndex(p => (r -= p) < 0); return k < 0 ? 0 : k; };
+  for (let planted = 0, grown = 0, tries = 0; (planted < meadowLook.flowers || grown < meadowLook.tufts) && tries < 500; tries++) {
     const a = random() * Math.PI * 2, d = Math.sqrt(random()) * PLATFORM.r, cx = Math.cos(a) * d, cz = PLATFORM.z + Math.sin(a) * d;
-    if (!onTop(cx, cz)) continue;
-    const f = drift[0](cx, cz), g = drift[1](cx, cz), kind = Math.floor((Math.atan2(g, f) + Math.PI) / (Math.PI / 2)) % 4;
-    // Big clumps deep in a drift, small ones at its edges.
-    const deep = THREE.MathUtils.smoothstep(Math.hypot(f, g), 0.2, 1.1);
-    const count = Math.round((4 + random() * 8) * (0.5 + deep * 1.5) * meadowLook.clump), radius = 0.25 + Math.sqrt(count) * 0.11;
-    for (let k = 0; k < count; k++) {
-      // Packed toward the middle.
-      const b = random() * Math.PI * 2, r = radius * random() ** 0.8, x = cx + Math.cos(b) * r, z = cz + Math.sin(b) * r;
-      if (!onTop(x, z)) continue;
-      const h = [0.5, 0.5, 0.62, 0.42][kind] * (0.8 + random() * 0.4);
-      flowers[kind].push(place(x, z, h, h));
-      flowerTint[kind].push(new THREE.Color().setScalar(0.92 + random() * 0.08));
-      planted++;
+    if (!onTop(cx, cz, 0.6)) continue;
+    // A loose oval, longer one way, turned any way.
+    const long = (0.9 + random() * 0.8) * meadowLook.clump, wide = long * (0.5 + random() * 0.3), turn = random() * Math.PI;
+    const inPatch = (spread = 1) => {
+      const b = random() * Math.PI * 2, r = random() ** 0.7 * spread, u = Math.cos(b) * r * long, v = Math.sin(b) * r * wide;
+      return [cx + u * Math.cos(turn) - v * Math.sin(turn), cz + u * Math.sin(turn) + v * Math.cos(turn)] as const;
+    };
+    // The dark tufts: two to four clumps, one near the middle.
+    for (let c = 0, clumps = 2 + Math.floor(random() * 3); c < clumps; c++) {
+      const [kx, kz] = inPatch(c === 0 ? 0.3 : 0.9), count = 4 + Math.floor(random() * 7), radius = 0.15 + Math.sqrt(count) * 0.09;
+      for (let k = 0; k < count; k++) {
+        const b = random() * Math.PI * 2, r = radius * random() ** 0.8, x = kx + Math.cos(b) * r, z = kz + Math.sin(b) * r;
+        if (!onTop(x, z)) continue;
+        const t = 0.4 + random() * 0.3;
+        tufts.push(place(x, z, t, t * (0.8 + random() * 0.4)));
+        tuftTint.push(tint(x, z).multiplyScalar(0.62));
+        grown++;
+      }
+    }
+    // The flowers: every kind at least once, then more knots by their odds.
+    const knots = [0, 1, 2, 3];
+    for (let n = 3 + Math.floor(random() * 4); n > 0; n--) knots.push(pick());
+    for (const kind of knots) {
+      const [kx, kz] = inPatch(), [lo, hi] = KNOT[kind], count = lo + Math.floor(random() * (hi - lo + 1)), radius = 0.12 + Math.sqrt(count) * 0.08;
+      for (let k = 0; k < count; k++) {
+        const b = random() * Math.PI * 2, r = radius * random() ** 0.8, x = kx + Math.cos(b) * r, z = kz + Math.sin(b) * r;
+        if (!onTop(x, z)) continue;
+        const h = FLOWER_SIZE[kind] * (0.8 + random() * 0.4);
+        flowers[kind].push(place(x, z, h, h));
+        flowerTint[kind].push(new THREE.Color().setScalar(0.92 + random() * 0.08));
+        planted++;
+      }
     }
   }
 
@@ -295,7 +305,7 @@ export function createMeadow(scene: THREE.Scene) {
   // foot and in ragged runs round the rim, hiding where the grass meets stone.
   const fringe = (x: number, z: number, t: number) => {
     tufts.push(place(x, z, t, t * (0.9 + random() * 0.4)));
-    tuftTint.push(tint(x, z).multiplyScalar(0.8));
+    tuftTint.push(tint(x, z).multiplyScalar(0.62));
   };
   {
     const { x: cx, z: cz, plinth } = PLATFORM_COLUMN, h = plinth / 2;
@@ -347,7 +357,7 @@ export function createMeadow(scene: THREE.Scene) {
     scene.add(mesh);
     return mesh;
   };
-  const leafy = (map: THREE.Texture) => drifting(swaying(bothSidesAlike(painted(palette.grass, { map, alphaTest: 0.5, alphaToCoverage: true, side: THREE.DoubleSide })), SWAY.grass), DRIFTS.meadow);
+  const leafy = (map: THREE.Texture) => drifting(swaying(bothSidesAlike(painted(palette.meadow, { map, alphaTest: 0.5, alphaToCoverage: true, side: THREE.DoubleSide })), SWAY.grass), DRIFTS.meadow);
   add(tuftGeometry(true), leafy(swardTexture(173)), sward, swardTint);
   add(tuftGeometry(), leafy(tuftTexture(179, false)), tufts, tuftTint);
   add(tuftGeometry(true), leafy(swardTexture(173)), drape, drapeTint);

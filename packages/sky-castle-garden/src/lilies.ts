@@ -2,14 +2,14 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { cityFront } from './city';
 import { EAST, EAST_LAWN, lawnSouth, POOLS, WEST, WEST_LAWN } from './level';
-import { painted } from './look';
+import { leafy, painted } from './look';
 
 // Step 9: water lilies and petals, as in the plan: clusters of pads with a
 // white flower here and there, round the pools' edges and in the quieter
 // stretches of the side moats, and a few white petals fallen on the water
 // beside the flowers, drifting slowly. Flat painted colour like the lawn.
 
-const PAD = [0x7fb04e, 0x3e6c52] as const, FLOWER = [0xfdf8f0, 0xb4b6d8] as const, HEART = [0xf2cc52, 0xa88c58] as const;
+const PAD = leafy([0x7fb04e, 0x3e6c52]), FLOWER = [0xfdf8f0, 0xb4b6d8] as const, HEART = [0xf2cc52, 0xa88c58] as const;
 // The water's levels: the moats' sheet and the pools'.
 const MOAT = -0.1, POOL = 0.05;
 

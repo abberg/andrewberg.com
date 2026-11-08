@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { SKY } from './look';
+import { horizon } from './look';
 
 // Clouds, soft and puffy as the films paint them: heaped cumulus with flat
 // bases and cauliflower tops, white where the sun catches them and blending
@@ -120,7 +120,7 @@ export function createClouds(scene: THREE.Scene, sun: THREE.DirectionalLight) {
       shade: { value: SHADE },
       mid: { value: MID },
       lit: { value: LIT },
-      horizon: { value: new THREE.Color(SKY) },
+      horizon: { value: horizon },
     },
     vertexShader: /* glsl */`
       attribute vec4 centre;

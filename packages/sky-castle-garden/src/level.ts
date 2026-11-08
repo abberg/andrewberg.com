@@ -189,7 +189,7 @@ const sandstone = painted(palette.sandstone, { map: sandstoneMap }, textures.san
 const steps = painted(palette.sandstone, { map: textures.steps.map() }, textures.steps.metres);
 // The arch's passage floor, in the tower's own stone.
 const passageFloor = painted(palette.stone, { map: textures.city.map() }, textures.city.metres);
-const masonry = painted(palette.masonry, { map: sandstoneMap }, textures.sandstone.metres), lawn = drifting(painted(palette.grass), DRIFTS.lawn), meadow = drifting(painted(palette.grass), DRIFTS.meadow);
+const masonry = painted(palette.masonry, { map: sandstoneMap }, textures.sandstone.metres), lawn = drifting(painted(palette.grass), DRIFTS.lawn), meadow = drifting(painted(palette.meadow), DRIFTS.meadow);
 const pavingMap = textures.paving.map();
 // Moss on the paving: in the joints and over the stone in patches, creeping
 // in from the paths' edges and thinning towards their middles, cut hard like

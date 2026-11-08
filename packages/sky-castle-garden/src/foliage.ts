@@ -4,8 +4,8 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { cityFront, CROWN as CITY_TOP } from './city';
 import { DRIFTS, drifting } from './drift';
 import { bothSidesAlike, wander } from './growth';
-import { EAST, EAST_LAWN, lawnSouth, ledgeEdge, ledgeFront, MOATS_FROM, northEdge, onSunk, PATHS, PLATFORM, OUTER, PLATFORM_TOP, POOLS, WALL_GROUPS, WEST, WEST_LAWN } from './level';
-import { painted, palette } from './look';
+import { EAST, EAST_LAWN, lawnSouth, ledgeEdge, ledgeFront, MOATS_FROM, northEdge, onSunk, PATHS, OUTER, POOLS, WALL_GROUPS, WEST, WEST_LAWN } from './level';
+import { leafy, painted, palette } from './look';
 import { SWAY, type Sway, swaying } from './wind';
 import { DRAWN, SHADOW_STENCIL } from './robot';
 
@@ -16,10 +16,10 @@ import { DRAWN, SHADOW_STENCIL } from './robot';
 
 // Shrubs a little deeper and cooler than the lawn so they stand off it, with
 // a dark core so you never see through them.
-export const SHRUB = [0x78ad4a, 0x3a6650] as const, CORE = [0x4f8442, 0x2c5246] as const;
+export const SHRUB = leafy([0x78ad4a, 0x3a6650]), CORE = leafy([0x4f8442, 0x2c5246]);
 // The small trees' crowns a fresher green than the shrubs, their bark warm
 // grey-brown.
-const CROWN = [0x8cc25a, 0x467458] as const, CROWN_CORE = [0x5e9446, 0x2f5848] as const, BARK = [0x8f7a5e, 0x5a5058] as const;
+const CROWN = leafy([0x8cc25a, 0x467458]), CROWN_CORE = leafy([0x5e9446, 0x2f5848]), BARK = [0x8f7a5e, 0x5a5058] as const;
 // Cypresses dark and blue-green, the vertical accent.
 const CYPRESS = [0x55905c, 0x264a4c] as const, CYPRESS_CORE = [0x3a6a4a, 0x1e3c40] as const;
 
@@ -1149,8 +1149,8 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
   }
 
   // The flowering vine spilling over the garden's north lip, either side of
-  // the causeway, and over the start tower's rim either side of its stair.
-  // (The broken fence's are in stones.ts, moving with its bays.)
+  // the causeway. (The broken fence's are in stones.ts, moving with its
+  // bays.) The start tower's rim had two as well, taken out at Andrew's ask.
   const run = (n: number, point: (t: number) => [THREE.Vector3, THREE.Vector3]) => {
     const points = Array.from({ length: n + 1 }, (_, i) => point(i / n));
     return [points.map(([p]) => p), points.map(([, o]) => o)] as const;
@@ -1159,11 +1159,7 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
     const x = x0 + (x1 - x0) * t, z = northEdge(x);
     return [new THREE.Vector3(x, 0, z), new THREE.Vector3(x, 0, z - 250.7).normalize()];
   });
-  const rim = (a0: number, a1: number) => run(8, t => {
-    const a = a0 + (a1 - a0) * t;
-    return [new THREE.Vector3(Math.cos(a) * PLATFORM.r, PLATFORM_TOP, PLATFORM.z + Math.sin(a) * PLATFORM.r), new THREE.Vector3(Math.cos(a), 0, Math.sin(a))];
-  });
-  ([[north(-31, -24.5), 2.6], [north(21, 27.5), 2.2], [rim(Math.PI / 2 + 0.45, Math.PI / 2 + 0.95), 3.4], [rim(0.66, 1.16), 2.8]] as const)
+  ([[north(-31, -24.5), 2.6], [north(21, 27.5), 2.2]] as const)
     .forEach(([[lip, out], reach], i) => scene.add(vineSpill([...lip], [...out], reach, i + 1)));
   giantTree(scene);
   instanced(shrubGeometry(19), leafCards(SHRUB, clusterTexture(29), SWAY.shrub), shrubs, scene);
@@ -1177,7 +1173,7 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
 // is tall, built like the garden's small trees (leaf balls over a dark
 // core). A little deeper and bluer green than the garden's trees, as the
 // painting has it against the stone.
-const SLOPE_CROWN = [0x7cb452, 0x335e54] as const, SLOPE_CORE = [0x4e8644, 0x264a46] as const;
+const SLOPE_CROWN = leafy([0x7cb452, 0x335e54]), SLOPE_CORE = leafy([0x4e8644, 0x264a46]);
 // keepOut moves a point (with this much room round it) out of the towers.
 // foot is where the crown is set from; lift (m) raises it on longer trunks;
 // the trunks grow from root (by default the foot), leaning out to the crown.

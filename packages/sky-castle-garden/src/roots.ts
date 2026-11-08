@@ -51,25 +51,78 @@ export function rootHoles(_line: WallLine): RootHole[] {
 // from the lawn), each with its radius and how far its middle stands off the
 // stone, as a part of its radius (negative: still in the hole).
 type Course = { s: number, down: number, r: number, off: number }[];
+type Turn = { s: number, down: number };
+
+// A run of straight lines through corners, as points every step metres, each
+// corner rounded off over up to radius metres either side of it.
+function rounded(corners: Turn[], radius: number, step: number) {
+  const out: Turn[] = [corners[0]];
+  const to = (p: Turn) => {
+    const from = out[out.length - 1], n = Math.max(1, Math.ceil(Math.hypot(p.s - from.s, p.down - from.down) / step));
+    for (let j = 1; j <= n; j++) out.push({ s: from.s + (p.s - from.s) * j / n, down: from.down + (p.down - from.down) * j / n });
+  };
+  for (let i = 1; i < corners.length - 1; i++) {
+    const a = corners[i - 1], b = corners[i], c = corners[i + 1];
+    const l1 = Math.hypot(b.s - a.s, b.down - a.down), l2 = Math.hypot(c.s - b.s, c.down - b.down);
+    if (l1 < 1e-4 || l2 < 1e-4) continue;
+    const cut = Math.min(radius, l1 * 0.45, l2 * 0.45);
+    const p0 = { s: b.s - (b.s - a.s) / l1 * cut, down: b.down - (b.down - a.down) / l1 * cut };
+    const p2 = { s: b.s + (c.s - b.s) / l2 * cut, down: b.down + (c.down - b.down) / l2 * cut };
+    to(p0);
+    const n = Math.max(3, Math.ceil(cut * 2 / step));
+    for (let j = 1; j <= n; j++) {
+      const t = j / n, a0 = (1 - t) ** 2, a1 = 2 * (1 - t) * t, a2 = t * t;
+      out.push({ s: a0 * p0.s + a1 * b.s + a2 * p2.s, down: a0 * p0.down + a1 * b.down + a2 * p2.down });
+    }
+  }
+  to(corners[corners.length - 1]);
+  return out;
+}
+// Points with how far along their whole length each one is, 0 to 1.
+function along(path: Turn[]) {
+  const lengths = [0];
+  for (let i = 1; i < path.length; i++) lengths.push(lengths[i - 1] + Math.hypot(path[i].s - path[i - 1].s, path[i].down - path[i - 1].down));
+  const total = lengths[lengths.length - 1] || 1;
+  return path.map((p, i) => ({ ...p, u: lengths[i] / total }));
+}
 
 export function buildRoots(line: WallLine, holes: RootHole[]) {
   const random = rand(5501);
   const onFace = (s: number, down: number, off: number) => facePoint(line, s, down, off);
 
-  // A wandering course down the face from (s, down): drift is how far it
-  // slants along the lip for each metre down, sway how far it snakes either
-  // side, over length metres; thick at the top, thinning to its end.
-  const wander = (s: number, down: number, r0: number, r1: number, length: number, drift: number, sway: number, seed: number): Course => {
-    const course: Course = [];
-    const w1 = 0.12 + (seed % 7) * 0.02, w2 = 0.31 + (seed % 5) * 0.03, p = seed * 0.37;
-    for (let d = 0; d <= length; d += 0.5) {
-      const u = d / length;
-      course.push({
-        s: s + drift * d + sway * (Math.sin(d * w1 + p) - Math.sin(p)) + sway * 0.35 * (Math.sin(d * w2 + p * 2) - Math.sin(p * 2)),
-        down: down + d, r: r0 + (r1 - r0) * u, off: 0.6,
-      });
+  // A course down the face from (s, down), length metres down, thick at the
+  // top and thinning to its end. Laid out like a circuit's traces (Andrew,
+  // from the film): straight runs, turning only by 45 or 90 degrees, on
+  // rounded corners. drift is which way its slants lean along the lip (its
+  // sign, and how strongly); sway how often it jogs sideways level; jog false
+  // keeps it always heading down (the big bundle, whose twist runs with the
+  // depth).
+  const wander = (s: number, down: number, r0: number, r1: number, length: number, drift: number, sway: number, seed: number, jog = true): Course => {
+    const go = rand(Math.abs(seed * 7919 + 101) % 2147483646 + 1);
+    const bias = Math.max(-1, Math.min(1, drift * 2)), level = jog ? Math.min(0.5, 0.08 + Math.abs(drift) * 0.25 + sway * 0.05) : 0;
+    const shortest = Math.min(Math.max(length * 0.08, 0.6), 2.5);
+    const corners: Turn[] = [{ s, down }];
+    // Headings in eighths of a turn: 0 along the lip, 2 straight down, 4 back.
+    let h = 2, at = { s, down };
+    const side = () => (go() < 0.5 + bias * 0.4 ? 1 : 3);
+    for (let n = 0; at.down < down + length && n < 200; n++) {
+      let run = shortest * (1 + go() * 1.5) * (h === 2 ? 1.3 : h % 4 === 0 ? 0.5 : 1);
+      // Kept from straying too far along the lip from where it set out.
+      const stray = at.s - s, room = 4 + length * 0.2;
+      const dy = Math.sin(h * Math.PI / 4);
+      if (dy > 0) run = Math.min(run, (down + length - at.down) / dy + 0.01);
+      at = { s: at.s + Math.cos(h * Math.PI / 4) * run, down: at.down + dy * run };
+      corners.push(at);
+      // The next run: a turn of 45 or 90 degrees, never back up.
+      const r = go();
+      if (h === 2) h = r < level ? (side() === 1 ? 0 : 4) : side();
+      else if (h === 0) h = r < 0.5 ? 1 : 2;
+      else if (h === 4) h = r < 0.5 ? 3 : 2;
+      else h = r < level ? (h === 1 ? 0 : 4) : r < 0.75 ? 2 : (h === 1 ? 3 : 1);
+      if (Math.abs(stray) > room && Math.cos(h * Math.PI / 4) * stray > 0.01) h = 2;
     }
-    return course;
+    const path = rounded(corners, Math.min(Math.max(r0 * 2, 0.2), 1.6), 0.25);
+    return along(path).map(({ s, down, u }) => ({ s, down, r: r0 + (r1 - r0) * u, off: 0.6 }));
   };
 
   const tubes: THREE.BufferGeometry[] = [];
@@ -88,13 +141,11 @@ export function buildRoots(line: WallLine, holes: RootHole[]) {
     { s: hole.s + ds, down: hole.t + hole.r * 0.4, r, off: -0.4 },
     { s: hole.s + ds, down: hole.t + hole.r * 0.4 + 0.35, r, off: 0.35 },
   ];
-  // Thin side roots spreading out from a course over the stone.
-  const veins = (course: Course, count: number) => {
-    for (let k = 0; k < count; k++) {
-      const at = course[Math.floor((0.15 + random() * 0.7) * (course.length - 1))];
-      const side = random() < 0.5 ? -1 : 1, length = 4 + random() * 8;
-      tube(wander(at.s, at.down, Math.min(at.r * 0.35, 0.16), 0.03, length, side * (0.5 + random() * 1.2), 0.4 + random() * 0.8, Math.floor(random() * 1000)), k, 6);
-    }
+  // Thin side roots spreading out from a course over the stone. Taken out
+  // (Andrew: none of the thinnest), but still drawing their random numbers,
+  // so every other root keeps its course.
+  const veins = (_course: Course, count: number) => {
+    for (let k = 0; k < count * 6; k++) random();
   };
 
   // A course at fine steps (step metres down it), linearly between its
@@ -141,31 +192,49 @@ export function buildRoots(line: WallLine, holes: RootHole[]) {
   // kept between top and bottom (metres down the face), thinning from rv,
   // and putting out side branches that creep off on their own, smaller.
   // lead: points it comes from first (out of a hole, say).
+  // Like the roots, it runs like a circuit's traces: straight runs, turning
+  // by 45 or 90 degrees on tight rounded corners, its branches teeing off
+  // at its corners.
   const creep = (s: number, down: number, heading: number, length: number, rv: number, seed: number, top = 0.4, bottom = WALL.lip - 0.4, lead: THREE.Vector3[] = [], level = 0) => {
     const go = rand(seed * 31 + 7);
-    const points = [...lead], step = 0.15;
-    let h = heading, turn = 0;
-    const branchAt = level < 2 ? Array.from({ length: Math.max(0, Math.round(length / (level ? 3.5 : 2.2))) }, () => 0.15 + go() * 0.75).sort() : [];
-    let next = 0;
-    for (let d = 0; d <= length; d += step) {
-      const u = d / length;
-      points.push(onFace(s, down, rv * (1 - 0.55 * u) * 0.3));
-      // Wriggling: a slowly wandering turn, and a fine kink.
-      turn += (go() - 0.5) * 0.35 - turn * 0.08;
-      h += turn * step * 2.2 + Math.sin(d * 3.3 + seed) * 0.05;
-      // Steered back as it nears the edges of where it may go.
-      const dd = Math.sin(h);
-      if (down < top + 0.3 && dd < 0.1) h += (Math.cos(h) > 0 ? 1 : -1) * 0.25;
-      if (down > bottom - 0.3 && dd > -0.1) h -= (Math.cos(h) > 0 ? 1 : -1) * 0.25;
-      s += Math.cos(h) * step;
-      down = Math.min(Math.max(down + Math.sin(h) * step, top), bottom);
-      if (next < branchAt.length && u >= branchAt[next]) {
-        next++;
-        const side = go() < 0.5 ? -1 : 1;
-        creep(s, down, h + side * (0.6 + go() * 0.7), length * (0.3 + go() * 0.3), rv * (1 - 0.55 * u) * 0.72, seed * 7 + next, top, bottom, [], level + 1);
+    // Headings in eighths of a turn: 0 along the lip, 2 down, 6 up.
+    let h = ((Math.round(heading / (Math.PI / 4)) % 8) + 8) % 8;
+    const corners: (Turn & { h: number, d: number })[] = [{ s, down, h, d: 0 }];
+    // Its way along the lip, kept all along it: long level runs, jogging up
+    // or down a row on short slants (or now and then square) between them.
+    const c0 = Math.cos(h * Math.PI / 4), dir = c0 > 0.1 ? 1 : c0 < -0.1 ? -1 : (go() < 0.5 ? 1 : -1);
+    const level0 = dir > 0 ? 0 : 4, slantUp = dir > 0 ? 7 : 5, slantDown = dir > 0 ? 1 : 3;
+    let travelled = 0;
+    for (let n = 0; travelled < length - 0.01 && n < 200; n++) {
+      const dx = Math.cos(h * Math.PI / 4), dy = Math.sin(h * Math.PI / 4);
+      let run = Math.min(length - travelled, (h === level0 ? 0.8 + go() * 2.2 : 0.3 + go() * 0.6) * (level ? 0.7 : 1));
+      if (dy > 0.1) run = Math.min(run, (bottom - down) / dy);
+      if (dy < -0.1) run = Math.min(run, (top - down) / dy);
+      if (run < 0.05) {
+        // Up against the edge of where it may go: turn to run along it.
+        h = level0;
+        continue;
+      }
+      s += dx * run; down += dy * run; travelled += run;
+      // The next run turns 45 degrees, or now and then 90.
+      const r = go();
+      if (h === level0) h = r < 0.4 ? slantDown : r < 0.8 ? slantUp : (go() < 0.5 ? 2 : 6);
+      else if (r < 0.75) h = level0;
+      else if (h % 2) h = dy > 0 ? 2 : 6;
+      else h = dy > 0 ? slantDown : slantUp;
+      corners.push({ s, down, h, d: travelled });
+    }
+    const points = [...lead, ...along(rounded(corners, Math.max(rv * 1.5, 0.08), 0.08)).map(p => onFace(p.s, p.down, rv * (1 - 0.55 * p.u) * 0.3))];
+    tubes.push(knobbly(points, u => rv * (1 - 0.55 * u), seed, 7, 0.05, 0.3));
+    // Branches teeing off at some of its corners, square or at 45.
+    if (level < 1) {
+      const count = Math.round(length / (level ? 3.5 : 2.2));
+      for (let k = 0; k < count && corners.length > 2; k++) {
+        const c = corners[1 + Math.floor(go() * (corners.length - 2))], u = c.d / length;
+        const branch = (c.h + (go() < 0.5 ? -1 : 1) * (go() < 0.6 ? 2 : 1) + 8) % 8;
+        creep(c.s, c.down, branch * Math.PI / 4, length * (0.3 + go() * 0.3), rv * (1 - 0.55 * u) * 0.72, seed * 7 + k + 1, top, bottom, [], level + 1);
       }
     }
-    tubes.push(knobbly(points, u => rv * (1 - 0.55 * u), seed, 7, 0.06, 0.5));
   };
   // A rootlet out of a hole's rim, at an angle round it, creeping out over
   // the lip a long way and branching.
@@ -178,14 +247,14 @@ export function buildRoots(line: WallLine, holes: RootHole[]) {
   // the curve, up over the foot of the lip and onto it, wandering across.
   const climber = (from: Course[number], length: number, rv: number, seed: number, side: number) => {
     const points: THREE.Vector3[] = [];
-    // Up the curve from where it leaves the root, slanting to one side.
-    let s = from.s + side * from.r * 0.8, down = from.down;
+    // Straight up the curve from where it leaves the root.
+    const s = from.s + side * from.r * 0.8;
+    let down = from.down;
     while (down > WALL.lip - 0.6) {
       points.push(onFace(s, down, rv * 0.3));
       down -= 0.25;
-      s += side * 0.12 + Math.sin(down * 2.1 + seed) * 0.04;
     }
-    creep(s, down, -Math.PI / 2 + side * 0.9, length, rv * 0.85, seed, 0.4, WALL.lip - 0.4, points);
+    creep(s, down, -Math.PI / 2, length, rv * 0.85, seed, 0.4, WALL.lip - 0.4, points);
   };
 
   holes.forEach((hole, index) => {
@@ -199,7 +268,7 @@ export function buildRoots(line: WallLine, holes: RootHole[]) {
       // filling its mouth (Andrew: the twist belongs right at the hole), bulging out proud of the lip before they
       // lie down onto the stone. A much smaller vine winds round the bundle
       // as it leaves the hole, and rootlets creep out of the rim.
-      const low = hole.t - 0.35, base = wander(hole.s, low + 0.05, 1, 0.55, length, drift * 0.5, sway, seed);
+      const low = hole.t - 0.35, base = wander(hole.s, low + 0.05, 1, 0.55, length, drift * 0.5, sway, seed, false);
       const together = 18, sizes = [0.6, 0.42, 0.27], rings = [0.4, 0.62, 0.78];
       const bulge = (d: number) => 0.55 * Math.sin(Math.PI * Math.min(d / 2.4, 1)) * (d < 2.4 ? 1 : 0);
       const turn = (d: number) => d * 2.1 - d * d * 0.03 * (d < 25 ? 1 : 0) - (d >= 25 ? 0 : 0);

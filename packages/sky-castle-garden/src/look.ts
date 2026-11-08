@@ -6,6 +6,13 @@ import * as THREE from 'three';
 // in a few soft bands instead of shading it darker. Shade leans blue-green, or
 // lavender on the stone, never grey.
 
+// The plants' shade, deepened (Andrew, 2026-11-08): each shade colour
+// multiplied by this, in linear light. Not the cypresses, already dark.
+export const LEAF_SHADE = 0.45;
+export function leafy(pair: readonly [number, number]) {
+  return [pair[0], new THREE.Color(pair[1]).multiplyScalar(LEAF_SHADE).getHex()] as const;
+}
+
 // The plan's palette (docs/design-plan.md), as [lit, shade].
 export const palette = {
   stone: [0xeee6d4, 0x9497c4],
@@ -16,13 +23,16 @@ export const palette = {
   masonry: [0xd0b07a, 0x847a9f],
   // All the grass, and the ground it grows from: the garden's lawn and the
   // start tower's meadow alike (what was the meadow's own green).
-  grass: [0x5a9a4a, 0x2c5848],
+  // Olive rather than minty, against the deep sky (Andrew, 2026-11-08).
+  grass: [0x6e9636, 0x34502e],
+  // The start tower's meadow: deeper, cooler greens, from Andrew's film still.
+  meadow: [0x30603a, 0x153a2c],
   // Moss and ivy on the stonework.
-  moss: [0xb4d66a, 0x5f9468],
-  ivy: [0x98c85c, 0x4f8664],
+  moss: leafy([0xb4d66a, 0x5f9468]),
+  ivy: leafy([0x98c85c, 0x4f8664]),
   // The shadowed depths under them.
-  mossDepth: [0x86b052, 0x507e5c],
-  ivyDepth: [0x76a44a, 0x466e54],
+  mossDepth: leafy([0x86b052, 0x507e5c]),
+  ivyDepth: leafy([0x76a44a, 0x466e54]),
   path: [0xe0c99a, 0x9c93b2],
   rust: [0xb47a45, 0x7a5a78],
   water: [0x5aa3a6, 0x3a7488],
@@ -30,7 +40,12 @@ export const palette = {
   canal: [0x2f6f7a, 0x22506a],
   door: [0x2a2622, 0x1c1d2a],
 } as const;
-export const SKY = 0xa9d2e8;
+export const SKY = 0x00668e;
+// Overhead, where the dome's gradient ends.
+export const ZENITH = 0x003751;
+// The horizon colour, shared by the dome, the fog, the background and the
+// clouds' haze, so the panel's picker changes them all at once.
+export const horizon = new THREE.Color(SKY);
 
 // Shared by every painted material, and tuned from the panel.
 export const look = {
@@ -46,6 +61,12 @@ export const look = {
   // colour, and how much of it they take at most.
   drown: 13,
   murk: 0.85,
+  // Stonework's shade (Andrew's film still of the start tower): a deep warm
+  // core, how dark next to the lit face, and the cool reflected light only
+  // on its edges, where it turns away from view: where that starts (0 is
+  // facing the camera, 1 edge on).
+  core: 0.09,
+  edge: 0.55,
 };
 // The colour the drowned city sinks into.
 export const DEEP = 0x1f5a62;
@@ -58,6 +79,8 @@ const uniforms = {
   uDepth: { value: look.depth },
   uDrown: { value: look.drown },
   uMurk: { value: look.murk },
+  uCore: { value: look.core },
+  uEdge: { value: look.edge },
   uDeep: { value: new THREE.Color(DEEP) },
 };
 // The robot's ink shadow, falling on whatever it lies across (robot.ts sets
@@ -123,7 +146,7 @@ export function paint(material: THREE.MeshStandardMaterial, shade?: number, tile
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <fog_pars_fragment>', /* glsl */`#include <fog_pars_fragment>
         uniform vec3 uSun, uWarm, uShade;
-        uniform float uMid, uFill, uRim, uDepth, uTile, uDrown, uMurk;
+        uniform float uMid, uFill, uRim, uDepth, uTile, uDrown, uMurk, uCore, uEdge;
         uniform vec3 uDeep;
         uniform float uInkOn;
         uniform sampler2D uInkDepth;
@@ -328,11 +351,21 @@ export function paint(material: THREE.MeshStandardMaterial, shade?: number, tile
           float shadowed = facing > 0.05 ? lit / facing : 1.0;
           band = smoothstep(0.3, 0.34, facing) * step(0.5, shadowed);
         #endif
-        vec3 totalDiffuse = mix(diffuseColor.rgb * uShade, diffuseColor.rgb * uWarm, band);
+        vec3 shaded = diffuseColor.rgb * uShade;
+        // Stonework: a deep, warm shade, the stone's own colour darkened,
+        // turning to the cool reflected light only toward its edges.
+        #ifdef STONE_SHADE
+          float turned = smoothstep(uEdge, 1.0, 1.0 - saturate(dot(normal, geometryViewDir)));
+          shaded = mix(diffuseColor.rgb * uCore * vec3(1.0, 0.8, 0.7), shaded, turned);
+        #else
+          float turned = 1.0;
+        #endif
+        vec3 totalDiffuse = mix(shaded, diffuseColor.rgb * uWarm, band);
         #ifndef CEL
           float rim = pow(1.0 - saturate(dot(normal, geometryViewDir)), 3.0);
           totalDiffuse += diffuseColor.rgb * uWarm * rim * band * uRim;
-          totalDiffuse += reflectedLight.indirectDiffuse * uFill;
+          // (Less of the sky's green-blue fill in stonework's deep shade.)
+          totalDiffuse += reflectedLight.indirectDiffuse * uFill * mix(1.0, 0.4 + 0.6 * turned, 1.0 - band);
         #endif`)
       // Distance fog, and fog rising from below so the cliff and the tower
       // melt into the sky.
@@ -385,14 +418,20 @@ export const fadesDeep = <T extends THREE.Material>(material: T) => {
 };
 
 // A painted material in one of the palette's pairs.
-export const painted = ([lit, shade]: readonly [number, number], options: THREE.MeshStandardMaterialParameters = {}, tile?: number) =>
-  paint(new THREE.MeshStandardMaterial({ color: lit, roughness: 1, metalness: 0, ...options }), shade, tile);
+// The sandstone, masonry and paving take the deep shade with cool edges; the
+// castle and the garden's marble (palette.stone) keep their plain cool shade.
+export const painted = (pair: readonly [number, number], options: THREE.MeshStandardMaterialParameters = {}, tile?: number) => {
+  const material = paint(new THREE.MeshStandardMaterial({ color: pair[0], roughness: 1, metalness: 0, ...options }), pair[1], tile);
+  if (STONEWORK.includes(pair)) material.defines = { ...material.defines, STONE_SHADE: '' };
+  return material;
+};
+const STONEWORK: readonly (readonly [number, number])[] = [palette.sandstone, palette.masonry, palette.path];
 
 // The sky: a dome, deeper blue overhead, the fog's colour at the horizon and
 // below it, where the garden drops away.
 function createSky() {
   const material = new THREE.ShaderMaterial({
-    uniforms: { horizon: { value: new THREE.Color(SKY) }, zenith: { value: new THREE.Color(0x5f9fd6) } },
+    uniforms: { horizon: { value: horizon }, zenith: { value: new THREE.Color(ZENITH) } },
     vertexShader: /* glsl */`
       varying vec3 vDirection;
       void main() {
@@ -416,13 +455,23 @@ function createSky() {
   return sky;
 }
 
+// A colour as the panel's picker sees it: an sRGB hex string, like the
+// palette's. Handing the picker a THREE.Color directly would have it write
+// sRGB numbers straight into three's linear components, so every colour
+// picked would come out much lighter than it looks in the picker.
+const hex = (color: THREE.Color) => ({
+  get hex() { return '#' + color.getHexString(); },
+  set hex(value: string) { color.set(value); },
+});
+
 // What the sun's shadow has to cover: the whole level, from the platform to
 // the top of the city, so shadows never pop in as the robot walks about.
 const COVER = new THREE.Box3(new THREE.Vector3(-64, -10, -48), new THREE.Vector3(64, 90, 98));
 
 export function createLook(scene: THREE.Scene) {
-  scene.background = new THREE.Color(SKY);
+  scene.background = horizon;
   scene.fog = new THREE.Fog(SKY, 30, 350);
+  scene.fog.color = horizon;
   const sky = createSky();
   scene.add(sky);
 
@@ -468,21 +517,29 @@ export function createLook(scene: THREE.Scene) {
     uniforms.uDepth.value = look.depth;
     uniforms.uDrown.value = look.drown;
     uniforms.uMurk.value = look.murk;
+    uniforms.uCore.value = look.core;
+    uniforms.uEdge.value = look.edge;
   };
 
   const tune = (gui: { addFolder(name: string): any }) => {
     const folder = gui.addFolder('light');
     folder.add(angles, 'height', 20, 85, 1).name('sun height (°)').onChange(aim);
     folder.add(angles, 'from', -180, 180, 1).name('sun from, east of north (°)').onChange(aim);
-    folder.addColor(sun, 'color').name('sun');
+    folder.addColor(hex(sun.color), 'hex').name('sun');
     folder.add(look, 'mid', 0, 1, 0.05).name('middle band');
     folder.add(hemisphere, 'intensity', 0, 4, 0.1).name('sky fill');
     folder.add(look, 'fill', 0, 1, 0.05).name('fill in the bands');
     folder.add(look, 'rim', 0, 1, 0.05).name('rim');
+    folder.add(look, 'core', 0, 1, 0.01).name('stone shade (dark)');
+    folder.add(look, 'edge', 0, 1, 0.01).name('stone edge light from');
     folder.add(scene.fog as THREE.Fog, 'near', 0, 300, 5).name('fog from (m)');
     folder.add(scene.fog as THREE.Fog, 'far', 100, 1000, 10).name('fog full (m)');
     folder.add(look, 'depth', 5, 120, 1).name('fog below (m)');
     folder.close();
+    const skyFolder = gui.addFolder('sky');
+    skyFolder.addColor(hex(horizon), 'hex').name('horizon & fog');
+    skyFolder.addColor(hex((sky.material as THREE.ShaderMaterial).uniforms.zenith.value), 'hex').name('overhead');
+    skyFolder.close();
   };
 
   return { sun, update, tune };
