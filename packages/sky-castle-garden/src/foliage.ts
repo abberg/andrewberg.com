@@ -20,6 +20,9 @@ export const SHRUB = leafy([0x78ad4a, 0x3a6650]), CORE = leafy([0x4f8442, 0x2c52
 // The small trees' crowns a fresher green than the shrubs, their bark warm
 // grey-brown.
 const CROWN = leafy([0x8cc25a, 0x467458]), CROWN_CORE = leafy([0x5e9446, 0x2f5848]), BARK = [0x8f7a5e, 0x5a5058] as const;
+// The giant tree's lower dome, its underside and the core you glimpse
+// through it, darker by steps: they hang in the canopy's own shade.
+const GIANT_LOW = leafy([0x64924a, 0x305246]), GIANT_UNDER = leafy([0x5c8a42, 0x2c4e46]), GIANT_CORE = leafy([0x3c6834, 0x1c3a36]);
 // Cypresses dark and blue-green, the vertical accent.
 const CYPRESS = [0x55905c, 0x264a4c] as const, CYPRESS_CORE = [0x3a6a4a, 0x1e3c40] as const;
 
@@ -646,22 +649,26 @@ function giantTree(scene: THREE.Scene) {
   let s = 7717;
   const random = () => (s = (s * 16807) % 2147483647) / 2147483647;
   const middle = new THREE.Vector3(0, CITY_TOP.top + 52, CITY_TOP.z), wide = 100, deep = 38, droop = 26;
-  const balls: THREE.Matrix4[] = [];
-  const ball = (at: THREE.Vector3, across: number) => balls.push(new THREE.Matrix4().compose(at,
+  const balls: THREE.Matrix4[] = [], low: THREE.Matrix4[] = [], under: THREE.Matrix4[] = [];
+  const ball = (at: THREE.Vector3, across: number, into = balls) => into.push(new THREE.Matrix4().compose(at,
     new THREE.Quaternion().setFromEuler(new THREE.Euler(random() * 6, random() * 6, random() * 6)), new THREE.Vector3(across, across * 0.75, across)));
   // Over the dome, denser and smaller towards its edge so the outline is
   // lumpy; and under it, a layer of masses hanging a little lower.
   for (let k = 0; k < 280; k++) {
     const a = random() * Math.PI * 2, up = Math.asin(random() ** 0.7) * 0.95, d = Math.cos(up);
-    ball(new THREE.Vector3(Math.sin(a) * d * wide, middle.y + Math.sin(up) * deep - d ** 3 * droop, middle.z - Math.cos(a) * d * wide), 30 + random() * 22 * (1.2 - d));
+    // The lower half of the dome and its drooping edge: a step darker.
+    const y = middle.y + Math.sin(up) * deep - d ** 3 * droop;
+    ball(new THREE.Vector3(Math.sin(a) * d * wide, y, middle.z - Math.cos(a) * d * wide), 30 + random() * 22 * (1.2 - d), y < middle.y + 14 ? low : balls);
   }
   for (let k = 0; k < 240; k++) {
-    const a = random() * Math.PI * 2, d = Math.sqrt(random()) * wide * 0.9, under = deep * 0.85 * Math.sqrt(Math.max(0, 1 - (d / (wide * 0.88)) ** 2));
-    ball(new THREE.Vector3(Math.sin(a) * d, middle.y - under * 0.6 - (d / wide) ** 3 * droop - random() * 4, middle.z - Math.cos(a) * d), 28 + random() * 18);
+    const a = random() * Math.PI * 2, d = Math.sqrt(random()) * wide * 0.9, below = deep * 0.85 * Math.sqrt(Math.max(0, 1 - (d / (wide * 0.88)) ** 2));
+    ball(new THREE.Vector3(Math.sin(a) * d, middle.y - below * 0.6 - (d / wide) ** 3 * droop - random() * 4, middle.z - Math.cos(a) * d), 28 + random() * 18, under);
   }
-  instanced(ballGeometry(113), leafCards(CROWN, clusterTexture(117), { weight: '0.5', flutter: 0.5 }), balls, scene);
+  instanced(ballGeometry(113), leafCards(CROWN, clusterTexture(117), SWAY.still), balls, scene);
+  instanced(ballGeometry(113), leafCards(GIANT_LOW, clusterTexture(117), SWAY.still), low, scene);
+  instanced(ballGeometry(113), leafCards(GIANT_UNDER, clusterTexture(117), SWAY.still), under, scene);
   const core = new THREE.SphereGeometry(1, 32, 16).scale(wide * 0.88, deep * 0.85, wide * 0.88).translate(middle.x, middle.y + 2, middle.z);
-  const inside = new THREE.Mesh(core, painted(CROWN_CORE));
+  const inside = new THREE.Mesh(core, painted(GIANT_CORE));
   scene.add(inside);
   // The trunk among the towers, and boughs out under the canopy.
   const wood: THREE.BufferGeometry[] = [];

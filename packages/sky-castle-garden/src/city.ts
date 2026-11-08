@@ -17,7 +17,7 @@ import { blockMaterial, shifted } from './columns';
 export const cityFront = (x: number) => 52.5 + x * x / 292;
 // Where the giant tree stands over the castle: how far south, and the
 // height its trunk and canopy are reckoned from.
-export const CROWN = { z: 160, top: 59 };
+export const CROWN = { z: 170, top: 39 };
 // The arch the main path climbs into: its opening (as wide as the path,
 // its peak half a metre over the robot's head), the stair up to it from the
 // grass landing (six steps), its floor and the sealed door at the back.

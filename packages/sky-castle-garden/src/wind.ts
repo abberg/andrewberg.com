@@ -40,6 +40,8 @@ export const SWAY = {
   cypress: { weight: '0.012 * pow(transformed.y, 1.6) * height', flutter: 0.4 },
   // Ivy flat on stone only shivers.
   ivy: { weight: '0.05', flutter: 1 },
+  // The giant tree holds still: at its size the shiver read as flashing.
+  still: { weight: '0.0', flutter: 0 },
 } satisfies Record<string, Sway>;
 
 const chunk = /* glsl */`
