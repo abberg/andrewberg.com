@@ -716,8 +716,26 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
   };
   // Along the moats: down both sides, and round the south one either side
   // of the landing.
+  // The side banks keep their runs but open in a few gaps where you can get
+  // down to the water, different on each side.
+  const unbanked = shrubs.length;
   bank(t => [WEST_LAWN, MOATS_FROM + 1 + t * (lawnSouth(WEST_LAWN) - MOATS_FROM - 2), 1, 0], lawnSouth(WEST_LAWN) - MOATS_FROM, 1);
   bank(t => [EAST_LAWN, MOATS_FROM + 1 + t * (lawnSouth(EAST_LAWN) - MOATS_FROM - 2), -1, 0], lawnSouth(EAST_LAWN) - MOATS_FROM, 2);
+  const openings = [[[23, 29.5], [37, 44]], [[22, 27], [32.5, 38], [45, 50.5]]];
+  shrubs.splice(unbanked, shrubs.length - unbanked, ...shrubs.slice(unbanked).filter(m => {
+    const x = m.elements[12], z = m.elements[14];
+    return !openings[x > 0 ? 1 : 0].some(([z0, z1]) => z > z0 && z < z1);
+  }));
+  // Across the strips of lawn north of the side moats, from the lip to the
+  // moat's end: a thick bank of big shrubs, two deep, so the way out reads as
+  // closed (the invisible wall runs down its middle).
+  apart(907, () => { for (const side of [-1, 1]) {
+    const x0 = side * (Math.abs(side > 0 ? EAST : WEST) - 1), z0 = northEdge(x0) + 0.6;
+    for (let z = z0; z < MOATS_FROM + 1.5; z += 1 + random() * 0.6) {
+      shrub(x0 + side * (0.6 + random() * 0.8), z, 3 + random() * 1.8, true);
+      if (random() < 0.8) shrub(x0 - side * (0.8 + random() * 0.7), z + random() * 0.8, 2.2 + random() * 1.4, true);
+    }
+  } });
   bank(t => south(WEST_LAWN + 1 + t * (-WEST_LAWN - 10)), -WEST_LAWN - 10, 3);
   bank(t => south(9 + t * (EAST_LAWN - 10)), EAST_LAWN - 10, 4);
   // On the ledges beyond the garden's sides: heaped in runs along the front
