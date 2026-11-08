@@ -16,20 +16,24 @@ const SHRINK = 4;
 
 export const waterLook = {
   // How much it reflects looking straight down, and looking across it.
-  down: 0.18, across: 0.8,
+  down: 0.35, across: 0.8,
   // How soft the reflection is (a fraction of the screen).
-  blur: 0.014,
+  blur: 0.006,
   // How bright the reflection is, darkened into the water's own colour as
   // real water's is, and how bright the water's wash, which also covers more
   // of what's under it as it darkens, so the water sits darker than the
   // stone round it.
-  reflectBright: 0.55, washBright: 0.65,
+  reflectBright: 0.34, washBright: 0.46,
   // How much of the surface the highlights cover (higher, fewer), how big
   // they are (m), how many times longer than wide, and how fast they change.
-  sparse: 0.56, size: 1.1, stretch: 7, pace: 0.25,
+  sparse: 0.51, size: 0.8, stretch: 3.5, pace: 0.4,
   // How fast they drift over the water (m/s), and towards which way (degrees
   // east of north).
-  flow: 0.7, towards: 110,
+  flow: 0.3, towards: 180,
+  // Where they show: how much of them is left in shade (the sun's glints,
+  // so mostly gone where it doesn't reach), and broad calm patches with
+  // none, how big (m) and how much of the water they cover.
+  inShade: 0.1, patchSize: 14, calm: 0.45,
 };
 
 const target = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType });
@@ -50,6 +54,8 @@ const uniforms = {
   uRight: { value: new THREE.Vector2(1, 0) },
   // Their drift, in metres a second.
   uFlow: { value: new THREE.Vector2() },
+  // Where they show: kept in shade, patch size, calm.
+  uMask: { value: new THREE.Vector3() },
   uHighlight: { value: new THREE.Color(0xf4fbf8) },
 };
 const materials: THREE.Material[] = [];
@@ -101,6 +107,7 @@ export function waterMaterial(colour: readonly [number, number], opacity: number
         uniform vec2 uBright;
         uniform vec4 uShape;
         uniform vec2 uRight, uFlow;
+        uniform vec3 uMask;
         uniform vec3 uHighlight;
         varying vec4 vReflect;
         varying vec3 vWater;
@@ -117,6 +124,14 @@ export function waterMaterial(colour: readonly [number, number], opacity: number
           float n = snoise(vec3(p, t * 0.6)) * 0.65 + snoise(vec3(p * 2.1, t * 0.9 + 7.0)) * 0.35;
           float edge = fwidth(n) * 0.7;
           float highlight = smoothstep(uShape.z - edge, uShape.z + edge, n);
+          // Only where they'd catch the sun: faded out in shade, and in
+          // broad, slowly shifting patches of glinting water between calm
+          // ones, soft edged so the streaks thin out towards the calm.
+          highlight *= mix(uMask.x, 1.0, smoothstep(0.15, 0.45, lit));
+          float patches = snoise(vec3((vWater.xz - uFlow * uTime * 0.5) / uMask.y, uTime * 0.02)) * 0.7
+            + snoise(vec3(vWater.xz / (uMask.y * 0.45) + 31.0, uTime * 0.03)) * 0.3;
+          float calm = uMask.z * 1.4 - 0.7;
+          highlight *= smoothstep(calm - 0.12, calm + 0.18, patches);
 
           // The reflection, nudged by the same surface and blurred.
           vec2 at = vReflect.xy / vReflect.w + vec2(0.004, 0.006) * n;
@@ -216,7 +231,9 @@ export function updateWater(seconds: number) {
   uniforms.uMirror.value.set(waterLook.down, waterLook.across, waterLook.blur);
   uniforms.uBright.value.set(waterLook.reflectBright, waterLook.washBright);
   uniforms.uShape.value.set(waterLook.size, waterLook.pace, waterLook.sparse, waterLook.stretch);
+  uniforms.uMask.value.set(waterLook.inShade, waterLook.patchSize, waterLook.calm);
   const towards = THREE.MathUtils.degToRad(waterLook.towards);
   // North is -z.
   uniforms.uFlow.value.set(Math.sin(towards), -Math.cos(towards)).multiplyScalar(waterLook.flow);
 }
+

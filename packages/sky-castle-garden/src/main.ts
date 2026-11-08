@@ -143,6 +143,9 @@ watery.add(waterLook, 'stretch', 1, 12, 0.1).name('highlights, stretch');
 watery.add(waterLook, 'pace', 0, 1, 0.01).name('highlights, pace');
 watery.add(waterLook, 'flow', 0, 3, 0.05).name('highlights, drift (m/s)');
 watery.add(waterLook, 'towards', -180, 180, 1).name('drift towards, east of north (°)');
+watery.add(waterLook, 'inShade', 0, 1, 0.01).name('highlights left in shade');
+watery.add(waterLook, 'patchSize', 3, 40, 0.5).name('calm patches, size (m)');
+watery.add(waterLook, 'calm', 0, 1, 0.01).name('calm patches, how much');
 watery.close();
 gui.add(walls, 'visible').name('show invisible walls');
 // What a frame costs: frames a second, and draw calls in all its passes
