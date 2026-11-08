@@ -9,7 +9,7 @@ import { inkUniforms, paint } from './look';
 
 // Metres covered in one walk and one run cycle, as robot.py makes them. Played
 // at the speed the robot actually covers ground, the feet don't slide.
-const STRIDE = { walk: 2.2, run: 2.4 };
+const STRIDE = { walk: 2.64, run: 3.0 };
 // The bones the push takes over, the rest stay on the walk.
 const UPPER = /^(spine|head|upperarm|forearm|hand)/;
 // Seconds to fade a clip in or out.
@@ -32,6 +32,8 @@ export type RobotState = {
 // screen however near or far. The normals are averaged where the robot's
 // flat faces meet, so the line doesn't split at the corners.
 const INK = new THREE.Color(0x2b2220), WIDTH = 0.002;
+// Multiplies the paint in shade (its material's colour is white).
+const ROBOT_SHADE = 0xa7bce4;
 function outlined(mesh: THREE.SkinnedMesh) {
   const geometry = mesh.geometry, position = geometry.getAttribute('position'), normal = geometry.getAttribute('normal');
   const sums = new Map<string, THREE.Vector3>(), key = (i: number) =>
@@ -178,7 +180,9 @@ export function createRobot(gltf: GLTF) {
     const material = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
     material.metalness = 0;
     material.roughness = 1;
-    paint(material);
+    // Its shade is a darker, less blue one than the garden's (Andrew's film
+    // still): deep grey-green under the olive.
+    paint(material, ROBOT_SHADE);
     material.defines = { ...material.defines, CEL: '' };
     // The arms reach well outside the bind pose's bounds.
     child.frustumCulled = false;

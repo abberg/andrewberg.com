@@ -40,9 +40,10 @@ export const palette = {
   canal: [0x2f6f7a, 0x22506a],
   door: [0x2a2622, 0x1c1d2a],
 } as const;
-export const SKY = 0x00668e;
+// A little lighter now the robot is dark (Andrew, 2026-11-08).
+export const SKY = 0x007ea2;
 // Overhead, where the dome's gradient ends.
-export const ZENITH = 0x003751;
+export const ZENITH = 0x007596;
 // The horizon colour, shared by the dome, the fog, the background and the
 // clouds' haze, so the panel's picker changes them all at once.
 export const horizon = new THREE.Color(SKY);

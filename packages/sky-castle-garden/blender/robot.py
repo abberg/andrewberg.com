@@ -15,16 +15,17 @@ from mathutils import Euler, Matrix, Vector
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, '..', 'public', 'robot.glb')
 
-# Paint, until the 2k painted texture, sampled off the reference: olive
-# khaki metal, yellow-green moss, and the face plate polished bronze (its own
-# shiny material).
-BRONZE = (0.53, 0.43, 0.14, 1)
-BRONZE_DARK = (0.3, 0.24, 0.08, 1)
+# Paint, until the 2k painted texture, sampled off the reference: dark olive
+# brown metal, muted grey-green moss (both matched in the game's warm sun
+# to Andrew's film still, so greyer here than they look), and the face plate
+# polished bronze (its own shiny material).
+BRONZE = (0.256, 0.257, 0.167, 1)
+BRONZE_DARK = (0.145, 0.144, 0.095, 1)
 PLATE = (0.8, 0.6, 0.32, 1)
 RING = (0.3, 0.28, 0.25, 1)
 LIGHT = (0.9, 0.12, 0.06, 1)
 EYE = (0.06, 0.05, 0.04, 1)
-MOSS = (0.56, 0.62, 0.22, 1)
+MOSS = (0.335, 0.44, 0.272, 1)
 
 # Measured off the front reference's silhouette, scaled to 4 m tall.
 # The arms and legs are stacks of equal slabs, a little taller than they're
@@ -227,9 +228,10 @@ def build_mesh(b):
         y, turn = surface(3.0, 0.32)
         b.lathe(capsule[1:-1], 'spine', BRONZE, sides=20, sy=0.7, at=(s * 0.32 - s * 0.02 * math.sin(turn), y - 0.02 * math.cos(turn), 3.0),
                 rotate=Matrix.Rotation(-s * turn, 4, 'Z'))
-    # A small red light in the middle of the chest, between them.
-    y, _ = surface(3.0, 0.0)
-    b.blob(0.025, 'spine', LIGHT, (0, y, 3.0), squash=(1, 0.6, 1))
+    # A small red light in the middle of the chest, between them, on the
+    # upper shell above the seam.
+    y, _ = surface(3.12, 0.0)
+    b.blob(0.025, 'spine', LIGHT, (0, y, 3.12), squash=(1, 0.6, 1))
 
     # The head: a bullet, round on top, on a thin neck, the same metal as the
     # body. Across its face a tilted plate of polished bronze, traced off the
@@ -414,16 +416,91 @@ def build_mesh(b):
         prism(foot, hx, [(-0.13, 0.0), (0.125, 0.0), (0.125, 0.2), (-0.1, 0.2), (-0.13, 0.17)], flare)
         prism(foot, hx, [(0.133, 0.0), (0.52, 0.0), (0.52, 0.045), (0.133, 0.18)], flare)
 
-    # Moss draped over the top of the torso, ragged at its lower edge.
-    grow = lambda z, w, back, front, t=0.025: (z, w + t, back - t, front + t)
-    cap = b.loft([grow(*ring) for ring in torso if ring[0] > 3.2] + [(3.5, 0.17, 0.02, 0.17)], 'spine', MOSS)
-    ragged = lambda a: 0.3 * max(0.0, math.sin(3 * a + 0.4) * 0.6 + math.sin(7 * a + 1.3) * 0.5 + math.sin(13 * a) * 0.35)
-    for vert in {v for f in cap for v in f.verts}:
-        if vert.co.z < 3.28:
-            vert.co.z -= ragged(math.atan2(vert.co.y - 0.15, vert.co.x))
-            # Kept above the chest's oval hatches, so they show whole.
-            if vert.co.y > 0 and abs(abs(vert.co.x) - 0.32) < 0.17:
-                vert.co.z = max(vert.co.z, 3.215)
+    # Moss draped over him like a cape: ragged down his back to about the
+    # seam, over both shoulders, and open at the front, where the metal shows in a dome
+    # from the neck down to the seam. On his right it's only a thin band over
+    # the shoulder; on his left it comes down the chest to the capsule's top
+    # and out over the shoulder ball. Around the loft's angle a: 0 his right
+    # side, 90 the front, 180 his left side, 270 the back.
+    hem = [(0, 3.27), (30, 3.32), (60, 3.39), (85, 3.45), (92, 3.4), (99, 3.28), (106, 3.2), (115, 3.17), (145, 3.16), (162, 3.08),
+           (180, 3.06), (210, 3.08), (270, 3.1), (330, 3.12), (360, 3.27)]
+    # Ragged downwards, more so where it hangs loose down the back.
+    loose = [(0, 0.04), (60, 0.02), (100, 0.02), (150, 0.05), (200, 0.09), (270, 0.11), (340, 0.08), (360, 0.04)]
+
+    def keyed(keys, a):
+        for (a0, v0), (a1, v1) in zip(keys, keys[1:]):
+            if a0 <= a <= a1:
+                t = (a - a0) / (a1 - a0)
+                t = t * t * (3 - 2 * t)
+                return v0 + (v1 - v0) * t
+
+    def ragged(a):
+        r = math.radians(a)
+        n = math.sin(3 * r + 0.4) * 0.6 + math.sin(7 * r + 1.3) * 0.5 + math.sin(13 * r) * 0.35 + math.sin(23 * r + 2.0) * 0.2
+        return keyed(loose, a) * max(0.0, 0.4 + 0.6 * n)
+
+    TOP, sides, rows = 3.47, 56, 14
+    edge = []
+    for i in range(sides):
+        a = 360 * i / sides
+        z = keyed(hem, a) - ragged(a)
+        r = math.radians(a)
+        # Kept above the chest's capsules, so they show whole.
+        x = math.cos(r) * 0.5
+        if 30 < a < 150 and abs(abs(x) - 0.32) < 0.17:
+            z = max(z, 3.215)
+        edge.append(z)
+
+    def on_torso(z, a, t):
+        _, w, back, front = section(z)
+        r = math.radians(a)
+        c, d = (back + front) / 2, (front - back) / 2
+        # Thicker towards a loose hem down the back.
+        return Vector(((w + t) * math.cos(r), c + (d + t) * math.sin(r), z))
+
+    bm = b.bm
+    grid = []
+    for k in range(rows + 1):
+        u = k / rows
+        grid.append([bm.verts.new(on_torso(edge[i] + (TOP - edge[i]) * u ** 0.8, 360 * i / sides,
+                                           0.025 + 0.015 * (1 - u) * max(0.0, -math.sin(2 * math.pi * i / sides))))
+                     for i in range(sides)])
+    # The hem tucked back in against the body, so it's closed from below.
+    lip = [bm.verts.new(on_torso(edge[i], 360 * i / sides, -0.005)) for i in range(sides)]
+    neck = [bm.verts.new((0.17 * math.cos(a), 0.095 + 0.075 * math.sin(a), 3.5))
+            for a in (2 * math.pi * i / sides for i in range(sides))]
+    loops = [lip] + grid + [neck]
+    faces = [bm.faces.new((lower[i], lower[(i + 1) % sides], upper[(i + 1) % sides], upper[i]))
+             for lower, upper in zip(loops, loops[1:]) for i in range(sides)]
+    faces.append(bm.faces.new(neck))
+    b.paint(faces, 'spine', MOSS)
+    # Over his left shoulder ball, a cap of moss (it turns with the arm).
+    b.blob(0.112, 'upperarm.L', MOSS, (-SHOULDER_BALL_X, SHOULDER_Y, SHOULDER + 0.035), squash=(1.05, 1.08, 0.72), subdivisions=2)
+
+    # And a little patch of it on his right chest, grown out of the seam and
+    # trailing down to a point inboard of the capsule.
+    patch = [(3.028, 0.07, 0.24), (3.0, 0.08, 0.23), (2.97, 0.1, 0.215), (2.94, 0.115, 0.19), (2.91, 0.12, 0.165),
+             (2.885, 0.13, 0.15), (2.865, 0.138, 0.142)]
+    across = 6
+
+    def out(z, x, t):
+        y, turn = surface(z, x)
+        return Vector((x + t * math.sin(turn), y + t * math.cos(turn), z))
+
+    front_ = [[bm.verts.new(out(z, x0 + (x1 - x0) * j / across, 0.014)) for j in range(across + 1)] for z, x0, x1 in patch]
+    back_ = [[bm.verts.new(out(z, x0 + (x1 - x0) * j / across, -0.01)) for j in range(across + 1)] for z, x0, x1 in patch]
+    faces = []
+    for g, flip in ((front_, False), (back_, True)):
+        for upper, lower in zip(g, g[1:]):
+            for j in range(across):
+                quad = (lower[j], lower[j + 1], upper[j + 1], upper[j])
+                faces.append(bm.faces.new(quad[::-1] if flip else quad))
+    ring = [(r, 0) for r in range(len(patch))] + [(len(patch) - 1, j) for j in range(1, across + 1)]
+    ring += [(r, across) for r in range(len(patch) - 2, -1, -1)] + [(0, j) for j in range(across - 1, 0, -1)]
+    for (r0, j0), (r1, j1) in zip(ring, ring[1:] + ring[:1]):
+        faces.append(bm.faces.new((front_[r0][j0], back_[r0][j0], back_[r1][j1], front_[r1][j1])))
+    bmesh.ops.recalc_face_normals(bm, faces=faces)
+    b.paint(faces, 'spine', MOSS)
 
 
 # The rig. Every bone's local x is world x, so a positive turn about local x
@@ -510,31 +587,51 @@ FPS = 30
 smoothstep = lambda e0, e1, x: (lambda t: t * t * (3 - 2 * t))(min(1, max(0, (x - e0) / (e1 - e0))))
 
 
-def leg(side, hip, ankle_y, ankle_z, foot=0.0, roll=0.0, level=False):
+# How a leg's bend is shared among its four slab joints when it bends at the
+# knee (the third seam) rather than in an even arc.
+KNEE = (0.25, 0.45, 2.85, 0.45)
+
+
+def leg(side, hip, ankle_y, ankle_z, foot=0.0, roll=0.0, level=False, knee=0.0):
     """Keys for one leg's slabs and foot that put the ankle at (ankle_y, ankle_z) from the hips
     at height hip: the bend shared evenly between the slab joints, so the leg is an arc bowed
-    forward, and the foot at pitch foot (toe up +). roll swings the whole leg in across; level
-    keeps the foot flat whatever the leg does."""
+    forward (knee, 0 to 1, gathers it towards the knee instead), and the foot at pitch foot
+    (toe up +). roll swings the whole leg in across; level keeps the foot flat whatever the
+    leg does."""
     top = hip + LEG_TOP - HIP
     dy, dz = ankle_y, ankle_z - top
     n, h = LEG_SLABS, LEG_LINK[0]
     d = math.hypot(dy, dz)
     phi = math.atan2(dy, -dz)
-    # The even bend whose chord spans hip to ankle.
-    low, high = 0.0, 2 * math.pi / n - 1e-3
+    weights = [1 - knee + knee * w for w in KNEE]
+
+    def reach(bend):
+        """Hip to ankle with the joints bent by bend times their weights, the
+        first slab hanging straight down: (forward, down)."""
+        angle, y, z = 0.0, 0.0, 0.0
+        for i in range(n):
+            y += h * math.sin(angle)
+            z += h * math.cos(angle)
+            if i < n - 1:
+                angle -= bend * weights[i]
+        return y, z
+
+    # The bend whose chord spans hip to ankle.
+    low, high = 0.0, 2 * math.pi / n / max(weights) - 1e-3
     if d < n * h:
         for _ in range(40):
             bend = (low + high) / 2
-            if h * math.sin(n * bend / 2) / math.sin(bend / 2) > d:
+            if math.hypot(*reach(bend)) > d:
                 low = bend
             else:
                 high = bend
     bend = (low + high) / 2 if d < n * h else 0.0
-    first = phi + (n - 1) * bend / 2
+    y, z = reach(bend)
+    first = phi - math.atan2(y, z)
     keys = {f'leg1.{side}': {'rotation': (first, 0, roll)}}
     for i in range(2, n + 1):
-        keys[f'leg{i}.{side}'] = {'rotation': (-bend, 0, 0)}
-    keys[f'foot.{side}'] = {'level': foot} if level else {'rotation': (foot - (first - (n - 1) * bend), 0, 0)}
+        keys[f'leg{i}.{side}'] = {'rotation': (-bend * weights[i - 2], 0, 0)}
+    keys[f'foot.{side}'] = {'level': foot} if level else {'rotation': (foot - (first - bend * sum(weights)), 0, 0)}
     return keys
 
 
@@ -562,24 +659,77 @@ def gait(p, stride, duty, lift):
     return -reach + 2 * reach * smoothstep(0, 1, q), lift * math.sin(math.pi * q) ** 0.8, 0.25 * math.sin(math.pi * q)
 
 
-def walking(seconds, speed, duty, lift, hip, bob, swing, lean, sway=0.0, track=HIP_X, tilt=0.0):
+# The foot, from the ankle: heel and toe where they meet the ground.
+HEEL = (-0.13, -ANKLE)
+TOE = (0.5, -ANKLE)
+
+
+def pivoted(ground, point, pitch):
+    """The ankle (y, height) of a foot pitched by pitch (toe up +) about point
+    (HEEL or TOE), with that point on the ground where a flat foot's ankle
+    would be at y ground."""
+    py, pz = point
+    c, s = math.cos(pitch), math.sin(pitch)
+    return ground + py - (py * c - pz * s), -(py * s + pz * c)
+
+
+def rolling(p, stride, lift, strike=0.2, push=0.45, off=0.62):
+    """Where a foot is at phase p of a straight-legged, heel-to-toe gait: (y,
+    height above standing, pitch, and how much its leg bends at the knee). It
+    lands on its heel toe up (strike), rolls flat, then lifts its heel and
+    pivots on its toe (to push) far behind, leaves the ground at off of the
+    cycle (less than half: the run, with both feet up between steps) and
+    swings low through to the next heel strike. On the ground it slides back
+    at the body's speed, flat under the hips 0.4 of the way through its time
+    down."""
+    heel, flat, middle = 0.13 * off, 0.68 * off, 0.4 * off
+    ground = lambda q: stride * (middle - q)
+
+    def planted(q):
+        if q < heel:
+            pitch = strike * (1 - smoothstep(0, heel, q))
+            return (*pivoted(ground(q), HEEL, pitch), pitch)
+        if q < flat:
+            return ground(q), ANKLE, 0.0
+        pitch = -push * smoothstep(flat, off, q)
+        return (*pivoted(ground(q), TOE, pitch), pitch)
+
+    if p < off:
+        y, z, pitch = planted(p)
+        return y, z - ANKLE, pitch, smoothstep(0.84 * off, off, p)
+    q = (p - off) / (1 - off)
+    (y0, z0, a0), (y1, z1, a1) = planted(off), planted(0.0)
+    e = smoothstep(0, 1, q)
+    y, z, pitch = y0 + (y1 - y0) * e, z0 + (z1 - z0) * q + lift * math.sin(math.pi * q), a0 + (a1 - a0) * e
+    # Lifted enough that neither toe nor heel scuffs the ground on the way.
+    low = min(-(py * math.sin(pitch) + pz * math.cos(pitch)) for py, pz in (HEEL, TOE)) - ANKLE
+    z += max(0.0, 0.02 * math.sin(math.pi * q) - (z + low))
+    return y, z - ANKLE, pitch, 1 - smoothstep(0.3, 1, q)
+
+
+def walking(seconds, speed, duty, lift, hip, bob, swing, lean, sway=0.0, track=HIP_X, tilt=0.0, roll=None, elbow=0.05):
     """A gait cycle. sway shifts the hips sideways over each planted foot, track is how far
     out from the middle the feet land (less than the hips' width puts them nearly in a line),
-    and tilt rolls the torso towards the planted side."""
+    and tilt rolls the torso towards the planted side. roll, if given, is the share of the
+    cycle each foot is down in the heel-to-toe gait (rolling) instead of the plain one; a
+    negative bob puts the hips lowest over the planted foot (running). elbow is how bent
+    the forearms hang."""
     stride = speed * seconds
     reach = stride * duty / 2
+    foot = (lambda p: rolling(p, stride, lift, off=roll)) if roll else (lambda p: gait(p, stride, duty, lift))
+    middle = 0.4 * roll if roll else duty / 2
 
     def pose(t):
         p = t / seconds
         result = {}
         # Highest over each planted foot, lowest as the weight changes feet,
         # and swayed across over whichever foot is down.
-        height = hip + bob * math.cos(4 * math.pi * (p - duty / 2))
-        across = sway * math.cos(2 * math.pi * (p - duty / 2))
+        height = hip + bob * math.cos(4 * math.pi * (p - middle))
+        across = sway * math.cos(2 * math.pi * (p - middle))
         result['hips'] = {'location': (across, height - HIP, 0)}
         feet = {}
         for side, offset, s in (('R', 0, 1), ('L', 0.5, -1)):
-            y, up, pitch = gait((p + offset) % 1, stride, duty, lift)
+            y, up, pitch, *knee = foot((p + offset) % 1)
             feet[side] = y
             # The leg angles in from the hip to where the foot lands, and is
             # solved in that slanted plane.
@@ -587,7 +737,8 @@ def walking(seconds, speed, duty, lift, hip, bob, swing, lean, sway=0.0, track=H
             drop = height + LEG_TOP - HIP - (ANKLE + up)
             roll = math.atan2(-out, drop)
             # The foot is kept flat, whatever the leg's angle.
-            result.update(leg(side, ANKLE + up + math.hypot(drop, out) - (LEG_TOP - HIP), y, ANKLE + up, pitch, roll, level=True))
+            result.update(leg(side, ANKLE + up + math.hypot(drop, out) - (LEG_TOP - HIP), y, ANKLE + up, pitch, roll, level=True,
+                              knee=knee[0] if knee else 0.0))
         # The shoulders turn against the hips and the torso rolls over the
         # planted foot; the head stays nearly level. Each arm swings against
         # its leg, the forearm trailing.
@@ -596,10 +747,10 @@ def walking(seconds, speed, duty, lift, hip, bob, swing, lean, sway=0.0, track=H
         result['spine'] = {'rotation': (-lean, twist, -lean_over)}
         result['head'] = {'rotation': (lean * 0.7, -twist * 0.8, lean_over * 0.8)}
         for side in ('R', 'L'):
-            later = gait((p - 0.06 + (0 if side == 'R' else 0.5)) % 1, stride, duty, lift)[0]
+            later = foot((p - 0.06 + (0 if side == 'R' else 0.5)) % 1)[0]
             angle = -swing * later / reach + lean
             result[f'upperarm.{side}'] = {'rotation': (angle, 0, 0)}
-            result[f'forearm.{side}'] = {'rotation': (0.05 + 0.6 * max(0, angle - lean), 0, 0)}
+            result[f'forearm.{side}'] = {'rotation': (elbow + 0.6 * max(0, angle - lean), 0, 0)}
             result[f'hand.{side}'] = {'rotation': (0.05, 0, 0)}
         return result
     return seconds, pose, stride
@@ -611,9 +762,10 @@ def idle():
     def pose(t):
         p = t / seconds
         breathe = math.sin(2 * math.pi * p)
-        height = 1.6 + 0.012 * breathe
+        # Standing tall, the legs all but straight.
+        height = 1.68 + 0.008 * breathe
         result = {'hips': {'location': (0, height - HIP, 0)}}
-        for side, y in (('R', 0.05), ('L', -0.05)):
+        for side, y in (('R', 0.03), ('L', -0.03)):
             result.update(leg(side, height, y, ANKLE))
         result['spine'] = {'rotation': (-0.02 - 0.015 * breathe, 0, 0)}
         result['head'] = {'rotation': (0.02, 0.18 * math.sin(2 * math.pi * p), 0)}
@@ -700,11 +852,16 @@ CLIPS = {
     'idle': idle(),
     # speed m/s, share of the cycle each foot is down, foot lift, hip height,
     # bob, arm swing and forward lean.
-    # The walk follows the reference clip: slow and heavy, about 1 s a step,
-    # swaying over each foot, the feet landing a little inside the hips, and
-    # the arms hanging loose.
-    'walk': walking(2.0, 1.1, 0.55, 0.26, 1.48, 0.03, 0.08, 0.03, sway=0.08, track=0.21, tilt=0.05),
-    'run': walking(0.8, 3.0, 0.42, 0.34, 1.46, 0.05, 0.5, 0.12),
+    # The walk follows Andrew's film clip: slow and heavy, 1.2 s a step, long
+    # straight-legged strides rolling heel to toe, the back leg trailing far
+    # behind on its toe, the swing low with little knee; the body tall and
+    # level, swaying over each foot, the feet landing a little inside the
+    # hips, and the arms hanging loose.
+    'walk': walking(2.4, 1.1, 0.55, 0.1, 1.645, 0.055, 0.08, 0.02, sway=0.08, track=0.21, tilt=0.05, roll=0.62),
+    # The run: the same heavy heel-to-toe roll, a long loping stride with both
+    # feet briefly off the ground, sinking a little onto each foot, leaning
+    # in, the arms swinging loose from bent elbows.
+    'run': walking(1.0, 3.0, 0.4, 0.3, 1.63, -0.04, 0.18, 0.08, sway=0.04, track=0.2, tilt=0.03, roll=0.4, elbow=0.35),
     'turn': turn(),
     'push': push(),
     'stepOver': step_over(),
