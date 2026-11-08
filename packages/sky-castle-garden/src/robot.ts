@@ -9,7 +9,7 @@ import { inkUniforms, paint } from './look';
 
 // Metres covered in one walk and one run cycle, as robot.py makes them. Played
 // at the speed the robot actually covers ground, the feet don't slide.
-const STRIDE = { walk: 2.64, run: 3.0 };
+const STRIDE = { walk: 2.64, run: 1.95 };
 // The bones the push takes over, the rest stay on the walk.
 const UPPER = /^(spine|head|upperarm|forearm|hand)/;
 // Seconds to fade a clip in or out.

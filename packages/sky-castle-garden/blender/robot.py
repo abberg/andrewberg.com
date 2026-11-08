@@ -49,6 +49,9 @@ ARM_TOP = 3.14      # the top slab tucked up under the ball
 ELBOW = ARM_TOP - 3 * ARM_LINK[0]
 WRIST = ARM_TOP - 7 * ARM_LINK[0]
 NECK = 3.45
+# The arm's slabs, shoulder to wrist (the first hangs from the ball).
+ARM_SLABS = ['upperarm', 'upperarm2', 'upperarm3', 'forearm', 'forearm2', 'forearm3', 'forearm4']
+ARM_LENGTHS = [SHOULDER - (ARM_TOP - ARM_LINK[0])] + [ARM_LINK[0]] * 6
 
 
 def clear():
@@ -369,8 +372,8 @@ def build_mesh(b):
         # rounded over on top under the ball, down to big hands near the ground.
         upper = f'upperarm.{side}'
         b.blob(0.1, upper, BRONZE, (s * SHOULDER_BALL_X, y, SHOULDER), squash=(1, 1, 1.1), subdivisions=2)
-        links(upper, x, y, ARM_TOP, 3, ARM_LINK, dome=0.06, bow=0.04)
-        links(f'forearm.{side}', x, y, ELBOW, 4, ARM_LINK, bow=0.04)
+        for i, name in enumerate(ARM_SLABS):
+            links(f'{name}.{side}', x, y, ARM_TOP - i * ARM_LINK[0], 1, ARM_LINK, dome=0.06 if i == 0 else 0.0, bow=0.04)
         # The hand, measured off the front view: a wrist band, a palm of two
         # slabs as wide as the arm, four fingers side by side across its width
         # hanging down and curling a little in towards the body, and a thumb
@@ -515,9 +518,11 @@ BONES = {
 for side, s in (('R', 1), ('L', -1)):
     x, y, hx = s * SHOULDER_X, SHOULDER_Y, s * HIP_X
     BONES.update({
-        f'upperarm.{side}': ((x, y, SHOULDER), (x, y, ELBOW), 'spine'),
-        f'forearm.{side}': ((x, y, ELBOW), (x, y, WRIST), f'upperarm.{side}'),
-        f'hand.{side}': ((x, y, WRIST), (x, y, WRIST - 0.55), f'forearm.{side}'),
+        # Each arm slab its own bone, so the arm can arch (the crawl); the
+        # first hangs from the shoulder ball, the elbow is the third seam.
+        **{f'{name}.{side}': ((x, y, SHOULDER if i == 0 else ARM_TOP - i * ARM_LINK[0]), (x, y, ARM_TOP - (i + 1) * ARM_LINK[0]),
+                              f'{ARM_SLABS[i - 1]}.{side}' if i else 'spine') for i, name in enumerate(ARM_SLABS)},
+        f'hand.{side}': ((x, y, WRIST), (x, y, WRIST - 0.55), f'forearm4.{side}'),
         **{f'leg{i + 1}.{side}': ((hx, 0, LEG_TOP - i * LEG_LINK[0]), (hx, 0, LEG_TOP - (i + 1) * LEG_LINK[0]),
                                    f'leg{i}.{side}' if i else 'hips') for i in range(LEG_SLABS)},
         f'foot.{side}': ((hx, 0, ANKLE), (hx, 0.45, 0.05), f'leg{LEG_SLABS}.{side}'),
@@ -635,15 +640,16 @@ def leg(side, hip, ankle_y, ankle_z, foot=0.0, roll=0.0, level=False, knee=0.0):
     return keys
 
 
-def arm(parent, shoulder, hand_y, hand_z, hand=0.0):
+def arm(parent, shoulder, hand_y, hand_z, hand=0.0, forward=False):
     """Upper arm, forearm and hand turns that put the wrist at (hand_y, hand_z)
-    with the elbow back; parent is the spine's turn and shoulder its (y, z)."""
+    with the elbow back (or forward, arching over the hand); parent is the
+    spine's turn and shoulder its (y, z)."""
     upper, fore = SHOULDER - ELBOW, ELBOW - WRIST
     dy, dz = hand_y - shoulder[0], hand_z - shoulder[1]
     d = min(math.hypot(dy, dz), upper + fore - 1e-4)
     phi = math.atan2(dy, -dz)
     alpha = math.acos(max(-1, min(1, (upper ** 2 + d ** 2 - fore ** 2) / (2 * upper * d))))
-    a1 = phi - alpha
+    a1 = phi + alpha if forward else phi - alpha
     ey, ez = shoulder[0] + upper * math.sin(a1), shoulder[1] - upper * math.cos(a1)
     a2 = math.atan2(hand_y - ey, -(hand_z - ez))
     return a1 - parent, a2 - a1, hand - a2
@@ -848,6 +854,151 @@ def step_over():
     return seconds, pose, 0
 
 
+def chain(lengths, bends, split, parent, start, target, up=True):
+    """Turns for a run of slabs, each its own bone, from start to target (y, z), bending
+    freely at one joint (before slab split) and holding a set curve elsewhere (bends,
+    one for each other joint, positive forward). The free joint goes up and forward
+    of the line from start to target (up), or back and down. parent is the world turn
+    of the bone the first slab hangs from. Returns each slab's turn and the last one's
+    world angle (0 straight down, positive forward)."""
+    def segment(lengths, bends):
+        # The chord's length, and its angle from the first slab's.
+        angle, y, z = 0.0, 0.0, 0.0
+        for i, length in enumerate(lengths):
+            y += length * math.sin(angle)
+            z -= length * math.cos(angle)
+            if i < len(lengths) - 1:
+                angle += bends[i]
+        return math.hypot(y, z), math.atan2(y, -z)
+
+    upper, lower = lengths[:split], lengths[split:]
+    bend_a, bend_b = bends[:split - 1], bends[split - 1:]
+    la, oa = segment(upper, bend_a)
+    lb, ob = segment(lower, bend_b)
+    dy, dz = target[0] - start[0], target[1] - start[1]
+    d = max(abs(la - lb) + 1e-4, min(math.hypot(dy, dz), la + lb - 1e-4))
+    phi = math.atan2(dy, -dz)
+    alpha = math.acos(max(-1, min(1, (la ** 2 + d ** 2 - lb ** 2) / (2 * la * d))))
+    a = phi + alpha if up else phi - alpha
+    ky, kz = start[0] + la * math.sin(a), start[1] - la * math.cos(a)
+    b = math.atan2(target[0] - ky, -(target[1] - kz))
+    first_a, first_b = a - oa, b - ob
+    turns = [first_a - parent, *bend_a, first_b - (first_a + sum(bend_a)), *bend_b]
+    return turns, first_b + sum(bend_b)
+
+
+# A leg bone's rest axes in the world: x across, y down the leg, z forward.
+LEG_REST = Matrix(((1, 0, 0), (0, 0, 1), (0, -1, 0)))
+
+
+def splayed(hip, foot, pelvis, knee_out, bend=0.06):
+    """Turns (Euler XYZ) for a leg's slabs in the crawl: the first from the hip up,
+    back and out (knee_out across for each 1 up) to a reversed knee, swinging
+    forward and back about the hip as the foot moves, and the other four from the
+    knee down to the ankle at foot, curving a little (bend at each joint, more or
+    less as the reach needs). All from the hips' pivot in world axes, the pelvis
+    pitched forward by pelvis. Solved in 3D, so the knee sits out wide of the hip
+    and the foot wider still."""
+    h, n = LEG_LINK[0], LEG_SLABS - 1
+
+    def lower(b):
+        # The lower slabs' chord with b at each joint, and its angle from the first.
+        angle, cy, cz = 0.0, 0.0, 0.0
+        for _ in range(n):
+            cy += h * math.sin(angle)
+            cz -= h * math.cos(angle)
+            angle += b
+        return math.hypot(cy, cz), math.atan2(cy, -cz)
+
+    want = lower(bend)[0]
+    start = Vector((knee_out, -0.75, 1.0)).normalized()
+    # The knee swung about the hip to where the rest of the leg reaches the
+    # foot with its natural curve, or as near as it can.
+    knee_at = lambda t: hip + h * (Matrix.Rotation(t, 3, 'X') @ start)
+    swing = min(((k / 40 - 1) * 1.2 for k in range(81)), key=lambda t: abs((foot - knee_at(t)).length - want))
+    knee = knee_at(swing)
+    reach = (foot - knee).length
+    low, high = 0.0, 0.6
+    for _ in range(40):
+        mid = (low + high) / 2
+        low, high = (mid, high) if lower(mid)[0] > reach else (low, mid)
+    b = (low + high) / 2
+    ob = lower(b)[1]
+    first = (knee - hip).normalized()
+    chord = (foot - knee).normalized()
+    normal = first.cross(chord).normalized()
+
+    def frame(direction):
+        x = (normal - normal.dot(direction) * direction).normalized()
+        return Matrix((x, direction, x.cross(direction))).transposed()
+
+    frames = [frame(first)] + [frame((Matrix.Rotation(-ob + k * b, 3, normal) @ chord).normalized()) for k in range(n)]
+    parent = Matrix.Rotation(-pelvis, 3, 'X') @ LEG_REST
+    turns = []
+    for f in frames:
+        turns.append(tuple((parent.inverted() @ f).to_euler('XYZ')))
+        parent = f
+    return turns
+
+
+def crawl(seconds, speed, tip, hip, back, track=SHOULDER_X, knee_out=0.6, bob=0.03, lift=0.2, reach=0.5, wrist=0.35, curl=0.9, raise_=0.35):
+    """The run: the soldier robots' fast crawl from the film (Andrew's clip and his
+    marked-up still). The whole body tips forward (tip, radians) until it's level,
+    the pelvis in line with the back, the head turned up to look ahead. The legs come
+    out of its rear end, each kinked up and back at a reversed knee after its first
+    slab, the rest reaching down to the foot; the arms reach out in front as
+    forelegs, rising from the shoulder in an arc to an elbow up above the back,
+    (bending at the second seam), then down to the hand. It trots: each leg with the arm on the other side.
+    hip is the height of the hips' pivot and back how far it sits behind the robot's
+    middle (so the long body is centred on it); reach is how far ahead of the
+    shoulders the hands come down, wrist how far they point forward planted (on
+    their fingertips) and curl how much more as they swing through, raise_ how
+    high they're carried; track is how far out from the middle the feet land and knee_out
+    how far the knees turn out (as part of which way they point, with up and back)."""
+    stride = speed * seconds
+    duty = 0.5
+    hand_length = 0.55
+    lean = 0.06   # the torso a little further over than the pelvis
+
+    def pose(t):
+        p = t / seconds
+        height = hip + bob * math.cos(4 * math.pi * (p - 0.1))
+        rock = 0.02 * math.sin(4 * math.pi * p)
+        wag = 0.04 * math.sin(2 * math.pi * p)
+        result = {'hips': {'location': (0, height - HIP, back), 'rotation': (-tip - rock, 0, 0)},
+                  'spine': {'rotation': (-lean, 0, wag)},
+                  'head': {'rotation': (tip + lean - 0.35, 0, -wag)}}
+        pelvis = tip + rock
+        # Positions from here on are from the hips' pivot (the hips bone's head).
+        for side, offset, s in (('R', 0.0, 1), ('L', 0.5, -1)):
+            y, up, pitch = gait((p + offset) % 1, stride, duty, lift)
+            hip_joint = Matrix.Rotation(-pelvis, 3, 'X') @ Vector((s * HIP_X, 0, LEG_TOP - HIP))
+            target = Vector((s * track, y - 0.15, ANKLE + up - height))
+            for i, turn in enumerate(splayed(hip_joint, target, pelvis, s * knee_out)):
+                result[f'leg{i + 1}.{side}'] = {'rotation': turn}
+            result[f'foot.{side}'] = {'level': pitch}
+        # The shoulders, swung round to the front, low: the spine's pivot
+        # turned with the pelvis, and the shoulder from it with the spine.
+        bend = pelvis + lean
+        turned = lambda y, z, a: (y * math.cos(a) + z * math.sin(a), -y * math.sin(a) + z * math.cos(a))
+        pivot, off = turned(0, 2.05 - HIP, pelvis), turned(SHOULDER_Y, SHOULDER - 2.05, bend)
+        shoulder = (pivot[0] + off[0], pivot[1] + off[1])
+        for side, offset in (('R', 0.5), ('L', 0.0)):
+            q = (p + offset) % 1
+            y, _, _ = gait(q, stride, duty, 0)
+            swing = math.sin(math.pi * (q - duty) / (1 - duty)) if q >= duty else 0.0
+            angle = wrist + curl * swing
+            # The fingertips (0.11 m below the hand bone's tip) on the ground.
+            hand_y = shoulder[0] + reach + y - hand_length * math.sin(angle)
+            hand_z = hand_length * math.cos(angle) + 0.11 + raise_ * swing - height
+            turns, last = chain(ARM_LENGTHS, [-0.35, -0.08, -0.08, -0.08, -0.08], 2, -bend, shoulder, (hand_y, hand_z))
+            for name, turn in zip(ARM_SLABS, turns):
+                result[f'{name}.{side}'] = {'rotation': (turn, 0, 0)}
+            result[f'hand.{side}'] = {'rotation': (angle - last, 0, 0)}
+        return result
+    return seconds, pose, stride
+
+
 CLIPS = {
     'idle': idle(),
     # speed m/s, share of the cycle each foot is down, foot lift, hip height,
@@ -858,10 +1009,9 @@ CLIPS = {
     # level, swaying over each foot, the feet landing a little inside the
     # hips, and the arms hanging loose.
     'walk': walking(2.4, 1.1, 0.55, 0.1, 1.645, 0.055, 0.08, 0.02, sway=0.08, track=0.21, tilt=0.05, roll=0.62),
-    # The run: the same heavy heel-to-toe roll, a long loping stride with both
-    # feet briefly off the ground, sinking a little onto each foot, leaning
-    # in, the arms swinging loose from bent elbows.
-    'run': walking(1.0, 3.0, 0.4, 0.3, 1.63, -0.04, 0.18, 0.08, sway=0.04, track=0.2, tilt=0.03, roll=0.4, elbow=0.35),
+    # The run: down on all fours in the soldier robots' crawl (Andrew's film
+    # clip), a quick trot.
+    'run': crawl(0.65, 3.0, 1.45, 1.2, -0.7, reach=1.5),
     'turn': turn(),
     'push': push(),
     'stepOver': step_over(),
@@ -908,6 +1058,14 @@ def animate(rig):
         for frame in range(frames + 1):
             # The last frame matches the first, so loops close.
             keys = pose((frame % frames if name != 'stepOver' else frame) / FPS)
+            # Every bone keyed, at rest where the clip doesn't move it, so
+            # nothing's left over from another clip; but the push, laid
+            # over the walk, only keys the upper body, and only that.
+            for bone in rig.pose.bones:
+                if name != 'push' or bone.name in keys or bone.name.startswith(tuple(ARM_SLABS)):
+                    keys.setdefault(bone.name, {}).setdefault('rotation', (0, 0, 0))
+            if name != 'push':
+                keys['hips'].setdefault('location', (0, 0, 0))
             level(rig, keys)
             for bone_name, key in keys.items():
                 bone = rig.pose.bones[bone_name]
