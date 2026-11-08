@@ -103,7 +103,7 @@ const pause = createPause(renderer.domElement);
 const thumbnail = new URLSearchParams(location.search).has('thumbnail');
 if (thumbnail) document.body.dataset.thumbnail = '';
 
-// Tuning, folded away top right.
+// Tuning, folded away top left.
 const gui = new GUI({ title: 'tuning' });
 const moving = gui.addFolder('robot');
 moving.add(movement, 'walk', 0.5, 4, 0.1).name('walk (m/s)');
@@ -177,6 +177,16 @@ costs.close();
 renderer.info.autoReset = false;
 let frames = 0, since = performance.now();
 gui.close();
+// Hidden until T (after the garden's entered, and not while typing in it).
+// Cmd+T would be nicer, but browsers keep that for a new tab and never pass
+// it to the page.
+gui.hide();
+addEventListener('keydown', event => {
+  if (event.code !== 'KeyT' || event.repeat || event.metaKey || event.ctrlKey || event.altKey) return;
+  if (!('entered' in document.body.dataset)) return;
+  if (event.target instanceof Element && event.target.closest('input, select')) return;
+  gui.show(gui._hidden);
+});
 // Anything tuned while paused is drawn, though the garden's frozen.
 gui.onChange(() => { redraw = true; });
 
