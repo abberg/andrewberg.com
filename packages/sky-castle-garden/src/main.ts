@@ -53,10 +53,18 @@ await built(0.1);
 const world = new RAPIER.World({ x: 0, y: -9.81, z: 0 });
 world.timestep = 1 / 60;
 
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+// No antialias on the canvas itself: every frame goes through the composer's
+// multisampled target (post.ts), so the canvas's own would be wasted work.
+const renderer = new THREE.WebGLRenderer({ antialias: false });
+// The two biggest levers on how hard the GPU works (and how warm the laptop
+// gets), both in the performance folder: how many pixels are drawn for each
+// one on screen, and how often the sun's shadows are drawn again. Only the
+// wind and the stones move them, so every other frame doesn't show.
+const perf = { resolution: 1.5, 'shadows every': 2 };
+renderer.setPixelRatio(Math.min(devicePixelRatio, perf.resolution));
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
+renderer.shadowMap.autoUpdate = false;
 document.body.append(renderer.domElement);
 
 const scene = new THREE.Scene();
@@ -150,17 +158,27 @@ watery.close();
 gui.add(walls, 'visible').name('show invisible walls');
 // What a frame costs: frames a second, and draw calls in all its passes
 // (shadows, the water's reflection and the view).
-const cost = { fps: 0, 'draw calls': 0, triangles: '' };
+const cost = { fps: 0, 'draw calls': 0, triangles: '', 'cap at 60 fps': true };
 gui.add(flight, 'replay').name('replay the fly-in');
 finish.tune(gui);
 const costs = gui.addFolder('performance');
 costs.add(cost, 'fps').listen().disable();
 costs.add(cost, 'draw calls').listen().disable();
 costs.add(cost, 'triangles').listen().disable();
+// On a 120 Hz screen, drawing every refresh doubles the work (and the heat)
+// for little that shows.
+costs.add(cost, 'cap at 60 fps');
+costs.add(perf, 'resolution', 0.75, 2, 0.25).name('pixels per screen pixel').onChange(() => {
+  renderer.setPixelRatio(Math.min(devicePixelRatio, perf.resolution));
+  finish.resize();
+});
+costs.add(perf, 'shadows every', 1, 4, 1).name('sun shadows every n frames');
 costs.close();
 renderer.info.autoReset = false;
 let frames = 0, since = performance.now();
 gui.close();
+// Anything tuned while paused is drawn, though the garden's frozen.
+gui.onChange(() => { redraw = true; });
 
 // Whether the start screen's been clicked through, the first frame drawn,
 // and the still frame behind the start screen needs drawing again.
@@ -198,10 +216,21 @@ timer.connect(document);
 const direction = new THREE.Vector2();
 // Straight down from the robot, for the ground its shadow falls on.
 const down = new RAPIER.Ray({ x: 0, y: 0, z: 0 }, { x: 0, y: -1, z: 0 });
-let accumulator = 0, seconds = 0;
+let accumulator = 0, seconds = 0, next = 0, pausedDrawn = false, shadowed = 0;
 renderer.setAnimationLoop(time => {
   // On the start screen, one still frame is enough (drawn again on resize).
   if (!entered && drawn && !redraw) return;
+  // Paused, the garden stands still behind the menu: the frame already drawn
+  // will do. The clock still ticks, so resuming doesn't jump, and the music
+  // still hears the volume and the muffling.
+  if (pause.paused && pausedDrawn && !redraw) { timer.update(time); soundtrack.update(true); return; }
+  // At most 60 frames a second, however fast the screen refreshes: each
+  // frame waits for its turn, a 60th of a second after the last one's.
+  if (cost['cap at 60 fps'] && !redraw) {
+    if (time < next - 1) return;
+    next = Math.max(next + 1000 / 60, time);
+  }
+  pausedDrawn = pause.paused;
   redraw = false;
   cost['draw calls'] = renderer.info.render.calls;
   cost.triangles = `${(renderer.info.render.triangles / 1e6).toFixed(1)} M`;
@@ -257,6 +286,13 @@ renderer.setAnimationLoop(time => {
   updateLilies(seconds);
   updateClouds(seconds, camera);
   reflectWater(renderer, scene, camera);
+  // Only now: the reflection's drawn with the sun's shadows as they were, and
+  // the robot's ink camera (which can't see the sun) mustn't take the update.
+  // Always on a still frame (the start screen, or tuning while paused).
+  if (held || ++shadowed >= perf['shadows every']) {
+    shadowed = 0;
+    renderer.shadowMap.needsUpdate = true;
+  }
   finish.render();
   // The first frame's drawn: the bar gives way to the start screen.
   if (!drawn) {
