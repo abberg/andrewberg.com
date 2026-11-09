@@ -16,7 +16,9 @@ const SOUNDS = [1, 2, 3, 4].map(k => `./sounds/step-${k}.m4a`);
 // (m), and lifted again once it's this far above it.
 const DOWN = 0.015, LIFTED = 0.08;
 
-export function createFootsteps(robot: THREE.Object3D) {
+// lifts, if given, is how far each foot is lifted in the clip (robot.ts),
+// which on stairs is truer than where it ends up, set on a higher step.
+export function createFootsteps(robot: THREE.Object3D, lifts?: () => number[]) {
   const feet = ['footL', 'footR'].map(name => robot.getObjectByName(name)).filter(Boolean) as THREE.Object3D[];
   // Where each foot's bone stands planted, above the robot's feet, as in its
   // rest pose.
@@ -61,7 +63,7 @@ export function createFootsteps(robot: THREE.Object3D) {
       base.setFromMatrixPosition(robot.matrixWorld);
       const away = camera.position.distanceTo(base);
       feet.forEach((foot, k) => {
-        const height = at.setFromMatrixPosition(foot.matrixWorld).y - base.y - standing[k];
+        const height = lifts ? lifts()[k] : at.setFromMatrixPosition(foot.matrixWorld).y - base.y - standing[k];
         if (down[k] && height > LIFTED) down[k] = false;
         else if (!down[k] && height < DOWN) {
           down[k] = true;

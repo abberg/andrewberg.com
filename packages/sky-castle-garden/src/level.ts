@@ -37,6 +37,15 @@ export const WEST = -52, WEST_LAWN = -44.9, EAST_LAWN = 46.3, EAST = 53.3, MOATS
 const WALLS = 0x0002;
 export const WALL_GROUPS = (WALLS << 16) | 0xffff;
 export const CAMERA_GROUPS = (0x0001 << 16) | (0xffff & ~WALLS);
+// Stairs are climbed on a hidden ramp laid over their noses (RAMPS), so the
+// robot keeps its pace up and down them, while its feet and hands find the
+// steps themselves (FEET_GROUPS, robot.ts): those that the ramp hides are
+// in a group of their own (TREADS), which only the feet meet.
+const RAMPS = 0x0004, TREADS = 0x0008;
+export const RAMP_GROUPS = (RAMPS << 16) | 0xffff;
+export const TREAD_GROUPS = (TREADS << 16) | 0xffff;
+export const FEET_GROUPS = (0x0001 << 16) | (0xffff & ~WALLS & ~RAMPS);
+export const BODY_GROUPS = (0xffff << 16) | (0xffff & ~TREADS);
 
 // Paths, as x and z extents: the main axis, three branches west and one
 // east, and stubs to the pools.
@@ -454,6 +463,16 @@ export function buildLevel(world: RAPIER.World, scene: THREE.Scene) {
     mesh.position.x -= shift;
     return mesh;
   };
+  // A hidden ramp, half as wide as given, its top a centimetre over the
+  // line from one end of a stair to the other (x, y, z).
+  const ramp = (half: number, from: number[], to: number[]) => {
+    const a = new THREE.Vector3(...from), b = new THREE.Vector3(...to), along = b.clone().sub(a);
+    const slope = Math.atan2(along.y, Math.hypot(along.x, along.z)), turn = Math.atan2(along.x, along.z);
+    const rotation = new THREE.Quaternion().setFromEuler(new THREE.Euler(-slope, turn, 0, 'YXZ'));
+    const middle = a.add(b).multiplyScalar(0.5).add(new THREE.Vector3(0, 0.01 - 0.2, 0).applyQuaternion(rotation));
+    world.createCollider(RAPIER.ColliderDesc.cuboid(half, 0.2, along.length() / 2).setTranslation(middle.x, middle.y, middle.z)
+      .setRotation(rotation).setCollisionGroups(RAMP_GROUPS));
+  };
   const paving = (x0: number, x1: number, z0: number, z1: number) =>
     box((x0 + x1) / 2, 0.02, (z0 + z1) / 2, x1 - x0, 0.04, z1 - z0, path, 0, false).castShadow = false;
 
@@ -622,11 +641,13 @@ export function buildLevel(world: RAPIER.World, scene: THREE.Scene) {
     scene.add(bridgeBranch(line, rootHoles(line), z => z > from && z < land ? cy + Math.sqrt(radius * radius - (z - cz) ** 2) : spring));
   }
   paving(-2.5, 2.5, -27.3, 0);
-  // Eight 0.4 m steps down off the platform onto it.
+  // Eight 0.4 m steps down off the platform onto it, and the ramp over
+  // their noses that the robot really walks on.
   for (let i = 0; i < 7; i++) {
     const top = PLATFORM_TOP - 0.4 * (i + 1), z0 = -27.3 + 7.1 / 8 * i;
     step(0, top / 2, z0 + 7.1 / 16, 5, top, 7.1 / 8);
   }
+  ramp(2.5, [0, PLATFORM_TOP, -27.3], [0, 0, -27.3 + 7.1]);
 
   // Paths: the main axis, three branches west and one east, and stubs to the pools.
   for (const [x0, x1, z0, z1] of PATHS) paving(x0, x1, z0, z1);
@@ -658,17 +679,11 @@ export function buildLevel(world: RAPIER.World, scene: THREE.Scene) {
   // show: it walks up a hidden ramp laid over their noses.
   const run = 0.475, count = ARCH.steps, landing = ARCH.stair + run * count;
   for (let i = 0; i < count; i++) {
-    const top = 0.3 * (i + 1);
-    add(shifted(new THREE.BoxGeometry(ARCH.half * 2, top + 0.3, run)), blockStone).position.set(0, (top - 0.3) / 2, ARCH.stair + run * (i + 0.5));
+    const top = 0.3 * (i + 1), z = ARCH.stair + run * (i + 0.5);
+    add(shifted(new THREE.BoxGeometry(ARCH.half * 2, top + 0.3, run)), blockStone).position.set(0, (top - 0.3) / 2, z);
+    world.createCollider(RAPIER.ColliderDesc.cuboid(ARCH.half, top / 2, run / 2).setTranslation(0, top / 2, z).setCollisionGroups(TREAD_GROUPS));
   }
-  {
-    const length = Math.hypot(run * count, ARCH.floor), slope = Math.atan2(ARCH.floor, run * count);
-    const middle = new THREE.Vector3(0, ARCH.floor / 2, ARCH.stair + run * count / 2);
-    middle.y -= Math.cos(slope) * 0.2;
-    middle.z += Math.sin(slope) * 0.2;
-    world.createCollider(RAPIER.ColliderDesc.cuboid(ARCH.half, 0.2, length / 2).setTranslation(middle.x, middle.y, middle.z)
-      .setRotation(new THREE.Quaternion().setFromEuler(new THREE.Euler(-slope, 0, 0))));
-  }
+  ramp(ARCH.half, [0, 0, ARCH.stair], [0, ARCH.floor, landing]);
   box(0, (ARCH.floor - 0.3) / 2, (landing + ARCH.back) / 2, ARCH.half * 2, ARCH.floor + 0.3, ARCH.back - landing, passageFloor);
   box(0, ARCH.floor + ARCH.height / 2, ARCH.back + 0.5, ARCH.half * 2 + 0.6, ARCH.height, 1, door);
 

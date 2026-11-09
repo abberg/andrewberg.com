@@ -25,6 +25,27 @@ export type RobotState = {
   pushing: boolean;
   // How far through a step-over, 0 to 1, or null.
   stepping: number | null;
+  // The height of the ground under (x, z), looking down from y as far as
+  // depth, or null: the steps themselves (feet), or the ramps over them
+  // that the robot really moves on (body).
+  ground: (x: number, y: number, z: number, depth: number, under: 'feet' | 'body') => number | null;
+};
+
+// Feet and hands on uneven ground. The clips are all made on the flat, but
+// on stairs (and rims and plinths) each foot, and each hand in the run,
+// looks down for the ground under it, a little ahead of it while it swings
+// so it lifts in time to clear the next riser, and its limb is bent and
+// turned to set it down there. The hips drop to let the limb on the
+// lowest step reach it, and in the run the body tips up or down with the
+// stair, like an animal climbing.
+const FEET = { ahead: 0.5, toe: 0.25, settle: 0.05, hips: 0.08, lowest: -0.8, slope: 0.15, tip: 0.9, lean: 0.2 };
+const X_AXIS = new THREE.Vector3(1, 0, 0), UP = new THREE.Vector3(0, 1, 0);
+type Limb = {
+  root: THREE.Object3D; bends: THREE.Object3D[]; end: THREE.Object3D; foot: boolean;
+  // Which way it bends when it's straight, its end's lowest height above
+  // the robot's feet in the clips (planted), how far above that it is now
+  // in the clip, and how far the ground under it is above the robot's feet.
+  knee: number; base: number; lift: number; offset: number;
 };
 
 // An ink outline: the mesh again, drawn from behind and pushed out along its
@@ -217,6 +238,149 @@ export function createRobot(gltf: GLTF) {
   let phase = 0;
   const ease = (from: number, to: number, dt: number) => from + THREE.MathUtils.clamp(to - from, -dt / FADE, dt / FADE);
 
+  // The limbs that stand on things.
+  const bone = (name: string) => object.getObjectByName(name)!;
+  const hips = bone('hips');
+  const limbs: Limb[] = [];
+  for (const side of ['L', 'R']) {
+    limbs.push({ root: bone(`leg1${side}`), bends: [2, 3, 4, 5].map(k => bone(`leg${k}${side}`)), end: bone(`foot${side}`), foot: true, knee: 1, base: 0, lift: 0, offset: 0 });
+  }
+  for (const side of ['L', 'R']) {
+    limbs.push({ root: bone(`upperarm${side}`), bends: ['upperarm2', 'upperarm3', 'forearm', 'forearm2', 'forearm3', 'forearm4'].map(k => bone(`${k}${side}`)),
+      end: bone(`hand${side}`), foot: false, knee: 1, base: 0, lift: 0, offset: 0 });
+  }
+  // Everything stand() moves, and how the clips left it: the mixer only
+  // writes a bone again when its clips give it a new pose, so it's put
+  // back before each frame's clips, or the changes would pile up.
+  const moved = [hips, ...limbs.flatMap(limb => [limb.root, ...limb.bends, limb.end])];
+  const posed = moved.map(b => ({ position: b.position.clone(), quaternion: b.quaternion.clone() }));
+  const unpose = () => moved.forEach((b, i) => { b.position.copy(posed[i].position); b.quaternion.copy(posed[i].quaternion); });
+  const keep = () => moved.forEach((b, i) => { posed[i].position.copy(b.position); posed[i].quaternion.copy(b.quaternion); });
+  const angle = (b: THREE.Object3D) => 2 * Math.atan2(b.quaternion.x, b.quaternion.w);
+  const bend = (limb: Limb) => limb.bends.reduce((sum, b) => sum + angle(b), 0);
+  // Measured from the clips: where each end comes lowest (feet in the walk
+  // and run, hands in the run), and which way each limb bends.
+  {
+    const at = new THREE.Vector3(), sums = limbs.map(() => 0);
+    limbs.forEach(limb => { limb.base = Infinity; });
+    for (const name of ['walk', 'run'] as const) {
+      for (const n of loops) { lower[n].setEffectiveWeight(n === name ? 1 : 0); upper[n].setEffectiveWeight(n === name ? 1 : 0); }
+      for (let k = 0; k < 24; k++) {
+        lower[name].time = upper[name].time = k / 24 * lower[name].getClip().duration;
+        mixer.update(0);
+        object.updateMatrixWorld(true);
+        limbs.forEach((limb, i) => {
+          if (limb.foot || name === 'run') limb.base = Math.min(limb.base, limb.end.getWorldPosition(at).y - object.getWorldPosition(new THREE.Vector3()).y);
+          if (limb.foot ? name === 'walk' : name === 'run') sums[i] += bend(limb);
+        });
+      }
+      lower[name].time = upper[name].time = 0;
+    }
+    for (const n of loops) { lower[n].setEffectiveWeight(n === 'idle' ? 1 : 0); upper[n].setEffectiveWeight(n === 'idle' ? 1 : 0); }
+    limbs.forEach((limb, i) => { limb.knee = Math.sign(sums[i]) || 1; });
+  }
+
+  const root = new THREE.Vector3(), end = new THREE.Vector3(), probe = new THREE.Vector3(), target = new THREE.Vector3();
+  const forward = new THREE.Vector3(), side = new THREE.Vector3(), turn = new THREE.Quaternion(), parent = new THREE.Quaternion();
+  const own = new THREE.Quaternion(), twist = new THREE.Quaternion(), from = new THREE.Vector3(), to = new THREE.Vector3();
+  const footTurn = [new THREE.Quaternion(), new THREE.Quaternion()];
+  const saved: THREE.Quaternion[] = Array.from({ length: 6 }, () => new THREE.Quaternion());
+  let drop = 0, slope = 0;
+  // Turn a bone (by a world-space rotation, about its own origin).
+  const rotate = (b: THREE.Object3D, by: THREE.Quaternion) => {
+    b.parent!.getWorldQuaternion(parent);
+    b.getWorldQuaternion(own);
+    b.quaternion.copy(parent.invert().multiply(by).multiply(own));
+    b.updateWorldMatrix(false, true);
+  };
+  // Bend a limb more or less, as a share of the bend the clip gives it (a
+  // little more, so a straight one still bends), until it reaches as far as
+  // the target, then swing it from its root to point there.
+  const reach = (limb: Limb, goal: THREE.Vector3) => {
+    limb.root.getWorldPosition(root);
+    const want = goal.distanceTo(root);
+    const angles = limb.bends.map(angle), total = angles.reduce((a, b) => a + b, 0);
+    const knee = Math.abs(total) > 0.05 ? Math.sign(total) : limb.knee;
+    limb.bends.forEach((b, j) => saved[j].copy(b.quaternion));
+    const apply = (k: number) => {
+      limb.bends.forEach((b, j) => b.quaternion.copy(saved[j]).multiply(twist.setFromAxisAngle(X_AXIS, k * (angles[j] + knee * 0.03))));
+      limb.root.updateWorldMatrix(false, true);
+      return limb.end.getWorldPosition(end).distanceTo(root);
+    };
+    let k = 0, reached = apply(0);
+    for (let i = 0; i < 4 && Math.abs(reached - want) > 0.003; i++) {
+      const slope = (apply(k + 0.01) - reached) / 0.01;
+      if (Math.abs(slope) < 1e-4) { apply(k); break; }
+      k = THREE.MathUtils.clamp(k + (want - reached) / slope, -0.9, 3);
+      reached = apply(k);
+    }
+    from.subVectors(limb.end.getWorldPosition(end), root).normalize();
+    to.subVectors(goal, root).normalize();
+    rotate(limb.root, turn.setFromUnitVectors(from, to));
+  };
+  // The highest ground under a point and, while it swings, a little ahead.
+  const groundUnder = (state: RobotState, at: THREE.Vector3, base: number, ahead: number[]) => {
+    let top: number | null = null;
+    for (const d of ahead) {
+      probe.copy(at).addScaledVector(forward, d);
+      const h = state.ground(probe.x, base + 2, probe.z, 3.5, 'feet');
+      if (h !== null && (top === null || h > top)) top = h;
+    }
+    return top;
+  };
+  const stand = (state: RobotState, dt: number) => {
+    const feet = weight.step > 0.99 ? 0 : 1 - weight.step, hands = weight.run * feet * (1 - weight.push);
+    object.updateWorldMatrix(true, true);
+    const y = object.getWorldPosition(probe).y, at = probe.clone();
+    forward.set(0, 0, -1).transformDirection(object.matrixWorld).setY(0).normalize();
+    // How steep the ground is, along the way it's facing.
+    const behind = state.ground(at.x - forward.x * 1.2, y + 2, at.z - forward.z * 1.2, 4, 'body');
+    const before = state.ground(at.x + forward.x * 1.2, y + 2, at.z + forward.z * 1.2, 4, 'body');
+    const rise = behind !== null && before !== null ? THREE.MathUtils.clamp((before - behind) / 2.4, -1, 1) : 0;
+    slope += (rise - slope) * (1 - Math.exp(-dt / FEET.slope));
+    // Where each limb's end is in the clip and the ground under it.
+    limbs.forEach((limb, i) => {
+      limb.end.getWorldPosition(end);
+      limb.lift = Math.max(0, end.y - y - limb.base);
+      const swinging = limb.lift > 0.03;
+      const top = groundUnder(state, end, y, limb.foot ? (swinging ? [0, FEET.toe, FEET.ahead] : [0, FEET.toe]) : (swinging ? [0, FEET.ahead] : [0]));
+      const offset = top === null ? 0 : THREE.MathUtils.clamp(top - y, -1.4, 0.9);
+      limb.offset += (offset - limb.offset) * (1 - Math.exp(-dt / FEET.settle));
+      if (limb.foot) limb.end.getWorldQuaternion(footTurn[i]);
+    });
+    if (feet <= 0) return;
+    // Tip the body with the stair: right up with it in the run, and leaning
+    // a little into the climb at a walk.
+    const tip = Math.atan(slope) * (weight.run * FEET.tip - (1 - weight.run) * FEET.lean * (slope > 0 ? 1 : 0)) * feet;
+    if (Math.abs(tip) > 1e-4) rotate(hips, turn.setFromAxisAngle(side.crossVectors(forward, UP).normalize(), tip));
+    // Drop the hips as far as the limb that has furthest to reach needs.
+    let need = 0;
+    limbs.forEach(limb => {
+      const share = limb.foot ? feet : hands;
+      if (share <= 0) return;
+      const want = y + limb.offset + limb.lift + limb.base;
+      need = Math.min(need, share * (want - limb.end.getWorldPosition(end).y));
+    });
+    drop += (Math.max(FEET.lowest, need) - drop) * (1 - Math.exp(-dt / FEET.hips));
+    hips.getWorldPosition(target).y += drop;
+    hips.position.copy(hips.parent!.worldToLocal(target));
+    hips.updateWorldMatrix(false, true);
+    // And set each one down where it stands.
+    limbs.forEach((limb, i) => {
+      const share = limb.foot ? feet : hands;
+      if (share <= 0.01) return;
+      limb.end.getWorldPosition(target);
+      target.y += share * (y + limb.offset + limb.lift + limb.base - target.y);
+      reach(limb, target);
+      // Feet flat on the step, as they were in the clip.
+      if (limb.foot) {
+        limb.end.parent!.getWorldQuaternion(parent);
+        limb.end.quaternion.copy(parent.invert().multiply(footTurn[i]));
+        limb.end.updateWorldMatrix(false, true);
+      }
+    });
+  };
+
   return {
     object,
     update(dt: number, state: RobotState) {
@@ -246,8 +410,14 @@ export function createRobot(gltf: GLTF) {
       }
       push.setEffectiveWeight(weight.push * free);
       stepOver.setEffectiveWeight(weight.step);
+      unpose();
       mixer.update(dt);
+      keep();
+      stand(state, dt);
     },
+    // How far each foot is lifted in the clip, before it's set on the
+    // ground (footsteps.ts).
+    get lifts() { return [limbs[0].lift, limbs[1].lift]; },
   };
 }
 export type Robot = ReturnType<typeof createRobot>;

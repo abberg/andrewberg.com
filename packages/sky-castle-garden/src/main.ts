@@ -89,8 +89,9 @@ const gltf = await robotGlb;
 progress.robot = 1;
 
 const input = createInput(renderer.domElement);
-const player = createPlayer(world, scene, { ...spawn, y: PLATFORM_TOP }, createRobot(gltf));
-const steps = createFootsteps(gltf.scene);
+const robot = createRobot(gltf);
+const player = createPlayer(world, scene, { ...spawn, y: PLATFORM_TOP }, robot);
+const steps = createFootsteps(gltf.scene, () => robot.lifts);
 const soundtrack = createMusic();
 const follower = createFollowCamera(camera, world, player.collider, spawn.yaw);
 const flight = createFlyIn();

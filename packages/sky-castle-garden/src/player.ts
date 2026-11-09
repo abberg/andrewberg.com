@@ -1,5 +1,6 @@
 import RAPIER from '@dimforge/rapier3d-compat';
 import * as THREE from 'three';
+import { BODY_GROUPS, CAMERA_GROUPS, FEET_GROUPS } from './level';
 import type { Robot } from './robot';
 
 // The robot stands about 4 m tall, and collides as a capsule.
@@ -47,6 +48,10 @@ export function createPlayer(world: RAPIER.World, scene: THREE.Scene, spawn: { x
   // For the animation: how fast the feet are really covering ground (less
   // than speed when it's held up), and whether it shoved anything last step.
   let ground = 0, pushing = false;
+  // How steeply it's climbing (rise over run). Going up a slope, the
+  // controller slides what it's asked for along the slope and it covers
+  // less ground; asked for a little more, it keeps its pace along the slope.
+  let climb = 0;
   const desired = new THREE.Vector3();
   const ahead = new THREE.Vector3();
 
@@ -126,6 +131,17 @@ export function createPlayer(world: RAPIER.World, scene: THREE.Scene, spawn: { x
     fall = 0;
   };
 
+  // The ground under a point, for the feet (the steps) or the body (the
+  // ramps over them): fixed things only, not the stonework it pushes about.
+  const down = new RAPIER.Ray({ x: 0, y: 0, z: 0 }, { x: 0, y: -1, z: 0 });
+  const groundAt = (x: number, y: number, z: number, depth: number, under: 'feet' | 'body') => {
+    down.origin = { x, y, z };
+    // Not solid: from inside something, it finds the bottom of it.
+    const hit = world.castRay(down, depth, false, RAPIER.QueryFilterFlags.EXCLUDE_DYNAMIC,
+      under === 'feet' ? FEET_GROUPS : CAMERA_GROUPS, collider);
+    return hit ? y - hit.timeOfImpact : null;
+  };
+
   return {
     collider,
     feet,
@@ -156,8 +172,10 @@ export function createPlayer(world: RAPIER.World, scene: THREE.Scene, spawn: { x
       // ground keeps it on slopes and down steps.
       fall = controller.computedGrounded() ? 0 : fall - GRAVITY * dt;
       ahead.set(-Math.sin(yaw), 0, -Math.cos(yaw));
-      desired.set(ahead.x * speed * dt, fall * dt, ahead.z * speed * dt);
-      controller.computeColliderMovement(collider, desired);
+      const along = Math.hypot(1, climb);
+      desired.set(ahead.x * speed * dt * along, fall * dt, ahead.z * speed * dt * along);
+      // (Not meeting the steps under the ramps, only the ramps.)
+      controller.computeColliderMovement(collider, desired, undefined, BODY_GROUPS);
       const moved = controller.computedMovement();
       const grounded = controller.computedGrounded();
       if (grounded) fall = 0;
@@ -171,7 +189,11 @@ export function createPlayer(world: RAPIER.World, scene: THREE.Scene, spawn: { x
         tryStepOver();
         if (stepping) return;
       }
-      ground = THREE.MathUtils.lerp(ground, Math.max(0, progress) / dt, 0.3);
+      // Covered along the ground, up and down slopes too, so the stride on
+      // a stair is as long as on the flat.
+      const covered = progress > 0 ? Math.hypot(progress, moved.y) : 0;
+      ground = THREE.MathUtils.lerp(ground, covered / dt, 0.3);
+      climb = THREE.MathUtils.lerp(climb, grounded && progress > speed * dt * 0.3 ? THREE.MathUtils.clamp(moved.y / progress, 0, 0.7) : 0, 0.2);
       const at = body.translation();
       body.setNextKinematicTranslation({ x: at.x + moved.x, y: at.y + moved.y, z: at.z + moved.z });
       feet.set(at.x + moved.x, at.y + moved.y - HEIGHT / 2, at.z + moved.z);
@@ -195,6 +217,7 @@ export function createPlayer(world: RAPIER.World, scene: THREE.Scene, spawn: { x
       robot.update(dt, {
         speed: stepping ? 0 : ground, walk: movement.walk, run: movement.run,
         turning: (yaw - previousYaw) / step, pushing: pushing && !stepping, stepping: stepping?.t ?? null,
+        ground: groundAt,
       });
     },
     get mesh() { return mesh; },
