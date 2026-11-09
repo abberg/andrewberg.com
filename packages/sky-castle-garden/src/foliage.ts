@@ -1,7 +1,7 @@
 import RAPIER from '@dimforge/rapier3d-compat';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { cityFront, CROWN as CITY_TOP } from './city';
+import { ARCH, cityFront, CROWN as CITY_TOP } from './city';
 import { DRIFTS, drifting } from './drift';
 import { bothSidesAlike, wander } from './growth';
 import { EAST, EAST_LAWN, lawnSouth, ledgeEdge, ledgeFront, MOATS_FROM, northEdge, onSunk, PATHS, OUTER, POOLS, WALL_GROUPS, WEST, WEST_LAWN } from './level';
@@ -928,11 +928,17 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
   // the lawn and round the ruins.
   const tufts: THREE.Matrix4[] = [], blooms: THREE.Matrix4[] = [];
   gardenFlowers.length = 0;
-  const tuft = (x: number, z: number, tall: number, flowering = false) => {
+  // Drawn for even where it isn't kept, so the rest of the planting stays put.
+  const tuft = (x: number, z: number, tall: number, flowering = false, keep = true) => {
     if (!flowering && random() < 0.08) flowering = true;
-    (flowering ? blooms : tufts).push(new THREE.Matrix4().compose(new THREE.Vector3(x, 0, z),
+    (keep ? flowering ? blooms : tufts : []).push(new THREE.Matrix4().compose(new THREE.Vector3(x, 0, z),
       new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), random() * Math.PI * 2), new THREE.Vector3(tall * (0.8 + random() * 0.6), tall, tall * (0.8 + random() * 0.6))));
   };
+  // The main path runs on into stone at both ends: the causeway past the
+  // north lip, and the arch's steps. A tuft's blades reach half a metre or
+  // so round it, so none within that of either, or they'd show on the
+  // causeway and up through the steps.
+  const atEnds = (x: number, z: number) => Math.abs(x) < ARCH.half + 0.1 && (z < northEdge(x) + 0.6 || z > ARCH.stair - 0.6);
   PATHS.forEach(([x0, x1, z0, z1], p) => {
     const patches = wander(p * 31 + 7, 4);
     // Along each side: a line of the path's edge, which way is out of it.
@@ -947,7 +953,7 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
         const [tx, tz] = across ? [x + off, z] : [x, z + off];
         if (PATHS.some(([px0, px1, pz0, pz1]) => tx > px0 + 0.8 && tx < px1 - 0.8 && tz > pz0 + 0.8 && tz < pz1 - 0.8)) continue;
         if (POOLS.some(([px, pz]) => Math.hypot(tx - px, tz - pz) < 7.6)) continue;
-        tuft(tx, tz, 0.35 + random() * 0.4 + Math.max(0, thick) * 0.3);
+        tuft(tx, tz, 0.35 + random() * 0.4 + Math.max(0, thick) * 0.3, false, !atEnds(tx, tz));
       }
     }
   });
@@ -959,7 +965,7 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
       for (let k = Math.round((x1 - x0) * (z1 - z0) * 1.2); k > 0; k--) {
         const x = x0 + random() * (x1 - x0), z = z0 + random() * (z1 - z0), d = inside(x, z);
         if (d < 0.25 || random() > 0.03 + 0.3 * Math.max(0, 1 - d / 1.4)) continue;
-        tuft(x, z, 0.18 + random() * 0.2);
+        tuft(x, z, 0.18 + random() * 0.2, false, !atEnds(x, z));
       }
     }
   });
