@@ -20,13 +20,22 @@ const SHADE = new THREE.Color('rgb(138, 158, 188)'), MID = new THREE.Color('rgb(
 // Each sphere: where it is, how big, the base of its cloud (cut flat there),
 // how high up its cloud it is, 0 to 1, how much of its cloud lies towards the
 // sun, and how much of the sky's colour it takes.
-type Puff = { centre: THREE.Vector3, radius: number, base: number, height: number, shadow: number, haze: number };
-type Cloud = { puffs: Puff[], width: number };
+type Puff = { centre: THREE.Vector3, radius: number, base: number, height: number, shadow: number, haze: number, soft: number, cloud: Cloud };
+// A cloud's puffs, its width, how far it is out from the point they turn
+// about, and the camera turned back by its own drift, to sort it from.
+type Cloud = { puffs: Puff[], width: number, out: number, eye: THREE.Vector3 };
 const clouds: Cloud[] = [], puffs: Puff[] = [];
-let attributes: Record<'centre' | 'shape' | 'tone', THREE.InstancedBufferAttribute> | undefined;
+let attributes: Record<'centre' | 'shape' | 'tone' | 'rate', THREE.InstancedBufferAttribute> | undefined;
 let material: THREE.ShaderMaterial | undefined, sunLight: THREE.DirectionalLight | undefined;
-// How fast they turn round the level (rad/s), and the point they turn about.
-const TURN = 0.0015, ROUND = new THREE.Vector3(0, 0, 40);
+// How fast they drift round the level (rad/s; the tuning panel's), and the
+// point they turn about.
+// That's the turn of a cloud 500 m out. Parallax: at 1 every cloud moves at
+// the same real speed, so the near ones cross the view faster than the far
+// ones; at 0 they all turn together.
+export const cloudLook = { drift: 0.006, parallax: 1 };
+const rateOf = (cloud: Cloud) => (500 / Math.max(cloud.out, 250)) ** cloudLook.parallax;
+const ROUND = new THREE.Vector3(0, 0, 40);
+let turn = 0, lastSeconds = 0;
 
 // A cumulus mound `width` across, its base at `at`, broadside on to the level
 // from the angle `a` round it: big billows through the body, smaller ones
@@ -37,10 +46,12 @@ function cumulus(random: () => number, at: THREE.Vector3, a: number, width: numb
   const tall = width * (0.42 + random() * 0.2), deep = width * (below ? 0.7 + random() * 0.2 : 0.35 + random() * 0.2);
   // The dome: tallest in the middle, falling away to the ends.
   const top = (u: number) => tall * (1 - u * u) ** 0.7;
-  const cloud: Cloud = { puffs: [], width };
+  const cloud: Cloud = { puffs: [], width, out: 0, eye: new THREE.Vector3() };
   const puff = (x: number, y: number, z: number, radius: number) => cloud.puffs.push({
     centre: new THREE.Vector3(x, y, z).applyAxisAngle(THREE.Object3D.DEFAULT_UP, a + Math.PI / 2).add(at),
-    radius, base: at.y, height: 0, shadow: 0, haze,
+    radius, base: at.y, height: 0, shadow: 0, haze, soft: 0,
+    // The bank below drifts slower than the clouds overhead: parallax.
+    cloud,
   });
   for (let i = 0; i < (below ? 26 : 16); i++) {
     const u = (random() * 2 - 1) * 0.9, r = width * (0.1 + 0.11 * (1 - Math.abs(u)) * (0.7 + random() * 0.6));
@@ -85,16 +96,34 @@ export function createClouds(scene: THREE.Scene, sun: THREE.DirectionalLight) {
     // Further off, more of the sky's colour.
     THREE.MathUtils.clamp((distance - 200) / 1200, 0.03, 0.35), below,
   ));
-  // In the sky all round, low over the horizon.
-  for (let k = 0; k < 24; k++) cloud(380 + random() * 320, 10 + random() ** 1.5 * 120, 120 + random() * 160);
-  // Below the island, most of them out to the north (-z) where the garden
-  // drops away, their tops well under the garden's edge.
-  for (let k = 0; k < 20; k++) {
-    const a = -Math.PI / 2 + (random() - 0.5) * Math.PI * 1.6;
-    const width = 90 + random() * 150;
-    cloud(240 + random() * 320, -30 - width * 0.62 - random() * 50, width, a, true);
+  // Thin over the whole dome: scattered evenly by direction, from just over
+  // the horizon to straight overhead.
+  for (let k = 0; k < 55; k++) {
+    const up = Math.asin(0.08 + random() * 0.9), distance = 480 + random() * 260, a = random() * Math.PI * 2;
+    clouds.push(cumulus(random, new THREE.Vector3(Math.cos(a) * Math.cos(up), Math.sin(up), Math.sin(a) * Math.cos(up)).multiplyScalar(distance).add(ROUND),
+      a, 80 + random() * 110, THREE.MathUtils.clamp((distance - 200) / 1200, 0.03, 0.35), false));
   }
-  for (const c of clouds) puffs.push(...c.puffs);
+  // Below, a thick bank all round, rising with distance so its far tops reach
+  // the horizon line and the sky is cloud all the way down from there.
+  for (let k = 0; k < 90; k++) {
+    const a = random() * Math.PI * 2, out = random() ** 0.7, distance = 230 + out * 620;
+    const width = 110 + random() * 170;
+    cloud(distance, THREE.MathUtils.lerp(-80, -8, out) - width * 0.55 - random() * 25, width, a, true);
+  }
+  // A few in the sky either side of the start tower as the opening looks up
+  // it, from low beside its north side, so its first view isn't empty sky.
+  const opening = new THREE.Vector3(0, -32, -53);
+  for (let k = 0; k < 12; k++) {
+    const side = k % 2 ? 1 : -1, round = Math.PI / 2 + side * (0.3 + random() * 0.45), up = 0.45 + random() * 0.8;
+    const distance = 330 + random() * 150;
+    const at = new THREE.Vector3(Math.cos(round) * Math.cos(up), Math.sin(up), Math.sin(round) * Math.cos(up)).multiplyScalar(distance).add(opening);
+    clouds.push(cumulus(random, at, round, 110 + random() * 80, THREE.MathUtils.clamp((distance - 200) / 1200, 0.03, 0.35), false));
+  }
+  for (const c of clouds) {
+    puffs.push(...c.puffs);
+    const middle = c.puffs.reduce((sum, p) => sum.add(p.centre), new THREE.Vector3()).divideScalar(c.puffs.length).sub(ROUND);
+    c.out = Math.hypot(middle.x, middle.z);
+  }
   shadeClouds(sunDirection(new THREE.Vector3()));
 
   const geometry = new THREE.InstancedBufferGeometry();
@@ -104,10 +133,13 @@ export function createClouds(scene: THREE.Scene, sun: THREE.DirectionalLight) {
   attributes = {
     // xyz, and the radius.
     centre: new THREE.InstancedBufferAttribute(new Float32Array(n * 4), 4),
-    // The cloud's base, and a seed for the edge's noise.
-    shape: new THREE.InstancedBufferAttribute(new Float32Array(n * 2), 2),
+    // The cloud's base, a seed for the edge's noise, and how soft and wispy
+    // its rims are.
+    shape: new THREE.InstancedBufferAttribute(new Float32Array(n * 3), 3),
     // Height in the cloud, shadow, haze.
     tone: new THREE.InstancedBufferAttribute(new Float32Array(n * 3), 3),
+    // Its share of the drift.
+    rate: new THREE.InstancedBufferAttribute(new Float32Array(n), 1),
   };
   for (const [name, attribute] of Object.entries(attributes)) geometry.setAttribute(name, attribute.setUsage(THREE.DynamicDrawUsage));
   geometry.instanceCount = n;
@@ -124,17 +156,18 @@ export function createClouds(scene: THREE.Scene, sun: THREE.DirectionalLight) {
     },
     vertexShader: /* glsl */`
       attribute vec4 centre;
-      attribute vec2 shape;
+      attribute vec3 shape;
       attribute vec3 tone;
+      attribute float rate;
       uniform float turn;
       uniform vec3 round;
       varying vec2 vAt;
       varying vec3 vCentre, vTone;
-      varying float vRadius, vBase, vSeed;
+      varying float vRadius, vBase, vSeed, vSoft;
       void main() {
         // Turned slowly round the level.
         vec3 c = centre.xyz - round;
-        float s = sin(turn), k = cos(turn);
+        float s = sin(turn * rate), k = cos(turn * rate);
         c = vec3(k * c.x + s * c.z, c.y, -s * c.x + k * c.z) + round;
         vec4 view = viewMatrix * vec4(c, 1.0);
         view.xy += position.xy * centre.w;
@@ -144,13 +177,14 @@ export function createClouds(scene: THREE.Scene, sun: THREE.DirectionalLight) {
         vRadius = centre.w;
         vBase = shape.x;
         vSeed = shape.y;
+        vSoft = shape.z;
         vTone = tone;
       }`,
     fragmentShader: /* glsl */`
       uniform vec3 sun, warm, shade, mid, lit, horizon;
       varying vec2 vAt;
       varying vec3 vCentre, vTone;
-      varying float vRadius, vBase, vSeed;
+      varying float vRadius, vBase, vSeed, vSoft;
       float hash(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
       float noise(vec3 p) {
         vec3 i = floor(p), f = fract(p);
@@ -166,15 +200,18 @@ export function createClouds(scene: THREE.Scene, sun: THREE.DirectionalLight) {
         vec3 normal = normalize((vec4(viewNormal, 0.0) * viewMatrix).xyz);
         vec3 surface = vCentre + normal * vRadius;
         // A lumpy, feathered rim, and the cloud's base cut flat and soft.
-        vec3 q = normal * 2.5 + vSeed;
+        // The bank below, seen big and near, gets finer, deeper wisps and a
+        // wider feather, as the far clouds' rims look from a distance.
+        vec3 q = normal * mix(2.5, 4.0, vSoft) + vSeed;
         float lumps = noise(q) * 0.6 + noise(q * 2.3) * 0.4;
-        float alpha = smoothstep(0.98, 0.55, r + (lumps - 0.5) * 0.35);
+        lumps = mix(lumps, lumps * 0.6 + noise(q * 5.7) * 0.4, vSoft);
+        float alpha = smoothstep(0.98, mix(0.55, 0.3, vSoft), r + (lumps - 0.5) * mix(0.35, 0.75, vSoft));
         alpha *= smoothstep(vBase - vRadius * 0.05, vBase + vRadius * 0.35, surface.y);
         if (alpha < 0.01) discard;
         // The light: the ball turned to the sun, softened and kept gentle so
         // the spheres melt into one mass, then the shade of the cloud on the
         // sun's side, and brighter higher up.
-        float light = (dot(normal, sun) * 0.35 + 0.6) * (1.0 - 0.75 * vTone.y) + (vTone.x - 0.45) * 0.4;
+        float light = (dot(normal, sun) * mix(0.35, 0.2, vSoft) + 0.6) * (1.0 - 0.75 * vTone.y) + (vTone.x - 0.45) * 0.4;
         light += (lumps - 0.5) * 0.12;
         vec3 colour = mix(shade, mid, smoothstep(0.22, 0.4, light));
         colour = mix(colour, lit * warm, smoothstep(0.55, 0.7, light));
@@ -201,29 +238,35 @@ const sunDirection = (out: THREE.Vector3) => out.subVectors(sunLight!.position, 
 // Sorted furthest first each frame, so the soft rims of nearer spheres lie
 // over those behind. Rather than turning every sphere round the level, the
 // camera is turned back the other way to measure from.
-const sunNow = new THREE.Vector3(), eye = new THREE.Vector3();
+const sunNow = new THREE.Vector3();
 let order: number[] = [], distances = new Float32Array(0);
 export function updateClouds(seconds: number, camera: THREE.Camera) {
   if (!attributes || !material) return;
-  const turn = -seconds * TURN;
+  // Added up a frame at a time, so a change of speed doesn't jump them.
+  turn -= Math.min(0.1, Math.max(0, seconds - lastSeconds)) * cloudLook.drift;
+  lastSeconds = seconds;
   // Re-shade if the sun's been moved (from the panel).
   if (sunDirection(sunNow).distanceTo(lastSun) > 1e-4) shadeClouds(sunNow);
   material.uniforms.turn.value = turn;
   material.uniforms.sun.value.copy(sunNow);
   material.uniforms.warm.value.copy(sunLight!.color);
-  eye.copy(camera.position).sub(ROUND).applyAxisAngle(THREE.Object3D.DEFAULT_UP, -turn).add(ROUND);
   if (order.length !== puffs.length) {
     order = puffs.map((_, i) => i);
     distances = new Float32Array(puffs.length);
   }
-  puffs.forEach((p, i) => distances[i] = p.centre.distanceToSquared(eye));
+  // Measured from the camera turned back the other way, for each cloud.
+  for (const c of clouds) c.eye.copy(camera.position).sub(ROUND).applyAxisAngle(THREE.Object3D.DEFAULT_UP, -turn * rateOf(c)).add(ROUND);
+  puffs.forEach((p, i) => distances[i] = p.centre.distanceToSquared(p.cloud.eye));
   order.sort((a, b) => distances[b] - distances[a]);
-  const { centre, shape, tone } = attributes;
+  const { centre, shape, tone, rate } = attributes;
   order.forEach((index, i) => {
     const p = puffs[index];
     centre.setXYZW(i, p.centre.x, p.centre.y, p.centre.z, p.radius);
-    shape.setXY(i, p.base, index * 7.31);
+    // Kept small: the noise's hash loses all precision on big inputs, and
+    // the rims came out hard.
+    shape.setXYZ(i, p.base, (index * 7.31) % 101, p.soft);
     tone.setXYZ(i, p.height, p.shadow, p.haze);
+    rate.setX(i, rateOf(p.cloud));
   });
   for (const attribute of Object.values(attributes)) attribute.needsUpdate = true;
 }
