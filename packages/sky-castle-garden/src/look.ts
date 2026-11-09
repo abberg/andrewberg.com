@@ -25,8 +25,9 @@ export const palette = {
   // start tower's meadow alike (what was the meadow's own green).
   // Olive rather than minty, against the deep sky (Andrew, 2026-11-08).
   grass: [0x6e9636, 0x34502e],
-  // The start tower's meadow: deeper, cooler greens, from Andrew's film still.
-  meadow: [0x30603a, 0x153a2c],
+  // The start tower's meadow: a sunlit green, a little deeper than the
+  // garden's lawn (Andrew, 2026-11-09).
+  meadow: [0x4a7a36, 0x1f3f2c],
   // Moss and ivy on the stonework.
   moss: leafy([0xb4d66a, 0x5f9468]),
   ivy: leafy([0x98c85c, 0x4f8664]),

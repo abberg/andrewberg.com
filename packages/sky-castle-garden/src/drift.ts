@@ -29,7 +29,9 @@ export type Drift = { seed: number, sizes: [number, number, number], warm: [numb
 const TINTS = { warm: [0.4, 0.15, -0.45], cool: [-0.2, 0.02, 0.35], dark: 0.21, top: 0.3 } satisfies Omit<Drift, 'seed' | 'sizes'>;
 export const DRIFTS = {
   lawn: { seed: 61, sizes: [15.4, 11, 6.2], ...TINTS, cool: [-0.05, -0.02, 0.05] },
-  meadow: { seed: 51, sizes: [6.5, 5, 3.2], ...TINTS, warm: [2.0, 0.8, 0.0], dark: 0.4 },
+  // Gentle warm drifts, faint dark patches and no blue drifts: a cool drift
+  // read as a dark blotch on the tower top.
+  meadow: { seed: 51, sizes: [6.5, 5, 3.2], ...TINTS, warm: [0.7, 0.3, 0.0], cool: [-0.05, -0.02, 0.05], dark: 0.12 },
 } satisfies Record<string, Drift>;
 
 // Makes a material take a lawn's drifts: where it is, for the ground; where
