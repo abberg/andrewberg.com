@@ -45,12 +45,20 @@ export function createFollowCamera(camera: THREE.PerspectiveCamera, world: RAPIE
       pitch = THREE.MathUtils.clamp(pitch + dy * follow.sensitivity, LOWEST, HIGHEST);
       follow.distance = THREE.MathUtils.clamp(follow.distance + zoom, follow.nearest, follow.farthest);
     },
-    update(dt: number, feet: THREE.Vector3, facing: number, pace: number) {
+    // aside: while it's feeding the fish (fruit.ts), how far round to one
+    // side of the robot to move (radians) and look down from, so the water
+    // in front of it isn't hidden behind its back; 0 otherwise.
+    update(dt: number, feet: THREE.Vector3, facing: number, pace: number, aside = 0) {
       // Swing round behind the robot as it heads away or across the view.
       // Heading back towards the camera leaves it be, rather than chasing round.
       held = Math.max(0, held - dt);
       const difference = THREE.MathUtils.euclideanModulo(facing - yaw + Math.PI, Math.PI * 2) - Math.PI;
       if (!held && follow.swing > 0) yaw += difference * THREE.MathUtils.smoothstep(Math.cos(difference), -0.5, 0.3) * pace * (1 - Math.exp(-dt / follow.swing));
+      if (aside && !held) {
+        const round = THREE.MathUtils.euclideanModulo(facing + aside - yaw + Math.PI, Math.PI * 2) - Math.PI;
+        yaw += round * (1 - Math.exp(-dt / 0.7));
+        pitch += (Math.max(pitch, 0.5) - pitch) * (1 - Math.exp(-dt / 0.7));
+      }
       target.copy(feet).y += follow.shoulder;
       if (!placed) { pivot.copy(target); placed = true; }
       // The pivot trails the robot a little, so the camera lags its turns.

@@ -5,6 +5,7 @@ import { crownMeshes, fruitTrees } from './foliage';
 import { CAMERA_GROUPS, EAST_LAWN, lawnSouth, MOATS_FROM, POOLS, WEST_LAWN } from './level';
 import { painted } from './look';
 import { type Reach, type Robot, STOOP } from './robot';
+import { burst } from './slices';
 
 // Fruit for the fish, first step: the garden's small trees bear orange
 // fruit, hanging under and round their crowns. Walking into a trunk shakes
@@ -20,6 +21,11 @@ import { type Reach, type Robot, STOOP } from './robot';
 // where it carries up to five. Carrying, it only walks. The highest fruit
 // is out of reach and has to be shaken down. Fruit lying on the ground is
 // squashed if it's trodden on.
+//
+// Third step: feeding the fish. At the edge of a moat, with fruit in its arm
+// and none within reach to pick, E throws one: it turns to the water, takes
+// a fruit from the bowl, swings it back and tosses it underarm out over the
+// moat, where it comes apart into slices for the fish (slices.ts).
 
 export const fruit = {
   // On each tree, and how big (m across).
@@ -48,6 +54,18 @@ export const fruit = {
   cradle: 0.45,
   // How near a foot comes to squash one (m).
   tread: 0.3,
+  // Throwing. How near the water's edge it has to stand (m) and how far
+  // out the fruit's thrown (m beyond the edge); the throw in seconds: taking
+  // a fruit from the bowl, swinging it back, the toss, and the arm coming
+  // down again; how long the fruit's in the air and how soon it comes apart.
+  bank: 3.2,
+  far: 3.6,
+  take: 0.6,
+  wind: 0.55,
+  swing: 0.28,
+  follow: 0.6,
+  flight: 1.25,
+  apart: 0.4,
 };
 // Where the carried fruit sits along the left arm, from shoulder (0) to
 // hand (1), how far above it and how far back towards the chest (m): four
@@ -58,7 +76,7 @@ const GRAVITY = 9.81;
 type Tree = (typeof fruitTrees)[number] & { shaken: number, strength: number, way: THREE.Vector2, rested: number, left: boolean, crowns: THREE.Matrix4[] };
 type Fruit = {
   tree: Tree, home: THREE.Vector3, at: THREE.Vector3, velocity: THREE.Vector3, spin: THREE.Vector3, turn: THREE.Quaternion,
-  state: 'hanging' | 'falling' | 'lying' | 'sinking' | 'gone' | 'held' | 'carried' | 'squashed', scale: number, wait: number, slot: number,
+  state: 'hanging' | 'falling' | 'lying' | 'sinking' | 'gone' | 'held' | 'carried' | 'squashed' | 'thrown', scale: number, wait: number, slot: number,
 };
 
 let mesh: THREE.InstancedMesh | undefined, world: RAPIER.World;
@@ -82,7 +100,7 @@ function fruitGeometry() {
 
 // Whether a point on the ground is water: the two pools, and the moats
 // beyond the lawn's edges.
-const overWater = (x: number, z: number) => POOLS.some(([px, pz]) => Math.hypot(x - px, z - pz) < 5.5)
+export const overWater = (x: number, z: number) => POOLS.some(([px, pz]) => Math.hypot(x - px, z - pz) < 5.5)
   || z > lawnSouth(x) || (z > MOATS_FROM && (x < WEST_LAWN || x > EAST_LAWN));
 
 const down = new RAPIER.Ray({ x: 0, y: 0, z: 0 }, { x: 0, y: -1, z: 0 });
@@ -158,6 +176,81 @@ type Within = { fruit: Fruit, stoop: number, facing: number | null };
 let within: Within | null = null;
 let pick: (Within & { t: number, reach: Reach, from: THREE.Vector3, grabbed: boolean }) | null = null;
 let cradle = 0;
+// A throw under way: which way to face first and where the fruit's to land,
+// the fruit, and how far through it is.
+let toss: { facing: number | null, target: THREE.Vector3, fruit: Fruit, t: number, reach: Reach, from: THREE.Vector3, taken: boolean, thrown: boolean } | null = null;
+// Standing at the edge of a moat (not the pools: the fish are in the moats):
+// which way the water is, and a point out over it to throw to.
+function bank(feet: THREE.Vector3): { yaw: number, target: THREE.Vector3 } | null {
+  if (Math.abs(feet.y) > 0.6) return null;
+  let nx = 0, nz = 0, gap = Infinity;
+  if (feet.z > MOATS_FROM + 1 && feet.x - WEST_LAWN < gap) { gap = feet.x - WEST_LAWN; nx = -1; nz = 0; }
+  if (feet.z > MOATS_FROM + 1 && EAST_LAWN - feet.x < gap) { gap = EAST_LAWN - feet.x; nx = 1; nz = 0; }
+  // The south moat, either side of the landing before the arch.
+  if (Math.abs(feet.x) > 5.5 && lawnSouth(feet.x) - feet.z < gap) {
+    gap = lawnSouth(feet.x) - feet.z;
+    const slope = feet.x / 149, l = Math.hypot(slope, 1);
+    nx = -slope / l; nz = 1 / l;
+  }
+  if (gap > fruit.bank || gap < 0) return null;
+  const out = gap + fruit.far;
+  return { yaw: Math.atan2(-nx, -nz), target: new THREE.Vector3(feet.x + nx * out, -0.1, feet.z + nz * out) };
+}
+// A point by the robot: so far to its right, ahead of it and above its feet.
+const beside = (feet: THREE.Vector3, yaw: number, right: number, ahead: number, up: number, out: THREE.Vector3) =>
+  out.set(feet.x + Math.cos(yaw) * right - Math.sin(yaw) * ahead, feet.y + up, feet.z - Math.sin(yaw) * right - Math.cos(yaw) * ahead);
+const wound = new THREE.Vector3(), released = new THREE.Vector3();
+function throwing(delta: number, feet: THREE.Vector3, yaw: number, robot: Robot): Reach | null {
+  const now = toss!;
+  if (now.facing !== null) {
+    const off = THREE.MathUtils.euclideanModulo(now.facing - yaw + Math.PI, Math.PI * 2) - Math.PI;
+    if (Math.abs(off) > 0.06) return now.reach;
+    now.facing = null;
+  }
+  now.t += delta;
+  const smooth = THREE.MathUtils.smootherstep, { take, wind, swing, follow } = fruit;
+  beside(feet, yaw, 0.95, -0.9, 1.5, wound);
+  beside(feet, yaw, 0.5, 1.9, 3.5, released);
+  now.reach.stoop = 0;
+  if (now.t < take) {
+    // Its right hand to the fruit in the bowl.
+    slotOf(robot, yaw, now.fruit.slot, now.reach.goal);
+    now.reach.share = smooth(now.t, 0, take * 0.95);
+  } else if (now.t < take + wind) {
+    if (!now.taken) {
+      now.taken = true;
+      now.from.copy(now.reach.goal);
+      now.fruit.state = 'held';
+      now.fruit.slot = -1;
+    }
+    // Drawn back and down beside it.
+    now.reach.goal.lerpVectors(now.from, wound, smooth((now.t - take) / wind, 0, 1));
+    now.reach.share = 1;
+  } else if (now.t < take + wind + swing) {
+    // Swung forward and up, low past its side.
+    const u = (now.t - take - wind) / swing;
+    now.reach.goal.lerpVectors(wound, released, u * u * (3 - 2 * u)).y -= Math.sin(u * Math.PI) * 0.7;
+    now.reach.share = 1;
+  } else {
+    if (!now.thrown) {
+      // Let go: thrown to come down on its mark.
+      now.thrown = true;
+      const f = now.fruit;
+      robot.grip(1, f.at);
+      f.state = 'thrown';
+      f.wait = 0;
+      f.velocity.subVectors(now.target, f.at).divideScalar(fruit.flight);
+      f.velocity.y += 0.5 * GRAVITY * fruit.flight;
+      f.spin.set(random() - 0.5, random() - 0.5, random() - 0.5).multiplyScalar(10);
+    }
+    // The arm follows through and comes down.
+    const u = (now.t - take - wind - swing) / follow;
+    now.reach.goal.copy(released);
+    now.reach.share = 1 - smooth(u, 0.15, 1);
+    if (u >= 1) { toss = null; return null; }
+  }
+  return now.reach;
+}
 const carried = () => fruits.filter(f => f.state === 'carried' || f.state === 'held');
 const slotAt = new THREE.Vector3(), foot = new THREE.Vector3();
 // The fruit nearest to hand, if any: with the least stooping, then the
@@ -207,11 +300,21 @@ export function updatePick(delta: number, feet: THREE.Vector3, yaw: number, pace
   if (!mesh) return null;
   pulse += delta;
   // The bowl: up while there's anything in it or on its way.
-  const holding = pick !== null || carried().length > 0;
+  const holding = pick !== null || toss !== null || carried().length > 0;
   cradle = THREE.MathUtils.clamp(cradle + (holding ? delta : -delta) / fruit.cradle, 0, 1);
+  if (toss) return throwing(delta, feet, yaw, robot);
   if (!pick) {
     const full = carried().length >= fruit.carried;
     within = full || pace > 0.5 ? null : reachable(feet);
+    // With nothing to pick, at the water's edge with fruit in its arm, it
+    // throws one: the last it picked.
+    if (wanted && !within && pace < 0.5) {
+      const water = bank(feet), last = fruits.filter(f => f.state === 'carried').sort((a, b) => b.slot - a.slot)[0];
+      if (water && last) {
+        toss = { facing: water.yaw, target: water.target, fruit: last, t: 0, reach: { goal: last.at.clone(), share: 0, stoop: 0 }, from: new THREE.Vector3(), taken: false, thrown: false };
+        return toss.reach;
+      }
+    }
     if (!wanted || !within) return null;
     pick = { ...within, t: 0, from: new THREE.Vector3(), grabbed: false, reach: { goal: within.fruit.at.clone(), share: 0, stoop: 0 } };
   }
@@ -257,12 +360,14 @@ export function updatePick(delta: number, feet: THREE.Vector3, yaw: number, pace
 // How far the left arm's up as a bowl, and whether anything's in it: it
 // doesn't run with its arm full.
 export const cradling = () => cradle;
-export const carrying = () => carried().length > 0 || pick !== null;
+export const carrying = () => carried().length > 0 || pick !== null || toss !== null;
 // Which way it should turn to face what it's picking, while it still has
 // to, or null.
-export const pickFacing = () => pick?.facing ?? null;
+export const pickFacing = () => pick?.facing ?? toss?.facing ?? null;
 // Whether it's busy picking: it stands still for it.
-export const picking = () => pick !== null;
+export const picking = () => pick !== null || toss !== null;
+// Whether it's throwing to the fish: the camera moves round to show the water.
+export const tossing = () => toss !== null;
 
 // How far a shaken tree's crown is off its place just now: a wobble along
 // the way it was pushed, dying away.
@@ -283,6 +388,17 @@ export function updateFruit(delta: number, feet: THREE.Vector3, yaw: number, pac
   // In its right hand until it's set down, then riding in the bowl.
   for (const f of fruits) {
     if (f.state === 'held') robot.grip(1, f.at);
+    else if (f.state === 'thrown') {
+      // Through the air, tumbling, and apart into its slices.
+      f.velocity.y -= GRAVITY * delta;
+      f.at.addScaledVector(f.velocity, delta);
+      f.turn.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3().copy(f.spin).normalize(), f.spin.length() * delta));
+      f.wait += delta;
+      if (f.wait > fruit.apart) {
+        burst(f.at, f.velocity, f.scale);
+        f.state = 'gone';
+      }
+    }
     else if (f.state === 'carried') slotOf(robot, yaw, f.slot, f.at);
   }
   // Trodden on: walked over while it's lying there, under the robot's
@@ -403,6 +519,8 @@ export const fruitCount = () => ({
   lost: fruits.filter(f => f.state === 'sinking' || f.state === 'gone').length,
   squashed: fruits.filter(f => f.state === 'squashed').length,
   carried: carried().length,
+  thrown: fruits.filter(f => f.state === 'thrown').length,
+  tossing: toss !== null,
   within: within && { state: within.fruit.state, stoop: within.stoop },
   picking: pick !== null,
   ground: fruits.filter(f => f.state === 'lying').map(f => [f.at.x, f.at.z]),
