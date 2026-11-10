@@ -6,6 +6,7 @@ import { CAMERA_GROUPS, EAST_LAWN, lawnSouth, MOATS_FROM, POOLS, WEST_LAWN } fro
 import { painted } from './look';
 import { type Reach, type Robot, STOOP } from './robot';
 import { burst } from './slices';
+import { play } from './sounds';
 
 // Fruit for the fish, first step: the garden's small trees bear orange
 // fruit, hanging under and round their crowns. Walking into a trunk shakes
@@ -26,6 +27,9 @@ import { burst } from './slices';
 // and none within reach to pick, E throws one: it turns to the water, takes
 // a fruit from the bowl, swings it back and tosses it underarm out over the
 // moat, where it comes apart into slices for the fish (slices.ts).
+//
+// The trees bear again: every so often each grows a new fruit where one has
+// gone, small at first, ripe (and ready to pick or shake down) a while later.
 
 export const fruit = {
   // On each tree, and how big (m across).
@@ -66,6 +70,12 @@ export const fruit = {
   follow: 0.6,
   flight: 1.25,
   apart: 0.4,
+  // Growing back: a tree starts a new fruit this often (s) while it has
+  // any missing, and it takes this long to ripen (s). One that's been
+  // squashed lies there this long before it's gone (s).
+  regrow: 40,
+  ripen: 20,
+  rots: 45,
 };
 // Where the carried fruit sits along the left arm, from shoulder (0) to
 // hand (1), how far above it and how far back towards the chest (m): four
@@ -73,10 +83,12 @@ export const fruit = {
 const SLOTS: [number, number, number][] = [[0.62, 0.21, 0.06], [0.78, 0.21, 0.06], [0.46, 0.22, 0.08], [0.94, 0.21, 0.04], [0.7, 0.46, 0.14]];
 
 const GRAVITY = 9.81;
-type Tree = (typeof fruitTrees)[number] & { shaken: number, strength: number, way: THREE.Vector2, rested: number, left: boolean, crowns: THREE.Matrix4[] };
+type Tree = (typeof fruitTrees)[number] & { shaken: number, strength: number, way: THREE.Vector2, rested: number, left: boolean, crowns: THREE.Matrix4[], bears: number };
 type Fruit = {
   tree: Tree, home: THREE.Vector3, at: THREE.Vector3, velocity: THREE.Vector3, spin: THREE.Vector3, turn: THREE.Quaternion,
   state: 'hanging' | 'falling' | 'lying' | 'sinking' | 'gone' | 'held' | 'carried' | 'squashed' | 'thrown', scale: number, wait: number, slot: number,
+  // How far it's grown, 0 to 1: ripe at 1.
+  grown: number,
 };
 
 let mesh: THREE.InstancedMesh | undefined, world: RAPIER.World;
@@ -101,7 +113,8 @@ function fruitGeometry() {
 // Whether a point on the ground is water: the two pools, and the moats
 // beyond the lawn's edges.
 export const overWater = (x: number, z: number) => POOLS.some(([px, pz]) => Math.hypot(x - px, z - pz) < 5.5)
-  || z > lawnSouth(x) || (z > MOATS_FROM && (x < WEST_LAWN || x > EAST_LAWN));
+  // (The grass landing before the arch reaches out into the south moat.)
+  || (z > lawnSouth(x) && !(x > -4.5 && x < 4.6)) || (z > MOATS_FROM && (x < WEST_LAWN || x > EAST_LAWN));
 
 const down = new RAPIER.Ray({ x: 0, y: 0, z: 0 }, { x: 0, y: -1, z: 0 });
 // The ground (or stone) under a point, from just above it.
@@ -117,7 +130,7 @@ export function createFruit(scene: THREE.Scene, physics: RAPIER.World) {
   if (!leaves) return;
   const matrix = new THREE.Matrix4(), centre = new THREE.Vector3(), turn = new THREE.Quaternion(), size = new THREE.Vector3();
   for (const planted of fruitTrees) {
-    const tree: Tree = { ...planted, shaken: Infinity, strength: 0, way: new THREE.Vector2(), rested: 0, left: true, crowns: [] };
+    const tree: Tree = { ...planted, shaken: Infinity, strength: 0, way: new THREE.Vector2(), rested: 0, left: true, crowns: [], bears: 0 };
     trees.push(tree);
     // Its crown's balls, as they stand: where and how big.
     const balls: { centre: THREE.Vector3, across: number }[] = [];
@@ -142,7 +155,7 @@ export function createFruit(scene: THREE.Scene, physics: RAPIER.World) {
       fruits.push({
         tree, home, at: home.clone(), velocity: new THREE.Vector3(), spin: new THREE.Vector3(),
         turn: new THREE.Quaternion().setFromEuler(new THREE.Euler((random() - 0.5) * 0.5, random() * 6, (random() - 0.5) * 0.5)),
-        state: 'hanging', scale: fruit.size * (0.85 + random() * 0.3), wait: 0, slot: -1,
+        state: 'hanging', scale: fruit.size * (0.85 + random() * 0.3), wait: 0, slot: -1, grown: 1,
       });
     }
   }
@@ -163,7 +176,7 @@ function place() {
     // Trodden flat.
     else if (f.state === 'squashed') sized.set(f.scale * 1.7, f.scale * 0.12, f.scale * 1.7);
     // Within reach: swelling and settling.
-    else sized.setScalar(f.scale * (f === within?.fruit && !pick ? 1.12 + 0.1 * Math.sin(pulse * 7) : 1));
+    else sized.setScalar(f.scale * (0.15 + 0.85 * f.grown) * (f === within?.fruit && !pick ? 1.12 + 0.1 * Math.sin(pulse * 7) : 1));
     mesh!.setMatrixAt(i, placing.compose(f.at, f.turn, sized));
   });
   mesh.instanceMatrix.needsUpdate = true;
@@ -186,15 +199,24 @@ function bank(feet: THREE.Vector3): { yaw: number, target: THREE.Vector3 } | nul
   let nx = 0, nz = 0, gap = Infinity;
   if (feet.z > MOATS_FROM + 1 && feet.x - WEST_LAWN < gap) { gap = feet.x - WEST_LAWN; nx = -1; nz = 0; }
   if (feet.z > MOATS_FROM + 1 && EAST_LAWN - feet.x < gap) { gap = EAST_LAWN - feet.x; nx = 1; nz = 0; }
-  // The south moat, either side of the landing before the arch.
-  if (Math.abs(feet.x) > 5.5 && lawnSouth(feet.x) - feet.z < gap) {
+  // On the landing before the arch, with the south moat to either side.
+  if (feet.x > -4.5 && feet.x < 4.6 && feet.z > lawnSouth(4.5) + 0.2 && feet.z < 50.4) {
+    if (feet.x + 4.5 < gap) { gap = feet.x + 4.5; nx = -1; nz = 0; }
+    if (4.6 - feet.x < gap) { gap = 4.6 - feet.x; nx = 1; nz = 0; }
+  }
+  // The south moat, either side of it.
+  else if (lawnSouth(feet.x) - feet.z < gap) {
     gap = lawnSouth(feet.x) - feet.z;
     const slope = feet.x / 149, l = Math.hypot(slope, 1);
     nx = -slope / l; nz = 1 / l;
   }
-  if (gap > fruit.bank || gap < 0) return null;
-  const out = gap + fruit.far;
-  return { yaw: Math.atan2(-nx, -nz), target: new THREE.Vector3(feet.x + nx * out, -0.1, feet.z + nz * out) };
+  // (Anywhere on the landing will do: it's narrow, with water both sides.)
+  const landing = nz === 0 && Math.abs(feet.x) < 4.6;
+  if (gap > (landing ? 5 : fruit.bank) || gap < 0) return null;
+  const out = gap + fruit.far, target = new THREE.Vector3(feet.x + nx * out, -0.1, feet.z + nz * out);
+  // From the lawn beside the landing, clear of the landing's side.
+  if (!landing && Math.abs(target.x) < 7.5 && target.z > lawnSouth(target.x)) target.x = Math.sign(feet.x || 1) * 7.5;
+  return { yaw: Math.atan2(-(target.x - feet.x), -(target.z - feet.z)), target };
 }
 // A point by the robot: so far to its right, ahead of it and above its feet.
 const beside = (feet: THREE.Vector3, yaw: number, right: number, ahead: number, up: number, out: THREE.Vector3) =>
@@ -238,6 +260,7 @@ function throwing(delta: number, feet: THREE.Vector3, yaw: number, robot: Robot)
       const f = now.fruit;
       robot.grip(1, f.at);
       f.state = 'thrown';
+      play('swish');
       f.wait = 0;
       f.velocity.subVectors(now.target, f.at).divideScalar(fruit.flight);
       f.velocity.y += 0.5 * GRAVITY * fruit.flight;
@@ -261,7 +284,7 @@ const ASIDE = 0.3;
 function reachable(feet: THREE.Vector3): Within | null {
   let best: Within | null = null, least = Infinity;
   for (const f of fruits) {
-    if (f.state !== 'hanging' && f.state !== 'lying') continue;
+    if ((f.state !== 'hanging' && f.state !== 'lying') || f.grown < 1) continue;
     const dx = f.at.x - feet.x, dz = f.at.z - feet.z, flat = Math.hypot(dx, dz);
     if (flat > 4 || Math.abs(f.at.y - feet.y - 3) > 4) continue;
     // Right overhead, there's no turning to it: it's taken as it is.
@@ -337,6 +360,7 @@ export function updatePick(delta: number, feet: THREE.Vector3, yaw: number, pace
     if (!pick.grabbed) {
       pick.grabbed = true;
       pick.from.copy(pick.fruit.at);
+      play(pick.fruit.state === 'hanging' ? 'pluck' : 'tock', { gain: 0.8 });
       pick.fruit.state = 'held';
       pick.fruit.slot = [0, 1, 2, 3, 4].find(k => !fruits.some(f => f.slot === k))!;
     }
@@ -349,7 +373,7 @@ export function updatePick(delta: number, feet: THREE.Vector3, yaw: number, pace
     pick.reach.stoop = pick.stoop * (1 - smooth(t, 0, 0.75));
   } else {
     // Set down in the bowl; the hand goes back to its side.
-    if (pick.fruit.state === 'held') pick.fruit.state = 'carried';
+    if (pick.fruit.state === 'held') { pick.fruit.state = 'carried'; play('tock'); }
     const t = (pick.t - out - bring) / back;
     pick.reach.share = 1 - smooth(t, 0, 1);
     pick.reach.stoop = 0;
@@ -411,13 +435,34 @@ export function updateFruit(delta: number, feet: THREE.Vector3, yaw: number, pac
         || down.some(at => at && Math.hypot(f.at.x - at.x, f.at.z - at.z) < fruit.tread);
       if (!under) continue;
       f.state = 'squashed';
+      f.wait = 0;
+      play('squash');
       f.at.y -= f.scale * 0.4;
       f.turn.identity();
     }
   }
   const shifted = new THREE.Matrix4();
+  // Squashed fruit rots away; what's growing ripens.
+  for (const f of fruits) {
+    if (f.state === 'squashed' && (f.wait += delta) > fruit.rots) f.state = 'gone';
+    if (f.state === 'hanging' && f.grown < 1) f.grown = Math.min(1, f.grown + delta / fruit.ripen);
+  }
   for (const tree of trees) {
     tree.rested += delta;
+    // Bearing again: a new fruit where one's gone for good (eaten, lost in
+    // the water or rotted), one at a time.
+    const spent = fruits.filter(f => f.tree === tree && f.state === 'gone');
+    if (!spent.length) tree.bears = 0;
+    else if ((tree.bears += delta) > fruit.regrow) {
+      tree.bears = 0;
+      const f = spent[Math.floor(random() * spent.length)];
+      f.state = 'hanging';
+      f.at.copy(f.home);
+      f.grown = 0;
+      f.slot = -1;
+      f.velocity.set(0, 0, 0);
+      f.turn.setFromEuler(new THREE.Euler((random() - 0.5) * 0.5, random() * 6, (random() - 0.5) * 0.5));
+    }
     // Walked into: close to the trunk, heading at it.
     const dx = tree.x - feet.x, dz = tree.z - feet.z, far = Math.hypot(dx, dz);
     // Once for each time it's walked into: leaning on the trunk shakes
@@ -430,7 +475,8 @@ export function updateFruit(delta: number, feet: THREE.Vector3, yaw: number, pac
       tree.strength = THREE.MathUtils.clamp(pace, 0.35, 1);
       tree.way.set(dx / far, dz / far);
       // One or two at a walk, up to five at a run.
-      const hanging = fruits.filter(f => f.tree === tree && f.state === 'hanging');
+      play('rustle', { gain: 0.6 + 0.4 * tree.strength });
+      const hanging = fruits.filter(f => f.tree === tree && f.state === 'hanging' && f.grown >= 1);
       let drop = Math.min(hanging.length, pace < 0.6 ? 1 + Math.floor(random() * 2) : 3 + Math.floor(random() * 3));
       while (drop-- > 0) {
         const f = hanging.splice(Math.floor(random() * hanging.length), 1)[0];
@@ -484,12 +530,14 @@ export function updateFruit(delta: number, feet: THREE.Vector3, yaw: number, pac
     if (overWater(f.at.x, f.at.z) && ground < 0.05) {
       f.state = 'sinking';
       f.wait = 0;
+      play('plop');
       f.velocity.set(0, -1.2, 0);
       continue;
     }
     f.at.y = ground + radius;
     // A bounce or two, then a short roll to rest.
     if (f.velocity.y < -1.2) {
+      play('thud', { gain: Math.min(1, -f.velocity.y / 9) });
       f.velocity.y *= -0.32;
       f.velocity.x *= 0.7;
       f.velocity.z *= 0.7;

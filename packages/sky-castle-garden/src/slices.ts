@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { type Food, scatter } from './fish';
 import { painted } from './look';
+import { play } from './sounds';
 
 // Feeding the fish: an orange thrown out over the moat comes apart in the
 // air into its slices, which scatter, fall onto the water and float there
@@ -114,9 +115,10 @@ export function updateSlices(delta: number, seconds: number, water: (x: number, 
       slice.age = 0;
       slice.at.y = SURFACE;
       ring(slice.at, 0.55);
+      play('plip', { gain: 0.7 });
       landed.push(slice);
     } else if (slice.state === 'floating') {
-      if (slice.eaten) { slice.state = 'gone'; ring(slice.at, 0.8); continue; }
+      if (slice.eaten) { slice.state = 'gone'; ring(slice.at, 0.8); play('gulp', { gain: 0.8 }); continue; }
       if (slice.age > slices.stays) { slice.state = 'gone'; slice.eaten = true; continue; }
       // Settling on its side, bobbing, drifting to a stop.
       slice.velocity.y = 0;

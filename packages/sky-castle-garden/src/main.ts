@@ -16,6 +16,7 @@ import { createPost } from './post';
 import { createFollowCamera, follow } from './followCamera';
 import { carrying, cradling, createFruit, overWater, pickFacing, picking, tossing, updateFruit, updatePick } from './fruit';
 import { createSlices, updateSlices, watched } from './slices';
+import { effects, startEffects } from './sounds';
 import { createHint } from './hint';
 import { createSpeaker } from './speaker';
 import { createInput } from './input';
@@ -137,6 +138,8 @@ leafy.close();
 const sound = gui.addFolder('sound');
 sound.add(footsteps, 'volume', 0, 0.1, 0.001).name('footsteps');
 sound.add(footsteps, 'muted').name('mute footsteps');
+sound.add(effects, 'volume', 0, 1, 0.01).name('fruit and fish');
+sound.add(effects, 'muted').name('mute fruit and fish');
 sound.add(music, 'volume', 0, 1, 0.01).name('music');
 sound.add(music, 'muted').name('mute music').onChange(rememberMute).listen();
 sound.close();
@@ -220,6 +223,7 @@ const enter = () => {
   entered = true;
   soundtrack.start();
   steps.start();
+  startEffects();
   pause.enable();
   flight.begin();
   // No pointer lock on a phone; elsewhere it can still be refused, and then
