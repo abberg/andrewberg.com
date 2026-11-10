@@ -195,12 +195,15 @@ export function leafCards(colours: readonly [number, number], map: THREE.Texture
 // Plants between the camera and the robot dissolve away, in a fine dither
 // so there's nothing to sort, and come back as the view clears: anything
 // near the line from the eye to the robot's middle, short of the robot.
-// The robot's middle is set each frame (fadeAround).
-const fadeUniforms = { uFocus: { value: new THREE.Vector3() }, uFadeRadius: { value: 2.4 } };
-export const fadeAround = (feet: THREE.Vector3) => fadeUniforms.uFocus.value.copy(feet).setY(feet.y + 2.4);
-function fading(material: THREE.Material) {
+// The robot's middle is set each frame (fadeAround). How far from the line
+// it reaches (m), and how far along it from the eye it starts (as a share
+// of the way to the robot), are each material's own.
+const fadeFocus = { value: new THREE.Vector3() };
+export const fadeAround = (feet: THREE.Vector3) => fadeFocus.value.copy(feet).setY(feet.y + 2.4);
+function fading<T extends THREE.Material>(material: T, radius = 2.4, near = 0.12) {
   if (material.userData.fading) return material;
   material.userData.fading = true;
+  const fadeUniforms = { uFocus: fadeFocus, uFadeRadius: { value: radius }, uFadeNear: { value: near } };
   const before = material.onBeforeCompile;
   material.onBeforeCompile = (shader, renderer) => {
     before.call(material, shader, renderer);
@@ -209,13 +212,13 @@ function fading(material: THREE.Material) {
       .replace('#include <common>', '#include <common>\nvarying vec3 vFadeAt;')
       .replace('#include <clipping_planes_vertex>', '#include <clipping_planes_vertex>\nvFadeAt = (inverse(viewMatrix) * mvPosition).xyz;');
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nvarying vec3 vFadeAt;\nuniform vec3 uFocus;\nuniform float uFadeRadius;')
+      .replace('#include <common>', '#include <common>\nvarying vec3 vFadeAt;\nuniform vec3 uFocus;\nuniform float uFadeRadius, uFadeNear;')
       .replace('#include <clipping_planes_fragment>', /* glsl */`#include <clipping_planes_fragment>
         {
           vec3 line = uFocus - cameraPosition;
           float along = dot(vFadeAt - cameraPosition, line) / dot(line, line);
           float off = distance(vFadeAt, cameraPosition + line * clamp(along, 0.0, 1.0));
-          float fade = (1.0 - smoothstep(uFadeRadius * 0.45, uFadeRadius, off)) * smoothstep(0.0, 0.12, along) * (1.0 - smoothstep(0.82, 0.96, along));
+          float fade = (1.0 - smoothstep(uFadeRadius * 0.45, uFadeRadius, off)) * smoothstep(uFadeNear - 0.12, uFadeNear, along) * (1.0 - smoothstep(0.82, 0.96, along));
           // A 4 x 4 ordered dither.
           ivec2 p = ivec2(mod(gl_FragCoord.xy, 4.0));
           int k = p.x + p.y * 4;
@@ -226,6 +229,25 @@ function fading(material: THREE.Material) {
   const key = material.customProgramCacheKey.bind(material);
   material.customProgramCacheKey = () => key() + 'fading';
   return material;
+}
+// The stonework the robot shoves about dissolves the same way, rather than
+// pulling the camera in (followCamera.ts): a copy of a stone's material that
+// does, one for each material. Closer about the line than the plants, so a
+// slab lying under the view stays whole, and right up to the eye, so a
+// column the camera passes through is never seen from inside.
+const dissolvers = new Map<THREE.Material, THREE.Material>();
+export function dissolving(material: THREE.Material) {
+  let copy = dissolvers.get(material);
+  if (!copy) {
+    copy = material.clone();
+    // What a clone leaves behind.
+    copy.defines = material.defines && { ...material.defines };
+    copy.onBeforeCompile = material.onBeforeCompile;
+    copy.customProgramCacheKey = material.customProgramCacheKey;
+    // (A leaf material that fades already keeps its own reach.)
+    dissolvers.set(material, fading(copy, 2, 0));
+  }
+  return copy;
 }
 export function instanced(geometry: THREE.BufferGeometry, leaves: ReturnType<typeof leafCards> | THREE.Material, placed: THREE.Matrix4[], scene: THREE.Scene) {
   const mesh = new THREE.InstancedMesh(geometry, fading('depth' in leaves ? leaves.material : leaves), placed.length);

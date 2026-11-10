@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { ConvexGeometry } from 'three/addons/geometries/ConvexGeometry.js';
 import { blockStone, capitalGeometry, shifted, chippedBlock, columnGeometry, columnStone, crack, drumGeometry, plinthGeometry, urnGeometry } from './columns';
 import { painted, palette } from './look';
-import { urnPlant, vineSpill } from './foliage';
+import { dissolving, urnPlant, vineSpill } from './foliage';
 import { blockIvy, columnIvy, shroudIvy } from './growth';
 import { archBlockGeometry, patina, statueGeometry } from './ruins';
 import { stone } from './level';
@@ -230,6 +230,12 @@ export function createStones(world: RAPIER.World, scene: THREE.Scene) {
 
   // Asleep until touched: adding colliders woke them.
   for (const { body } of pieces) body.sleep();
+  // Between the camera and the robot they dissolve, ivy and all, rather than
+  // pulling the camera in (foliage.ts).
+  for (const { group } of pieces) group.traverse(object => {
+    const mesh = object as THREE.Mesh;
+    if (mesh.isMesh && !Array.isArray(mesh.material)) mesh.material = dissolving(mesh.material);
+  });
 
   return {
     count: pieces.length,

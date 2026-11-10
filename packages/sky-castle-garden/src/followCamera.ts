@@ -57,9 +57,14 @@ export function createFollowCamera(camera: THREE.PerspectiveCamera, world: RAPIE
       pivot.lerp(target, 1 - Math.exp(-dt / follow.lag));
       direction.set(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch));
       // Sweep a ball out from the pivot and stop short of the first thing it
-      // hits: snap in at once, ease back out.
-      const hit = world.castShape(pivot, { x: 0, y: 0, z: 0, w: 1 }, direction, probe, 0, follow.distance, true,
-        undefined, CAMERA_GROUPS, ignore);
+      // hits: snap in at once, ease back out. Only what's built stops it: the
+      // stonework that can be shoved about (columns, the colonnade, slabs)
+      // dissolves in front of the view instead (foliage.ts, dissolving), or
+      // every column passed would pull the camera in, and one touching the
+      // robot would pin it against its back. Nor anything the ball starts
+      // out touching, if it's heading away from it.
+      const hit = world.castShape(pivot, { x: 0, y: 0, z: 0, w: 1 }, direction, probe, 0, follow.distance, false,
+        RAPIER.QueryFilterFlags.EXCLUDE_DYNAMIC, CAMERA_GROUPS, ignore);
       const clear = hit ? Math.max(0.5, hit.time_of_impact - 0.1) : follow.distance;
       distance = clear < distance ? clear : distance + (clear - distance) * (1 - Math.exp(-dt / 0.4));
       camera.position.copy(pivot).addScaledVector(direction, distance);
