@@ -396,47 +396,65 @@ export function createRobot(gltf: GLTF) {
     });
   };
 
-  // An arm set by hand rather than by its clip: bent only at the elbow, the
-  // upper arm and forearm each as the clip left them, so that its grip (a
-  // little beyond the hand's bone) comes to a point in the world, with the
-  // elbow kept to the side the pole points. By weight: 0 leaves the clip's
-  // pose, 1 is all the way there.
-  const elbowAt = new THREE.Vector3(), gripAt = new THREE.Vector3(), aim = new THREE.Vector3(), pole = new THREE.Vector3();
-  const wasRoot = new THREE.Quaternion(), wasElbow = new THREE.Quaternion();
+  // An arm set by hand rather than by its clip. It's a chain, with a joint
+  // between each block and the next, so it bends the same amount at every
+  // one: a smooth curve from the shoulder to the hand, never a single elbow
+  // (as in the film, where it sags out from the shoulder and levels off
+  // towards the hand). Its grip (a little beyond the hand's bone) is brought
+  // to a point in the world along an arc that bows out to the side the
+  // pole points, tighter the nearer the point is, and never quite straight.
+  // By weight: 0 leaves the clip's pose, 1 is all the way there.
+  const aim = new THREE.Vector3(), pole = new THREE.Vector3(), heading = new THREE.Vector3();
+  const joints = Array.from({ length: 9 }, () => new THREE.Vector3()), was = Array.from({ length: 8 }, () => new THREE.Quaternion());
   const gripOf = (limb: Limb, out: THREE.Vector3) => {
     limb.end.updateWorldMatrix(true, false);
     return out.set(0, GRIP, 0).applyMatrix4(limb.end.matrixWorld);
   };
+  const chain = (limb: Limb) => [limb.root, ...limb.bends, limb.end];
   const place = (limb: Limb, goal: THREE.Vector3, towards: THREE.Vector3, weight: number) => {
     if (weight <= 0) return;
-    const elbow = limb.bends[2];
-    wasRoot.copy(limb.root.quaternion);
-    wasElbow.copy(elbow.quaternion);
-    limb.root.getWorldPosition(root);
-    elbow.getWorldPosition(elbowAt);
-    const upper = root.distanceTo(elbowAt), fore = elbowAt.distanceTo(gripOf(limb, gripAt));
+    const bones = chain(limb);
+    limb.root.updateWorldMatrix(true, true);
+    bones.forEach((b, k) => { b.getWorldPosition(joints[k]); was[k].copy(b.quaternion); });
+    gripOf(limb, joints[8]);
+    const lengths = bones.map((_, k) => joints[k].distanceTo(joints[k + 1])), whole = lengths.reduce((a, b) => a + b, 0);
+    root.copy(joints[0]);
     aim.subVectors(goal, root);
-    const far = THREE.MathUtils.clamp(aim.length(), Math.abs(upper - fore) + 0.08, upper + fore - 0.02);
+    const far = THREE.MathUtils.clamp(aim.length(), whole * 0.25, whole * 0.965);
     aim.normalize();
-    // The elbow: off the line from shoulder to grip, towards the pole.
-    const along = (upper * upper + far * far - fore * fore) / (2 * upper * far), off = Math.sqrt(Math.max(0, 1 - along * along));
     pole.copy(towards).addScaledVector(aim, -towards.dot(aim)).normalize();
-    target.copy(root).addScaledVector(aim, upper * along).addScaledVector(pole, upper * off);
-    rotate(limb.root, turn.setFromUnitVectors(from.subVectors(elbowAt, root).normalize(), to.subVectors(target, root).normalize()));
-    elbow.getWorldPosition(elbowAt);
-    target.copy(root).addScaledVector(aim, far);
-    rotate(elbow, turn.setFromUnitVectors(from.subVectors(gripOf(limb, gripAt), elbowAt).normalize(), to.subVectors(target, elbowAt).normalize()));
+    // Each block turned by the same angle from the last: where that leaves
+    // the hand, along and across the way the first block points.
+    const span = (bend: number) => {
+      let x = 0, y = 0;
+      lengths.forEach((l, k) => { x += l * Math.cos(k * bend); y -= l * Math.sin(k * bend); });
+      return [x, y];
+    };
+    let low = 0, high = 0.8;
+    for (let k = 0; k < 14; k++) {
+      const middle = (low + high) / 2, [x, y] = span(middle);
+      if (Math.hypot(x, y) > far) low = middle; else high = middle;
+    }
+    const bend = (low + high) / 2, [x, y] = span(bend), first = -Math.atan2(y, x);
+    bones.forEach((b, k) => {
+      const a = first - k * bend;
+      heading.copy(aim).multiplyScalar(Math.cos(a)).addScaledVector(pole, Math.sin(a));
+      b.getWorldPosition(from);
+      (k < 7 ? bones[k + 1].getWorldPosition(to) : gripOf(limb, to)).sub(from).normalize();
+      rotate(b, turn.setFromUnitVectors(to, heading));
+    });
     if (weight < 1) {
-      limb.root.quaternion.copy(wasRoot.slerp(limb.root.quaternion, weight));
-      elbow.quaternion.copy(wasElbow.slerp(elbow.quaternion, weight));
+      bones.forEach((b, k) => b.quaternion.copy(was[k].slerp(b.quaternion, weight)));
       limb.root.updateWorldMatrix(false, true);
     }
   };
   // Picking and carrying (fruit.ts). It's right-handed: the right arm
-  // reaches, its elbow kept out to its side and below the hand (above it,
-  // stooping to the ground), never across its face. The left arm bends
-  // across its body, forearm level in front of its chest, as a bowl for
-  // what it's carrying. Stooping, it bows from the waist (and bends its
+  // reaches, sagging below the straight line to what it reaches for and a
+  // little out to its side, never across its face: curled up in front of
+  // it for something overhead, hanging down and levelling off for
+  // something on the ground. The left arm curls
+  // across its body, down from the shoulder and up to the hand in front of
+  // its chest, as a bowl for what it's carrying. Stooping, it bows from the waist (and bends its
   // knees, in stand()), and an arm that's doing neither hangs straight down
   // rather than swinging back with the body.
   const right = new THREE.Vector3(), goal = new THREE.Vector3(), hang = new THREE.Quaternion();
@@ -453,22 +471,24 @@ export function createRobot(gltf: GLTF) {
     if (cradle > 0) {
       spine.updateWorldMatrix(true, false);
       goal.set(...CRADLE).applyMatrix4(spine.matrixWorld);
-      place(limbs[2], goal, pole.copy(right).multiplyScalar(-0.5).addScaledVector(UP, -1).addScaledVector(forward, 0.25), cradle);
+      place(limbs[2], goal, heading.copy(right).multiplyScalar(-0.3).addScaledVector(UP, -1).addScaledVector(forward, 0.2), cradle);
     }
     if (reaching && reaching.share > 0) {
       const limb = limbs[3];
       gripOf(limb, goal).lerp(reaching.goal, reaching.share);
-      // Up for something on the ground, down for something overhead.
-      const lift = THREE.MathUtils.lerp(-0.55, 0.7, stoop);
-      place(limb, goal, pole.copy(right).addScaledVector(UP, lift).addScaledVector(forward, -0.35), THREE.MathUtils.smoothstep(reaching.share, 0, 0.3));
+      place(limb, goal, heading.copy(right).multiplyScalar(0.3).addScaledVector(UP, -1).addScaledVector(forward, 0.35), THREE.MathUtils.smoothstep(reaching.share, 0, 0.3));
     }
   };
 
   return {
     object,
-    // Where an arm's elbow is (0 left, 1 right), and its hand's grip, in
-    // the world.
-    elbow(arm: 0 | 1, out: THREE.Vector3) { return limbs[2 + arm].bends[2].getWorldPosition(out); },
+    // A point along an arm (0 left, 1 right), from its shoulder (0) to its
+    // grip (1), and the grip itself, in the world.
+    along(arm: 0 | 1, share: number, out: THREE.Vector3) {
+      const limb = limbs[2 + arm], bones = chain(limb), at = THREE.MathUtils.clamp(share, 0, 1) * 8, k = Math.min(7, Math.floor(at));
+      bones[k].getWorldPosition(out);
+      return out.lerp(k < 7 ? bones[k + 1].getWorldPosition(to) : gripOf(limb, to), at - k);
+    },
     grip(arm: 0 | 1, out: THREE.Vector3) { return gripOf(limbs[2 + arm], out); },
     // Where each foot is, and whether it's down.
     foot(k: 0 | 1, out: THREE.Vector3) { limbs[k].end.getWorldPosition(out); return limbs[k].lift < 0.04; },

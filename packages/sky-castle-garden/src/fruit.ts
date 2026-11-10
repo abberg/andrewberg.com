@@ -36,7 +36,7 @@ export const fruit = {
   // How many it carries, how long an arm is from shoulder to grip (m), and
   // the nearest it can pick (m, from the shoulder).
   carried: 5,
-  arm: 2.4,
+  arm: 2.3,
   near: 0.7,
   // A pick, in seconds: reaching out, bringing the fruit to the left arm,
   // and the hand going back to its side. One on the ground takes longer.
@@ -49,10 +49,10 @@ export const fruit = {
   // How near a foot comes to squash one (m).
   tread: 0.3,
 };
-// Where the carried fruit sits along the left forearm, from elbow (0) to
+// Where the carried fruit sits along the left arm, from shoulder (0) to
 // hand (1), how far above it and how far back towards the chest (m): four
-// in a row and one on top.
-const SLOTS: [number, number, number][] = [[0.5, 0.2, 0.1], [0.72, 0.2, 0.08], [0.28, 0.2, 0.12], [0.93, 0.2, 0.05], [0.6, 0.45, 0.16]];
+// in a row along the bottom of the bowl and one on top.
+const SLOTS: [number, number, number][] = [[0.62, 0.21, 0.06], [0.78, 0.21, 0.06], [0.46, 0.22, 0.08], [0.94, 0.21, 0.04], [0.7, 0.46, 0.14]];
 
 const GRAVITY = 9.81;
 type Tree = (typeof fruitTrees)[number] & { shaken: number, strength: number, way: THREE.Vector2, rested: number, left: boolean, crowns: THREE.Matrix4[] };
@@ -191,12 +191,9 @@ function reachable(feet: THREE.Vector3): Within | null {
 }
 
 // Where a carried fruit rides: on the left forearm, by its slot.
-const elbow = new THREE.Vector3(), hand = new THREE.Vector3();
 function slotOf(robot: Robot, yaw: number, slot: number, out: THREE.Vector3) {
   const [along, up, back] = SLOTS[slot];
-  robot.elbow(0, elbow);
-  robot.grip(0, hand);
-  out.lerpVectors(elbow, hand, along);
+  robot.along(0, along, out);
   out.y += up;
   out.x += Math.sin(yaw) * back;
   out.z += Math.cos(yaw) * back;
