@@ -14,7 +14,7 @@ import { mergeStatic } from './merge';
 import { createPause } from './pause';
 import { createPost } from './post';
 import { createFollowCamera, follow } from './followCamera';
-import { createFruit, picking, updateFruit, updatePick } from './fruit';
+import { carrying, cradling, createFruit, pickFacing, picking, updateFruit, updatePick } from './fruit';
 import { createHint } from './hint';
 import { createSpeaker } from './speaker';
 import { createInput } from './input';
@@ -273,9 +273,11 @@ renderer.setAnimationLoop(time => {
   direction.set(move.x * Math.cos(yaw) - move.y * Math.sin(yaw), -move.x * Math.sin(yaw) - move.y * Math.cos(yaw));
   // R puts the stonework back.
   if (input.tapped('KeyR') && !held) stones.reset();
+  player.facing = pickFacing();
   accumulator += delta;
   while (accumulator >= world.timestep) {
-    player.step(world.timestep, direction, input.run());
+    // It doesn't run with fruit in its arm.
+    player.step(world.timestep, direction, input.run() && !carrying());
     world.step();
     // Off the edge: back to the start.
     if (player.feet.y < -40) { player.reset(); follower.behind(spawn.yaw); }
@@ -291,7 +293,7 @@ renderer.setAnimationLoop(time => {
   inkShadow(renderer, scene, player.mesh);
   // E picks the fruit within reach (fruit.ts).
   const reaching = updatePick(delta, player.feet, player.yaw, player.pace, !flight.flying && !held && input.tapped('KeyE'), robot);
-  player.animate(delta, world.timestep, reaching);
+  player.animate(delta, world.timestep, reaching, cradling());
   steps.update(camera, player.pace);
   soundtrack.update(pause.paused);
   stones.sync();

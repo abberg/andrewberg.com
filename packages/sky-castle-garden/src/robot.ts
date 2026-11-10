@@ -31,12 +31,16 @@ export type RobotState = {
   ground: (x: number, y: number, z: number, depth: number, under: 'feet' | 'body') => number | null;
   // Reaching for something with one hand (fruit.ts), or null.
   reaching?: Reach | null;
+  // How far its left arm is bent across its body as a bowl, 0 to 1.
+  cradle?: number;
 };
-// A reach: which arm (0 left, 1 right), the point in the world its hand
-// goes to, how far there it has got (0 to 1), and how far it stoops for
-// it, 0 to 1: bending its knees and bowing from the waist, for what lies
-// on the ground.
-export type Reach = { arm: 0 | 1; goal: THREE.Vector3; share: number; stoop: number };
+// A reach with its right hand: the point in the world the hand goes to, how
+// far there it has got (0 to 1), and how far it stoops for it, 0 to 1:
+// bending its knees and bowing from the waist, for what lies on the ground.
+export type Reach = { goal: THREE.Vector3; share: number; stoop: number };
+// Where the left hand rests when the arm's a bowl for what it carries, in
+// the upper body's own space (x to its right, y up, z back).
+const CRADLE: [number, number, number] = [0.5, 0.42, -0.78];
 // The stoop at its deepest: how far the hips come down (m) and the body
 // bows (radians). And how far beyond the hand's bone its grip is (m).
 export const STOOP = { hips: 0.5, bow: 1.15 }, GRIP = 0.28;
@@ -392,48 +396,80 @@ export function createRobot(gltf: GLTF) {
     });
   };
 
-  // An arm reaching out for something (fruit.ts): the body bowed from the
-  // waist if it's stooping, then the arm curled evenly at every joint until
-  // it's as long as the reach, and swung from the shoulder to point there.
-  // The goal is where its grip goes, a little beyond the hand's bone.
-  const goal = new THREE.Vector3(), curl: THREE.Quaternion[] = Array.from({ length: 6 }, () => new THREE.Quaternion());
-  const reachOut = ({ arm, goal: grip, share, stoop }: Reach) => {
-    if (stoop > 0) rotate(spine, turn.setFromAxisAngle(side.crossVectors(forward, UP).normalize(), -STOOP.bow * stoop));
-    if (share <= 0) return;
-    const limb = limbs[2 + arm];
+  // An arm set by hand rather than by its clip: bent only at the elbow, the
+  // upper arm and forearm each as the clip left them, so that its grip (a
+  // little beyond the hand's bone) comes to a point in the world, with the
+  // elbow kept to the side the pole points. By weight: 0 leaves the clip's
+  // pose, 1 is all the way there.
+  const elbowAt = new THREE.Vector3(), gripAt = new THREE.Vector3(), aim = new THREE.Vector3(), pole = new THREE.Vector3();
+  const wasRoot = new THREE.Quaternion(), wasElbow = new THREE.Quaternion();
+  const gripOf = (limb: Limb, out: THREE.Vector3) => {
+    limb.end.updateWorldMatrix(true, false);
+    return out.set(0, GRIP, 0).applyMatrix4(limb.end.matrixWorld);
+  };
+  const place = (limb: Limb, goal: THREE.Vector3, towards: THREE.Vector3, weight: number) => {
+    if (weight <= 0) return;
+    const elbow = limb.bends[2];
+    wasRoot.copy(limb.root.quaternion);
+    wasElbow.copy(elbow.quaternion);
     limb.root.getWorldPosition(root);
-    goal.copy(grip).addScaledVector(to.subVectors(grip, root).normalize(), -GRIP);
-    limb.end.getWorldPosition(target).lerp(goal, share);
-    const want = target.distanceTo(root);
-    limb.bends.forEach((b, j) => curl[j].copy(b.quaternion));
-    const apply = (by: number) => {
-      limb.bends.forEach((b, j) => b.quaternion.copy(curl[j]).multiply(twist.setFromAxisAngle(X_AXIS, limb.knee * by)));
+    elbow.getWorldPosition(elbowAt);
+    const upper = root.distanceTo(elbowAt), fore = elbowAt.distanceTo(gripOf(limb, gripAt));
+    aim.subVectors(goal, root);
+    const far = THREE.MathUtils.clamp(aim.length(), Math.abs(upper - fore) + 0.08, upper + fore - 0.02);
+    aim.normalize();
+    // The elbow: off the line from shoulder to grip, towards the pole.
+    const along = (upper * upper + far * far - fore * fore) / (2 * upper * far), off = Math.sqrt(Math.max(0, 1 - along * along));
+    pole.copy(towards).addScaledVector(aim, -towards.dot(aim)).normalize();
+    target.copy(root).addScaledVector(aim, upper * along).addScaledVector(pole, upper * off);
+    rotate(limb.root, turn.setFromUnitVectors(from.subVectors(elbowAt, root).normalize(), to.subVectors(target, root).normalize()));
+    elbow.getWorldPosition(elbowAt);
+    target.copy(root).addScaledVector(aim, far);
+    rotate(elbow, turn.setFromUnitVectors(from.subVectors(gripOf(limb, gripAt), elbowAt).normalize(), to.subVectors(target, elbowAt).normalize()));
+    if (weight < 1) {
+      limb.root.quaternion.copy(wasRoot.slerp(limb.root.quaternion, weight));
+      elbow.quaternion.copy(wasElbow.slerp(elbow.quaternion, weight));
       limb.root.updateWorldMatrix(false, true);
-      return limb.end.getWorldPosition(end).distanceTo(root);
-    };
-    // Straighter or more curled, by halves.
-    let low = -0.15, high = 1.1;
-    for (let i = 0; i < 12; i++) {
-      const middle = (low + high) / 2;
-      if (apply(middle) > want) low = middle; else high = middle;
     }
-    apply((low + high) / 2);
-    from.subVectors(limb.end.getWorldPosition(end), root).normalize();
-    to.subVectors(target, root).normalize();
-    rotate(limb.root, turn.setFromUnitVectors(from, to));
+  };
+  // Picking and carrying (fruit.ts). It's right-handed: the right arm
+  // reaches, its elbow kept out to its side and below the hand (above it,
+  // stooping to the ground), never across its face. The left arm bends
+  // across its body, forearm level in front of its chest, as a bowl for
+  // what it's carrying. Stooping, it bows from the waist (and bends its
+  // knees, in stand()), and an arm that's doing neither hangs straight down
+  // rather than swinging back with the body.
+  const right = new THREE.Vector3(), goal = new THREE.Vector3(), hang = new THREE.Quaternion();
+  const carry = (reaching: Reach | null | undefined, cradle: number) => {
+    const stoop = reaching?.stoop ?? 0;
+    if (stoop <= 0 && cradle <= 0 && !reaching) return;
+    right.crossVectors(forward, UP).normalize();
+    if (stoop > 0) {
+      rotate(spine, turn.setFromAxisAngle(right, -STOOP.bow * stoop));
+      hang.setFromAxisAngle(right, STOOP.bow * stoop);
+      rotate(limbs[2].root, turn.copy(hang).slerp(own.identity(), cradle));
+      rotate(limbs[3].root, turn.copy(hang).slerp(own.identity(), reaching?.share ?? 0));
+    }
+    if (cradle > 0) {
+      spine.updateWorldMatrix(true, false);
+      goal.set(...CRADLE).applyMatrix4(spine.matrixWorld);
+      place(limbs[2], goal, pole.copy(right).multiplyScalar(-0.5).addScaledVector(UP, -1).addScaledVector(forward, 0.25), cradle);
+    }
+    if (reaching && reaching.share > 0) {
+      const limb = limbs[3];
+      gripOf(limb, goal).lerp(reaching.goal, reaching.share);
+      // Up for something on the ground, down for something overhead.
+      const lift = THREE.MathUtils.lerp(-0.55, 0.7, stoop);
+      place(limb, goal, pole.copy(right).addScaledVector(UP, lift).addScaledVector(forward, -0.35), THREE.MathUtils.smoothstep(reaching.share, 0, 0.3));
+    }
   };
 
   return {
     object,
-    // Where an arm's shoulder is, and its hand's grip, in the world.
-    shoulder(arm: 0 | 1, out: THREE.Vector3) { return limbs[2 + arm].root.getWorldPosition(out); },
-    grip(arm: 0 | 1, out: THREE.Vector3) {
-      const hand = limbs[2 + arm].end;
-      hand.updateWorldMatrix(true, false);
-      return out.set(0, GRIP, 0).applyMatrix4(hand.matrixWorld);
-    },
-    // The body above the waist, for what it carries on its shoulders.
-    get spine() { spine.updateWorldMatrix(true, false); return spine.matrixWorld; },
+    // Where an arm's elbow is (0 left, 1 right), and its hand's grip, in
+    // the world.
+    elbow(arm: 0 | 1, out: THREE.Vector3) { return limbs[2 + arm].bends[2].getWorldPosition(out); },
+    grip(arm: 0 | 1, out: THREE.Vector3) { return gripOf(limbs[2 + arm], out); },
     // Where each foot is, and whether it's down.
     foot(k: 0 | 1, out: THREE.Vector3) { limbs[k].end.getWorldPosition(out); return limbs[k].lift < 0.04; },
     update(dt: number, state: RobotState) {
@@ -467,7 +503,7 @@ export function createRobot(gltf: GLTF) {
       mixer.update(dt);
       keep();
       stand(state, dt);
-      if (state.reaching) reachOut(state.reaching);
+      carry(state.reaching, state.cradle ?? 0);
     },
     // How far each foot is lifted in the clip, before it's set on the
     // ground (footsteps.ts).

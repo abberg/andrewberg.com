@@ -14,11 +14,12 @@ import { type Reach, type Robot, STOOP } from './robot';
 //
 // Second step: picking by hand, the main way to gather it. Whatever fruit is
 // within the robot's reach, on the tree or on the ground, shows itself by
-// swelling a little, and E picks it: the robot stops, reaches for it (bowing
-// and bending its knees for one on the ground), and tosses it up onto its
-// shoulders, where it carries up to five. The highest fruit is out of reach
-// and has to be shaken down. Fruit lying on the ground is squashed if it's
-// trodden on.
+// swelling a little, and E picks it: the robot stops, reaches for it with
+// its right hand (bowing and bending its knees for one on the ground) and
+// sets it in the crook of its left arm, bent across its body as a bowl,
+// where it carries up to five. Carrying, it only walks. The highest fruit
+// is out of reach and has to be shaken down. Fruit lying on the ground is
+// squashed if it's trodden on.
 
 export const fruit = {
   // On each tree, and how big (m across).
@@ -37,23 +38,27 @@ export const fruit = {
   carried: 5,
   arm: 2.4,
   near: 0.7,
-  // A pick, in seconds: reaching out, then drawing back while the fruit's
-  // tossed up onto the shoulders. One on the ground takes longer.
-  out: 0.6,
-  back: 0.7,
-  stooping: 1.5,
+  // A pick, in seconds: reaching out, bringing the fruit to the left arm,
+  // and the hand going back to its side. One on the ground takes longer.
+  out: 0.75,
+  bring: 0.75,
+  back: 0.5,
+  stooping: 1.35,
+  // How long the left arm takes to come up as a bowl, or go down (s).
+  cradle: 0.45,
   // How near a foot comes to squash one (m).
   tread: 0.3,
 };
-// Where the carried fruit sits, in the upper body's own space (x across,
-// y up, z back): along the tops of the shoulders, and one behind the head.
-const SLOTS: [number, number, number][] = [[-0.5, 1.44, 0.02], [0.5, 1.44, 0.02], [-0.8, 1.37, 0.02], [0.8, 1.37, 0.02], [0, 1.44, 0.34]];
+// Where the carried fruit sits along the left forearm, from elbow (0) to
+// hand (1), how far above it and how far back towards the chest (m): four
+// in a row and one on top.
+const SLOTS: [number, number, number][] = [[0.5, 0.2, 0.1], [0.72, 0.2, 0.08], [0.28, 0.2, 0.12], [0.93, 0.2, 0.05], [0.6, 0.45, 0.16]];
 
 const GRAVITY = 9.81;
 type Tree = (typeof fruitTrees)[number] & { shaken: number, strength: number, way: THREE.Vector2, rested: number, left: boolean, crowns: THREE.Matrix4[] };
 type Fruit = {
   tree: Tree, home: THREE.Vector3, at: THREE.Vector3, velocity: THREE.Vector3, spin: THREE.Vector3, turn: THREE.Quaternion,
-  state: 'hanging' | 'falling' | 'lying' | 'sinking' | 'gone' | 'held' | 'tossed' | 'carried' | 'squashed', scale: number, wait: number, slot: number,
+  state: 'hanging' | 'falling' | 'lying' | 'sinking' | 'gone' | 'held' | 'carried' | 'squashed', scale: number, wait: number, slot: number,
 };
 
 let mesh: THREE.InstancedMesh | undefined, world: RAPIER.World;
@@ -149,73 +154,116 @@ function place() {
 // Picking. What's within reach just now (the fruit, which arm, and how far
 // it has to stoop for it), and the pick under way: how long it's been going
 // and where the fruit was when it left the hand.
-type Within = { fruit: Fruit, arm: 0 | 1, stoop: number };
+type Within = { fruit: Fruit, stoop: number, facing: number | null };
 let within: Within | null = null;
 let pick: (Within & { t: number, reach: Reach, from: THREE.Vector3, grabbed: boolean }) | null = null;
-const carried = () => fruits.filter(f => f.state === 'carried' || f.state === 'tossed' || f.state === 'held');
-const shoulder = new THREE.Vector3(), toFruit = new THREE.Vector3(), slotAt = new THREE.Vector3(), foot = new THREE.Vector3();
+let cradle = 0;
+const carried = () => fruits.filter(f => f.state === 'carried' || f.state === 'held');
+const slotAt = new THREE.Vector3(), foot = new THREE.Vector3();
 // The fruit nearest to hand, if any: with the least stooping, then the
-// nearest. An arm reaches what's on its own side, up to straight ahead;
-// what's on the ground has to be in front, since it's bowed down to.
-function reachable(feet: THREE.Vector3, yaw: number): Within | null {
+// nearest. It turns to whatever it picks, to have it in front and a little
+// to its right, where its right hand reaches without crossing its body, so
+// what's within reach is judged as it will be once it has turned.
+const ASIDE = 0.3;
+function reachable(feet: THREE.Vector3): Within | null {
   let best: Within | null = null, least = Infinity;
-  const ahead = { x: -Math.sin(yaw), z: -Math.cos(yaw) }, right = { x: Math.cos(yaw), z: -Math.sin(yaw) };
   for (const f of fruits) {
     if (f.state !== 'hanging' && f.state !== 'lying') continue;
-    const dx = f.at.x - feet.x, dz = f.at.z - feet.z;
-    if (dx * dx + dz * dz > 16 || Math.abs(f.at.y - feet.y - 3) > 4) continue;
-    const forward = dx * ahead.x + dz * ahead.z, across = dx * right.x + dz * right.z;
-    const arm = across < 0 ? 0 : 1;
+    const dx = f.at.x - feet.x, dz = f.at.z - feet.z, flat = Math.hypot(dx, dz);
+    if (flat > 4 || Math.abs(f.at.y - feet.y - 3) > 4) continue;
+    // Right overhead, there's no turning to it: it's taken as it is.
+    const turned = flat > 0.5, forward = turned ? flat * Math.cos(ASIDE) : 0.3, across = turned ? flat * Math.sin(ASIDE) : 0.5;
     for (let stoop = 0; stoop <= 1.001; stoop += 0.125) {
-      if (stoop > 0 && (f.state !== 'lying' || forward < 0.6)) break;
+      if (stoop > 0 && f.state !== 'lying') break;
       // Where the shoulder is, stooped that far: the waist lower, the body
       // bowed forward about it.
       const bow = STOOP.bow * stoop, up = feet.y + 2.05 - STOOP.hips * stoop + 1.16 * Math.cos(bow), out = 1.16 * Math.sin(bow) + 0.04;
-      const far = Math.hypot(forward - out, across - (arm ? 0.68 : -0.68), f.at.y - up);
+      const far = Math.hypot(forward - out, across - 0.68, f.at.y - up);
       if (far > fruit.arm || far < fruit.near) continue;
-      // Not behind its back.
-      if (forward < -0.5 && f.at.y - up < 1) break;
+      // Not right at its feet, where it would have to fold double.
+      if (stoop > 0 && flat < 1) break;
       const score = stoop * 10 + far;
-      if (score < least) { least = score; best = { fruit: f, arm, stoop }; }
+      if (score < least) { least = score; best = { fruit: f, stoop, facing: turned ? Math.atan2(-dx, -dz) + ASIDE : null }; }
       break;
     }
   }
   return best;
 }
 
+// Where a carried fruit rides: on the left forearm, by its slot.
+const elbow = new THREE.Vector3(), hand = new THREE.Vector3();
+function slotOf(robot: Robot, yaw: number, slot: number, out: THREE.Vector3) {
+  const [along, up, back] = SLOTS[slot];
+  robot.elbow(0, elbow);
+  robot.grip(0, hand);
+  out.lerpVectors(elbow, hand, along);
+  out.y += up;
+  out.x += Math.sin(yaw) * back;
+  out.z += Math.cos(yaw) * back;
+  return out;
+}
+
 // Before the robot's posed: what's within reach, and the pick under way, if
-// E started one or one's going. Gives the reach for its arm (player.animate).
+// E started one or one's going. Gives the reach for its right arm and how
+// far its left is up as a bowl (player.animate).
 export function updatePick(delta: number, feet: THREE.Vector3, yaw: number, pace: number, wanted: boolean, robot: Robot): Reach | null {
   if (!mesh) return null;
   pulse += delta;
+  // The bowl: up while there's anything in it or on its way.
+  const holding = pick !== null || carried().length > 0;
+  cradle = THREE.MathUtils.clamp(cradle + (holding ? delta : -delta) / fruit.cradle, 0, 1);
   if (!pick) {
     const full = carried().length >= fruit.carried;
-    within = full || pace > 0.5 ? null : reachable(feet, yaw);
+    within = full || pace > 0.5 ? null : reachable(feet);
     if (!wanted || !within) return null;
-    pick = { ...within, t: 0, from: new THREE.Vector3(), grabbed: false, reach: { arm: within.arm, goal: within.fruit.at.clone(), share: 0, stoop: 0 } };
+    pick = { ...within, t: 0, from: new THREE.Vector3(), grabbed: false, reach: { goal: within.fruit.at.clone(), share: 0, stoop: 0 } };
+  }
+  // First it turns to the fruit (player.ts, by pickFacing), its left arm
+  // coming up meanwhile.
+  if (pick.facing !== null) {
+    const off = THREE.MathUtils.euclideanModulo(pick.facing - yaw + Math.PI, Math.PI * 2) - Math.PI;
+    if (Math.abs(off) > 0.06) return pick.reach;
+    pick.facing = null;
   }
   pick.t += delta;
-  const out = pick.stoop > 0 ? fruit.out * fruit.stooping : fruit.out, back = pick.stoop > 0 ? fruit.back * fruit.stooping : fruit.back;
+  const slow = pick.stoop > 0 ? fruit.stooping : 1, out = fruit.out * slow, bring = fruit.bring * slow, back = fruit.back;
   const smooth = THREE.MathUtils.smootherstep;
   if (pick.t < out) {
-    // Reaching (the fruit may be swaying in a shaken tree).
+    // Reaching (the fruit may be swaying in a shaken tree), stooping first.
     pick.reach.goal.copy(pick.fruit.at);
-    pick.reach.share = smooth(pick.t, 0, out * 0.9);
-    pick.reach.stoop = pick.stoop * smooth(pick.t, 0, out * 0.75);
-  } else {
+    pick.reach.share = smooth(pick.t, pick.stoop > 0 ? out * 0.25 : 0, out * 0.92);
+    pick.reach.stoop = pick.stoop * smooth(pick.t, 0, out * 0.7);
+  } else if (pick.t < out + bring) {
     if (!pick.grabbed) {
       pick.grabbed = true;
+      pick.from.copy(pick.fruit.at);
       pick.fruit.state = 'held';
       pick.fruit.slot = [0, 1, 2, 3, 4].find(k => !fruits.some(f => f.slot === k))!;
     }
-    // Drawing back, straightening up.
-    const t = (pick.t - out) / back;
-    pick.reach.share = 1 - smooth(t, 0.15, 1);
-    pick.reach.stoop = pick.stoop * (1 - smooth(t, 0.1, 0.9));
+    // Straightening up, and the hand carrying it over to the bowl, in a
+    // low arc so it's set down from above.
+    const t = (pick.t - out) / bring, u = smooth(t, 0.1, 1);
+    slotOf(robot, yaw, pick.fruit.slot, slotAt);
+    pick.reach.goal.lerpVectors(pick.from, slotAt, u).y += Math.sin(u * Math.PI) * 0.3 + (1 - u) * 0;
+    pick.reach.share = 1;
+    pick.reach.stoop = pick.stoop * (1 - smooth(t, 0, 0.75));
+  } else {
+    // Set down in the bowl; the hand goes back to its side.
+    if (pick.fruit.state === 'held') pick.fruit.state = 'carried';
+    const t = (pick.t - out - bring) / back;
+    pick.reach.share = 1 - smooth(t, 0, 1);
+    pick.reach.stoop = 0;
     if (t >= 1) { pick = null; return null; }
   }
   return pick.reach;
 }
+// How far the left arm's up as a bowl, and whether anything's in it: it
+// doesn't run with its arm full.
+export const cradling = () => cradle;
+export const carrying = () => carried().length > 0 || pick !== null;
+// Which way it should turn to face what it's picking, while it still has
+// to, or null.
+export const pickFacing = () => pick?.facing ?? null;
 // Whether it's busy picking: it stands still for it.
 export const picking = () => pick !== null;
 
@@ -235,28 +283,10 @@ export function updateFruit(delta: number, feet: THREE.Vector3, yaw: number, pac
   if (!mesh || delta <= 0) return;
   // Always placed: what's within reach swells and settles.
   let moved = true;
-  // In the hand until it's drawn back a little, then tossed up in an arc
-  // onto the shoulders, where it rides.
-  const body = robot.spine;
+  // In its right hand until it's set down, then riding in the bowl.
   for (const f of fruits) {
-    if (f.slot < 0) continue;
-    slotAt.set(...SLOTS[f.slot]).applyMatrix4(body);
-    if (f.state === 'held' && pick?.fruit === f) {
-      robot.grip(pick.arm, f.at);
-      const back = (pick.stoop > 0 ? fruit.back * fruit.stooping : fruit.back), t = (pick.t - (pick.stoop > 0 ? fruit.out * fruit.stooping : fruit.out)) / back;
-      if (t > 0.3) { f.state = 'tossed'; f.wait = 0; pick.from.copy(f.at); f.velocity.copy(f.at); }
-    } else if (f.state === 'held') {
-      f.state = 'tossed'; f.wait = 0; f.velocity.copy(f.at);
-    } else if (f.state === 'tossed') {
-      // (velocity keeps where it left the hand.)
-      f.wait += delta / 0.5;
-      const t = Math.min(1, f.wait);
-      f.at.lerpVectors(f.velocity, slotAt, t).y += Math.sin(t * Math.PI) * 0.9;
-      f.turn.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), delta * 9));
-      if (t >= 1) { f.state = 'carried'; f.velocity.set(0, 0, 0); }
-    } else if (f.state === 'carried') {
-      f.at.copy(slotAt);
-    }
+    if (f.state === 'held') robot.grip(1, f.at);
+    else if (f.state === 'carried') slotOf(robot, yaw, f.slot, f.at);
   }
   // Trodden on: walked over while it's lying there, under the robot's
   // body or under either foot as it comes down.
@@ -376,7 +406,7 @@ export const fruitCount = () => ({
   lost: fruits.filter(f => f.state === 'sinking' || f.state === 'gone').length,
   squashed: fruits.filter(f => f.state === 'squashed').length,
   carried: carried().length,
-  within: within && { state: within.fruit.state, stoop: within.stoop, arm: within.arm },
+  within: within && { state: within.fruit.state, stoop: within.stoop },
   picking: pick !== null,
   ground: fruits.filter(f => f.state === 'lying').map(f => [f.at.x, f.at.z]),
   trees: trees.map(tree => ({ x: tree.x, z: tree.z, tall: tree.tall, hanging: fruits.filter(f => f.tree === tree && f.state === 'hanging').length })),

@@ -92,6 +92,8 @@ export function createPlayer(world: RAPIER.World, scene: THREE.Scene, spawn: { x
   // A step-over under way: from and to the feet, how high to lift and how far through.
   let stepping: { from: THREE.Vector3; to: THREE.Vector3; lift: number; t: number } | null = null;
   let held = 0;
+  // A way to turn to face, standing still, or null.
+  let facing: number | null = null;
   // Held up by something low and short enough, with clear ground on the far
   // side: step over it.
   // The top of whatever's just in front.
@@ -172,6 +174,12 @@ export function createPlayer(world: RAPIER.World, scene: THREE.Scene, spawn: { x
         yaw += THREE.MathUtils.clamp(difference, -turn, turn);
         target = top * asked * Math.max(0, Math.cos(difference));
       }
+      // Standing, it turns on the spot to face what it's picking (fruit.ts).
+      else if (facing !== null) {
+        const difference = THREE.MathUtils.euclideanModulo(facing - yaw + Math.PI, Math.PI * 2) - Math.PI;
+        const turn = THREE.MathUtils.degToRad(movement.turn) * 0.7 * dt;
+        yaw += THREE.MathUtils.clamp(difference, -turn, turn);
+      }
       const rate = top / movement.accelerate * dt;
       speed += THREE.MathUtils.clamp(target - speed, -rate, rate);
 
@@ -222,13 +230,14 @@ export function createPlayer(world: RAPIER.World, scene: THREE.Scene, spawn: { x
       mesh.rotation.y = previousYaw + (yaw - previousYaw) * alpha;
     },
     // Pose the robot to match, dt seconds on from the last frame.
-    animate(dt: number, step: number, reaching: Reach | null = null) {
+    animate(dt: number, step: number, reaching: Reach | null = null, cradle = 0) {
       robot.update(dt, {
         speed: stepping ? 0 : ground, walk: movement.walk, run: movement.run,
         turning: (yaw - previousYaw) / step, pushing: pushing && !stepping, stepping: stepping?.t ?? null,
-        ground: groundAt, reaching,
+        ground: groundAt, reaching, cradle,
       });
     },
+    set facing(to: number | null) { facing = to; },
     get mesh() { return mesh; },
     // Which way it faces, and how fast it's going as a share of a run.
     get yaw() { return yaw; },
