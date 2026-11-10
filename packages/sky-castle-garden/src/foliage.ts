@@ -708,6 +708,12 @@ function giantTree(scene: THREE.Scene) {
 // Where the garden's flowers stand, for meadow.ts to plant (white, to start).
 export const gardenFlowers: THREE.Vector3[] = [];
 
+// The small trees in the garden, for the fruit they bear (fruit.ts): where
+// each stands, how tall, and which balls of the crowns' two meshes (the
+// leaves and the cores inside them) are its own, so it can be shaken.
+export const fruitTrees: { x: number, z: number, tall: number, first: number, count: number }[] = [];
+export const crownMeshes: THREE.InstancedMesh[] = [];
+
 export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
   let s = 4243;
   const random = () => (s = (s * 16807) % 2147483647) / 2147483647;
@@ -847,6 +853,7 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
   const trunks: THREE.BufferGeometry[] = [], crowns: THREE.Matrix4[] = [];
   const tree = (x: number, z: number, tall: number, anywhere = false) => {
     if (!anywhere && !clear(x, z, 1)) return;
+    const first = crowns.length;
     const lean = new THREE.Vector3((random() - 0.5) * 0.12, 1, (random() - 0.5) * 0.12).normalize();
     const fork = new THREE.Vector3(x, 0, z).addScaledVector(lean, tall * (0.3 + random() * 0.1));
     trunks.push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([new THREE.Vector3(x, -0.2, z), new THREE.Vector3(x, 0, z).addScaledVector(lean, tall * 0.15), fork]), 8, tall * 0.028, 7));
@@ -875,6 +882,8 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
       return false;
     });
     world.createCollider(RAPIER.ColliderDesc.capsule(tall * 0.15, 0.4).setTranslation(x, tall * 0.15 + 0.4, z).setCollisionGroups(WALL_GROUPS));
+    // The garden's own bear fruit (fruit.ts): which of the crowns' balls are its.
+    if (!anywhere) fruitTrees.push({ x, z, tall, first, count: crowns.length - first });
   };
   // By the pools: on the west pool's far side, and the east pool's south
   // side, away from its colonnade.
@@ -901,8 +910,8 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
     instanced(core, painted(CYPRESS_CORE), placed, scene);
   }
   {
-    instanced(ballGeometry(31, 130, 40), leafCards(CROWN, clusterTexture(43), SWAY.crown), crowns, scene);
-    instanced(new THREE.SphereGeometry(0.26, 12, 8), painted(CROWN_CORE), crowns, scene);
+    crownMeshes.push(instanced(ballGeometry(31, 130, 40), leafCards(CROWN, clusterTexture(43), SWAY.crown), crowns, scene),
+      instanced(new THREE.SphereGeometry(0.26, 12, 8), painted(CROWN_CORE), crowns, scene));
     const wood = new THREE.Mesh(mergeGeometries(trunks.map(g => { g.deleteAttribute('uv'); return g; }))!, painted(BARK));
     wood.castShadow = wood.receiveShadow = true;
     scene.add(wood);
