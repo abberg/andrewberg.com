@@ -1,7 +1,7 @@
 import RAPIER from '@dimforge/rapier3d-compat';
 import * as THREE from 'three';
 import { BODY_GROUPS, CAMERA_GROUPS, FEET_GROUPS } from './level';
-import type { Robot } from './robot';
+import type { Reach, Robot } from './robot';
 
 // The robot stands about 4 m tall, and collides as a capsule.
 export const HEIGHT = 4, RADIUS = 0.8;
@@ -222,11 +222,11 @@ export function createPlayer(world: RAPIER.World, scene: THREE.Scene, spawn: { x
       mesh.rotation.y = previousYaw + (yaw - previousYaw) * alpha;
     },
     // Pose the robot to match, dt seconds on from the last frame.
-    animate(dt: number, step: number) {
+    animate(dt: number, step: number, reaching: Reach | null = null) {
       robot.update(dt, {
         speed: stepping ? 0 : ground, walk: movement.walk, run: movement.run,
         turning: (yaw - previousYaw) / step, pushing: pushing && !stepping, stepping: stepping?.t ?? null,
-        ground: groundAt,
+        ground: groundAt, reaching,
       });
     },
     get mesh() { return mesh; },

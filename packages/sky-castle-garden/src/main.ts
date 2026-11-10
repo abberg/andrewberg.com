@@ -14,7 +14,7 @@ import { mergeStatic } from './merge';
 import { createPause } from './pause';
 import { createPost } from './post';
 import { createFollowCamera, follow } from './followCamera';
-import { createFruit, updateFruit } from './fruit';
+import { createFruit, picking, updateFruit, updatePick } from './fruit';
 import { createHint } from './hint';
 import { createSpeaker } from './speaker';
 import { createInput } from './input';
@@ -268,7 +268,8 @@ renderer.setAnimationLoop(time => {
   // Nothing moves the robot or the view until the fly-in has landed.
   if (!flight.flying && !held) follower.look(x, y, zoom);
   // Camera-relative: forward is away from the camera.
-  const move = flight.flying || held ? { x: 0, y: 0 } : input.move(), yaw = follower.yaw;
+  // Nor while it's picking fruit: it stands still for that.
+  const move = flight.flying || held || picking() ? { x: 0, y: 0 } : input.move(), yaw = follower.yaw;
   direction.set(move.x * Math.cos(yaw) - move.y * Math.sin(yaw), -move.x * Math.sin(yaw) - move.y * Math.cos(yaw));
   // R puts the stonework back.
   if (input.tapped('KeyR') && !held) stones.reset();
@@ -288,7 +289,9 @@ renderer.setAnimationLoop(time => {
   shadow.ground = hit ? at.y + 1 - hit.timeOfImpact : at.y;
   aimShadow(look.sun);
   inkShadow(renderer, scene, player.mesh);
-  player.animate(delta, world.timestep);
+  // E picks the fruit within reach (fruit.ts).
+  const reaching = updatePick(delta, player.feet, player.yaw, player.pace, !flight.flying && !held && input.tapped('KeyE'), robot);
+  player.animate(delta, world.timestep, reaching);
   steps.update(camera, player.pace);
   soundtrack.update(pause.paused);
   stones.sync();
@@ -298,7 +301,7 @@ renderer.setAnimationLoop(time => {
   look.update(camera);
   updateWind(seconds);
   updateLeaves();
-  updateFruit(delta, player.feet, player.yaw, player.pace);
+  updateFruit(delta, player.feet, player.yaw, player.pace, robot);
   updateWater(seconds);
   updateFish(seconds, delta);
   updateLilies(seconds);

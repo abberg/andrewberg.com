@@ -29,7 +29,17 @@ export type RobotState = {
   // depth, or null: the steps themselves (feet), or the ramps over them
   // that the robot really moves on (body).
   ground: (x: number, y: number, z: number, depth: number, under: 'feet' | 'body') => number | null;
+  // Reaching for something with one hand (fruit.ts), or null.
+  reaching?: Reach | null;
 };
+// A reach: which arm (0 left, 1 right), the point in the world its hand
+// goes to, how far there it has got (0 to 1), and how far it stoops for
+// it, 0 to 1: bending its knees and bowing from the waist, for what lies
+// on the ground.
+export type Reach = { arm: 0 | 1; goal: THREE.Vector3; share: number; stoop: number };
+// The stoop at its deepest: how far the hips come down (m) and the body
+// bows (radians). And how far beyond the hand's bone its grip is (m).
+export const STOOP = { hips: 0.5, bow: 1.15 }, GRIP = 0.28;
 
 // Feet and hands on uneven ground. The clips are all made on the flat, but
 // on stairs (and rims and plinths) each foot, and each hand in the run,
@@ -240,7 +250,7 @@ export function createRobot(gltf: GLTF) {
 
   // The limbs that stand on things.
   const bone = (name: string) => object.getObjectByName(name)!;
-  const hips = bone('hips');
+  const hips = bone('hips'), spine = bone('spine');
   const limbs: Limb[] = [];
   for (const side of ['L', 'R']) {
     limbs.push({ root: bone(`leg1${side}`), bends: [2, 3, 4, 5].map(k => bone(`leg${k}${side}`)), end: bone(`foot${side}`), foot: true, knee: 1, base: 0, lift: 0, offset: 0 });
@@ -252,7 +262,7 @@ export function createRobot(gltf: GLTF) {
   // Everything stand() moves, and how the clips left it: the mixer only
   // writes a bone again when its clips give it a new pose, so it's put
   // back before each frame's clips, or the changes would pile up.
-  const moved = [hips, ...limbs.flatMap(limb => [limb.root, ...limb.bends, limb.end])];
+  const moved = [hips, spine, ...limbs.flatMap(limb => [limb.root, ...limb.bends, limb.end])];
   const posed = moved.map(b => ({ position: b.position.clone(), quaternion: b.quaternion.clone() }));
   const unpose = () => moved.forEach((b, i) => { b.position.copy(posed[i].position); b.quaternion.copy(posed[i].quaternion); });
   const keep = () => moved.forEach((b, i) => { posed[i].position.copy(b.position); posed[i].quaternion.copy(b.quaternion); });
@@ -353,8 +363,9 @@ export function createRobot(gltf: GLTF) {
     // a little into the climb at a walk.
     const tip = Math.atan(slope) * (weight.run * FEET.tip - (1 - weight.run) * FEET.lean * (slope > 0 ? 1 : 0)) * feet;
     if (Math.abs(tip) > 1e-4) rotate(hips, turn.setFromAxisAngle(side.crossVectors(forward, UP).normalize(), tip));
-    // Drop the hips as far as the limb that has furthest to reach needs.
-    let need = 0;
+    // Drop the hips as far as the limb that has furthest to reach needs,
+    // or as far as it's stooping.
+    let need = -STOOP.hips * (state.reaching?.stoop ?? 0);
     limbs.forEach(limb => {
       const share = limb.foot ? feet : hands;
       if (share <= 0) return;
@@ -381,8 +392,50 @@ export function createRobot(gltf: GLTF) {
     });
   };
 
+  // An arm reaching out for something (fruit.ts): the body bowed from the
+  // waist if it's stooping, then the arm curled evenly at every joint until
+  // it's as long as the reach, and swung from the shoulder to point there.
+  // The goal is where its grip goes, a little beyond the hand's bone.
+  const goal = new THREE.Vector3(), curl: THREE.Quaternion[] = Array.from({ length: 6 }, () => new THREE.Quaternion());
+  const reachOut = ({ arm, goal: grip, share, stoop }: Reach) => {
+    if (stoop > 0) rotate(spine, turn.setFromAxisAngle(side.crossVectors(forward, UP).normalize(), -STOOP.bow * stoop));
+    if (share <= 0) return;
+    const limb = limbs[2 + arm];
+    limb.root.getWorldPosition(root);
+    goal.copy(grip).addScaledVector(to.subVectors(grip, root).normalize(), -GRIP);
+    limb.end.getWorldPosition(target).lerp(goal, share);
+    const want = target.distanceTo(root);
+    limb.bends.forEach((b, j) => curl[j].copy(b.quaternion));
+    const apply = (by: number) => {
+      limb.bends.forEach((b, j) => b.quaternion.copy(curl[j]).multiply(twist.setFromAxisAngle(X_AXIS, limb.knee * by)));
+      limb.root.updateWorldMatrix(false, true);
+      return limb.end.getWorldPosition(end).distanceTo(root);
+    };
+    // Straighter or more curled, by halves.
+    let low = -0.15, high = 1.1;
+    for (let i = 0; i < 12; i++) {
+      const middle = (low + high) / 2;
+      if (apply(middle) > want) low = middle; else high = middle;
+    }
+    apply((low + high) / 2);
+    from.subVectors(limb.end.getWorldPosition(end), root).normalize();
+    to.subVectors(target, root).normalize();
+    rotate(limb.root, turn.setFromUnitVectors(from, to));
+  };
+
   return {
     object,
+    // Where an arm's shoulder is, and its hand's grip, in the world.
+    shoulder(arm: 0 | 1, out: THREE.Vector3) { return limbs[2 + arm].root.getWorldPosition(out); },
+    grip(arm: 0 | 1, out: THREE.Vector3) {
+      const hand = limbs[2 + arm].end;
+      hand.updateWorldMatrix(true, false);
+      return out.set(0, GRIP, 0).applyMatrix4(hand.matrixWorld);
+    },
+    // The body above the waist, for what it carries on its shoulders.
+    get spine() { spine.updateWorldMatrix(true, false); return spine.matrixWorld; },
+    // Where each foot is, and whether it's down.
+    foot(k: 0 | 1, out: THREE.Vector3) { limbs[k].end.getWorldPosition(out); return limbs[k].lift < 0.04; },
     update(dt: number, state: RobotState) {
       const { speed, walk, run } = state;
       // Walk up to walking pace, then into the run; turning on the spot when
@@ -414,6 +467,7 @@ export function createRobot(gltf: GLTF) {
       mixer.update(dt);
       keep();
       stand(state, dt);
+      if (state.reaching) reachOut(state.reaching);
     },
     // How far each foot is lifted in the clip, before it's set on the
     // ground (footsteps.ts).

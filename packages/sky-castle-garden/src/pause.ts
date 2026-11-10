@@ -54,6 +54,7 @@ export function createPause(canvas: HTMLCanvasElement) {
     <div class="keys"><dl>
       <dt><svg class="mouse" viewBox="0 0 16 24" role="img" aria-label="Mouse"><rect x="1.5" y="1.5" width="13" height="21" rx="6.5" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="8" y1="5.5" x2="8" y2="9.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></dt><dd>look around, wheel to zoom</dd>
       <dt><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></dt><dd>walk, <kbd>Shift</kbd> to run</dd>
+      <dt><kbd>E</kbd></dt><dd>pick the fruit within reach</dd>
       <dt>Stones</dt><dd>walk into one to shove it</dd>
       <dt><kbd>R</kbd></dt><dd>put the stones back</dd>
     </dl><dl>
