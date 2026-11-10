@@ -112,7 +112,16 @@ export function createPlayer(world: RAPIER.World, scene: THREE.Scene, spawn: { x
     to.y += ground;
     if (world.intersectionWithShape({ x: to.x, y: to.y + HEIGHT / 2 + 0.05, z: to.z }, { x: 0, y: 0, z: 0, w: 1 }, shape,
       undefined, undefined, collider)) return;
-    stepping = { from: feet.clone(), to, lift: top + 0.15, t: 0 };
+    // Nor through anything standing on what it steps over: a column's plinth
+    // is low enough, but the column on it is in the way. Carried across at
+    // the height of the step, it must clear everything.
+    const lift = top + 0.15;
+    for (let k = 1; k < 6; k++) {
+      const at = feet.clone().lerp(to, k / 6);
+      if (world.intersectionWithShape({ x: at.x, y: feet.y + lift + HEIGHT / 2 + 0.05, z: at.z }, { x: 0, y: 0, z: 0, w: 1 }, shape,
+        undefined, BODY_GROUPS, collider)) return;
+    }
+    stepping = { from: feet.clone(), to, lift, t: 0 };
     // Passing through what it steps over, without knocking it.
     collider.setSensor(true);
   };
