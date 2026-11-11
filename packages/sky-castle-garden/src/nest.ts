@@ -17,8 +17,11 @@ import { play, type Sound } from './sounds';
 // turn, and set it down upright a few steps off. Then the birds come down:
 // one settles on the eggs, the other perches on the planter's rim and sings.
 
-// Where the planter stood (it's one of stones.ts's urns, left out there).
-export const FALLEN = { x: -7.8, z: 10 };
+// Which of stones.ts's urns it is (left out there: the one by the east
+// pool), and where it lies now: out on the east lawn, south of the east
+// path, away from the fruit trees and the fish on the west side.
+export const FALLEN = { x: 24, z: 38 };
+const LIES = { x: 32, z: 22 };
 
 export const nest = {
   // How near its middle the robot has to stand to lift it (m).
@@ -37,6 +40,8 @@ export const nest = {
   high: 1.15,
   // How big the birds are (m, bill to tail): bigger than life, to be seen.
   bird: 0.34,
+  // How far off the birds can be heard (m).
+  heard: 24,
 };
 
 // The planter as it lies: its foot towards the south-west, tipped so it
@@ -44,7 +49,7 @@ export const nest = {
 const LIE = 2.2, TILT = 0.385;
 const axis = new THREE.Vector3(Math.sin(LIE) * Math.cos(TILT), Math.sin(TILT), Math.cos(LIE) * Math.cos(TILT));
 const lying = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), axis);
-const fallen = new THREE.Vector3(FALLEN.x, 0.3, FALLEN.z);
+const fallen = new THREE.Vector3(LIES.x, 0.3, LIES.z);
 // Its middle, up its axis from its foot, where it's held (m); and the nest,
 // under its stem.
 const WAIST = 0.8;
@@ -133,7 +138,7 @@ export function createNest(scene: THREE.Scene, physics: RAPIER.World) {
     mesh.castShadow = mesh.receiveShadow = true;
     planter.add(mesh);
   }
-  planter.add(urnPlant(2, 1.22, 0.64, 0.83));
+  planter.add(urnPlant(3, 1.22, 0.64, 0.83));
   planter.position.copy(fallen);
   planter.quaternion.copy(lying);
   planter.userData.unreflected = 'low';
@@ -155,8 +160,11 @@ export function createNest(scene: THREE.Scene, physics: RAPIER.World) {
 }
 
 const flat = (a: { x: number, z: number }, b: { x: number, z: number }) => Math.hypot(a.x - b.x, a.z - b.z);
-// Quieter the further off the robot is, but heard a good way across the garden.
-const sound = (name: Sound, at: THREE.Vector3, feet: THREE.Vector3, gain = 1) => play(name, { gain: gain * THREE.MathUtils.clamp(1 - flat(at, feet) / 60, 0.08, 1) ** 1.5 });
+// Heard only from near by: full close to, fading to nothing at nest.heard.
+const sound = (name: Sound, at: THREE.Vector3, feet: THREE.Vector3, gain = 1) => {
+  const near = THREE.MathUtils.clamp(1 - flat(at, feet) / nest.heard, 0, 1) ** 2;
+  if (near > 0.003) play(name, { gain: gain * near });
+};
 
 const middle = new THREE.Vector3(), across = new THREE.Vector3(), turned = new THREE.Quaternion(), UP = new THREE.Vector3(0, 1, 0);
 // The planter's middle, where the hands go, as it stands or lies now.
