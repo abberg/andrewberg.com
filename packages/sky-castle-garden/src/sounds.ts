@@ -69,6 +69,15 @@ const SOUNDS = {
   ],
   // Its feet on the grass, one bound.
   patter: [{ kind: 'noise', filter: 'lowpass', from: 1500, to: 600, attack: 0.003, decay: 0.035, gain: 0.2 }],
+  // The flycatchers (nest.ts). Alarmed: a sharp thin note, then a dry rattle.
+  alarm: [
+    { kind: 'tone', wave: 'sine', from: 5200, to: 4300, attack: 0.004, decay: 0.07, gain: 0.22 },
+    ...[0.12, 0.155, 0.19, 0.225, 0.26].map(at => ({ kind: 'noise' as const, filter: 'bandpass' as const, from: 3800, to: 3200, q: 3, at, attack: 0.002, decay: 0.018, gain: 0.3 })),
+  ],
+  // At peace: a run of clear notes, stepping down.
+  song: [0, 1, 2, 3, 4, 5].map(k => ({ kind: 'tone' as const, wave: 'sine' as const, from: 4600 * 0.9 ** k, to: 3900 * 0.9 ** k, at: k * 0.17, attack: 0.012, decay: 0.11, gain: 0.2 })),
+  // Stone lifted off the ground, and set down on it.
+  grate: [{ kind: 'noise', filter: 'bandpass', from: 420, to: 260, q: 1.2, attack: 0.05, decay: 0.35, gain: 0.5 }],
 } satisfies Record<string, Part[]>;
 export type Sound = keyof typeof SOUNDS;
 

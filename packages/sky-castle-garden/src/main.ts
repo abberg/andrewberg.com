@@ -16,6 +16,7 @@ import { createPost } from './post';
 import { createFollowCamera, follow } from './followCamera';
 import { carrying, cradling, createFruit, overWater, pickFacing, picking, tossing, updateFruit, updatePick } from './fruit';
 import { createCreature, creature, updateCreature } from './creature';
+import { createNest, liftFacing, lifting, updateLift, updateNest } from './nest';
 import { createSlices, updateSlices, watched } from './slices';
 import { effects, startEffects } from './sounds';
 import { createHint } from './hint';
@@ -86,6 +87,7 @@ createFoliage(world, scene);
 createFruit(scene, world);
 createSlices(scene);
 createCreature(scene, world, await creatureGlb);
+createNest(scene, world);
 createMeadow(scene);
 await built(0.75);
 createLilies(scene);
@@ -290,11 +292,11 @@ renderer.setAnimationLoop(time => {
   if (!flight.flying && !held) follower.look(x, y, zoom);
   // Camera-relative: forward is away from the camera.
   // Nor while it's picking fruit: it stands still for that.
-  const move = flight.flying || held || picking() ? { x: 0, y: 0 } : input.move(), yaw = follower.yaw;
+  const move = flight.flying || held || picking() || lifting() ? { x: 0, y: 0 } : input.move(), yaw = follower.yaw;
   direction.set(move.x * Math.cos(yaw) - move.y * Math.sin(yaw), -move.x * Math.sin(yaw) - move.y * Math.cos(yaw));
   // R puts the stonework back.
   if (input.tapped('KeyR') && !held) stones.reset();
-  player.facing = pickFacing();
+  player.facing = liftFacing() ?? pickFacing();
   accumulator += delta;
   while (accumulator >= world.timestep) {
     // It doesn't run with fruit in its arm.
@@ -313,13 +315,17 @@ renderer.setAnimationLoop(time => {
   aimShadow(look.sun);
   inkShadow(renderer, scene, player.mesh);
   // E picks the fruit within reach (fruit.ts).
-  const reaching = updatePick(delta, player.feet, player.yaw, player.pace, !flight.flying && !held && input.tapped('KeyE'), robot);
+  // E lifts the planter off the nest, at its side with its arms free
+  // (nest.ts); or else picks the fruit within reach (fruit.ts).
+  const pressed = !flight.flying && !held && input.tapped('KeyE');
+  const raising = updateLift(delta, player.feet, player.yaw, player.pace, pressed && !carrying());
+  const reaching = raising ?? updatePick(delta, player.feet, player.yaw, player.pace, pressed && !lifting(), robot);
   player.animate(delta, world.timestep, reaching, cradling());
   steps.update(camera, player.pace);
   soundtrack.update(pause.paused);
   stones.sync();
   // Round to one side while the fish are being fed, until it walks on.
-  follower.update(delta, player.mesh.position, player.mesh.rotation.y, player.pace, tossing() || (watched() && player.pace < 0.05) ? -0.8 : 0);
+  follower.update(delta, player.mesh.position, player.mesh.rotation.y, player.pace, tossing() || lifting() || (watched() && player.pace < 0.05) ? -0.8 : 0);
   fadeAround(player.mesh.position);
   flight.update(delta, camera);
   look.update(camera);
@@ -327,6 +333,7 @@ renderer.setAnimationLoop(time => {
   updateLeaves();
   updateFruit(delta, player.feet, player.yaw, player.pace, robot);
   updateCreature(delta, seconds, player.feet, player.pace, player.yaw, robot);
+  updateNest(delta, seconds, player.feet);
   updateSlices(delta, seconds, overWater);
   updateWater(seconds);
   updateFish(seconds, delta);

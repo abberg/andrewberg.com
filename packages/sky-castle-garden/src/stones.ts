@@ -7,6 +7,7 @@ import { dissolving, urnPlant, vineSpill } from './foliage';
 import { blockIvy, columnIvy, shroudIvy } from './growth';
 import { archBlockGeometry, patina, statueGeometry } from './ruins';
 import { stone } from './level';
+import { FALLEN } from './nest';
 
 // Step 4: every freestanding stone object is a dynamic body the robot can
 // shove: the standing columns, the fallen column (in drums) and the loose
@@ -202,6 +203,8 @@ export function createStones(world: RAPIER.World, scene: THREE.Scene) {
   const urnHull = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(
     [...urn.foot.getAttribute('position').array, ...urn.body.getAttribute('position').array], 3));
   [[-24.5, 12], [-24, 21], [-7.8, 10], [24, 38], [22, 42.5]].forEach(([x, z], i) => {
+    // (One has been knocked over, onto a nest: nest.ts.)
+    if (x === FALLEN.x && z === FALLEN.z) return;
     piece(x, 0, z, turned(x * z)).look(urn.foot, blockStone).look(urn.body).add(urnPlant(i, 1.22, 0.64, 0.83)).hull(urnHull);
   });
 

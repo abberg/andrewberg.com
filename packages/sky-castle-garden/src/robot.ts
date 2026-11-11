@@ -37,7 +37,9 @@ export type RobotState = {
 // A reach with its right hand: the point in the world the hand goes to, how
 // far there it has got (0 to 1), and how far it stoops for it, 0 to 1:
 // bending its knees and bowing from the waist, for what lies on the ground.
-export type Reach = { goal: THREE.Vector3; share: number; stoop: number };
+// With left given, its left hand goes to that point too, by the same share:
+// both hands to something it lifts (nest.ts).
+export type Reach = { goal: THREE.Vector3; share: number; stoop: number; left?: THREE.Vector3 };
 // Where the left hand rests when the arm's a bowl for what it carries, in
 // the upper body's own space (x to its right, y up, z back).
 const CRADLE: [number, number, number] = [0.5, 0.42, -0.78];
@@ -465,10 +467,15 @@ export function createRobot(gltf: GLTF) {
     if (stoop > 0) {
       rotate(spine, turn.setFromAxisAngle(right, -STOOP.bow * stoop));
       hang.setFromAxisAngle(right, STOOP.bow * stoop);
-      rotate(limbs[2].root, turn.copy(hang).slerp(own.identity(), cradle));
+      rotate(limbs[2].root, turn.copy(hang).slerp(own.identity(), reaching?.left ? reaching.share : cradle));
       rotate(limbs[3].root, turn.copy(hang).slerp(own.identity(), reaching?.share ?? 0));
     }
-    if (cradle > 0) {
+    if (reaching?.left && reaching.share > 0) {
+      // Both hands: the left as the right, mirrored.
+      const limb = limbs[2];
+      gripOf(limb, goal).lerp(reaching.left, reaching.share);
+      place(limb, goal, heading.copy(right).multiplyScalar(-0.3).addScaledVector(UP, -1).addScaledVector(forward, 0.35), THREE.MathUtils.smoothstep(reaching.share, 0, 0.3));
+    } else if (cradle > 0) {
       spine.updateWorldMatrix(true, false);
       goal.set(...CRADLE).applyMatrix4(spine.matrixWorld);
       place(limbs[2], goal, heading.copy(right).multiplyScalar(-0.3).addScaledVector(UP, -1).addScaledVector(forward, 0.2), cradle);
