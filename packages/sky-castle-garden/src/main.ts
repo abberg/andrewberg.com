@@ -155,6 +155,8 @@ critter.add(creature, 'trust', 0, 12, 1).name('fruit eaten in peace').listen();
 critter.add(creature, 'range', 5, 40, 1).name('goes this far for fruit (m)');
 critter.add(creature, 'speed', 2, 10, 0.1).name('runs at (m/s)');
 critter.add(creature, 'eats', 1, 10, 0.5).name('eats a fruit in (s)');
+critter.add(creature, 'seat', -0.3, 0.6, 0.01).name('sits above the shoulder (m)');
+critter.add(creature, 'inward', -0.3, 0.6, 0.01).name('sits in towards the neck (m)');
 critter.close();
 const clouding = gui.addFolder('clouds');
 clouding.add(cloudLook, 'drift', 0, 0.03, 0.0005).name('drift (rad/s at 500 m)');
@@ -324,7 +326,7 @@ renderer.setAnimationLoop(time => {
   updateWind(seconds);
   updateLeaves();
   updateFruit(delta, player.feet, player.yaw, player.pace, robot);
-  updateCreature(delta, seconds, player.feet, player.pace);
+  updateCreature(delta, seconds, player.feet, player.pace, player.yaw, robot);
   updateSlices(delta, seconds, overWater);
   updateWater(seconds);
   updateFish(seconds, delta);

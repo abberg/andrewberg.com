@@ -5,6 +5,7 @@ import { createCreatureModel, type CreatureModel } from './creatureModel';
 import { fruitTrees } from './foliage';
 import { claim, leave, nibble, overWater, type Windfall, windfalls } from './fruit';
 import { CAMERA_GROUPS } from './level';
+import type { Robot } from './robot';
 import { play, type Sound } from './sounds';
 
 // A small creature that lives in the garden's fruit trees, first step. It
@@ -18,6 +19,12 @@ import { play, type Sound } from './sounds';
 //
 // When there's been nothing for it for a while, it moves to a tree nearer
 // the robot, so it's glimpsed crossing the grass now and then.
+//
+// Second step: once it's tame it takes to the robot. With nothing left to
+// eat it runs to the robot instead of a tree, leaps to its right hand, runs
+// up the arm and rides on its shoulder, wherever the robot walks. It comes
+// down from its tree to do the same when the robot stands a while near by.
+// From the shoulder it still hops off for fruit lying near, and comes back.
 
 export const creature = {
   // How big it is, against the model as made (a metre from nose to tail
@@ -42,11 +49,20 @@ export const creature = {
   waits: 3,
   perch: 2.2,
   restless: 25,
+  // Tame: how near its tree the robot has to stand for it to come down to
+  // it (m), how far off the robot can be for it to run to it (m), how near
+  // fruit has to lie for it to hop off the shoulder for it (m), and where it
+  // sits: how far above the shoulder joint and in towards the neck (m).
+  calls: 8,
+  follows: 30,
+  hops: 9,
+  seat: -0.04,
+  inward: 0.2,
 };
 
 type Tree = (typeof fruitTrees)[number];
-type State = 'hidden' | 'peeking' | 'down' | 'run' | 'look' | 'eat' | 'up';
-type Goal = { fruit: Windfall } | { tree: Tree };
+type State = 'hidden' | 'peeking' | 'down' | 'run' | 'look' | 'eat' | 'up' | 'leap' | 'climb' | 'ride' | 'drop';
+type Goal = { fruit: Windfall } | { tree: Tree } | { robot: true };
 
 let model: CreatureModel | undefined, world: RAPIER.World;
 let state: State = 'hidden', home: Tree, goal: Goal | null = null;
@@ -54,7 +70,9 @@ let state: State = 'hidden', home: Tree, goal: Goal | null = null;
 // the trunk and on which side of it; whether it's bolting; how far it has
 // left of this dash, where it is in its bound, and the bites it's taken.
 let t = 0, heading = 0, height = 0, side = 0, bolting = false, dash = 0, stride = 0, bites = 0, called = 0;
-const at = new THREE.Vector3();
+const at = new THREE.Vector3(), from = new THREE.Vector3();
+// How long the robot's stood still (s).
+let stood = 0;
 let sit = 0, run = 0;
 let s = 4801;
 const random = () => (s = (s * 16807) % 2147483647) / 2147483647;
@@ -112,6 +130,14 @@ function retreat(feet: THREE.Vector3) {
   goal = { tree };
 }
 
+const tame = () => creature.trust >= creature.tame;
+// With nothing to eat: to the robot, if it's tame and the robot's not too
+// far off over dry land; or else to a tree.
+function settle(feet: THREE.Vector3) {
+  if (tame() && flat(at, feet) < creature.follows && dry(at, feet)) goal = { robot: true };
+  else retreat(feet);
+}
+
 const forward = new THREE.Vector3(), up = new THREE.Vector3(), across = new THREE.Vector3(), basis = new THREE.Matrix4(), to = new THREE.Vector3();
 // Where it is on the trunk, and which way up: head first, its back outwards.
 function cling(headUp: boolean) {
@@ -122,9 +148,11 @@ function cling(headUp: boolean) {
 }
 
 // feet: where the robot stands; pace: how fast it's going, as a share of a run.
-export function updateCreature(delta: number, seconds: number, feet: THREE.Vector3, pace: number) {
+// yaw: which way it faces; robot: its body, posed for this frame.
+export function updateCreature(delta: number, seconds: number, feet: THREE.Vector3, pace: number, yaw: number, robot: Robot) {
   if (!model || delta <= 0) return;
   t += delta;
+  stood = pace < 0.05 ? stood + delta : 0;
   const scared = fear(), near = flat(at, feet);
   let nod = 0;
   forward.set(Math.sin(heading), 0, Math.cos(heading));
@@ -139,6 +167,13 @@ export function updateCreature(delta: number, seconds: number, feet: THREE.Vecto
         height = Math.min(home.tall * 0.3, creature.perch + 1);
         called = 1.5;
         enter('peeking');
+      } else if (tame() && stood > 1.5 && flat(home, feet) < creature.calls) {
+        // Tame, and the robot's standing by: down to it.
+        side = Math.atan2(feet.x - home.x, feet.z - home.z);
+        height = Math.min(home.tall * 0.3, creature.perch + 1);
+        goal = { robot: true };
+        sound('chirp', feet);
+        enter('down');
       } else if (t > creature.restless && flat(home, feet) > scared + 4) {
         // Nothing here: over to a tree nearer the robot, if there is one.
         const nearer = fruitTrees.filter(tree => tree !== home && flat(tree, feet) > scared + 2 && flat(tree, feet) < flat(home, feet) - 6 && dry(home, tree))
@@ -160,10 +195,11 @@ export function updateCreature(delta: number, seconds: number, feet: THREE.Vecto
     height = Math.max(creature.perch, height - 3 * delta);
     cling(false);
     const fruit = wanted(home, feet, creature.range);
-    if (flat(home, feet) < scared * 0.35 || !tempting(home, creature.range)) {
-      if (flat(home, feet) < scared * 0.35) sound('squeak', feet);
+    const shy = !tame() && flat(home, feet) < scared * 0.35;
+    if (shy || !tempting(home, creature.range)) {
+      if (shy) sound('squeak', feet);
       enter('up');
-    } else if (fruit && flat(home, feet) > scared && height <= creature.perch) {
+    } else if (fruit && (tame() || flat(home, feet) > scared) && height <= creature.perch) {
       goal = { fruit };
       enter('down');
     } else if ((called -= delta) < 0) {
@@ -191,10 +227,64 @@ export function updateCreature(delta: number, seconds: number, feet: THREE.Vecto
     if (height > Math.min(home.tall * 0.3, creature.perch + 1.2)) { bolting = false; enter('hidden'); }
   }
 
+  else if (state === 'leap') {
+    // From the grass up to the robot's right hand, in one bound.
+    const u = Math.min(1, t / 0.4);
+    robot.grip(1, to);
+    at.lerpVectors(from, to, u);
+    at.y += 0.5 * 4 * u * (1 - u);
+    forward.subVectors(to, from).setY(0).normalize();
+    heading = Math.atan2(forward.x, forward.z);
+    if (u >= 1) { height = 1; enter('climb'); }
+  }
+
+  else if (state === 'climb') {
+    // Up the arm, hand to shoulder, its back turned out from the robot.
+    height = Math.max(0, height - delta * 1.1);
+    robot.along(1, height, at);
+    robot.along(1, Math.max(0, height - 0.08), to);
+    if (height > 0.08) forward.subVectors(to, at).normalize();
+    else forward.set(0, 1, 0);
+    up.set(at.x - feet.x, 0.4, at.z - feet.z).normalize();
+    up.addScaledVector(forward, -up.dot(forward)).normalize();
+    if (height <= 0) { sound('chirp', feet); enter('ride'); }
+  }
+
+  else if (state === 'ride') {
+    // On the shoulder, facing the way the robot does.
+    robot.along(1, 0, at);
+    const inwards = creature.inward / (flat(at, feet) || 1);
+    at.x += (feet.x - at.x) * inwards;
+    at.z += (feet.z - at.z) * inwards;
+    at.y += creature.seat;
+    heading = yaw + Math.PI;
+    forward.set(Math.sin(heading), 0, Math.cos(heading));
+    // Off for fruit lying near, when the robot's not striding along.
+    const under = { x: feet.x, z: feet.z };
+    const fruit = t > 2 && pace < 0.3 ? wanted(under, feet, creature.hops) : null;
+    if (fruit) {
+      goal = { fruit };
+      from.copy(at);
+      enter('drop');
+    }
+  }
+
+  else if (state === 'drop') {
+    // Down off the shoulder to the grass at the robot's right.
+    const u = Math.min(1, t / 0.5);
+    to.set(feet.x + Math.cos(yaw) * 1.5, 0, feet.z - Math.sin(yaw) * 1.5);
+    to.y = ground(to.x, feet.y, to.z);
+    at.lerpVectors(from, to, u);
+    at.y += 0.35 * 4 * u * (1 - u);
+    forward.subVectors(to, from).setY(0).normalize();
+    heading = Math.atan2(forward.x, forward.z);
+    if (u >= 1) { dash = 2 + random() * 3; sound('patter', feet); enter('run'); }
+  }
+
   else {
     // On the grass. Frightened off by the robot coming too close, unless
-    // it's already bolting.
-    if (!bolting && near < scared && (pace > 0.05 || near < scared * 0.6)) {
+    // it's already bolting. Once it's tame nothing the robot does scares it.
+    if (!tame() && !bolting && near < scared && (pace > 0.05 || near < scared * 0.6)) {
       if (goal && 'fruit' in goal) leave(goal.fruit);
       sound('squeak', feet);
       retreat(feet);
@@ -205,14 +295,23 @@ export function updateCreature(delta: number, seconds: number, feet: THREE.Vecto
     if (state !== 'eat' && goal && 'fruit' in goal && !windfalls().includes(goal.fruit)) {
       const fruit = wanted(at, feet, creature.range * 0.7);
       if (fruit) goal = { fruit };
-      else retreat(feet);
+      else settle(feet);
     }
-    if (!goal) retreat(feet);
+    if (!goal) settle(feet);
+    // Running to the robot, but it's gone too far off, or fruit's turned up.
+    if (goal && 'robot' in goal) {
+      const fruit = wanted(at, feet, creature.hops);
+      if (fruit) goal = { fruit };
+      else if (near > creature.follows || !dry(at, feet)) retreat(feet);
+    }
 
     if (state === 'run' && goal) {
       if ('fruit' in goal) to.copy(goal.fruit.at);
+      // (To the grass under the robot's right hand.)
+      else if ('robot' in goal) robot.grip(1, to);
       else foot(goal.tree, Math.atan2(at.x - goal.tree.x, at.z - goal.tree.z), to);
-      const far = flat(to, at), reach = 'fruit' in goal ? model.nose * creature.size * 0.8 + goal.fruit.scale * 0.4 : 0.08, step = creature.speed * (bolting ? 1.45 : 1) * delta;
+      const chasing = 'robot' in goal && pace > 0.05;
+      const far = flat(to, at), reach = 'fruit' in goal ? model.nose * creature.size * 0.8 + goal.fruit.scale * 0.4 : 'robot' in goal ? 0.45 : 0.08, step = creature.speed * (bolting || chasing ? 1.45 : 1) * delta;
       // Turning towards it as it goes.
       const want = Math.atan2(to.x - at.x, to.z - at.z);
       heading += Math.atan2(Math.sin(want - heading), Math.cos(want - heading)) * Math.min(1, delta * 14);
@@ -223,6 +322,13 @@ export function updateCreature(delta: number, seconds: number, feet: THREE.Vecto
           claim(goal.fruit);
           bites = 0;
           enter('eat');
+        } else if ('robot' in goal) {
+          // At its side: up, once it's standing still enough to leap to.
+          if (pace < 0.3) {
+            from.copy(at);
+            goal = null;
+            enter('leap');
+          }
         } else {
           home = goal.tree;
           side = Math.atan2(at.x - home.x, at.z - home.z);
@@ -238,7 +344,7 @@ export function updateCreature(delta: number, seconds: number, feet: THREE.Vecto
         // Its feet, every other bound's landing.
         if (Math.floor(stride / (Math.PI * 4)) > Math.floor(before / (Math.PI * 4))) sound('patter', feet, 0.5);
         // A dash, then a stop to look about (not when it's running for its life).
-        if (!bolting && (dash -= step) < 0 && far > 1) enter('look');
+        if (!bolting && !chasing && (dash -= step) < 0 && far > 1) enter('look');
       }
       at.y = THREE.MathUtils.lerp(at.y, ground(at.x, at.y, at.z), Math.min(1, delta * 18));
     }
@@ -261,7 +367,7 @@ export function updateCreature(delta: number, seconds: number, feet: THREE.Vecto
         sound('chirp', feet);
         const fruit = wanted(at, feet, creature.range * 0.7);
         if (fruit) goal = { fruit };
-        else retreat(feet);
+        else settle(feet);
         dash = 2 + random() * 3;
         enter('run');
       }
@@ -271,9 +377,11 @@ export function updateCreature(delta: number, seconds: number, feet: THREE.Vecto
   // Sitting up when it's stopped on the grass; bounding when it runs.
   // (Right up to look about; crouched over the fruit to eat.)
   const ease = Math.min(1, delta * 12);
-  sit += ((state === 'look' ? 1 : state === 'eat' ? 0.4 : 0) - sit) * ease;
-  run += ((state === 'run' ? 1 : state === 'down' || state === 'up' ? 0.6 : 0) - run) * ease;
-  if (state === 'down' || state === 'up') stride += delta * 22;
+  // (On the shoulder: sat up while the robot stands, crouched as it walks.)
+  sit += ((state === 'look' ? 1 : state === 'eat' ? 0.4 : state === 'ride' ? (pace > 0.05 ? 0.15 : 0.7) : 0) - sit) * ease;
+  run += ((state === 'run' ? 1 : state === 'down' || state === 'up' || state === 'climb' ? 0.6 : state === 'leap' || state === 'drop' ? 0.3 : 0) - run) * ease;
+  if (state === 'down' || state === 'up' || state === 'climb') stride += delta * 22;
+  model.group.visible = state !== 'hidden';
   model.pose({ sit, run, stride, nod, seconds });
   across.crossVectors(up, forward);
   model.group.position.copy(at);
