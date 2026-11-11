@@ -21,8 +21,9 @@ import { play, type Sound } from './sounds';
 
 export const creature = {
   // How big it is, against the model as made (a metre from nose to tail
-  // tip): tiny, its body about a quarter of the robot's head.
-  size: 0.22,
+  // tip): small, its body a little over half the robot's head, so its ears
+  // and tail show above the grass.
+  size: 0.45,
   // How near the robot can come before it bolts (m): at first, and once
   // it's tame; and how many fruit eaten in peace it takes to get there.
   fear: 9,
@@ -33,7 +34,7 @@ export const creature = {
   // How far from its tree it'll go for fruit (m), how fast it runs (m/s)
   // and how long a fruit takes to eat (s).
   range: 18,
-  speed: 3.6,
+  speed: 4.4,
   eats: 4.5,
   // How long it lies low after going up a tree (s), how high up the trunk
   // it watches from (m), and how long with nothing to eat before it moves
