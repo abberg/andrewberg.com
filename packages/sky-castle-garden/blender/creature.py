@@ -47,8 +47,9 @@ def at(along, up, side=0.0):
     return Vector((side * WIDE, -(along - HIPS) * LENGTH, up * TALL))
 
 # Colours: sandy, cream underneath and on the muzzle, a dark tip to the
-# tail and the ears, dark eyes and nose.
-SAND, CREAM, DARK, TIP = (0.93, 0.72, 0.42, 1), (1.0, 0.94, 0.8, 1), (0.1, 0.08, 0.08, 1), (0.36, 0.24, 0.18, 1)
+# tail and the ears, green eyes and a dark nose.
+SAND, CREAM, DARK, TIP = (0.78, 0.55, 0.28, 1), (0.95, 0.86, 0.68, 1), (0.1, 0.08, 0.08, 1), (0.3, 0.19, 0.13, 1)
+GREEN = (0.16, 0.62, 0.3, 1)
 colours = mesh.color_attributes.new('Col', 'FLOAT_COLOR', 'POINT')
 EYES = [at(0.945, 0.655, s) for s in (0.27, -0.27)]
 NOSE = at(1.0, 0.615)
@@ -64,8 +65,11 @@ for v in mesh.vertices:
         c = TIP
     if up > 0.9:
         c = TIP
-    if (v.co - NOSE).length < 0.022 or any((v.co - e).length < 0.02 for e in EYES):
+    if (v.co - NOSE).length < 0.022:
         c = DARK
+    # Green eyes.
+    if any((v.co - e).length < 0.024 for e in EYES):
+        c = GREEN
     colours.data[v.index].color = c
 material = bpy.data.materials.new('Fur')
 material.use_nodes = True
