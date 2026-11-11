@@ -52,12 +52,13 @@ export const creature = {
   // Tame: how near its tree the robot has to stand for it to come down to
   // it (m), how far off the robot can be for it to run to it (m), how near
   // fruit has to lie for it to hop off the shoulder for it (m), and where it
-  // sits: how far above the shoulder joint and in towards the neck (m).
+  // sits: how far above the robot's surface, and in from the shoulder
+  // joint towards the neck (m).
   calls: 8,
   follows: 30,
   hops: 9,
-  seat: -0.04,
-  inward: 0.2,
+  seat: 0,
+  inward: 0.14,
 };
 
 type Tree = (typeof fruitTrees)[number];
@@ -70,7 +71,7 @@ let state: State = 'hidden', home: Tree, goal: Goal | null = null;
 // the trunk and on which side of it; whether it's bolting; how far it has
 // left of this dash, where it is in its bound, and the bites it's taken.
 let t = 0, heading = 0, height = 0, side = 0, bolting = false, dash = 0, stride = 0, bites = 0, called = 0;
-const at = new THREE.Vector3(), from = new THREE.Vector3();
+const at = new THREE.Vector3(), from = new THREE.Vector3(), leapt = new THREE.Vector3();
 // How long the robot's stood still (s).
 let stood = 0;
 let sit = 0, run = 0;
@@ -128,6 +129,28 @@ const tempting = (from: { x: number, z: number }, range: number) => windfalls().
 function retreat(feet: THREE.Vector3) {
   const tree = [...fruitTrees].filter(tree => dry(at, tree)).sort((a, b) => (flat(a, at) - 0.6 * flat(a, feet)) - (flat(b, at) - 0.6 * flat(b, feet)))[0] ?? home;
   goal = { tree };
+}
+
+// The robot's own surface, for its feet: the first of it met from a point,
+// looking a given way, within a reach (m). Its skin is tested as it's posed.
+const caster = new THREE.Raycaster();
+let roomy = false;
+function surface(robot: Robot, origin: THREE.Vector3, way: THREE.Vector3, reach: number, out: THREE.Vector3) {
+  if (!roomy) {
+    // Its arms reach well outside the bounds it was given standing.
+    robot.object.traverse(child => {
+      const mesh = child as THREE.SkinnedMesh;
+      if (!mesh.isSkinnedMesh) return;
+      mesh.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 2, 0), 8);
+      mesh.boundingBox = new THREE.Box3(new THREE.Vector3(-8, -6, -8), new THREE.Vector3(8, 10, 8));
+    });
+    roomy = true;
+  }
+  caster.set(origin, way);
+  caster.far = reach;
+  const [hit] = caster.intersectObject(robot.object, true);
+  if (hit) out.copy(hit.point);
+  return !!hit;
 }
 
 const tame = () => creature.trust >= creature.tame;
@@ -231,9 +254,9 @@ export function updateCreature(delta: number, seconds: number, feet: THREE.Vecto
     // From the grass up to the robot's right hand, in one bound.
     const u = Math.min(1, t / 0.4);
     robot.grip(1, to);
-    at.lerpVectors(from, to, u);
+    at.lerpVectors(leapt, to, u);
     at.y += 0.5 * 4 * u * (1 - u);
-    forward.subVectors(to, from).setY(0).normalize();
+    forward.subVectors(to, leapt).setY(0).normalize();
     heading = Math.atan2(forward.x, forward.z);
     if (u >= 1) { height = 1; enter('climb'); }
   }
@@ -247,6 +270,9 @@ export function updateCreature(delta: number, seconds: number, feet: THREE.Vecto
     else forward.set(0, 1, 0);
     up.set(at.x - feet.x, 0.4, at.z - feet.z).normalize();
     up.addScaledVector(forward, -up.dot(forward)).normalize();
+    // Its feet on the arm's outer face, not at its middle.
+    from.copy(at).addScaledVector(up, 0.6);
+    if (!surface(robot, from, to.copy(up).negate(), 0.6, at)) at.addScaledVector(up, 0.13);
     if (height <= 0) { sound('chirp', feet); enter('ride'); }
   }
 
@@ -256,6 +282,9 @@ export function updateCreature(delta: number, seconds: number, feet: THREE.Vecto
     const inwards = creature.inward / (flat(at, feet) || 1);
     at.x += (feet.x - at.x) * inwards;
     at.z += (feet.z - at.z) * inwards;
+    // Sat on whatever of the robot is under it there.
+    from.copy(at).setY(at.y + 0.8);
+    surface(robot, from, to.set(0, -1, 0), 1.4, at);
     at.y += creature.seat;
     heading = yaw + Math.PI;
     forward.set(Math.sin(heading), 0, Math.cos(heading));
@@ -264,7 +293,7 @@ export function updateCreature(delta: number, seconds: number, feet: THREE.Vecto
     const fruit = t > 2 && pace < 0.3 ? wanted(under, feet, creature.hops) : null;
     if (fruit) {
       goal = { fruit };
-      from.copy(at);
+      leapt.copy(at);
       enter('drop');
     }
   }
@@ -274,9 +303,9 @@ export function updateCreature(delta: number, seconds: number, feet: THREE.Vecto
     const u = Math.min(1, t / 0.5);
     to.set(feet.x + Math.cos(yaw) * 1.5, 0, feet.z - Math.sin(yaw) * 1.5);
     to.y = ground(to.x, feet.y, to.z);
-    at.lerpVectors(from, to, u);
+    at.lerpVectors(leapt, to, u);
     at.y += 0.35 * 4 * u * (1 - u);
-    forward.subVectors(to, from).setY(0).normalize();
+    forward.subVectors(to, leapt).setY(0).normalize();
     heading = Math.atan2(forward.x, forward.z);
     if (u >= 1) { dash = 2 + random() * 3; sound('patter', feet); enter('run'); }
   }
@@ -325,7 +354,7 @@ export function updateCreature(delta: number, seconds: number, feet: THREE.Vecto
         } else if ('robot' in goal) {
           // At its side: up, once it's standing still enough to leap to.
           if (pace < 0.3) {
-            from.copy(at);
+            leapt.copy(at);
             goal = null;
             enter('leap');
           }
