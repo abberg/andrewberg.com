@@ -20,6 +20,9 @@ import { play, type Sound } from './sounds';
 // the robot, so it's glimpsed crossing the grass now and then.
 
 export const creature = {
+  // How big it is, against the model as made (a metre from nose to tail
+  // tip): tiny, its body about a quarter of the robot's head.
+  size: 0.22,
   // How near the robot can come before it bolts (m): at first, and once
   // it's tame; and how many fruit eaten in peace it takes to get there.
   fear: 9,
@@ -30,7 +33,7 @@ export const creature = {
   // How far from its tree it'll go for fruit (m), how fast it runs (m/s)
   // and how long a fruit takes to eat (s).
   range: 18,
-  speed: 5.5,
+  speed: 3.6,
   eats: 4.5,
   // How long it lies low after going up a tree (s), how high up the trunk
   // it watches from (m), and how long with nothing to eat before it moves
@@ -57,8 +60,8 @@ const random = () => (s = (s * 16807) % 2147483647) / 2147483647;
 
 const fear = () => THREE.MathUtils.lerp(creature.fear, creature.bold, Math.min(1, creature.trust / creature.tame));
 const flat = (a: { x: number, z: number }, b: { x: number, z: number }) => Math.hypot(a.x - b.x, a.z - b.z);
-const trunk = (tree: Tree) => tree.tall * 0.028 + 0.09;
-const foot = (tree: Tree, angle: number, out: THREE.Vector3) => out.set(tree.x + Math.sin(angle) * (trunk(tree) + 0.25), 0, tree.z + Math.cos(angle) * (trunk(tree) + 0.25));
+const trunk = (tree: Tree) => tree.tall * 0.028 + 0.02;
+const foot = (tree: Tree, angle: number, out: THREE.Vector3) => out.set(tree.x + Math.sin(angle) * (trunk(tree) + 0.1), 0, tree.z + Math.cos(angle) * (trunk(tree) + 0.1));
 
 const down = new RAPIER.Ray({ x: 0, y: 0, z: 0 }, { x: 0, y: -1, z: 0 });
 // The ground (or the stone) under it, from knee height above where it is.
@@ -208,7 +211,7 @@ export function updateCreature(delta: number, seconds: number, feet: THREE.Vecto
     if (state === 'run' && goal) {
       if ('fruit' in goal) to.copy(goal.fruit.at);
       else foot(goal.tree, Math.atan2(at.x - goal.tree.x, at.z - goal.tree.z), to);
-      const far = flat(to, at), reach = 'fruit' in goal ? model.nose * 0.75 : 0.12, step = creature.speed * (bolting ? 1.45 : 1) * delta;
+      const far = flat(to, at), reach = 'fruit' in goal ? model.nose * creature.size * 0.8 + goal.fruit.scale * 0.4 : 0.08, step = creature.speed * (bolting ? 1.45 : 1) * delta;
       // Turning towards it as it goes.
       const want = Math.atan2(to.x - at.x, to.z - at.z);
       heading += Math.atan2(Math.sin(want - heading), Math.cos(want - heading)) * Math.min(1, delta * 14);
@@ -230,11 +233,11 @@ export function updateCreature(delta: number, seconds: number, feet: THREE.Vecto
       } else {
         at.addScaledVector(forward, step);
         const before = stride;
-        stride += step / 0.95 * Math.PI * 2;
-        // Each bound's landing.
-        if (Math.floor(stride / (Math.PI * 2)) > Math.floor(before / (Math.PI * 2))) sound('patter', feet, 0.7);
+        stride += step / (1.5 * creature.size) * Math.PI * 2;
+        // Its feet, every other bound's landing.
+        if (Math.floor(stride / (Math.PI * 4)) > Math.floor(before / (Math.PI * 4))) sound('patter', feet, 0.5);
         // A dash, then a stop to look about (not when it's running for its life).
-        if (!bolting && (dash -= step) < 0 && far > 1.5) enter('look');
+        if (!bolting && (dash -= step) < 0 && far > 1) enter('look');
       }
       at.y = THREE.MathUtils.lerp(at.y, ground(at.x, at.y, at.z), Math.min(1, delta * 18));
     }
@@ -273,6 +276,7 @@ export function updateCreature(delta: number, seconds: number, feet: THREE.Vecto
   model.pose({ sit, run, stride, nod, seconds });
   across.crossVectors(up, forward);
   model.group.position.copy(at);
+  model.group.scale.setScalar(creature.size);
   model.group.quaternion.setFromRotationMatrix(basis.makeBasis(across, up, forward));
 }
 

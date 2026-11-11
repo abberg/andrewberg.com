@@ -147,6 +147,7 @@ sound.add(music, 'volume', 0, 1, 0.01).name('music');
 sound.add(music, 'muted').name('mute music').onChange(rememberMute).listen();
 sound.close();
 const critter = gui.addFolder('creature');
+critter.add(creature, 'size', 0.1, 1, 0.01).name('size (1: a metre long)');
 critter.add(creature, 'fear', 3, 20, 0.5).name('keeps away at first (m)');
 critter.add(creature, 'bold', 1, 6, 0.1).name('keeps away once tame (m)');
 critter.add(creature, 'tame', 1, 12, 1).name('fruit eaten to be tame');
