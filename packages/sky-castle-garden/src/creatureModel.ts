@@ -7,7 +7,7 @@ import { paint } from './look';
 // anything with a group (facing +z, feet at y = 0) and a pose() will do.
 //
 // The model is a fennec fox (public/creature.glb), a metre from its nose to
-// the tip of its tail. blender/creature.py makes it from a free Sketchfab
+// the tip of its tail. blender/creature.py makes it from a free (CC0) Meshy
 // model, blender/fox.obj: it sizes and colours it and gives it its bones,
 // which are posed here; there are no clips.
 

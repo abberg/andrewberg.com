@@ -1,6 +1,7 @@
 """The garden's creature: rigs and colours the fennec fox model.
 
-blender/fox.obj is a free fennec fox model from Sketchfab (a plain mesh,
+blender/fox.obj is a free fennec fox model made with Meshy, licensed CC0 (no
+credit needed), as Andrew downloaded it (a plain mesh,
 no bones or colours). This gives it a size, a skeleton and painted colours,
 and exports public/creature.glb. src/creatureModel.ts poses the bones.
 
