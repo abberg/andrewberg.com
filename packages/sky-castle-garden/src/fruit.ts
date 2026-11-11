@@ -86,7 +86,7 @@ const GRAVITY = 9.81;
 type Tree = (typeof fruitTrees)[number] & { shaken: number, strength: number, way: THREE.Vector2, rested: number, left: boolean, crowns: THREE.Matrix4[], bears: number };
 type Fruit = {
   tree: Tree, home: THREE.Vector3, at: THREE.Vector3, velocity: THREE.Vector3, spin: THREE.Vector3, turn: THREE.Quaternion,
-  state: 'hanging' | 'falling' | 'lying' | 'sinking' | 'gone' | 'held' | 'carried' | 'squashed' | 'thrown', scale: number, wait: number, slot: number,
+  state: 'hanging' | 'falling' | 'lying' | 'sinking' | 'gone' | 'held' | 'carried' | 'squashed' | 'thrown' | 'nibbled', scale: number, wait: number, slot: number,
   // How far it's grown, 0 to 1: ripe at 1.
   grown: number,
 };
@@ -557,6 +557,21 @@ export function updateFruit(delta: number, feet: THREE.Vector3, yaw: number, pac
   }
   if (moved) place();
 }
+
+// For the creature (creature.ts). The fruit lying on the grass; one it has
+// settled down to, which is then its own (not picked, nor trodden flat); how
+// much of that it has eaten (0 to 1: all gone); and one it's been frightened
+// off, left lying as it is.
+export type Windfall = { readonly at: THREE.Vector3, readonly scale: number };
+export const windfalls = (): Windfall[] => fruits.filter(f => f.state === 'lying');
+export const claim = (lying: Windfall) => { (lying as Fruit).state = 'nibbled'; };
+export function nibble(lying: Windfall, eaten: number) {
+  const f = lying as Fruit;
+  if (f.state !== 'nibbled') return;
+  f.grown = 1 - 0.8 * Math.min(1, eaten);
+  if (eaten >= 1) f.state = 'gone';
+}
+export const leave = (lying: Windfall) => { if ((lying as Fruit).state === 'nibbled') (lying as Fruit).state = 'lying'; };
 
 // For a later step and for testing: how many hang, lie on the ground, and
 // have been lost to the water.

@@ -55,6 +55,20 @@ const SOUNDS = {
     { kind: 'tone', wave: 'sine', from: 420, to: 190, attack: 0.004, decay: 0.1, gain: 0.5 },
     { kind: 'noise', filter: 'bandpass', from: 900, to: 500, q: 0.9, at: 0.02, attack: 0.03, decay: 0.22, gain: 0.22 },
   ],
+  // The creature (creature.ts). Its call: two quick rising pips.
+  chirp: [
+    { kind: 'tone', wave: 'sine', from: 1900, to: 2700, attack: 0.008, decay: 0.07, gain: 0.3 },
+    { kind: 'tone', wave: 'sine', from: 2200, to: 3100, at: 0.11, attack: 0.008, decay: 0.09, gain: 0.3 },
+  ],
+  // Startled: one sharp falling squeak.
+  squeak: [{ kind: 'tone', wave: 'triangle', from: 3300, to: 1700, attack: 0.004, decay: 0.12, gain: 0.3 }],
+  // A bite out of a fruit: a small wet crunch.
+  nibble: [
+    { kind: 'noise', filter: 'bandpass', from: 2600, to: 1500, q: 1.5, attack: 0.003, decay: 0.035, gain: 0.3 },
+    { kind: 'noise', filter: 'bandpass', from: 2100, to: 1300, q: 1.5, at: 0.07, attack: 0.003, decay: 0.03, gain: 0.22 },
+  ],
+  // Its feet on the grass, one bound.
+  patter: [{ kind: 'noise', filter: 'lowpass', from: 1500, to: 600, attack: 0.003, decay: 0.035, gain: 0.2 }],
 } satisfies Record<string, Part[]>;
 export type Sound = keyof typeof SOUNDS;
 
