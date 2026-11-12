@@ -1,0 +1,103 @@
+---
+import Base from '../../layouts/Base.astro';
+import { getCollection, render } from 'astro:content';
+export async function getStaticPaths() {
+  const projects = await getCollection('interactive');
+  return projects.map(project => ({ params: { slug: project.id }, props: { project } }));
+}
+const { project } = Astro.props;
+const { data } = project;
+const { Content } = await render(project);
+---
+<Base
+  title={`${data.title} — Andrew Berg`}
+  description={data.summary}
+  path={`/interactive/${project.id}/`}
+  current="interactive"
+>
+  <section class="intro">
+    <div class="mono eyebrow"><a href="/interactive/">Interactive</a> · {data.year}</div>
+    <h1>{data.title}</h1>
+    <p>{data.summary}</p>
+  </section>
+
+  {data.recreation && (
+    <section class="recreation" aria-label="Recreation">
+      <iframe src={`/sketches/${data.recreation}/`} title={`${data.title}, recreated`} loading="lazy" allowfullscreen></iframe>
+      <p class="mono">Recreated in the browser · <a href={`/sketches/${data.recreation}/`}>Open full screen ↗</a></p>
+    </section>
+  )}
+
+  <section class="detail">
+    <dl class="facts">
+      <div><dt class="mono">Client</dt><dd>{data.client}</dd></div>
+      <div><dt class="mono">Studio</dt><dd>{data.agency}</dd></div>
+      {data.partners.length > 0 && <div><dt class="mono">With</dt><dd>{data.partners.join(', ')}</dd></div>}
+      <div><dt class="mono">Role</dt><dd>{data.role}</dd></div>
+      <div><dt class="mono">Year</dt><dd>{data.year}</dd></div>
+    </dl>
+    <div class="story"><Content /></div>
+  </section>
+
+  {(data.credits.length > 0 || data.recognition.length > 0 || data.press.length > 0) && (
+    <section class="notes">
+      {data.credits.length > 0 && (
+        <div>
+          <h2 class="mono">Credits</h2>
+          <dl class="credits">
+            {data.credits.map(credit => <div><dt>{credit.role}</dt><dd>{credit.name}</dd></div>)}
+          </dl>
+        </div>
+      )}
+      {data.recognition.length > 0 && (
+        <div>
+          <h2 class="mono">Recognition</h2>
+          <ul>{data.recognition.map(item => <li>{item}</li>)}</ul>
+        </div>
+      )}
+      {data.press.length > 0 && (
+        <div>
+          <h2 class="mono">Press</h2>
+          <ul>{data.press.map(item => <li><a href={item.url}>{item.title}</a> <span class="source">{item.source}</span></li>)}</ul>
+        </div>
+      )}
+    </section>
+  )}
+</Base>
+
+<style>
+  .eyebrow a:hover { color: var(--accent); }
+  .recreation { margin-bottom: 64px; }
+  .recreation iframe { display: block; width: 100%; aspect-ratio: 16 / 9; border: 0; border-radius: 10px; background: var(--edge); }
+  .recreation p { margin: 12px 0 0; }
+  .recreation a { color: var(--accent); }
+
+  .detail { display: grid; grid-template-columns: 192px minmax(0, 1fr) 300px; gap: 32px; border-top: 1px solid var(--rule); padding-top: 40px; }
+  .facts { display: flex; flex-direction: column; gap: 16px; margin: 0; }
+  .facts dt { margin-bottom: 4px; }
+  .facts dd { margin: 0; font-size: 15px; }
+  .story { max-width: 62ch; font-size: 17px; line-height: 1.6; }
+  .story :global(p) { margin: 0 0 1.1em; }
+
+  .notes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px; margin-top: 64px; padding-top: 40px; border-top: 1px solid var(--rule); }
+  .notes h2 { margin: 0 0 16px; font-weight: 400; }
+  .notes ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; font-size: 15px; line-height: 1.4; }
+  .notes a { text-decoration-color: var(--accent); text-underline-offset: 3px; }
+  .source { color: var(--mute); }
+  .credits { margin: 0; display: flex; flex-direction: column; gap: 8px; font-size: 15px; }
+  .credits div { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 12px; }
+  .credits dt { color: var(--mute); }
+  .credits dd { margin: 0; }
+
+  @media (max-width: 1100px) {
+    .detail { grid-template-columns: 160px minmax(0, 1fr); }
+    .notes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 720px) {
+    .detail { display: flex; flex-direction: column; gap: 28px; padding-top: 28px; }
+    .facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 20px; }
+    .story { font-size: 15px; }
+    .notes { display: flex; flex-direction: column; gap: 32px; margin-top: 40px; padding-top: 28px; }
+    .recreation { margin-bottom: 40px; }
+  }
+</style>

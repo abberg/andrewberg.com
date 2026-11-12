@@ -1,0 +1,56 @@
+---
+import Base from '../../layouts/Base.astro';
+import { getCollection } from 'astro:content';
+// Newest first.
+const projects = (await getCollection('interactive')).sort((a, b) => b.data.year - a.data.year || a.data.title.localeCompare(b.data.title));
+---
+<Base
+  title="Interactive — Andrew Berg"
+  description="Interactive advertising and marketing work by Andrew Berg, 2004–2014, mostly built in Flash, with write-ups and modern recreations."
+  path="/interactive/"
+  current="interactive"
+>
+  <section class="intro">
+    <div class="mono eyebrow">Interactive</div>
+    <h1>Advertising, <span class="nowrap">2004–2014.</span></h1>
+    <p>Before design systems I spent ten years building interactive advertising and marketing, at The Barbarian Group, Digitas, and Demandware Labs. Most of it was Flash, which browsers no longer run, so these pages describe the work and some pieces are rebuilt with today’s web.</p>
+  </section>
+
+  <section class="projects" aria-label="Projects">
+    {projects.map(({ id, data }) => (
+      <article class="project">
+        <p class="mono years">{data.year}</p>
+        <div class="project-body">
+          <h2><a href={`/interactive/${id}/`}>{data.title}</a></h2>
+          <p class="meta">{data.client} <span class="role">· {data.agency} · {data.role}</span></p>
+          <p class="summary">{data.summary}</p>
+        </div>
+        <a class="mono read" href={`/interactive/${id}/`} aria-hidden="true" tabindex="-1">Read →</a>
+      </article>
+    ))}
+  </section>
+</Base>
+
+<style>
+  .nowrap { white-space: nowrap; }
+  .projects { display: flex; flex-direction: column; border-top: 1px solid var(--rule); }
+  .project { display: grid; grid-template-columns: 192px minmax(0, 1fr) 300px; gap: 32px; align-items: baseline; padding: 40px 0; border-bottom: 1px solid var(--rule); }
+  .years { margin: 0; }
+  h2 { margin: 0; font-family: var(--display); font-size: 40px; font-weight: 700; letter-spacing: -.036em; line-height: 1; }
+  h2 a { text-decoration: none; }
+  .meta { margin: 0; padding-top: 12px; font-size: 17px; }
+  .meta .role { color: var(--mute); }
+  .summary { margin: 16px 0 0; max-width: 60ch; font-size: 17px; line-height: 1.5; color: var(--mute); }
+  .read { justify-self: end; color: var(--accent); }
+  .read:hover { color: var(--ink); }
+  @media (max-width: 1100px) {
+    .project { grid-template-columns: 120px minmax(0, 1fr); }
+    .read { display: none; }
+  }
+  @media (max-width: 720px) {
+    .project { display: flex; flex-direction: column; gap: 10px; padding: 28px 0; }
+    h2 { font-size: 28px; }
+    .meta { padding-top: 0; font-size: 14px; }
+    .summary { margin-top: 6px; font-size: 15px; }
+  }
+</style>
