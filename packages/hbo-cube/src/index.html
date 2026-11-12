@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Story Cube — Andrew Berg</title>
+<link rel="icon" href="data:,">
+<meta name="description" content="A recreation of the HBO Imagine story cube: one looping scene seen through the four walls of its room.">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  /* One video holds the four camera angles in a 2 x 2 grid. Each face of the cube is a canvas that draws
+     its quarter of the current frame, so the angles can never drift out of sync. */
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { display: flex; flex-direction: column; background: #0b0b0c; color: #d9d9d4; font: 12px/1.4 'Space Mono', ui-monospace, monospace; letter-spacing: .02em; text-transform: uppercase; overflow: hidden; }
+  .stage { flex: 1; min-height: 0; display: grid; place-items: center; perspective: calc(var(--w, 600px) * 2.4); touch-action: pan-y; cursor: grab; user-select: none; -webkit-user-select: none; }
+  .stage.dragging { cursor: grabbing; }
+  .cube { position: relative; width: var(--w, 600px); aspect-ratio: 16 / 9; transform-style: preserve-3d; }
+  .face { position: absolute; inset: 0; width: 100%; height: 100%; backface-visibility: hidden; background: #1a1a1c; }
+  .bar { display: flex; align-items: center; justify-content: center; gap: 18px; height: 52px; flex: none; }
+  button { display: grid; place-items: center; min-width: 36px; height: 36px; padding: 0 8px; border: 0; border-radius: 18px; background: none; color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; }
+  button:hover { color: #fff; background: #ffffff14; }
+  button:focus-visible { outline: 2px solid #8fcb6b; outline-offset: 2px; }
+  .sides { display: flex; gap: 4px; }
+  .sides button { min-width: 0; padding: 0 10px; color: #77776f; }
+  .sides button[aria-pressed="true"] { color: #fff; }
+  .hint { position: absolute; top: 14px; left: 0; right: 0; text-align: center; color: #77776f; pointer-events: none; transition: opacity .4s; }
+  .turned .hint { opacity: 0; }
+  video { display: none; }
+</style>
+</head>
+<body>
+<p class="hint">Drag to turn the cube</p>
+<div class="stage" role="group" aria-label="Story cube. Use the left and right arrow keys to turn it." tabindex="0">
+  <div class="cube">
+    <canvas class="face" width="960" height="540"></canvas>
+    <canvas class="face" width="960" height="540"></canvas>
+    <canvas class="face" width="960" height="540"></canvas>
+    <canvas class="face" width="960" height="540"></canvas>
+  </div>
+</div>
+<div class="bar">
+  <button type="button" data-turn="-1" aria-label="Turn left">←</button>
+  <div class="sides">
+    <button type="button" data-side="0">South</button>
+    <button type="button" data-side="1">East</button>
+    <button type="button" data-side="2">North</button>
+    <button type="button" data-side="3">West</button>
+  </div>
+  <button type="button" data-turn="1" aria-label="Turn right">→</button>
+  <button type="button" class="play" aria-label="Pause">Pause</button>
+</div>
+<video muted loop playsinline preload="auto">
+  <source src="gallery.mp4" type="video/mp4">
+  <source src="gallery.webm" type="video/webm">
+</video>
+<script>
+  const stage = document.querySelector('.stage');
+  const cube = document.querySelector('.cube');
+  const video = document.querySelector('video');
+  const faces = [...document.querySelectorAll('.face')].map(canvas => canvas.getContext('2d'));
+  const sideButtons = [...document.querySelectorAll('[data-side]')];
+  const play = document.querySelector('.play');
+
+  // Turns are counted in quarter turns to the right: 0 shows the south camera, 1 east, 2 north, 3 west.
+  let turn = 0, target = 0, drag = null, width = 600;
+
+  function layout() {
+    const box = stage.getBoundingClientRect();
+    width = Math.max(160, Math.min(box.width * 0.84, (box.height - 24) * 16 / 9 * 0.94));
+    document.documentElement.style.setProperty('--w', `${width}px`);
+    faces.forEach((face, index) => { face.canvas.style.transform = `rotateY(${index * 90}deg) translateZ(${width / 2}px)`; });
+    pose();
+  }
+  function pose() {
+    cube.style.transform = `translateZ(${-width / 2}px) rotateY(${-turn * 90}deg)`;
+  }
+  function draw() {
+    if (video.readyState < 2) return;
+    const w = video.videoWidth / 2, h = video.videoHeight / 2;
+    faces.forEach((face, index) => {
+      // How far this face is turned away from the viewer, 0 to 2 quarter turns.
+      const away = Math.abs(((index - turn) % 4 + 6) % 4 - 2);
+      const facing = 2 - away;
+      if (facing >= 1) return;
+      face.drawImage(video, (index % 2) * w, (index >> 1) * h, w, h, 0, 0, 960, 540);
+      if (facing > 0.001) { face.fillStyle = `rgba(0, 0, 0, ${facing * 0.55})`; face.fillRect(0, 0, 960, 540); }
+    });
+  }
+  function frame() {
+    if (!drag && turn !== target) {
+      turn += (target - turn) * 0.16;
+      if (Math.abs(target - turn) < 0.002) turn = target;
+    }
+    pose();
+    draw();
+    const side = ((Math.round(turn) % 4) + 4) % 4;
+    sideButtons.forEach((button, index) => button.setAttribute('aria-pressed', String(index === side)));
+    requestAnimationFrame(frame);
+  }
+  function go(next) { target = next; document.body.classList.add('turned'); }
+
+  stage.addEventListener('pointerdown', event => {
+    drag = { x: event.clientX, turn };
+    stage.setPointerCapture(event.pointerId);
+    stage.classList.add('dragging');
+  });
+  stage.addEventListener('pointermove', event => {
+    if (!drag) return;
+    turn = drag.turn - (event.clientX - drag.x) / width * 1.25;
+    if (Math.abs(turn - drag.turn) > 0.02) document.body.classList.add('turned');
+  });
+  const release = () => {
+    if (!drag) return;
+    drag = null;
+    target = Math.round(turn);
+    stage.classList.remove('dragging');
+  };
+  stage.addEventListener('pointerup', release);
+  stage.addEventListener('pointercancel', release);
+  addEventListener('keydown', event => {
+    if (event.key === 'ArrowLeft') go(Math.round(target) - 1);
+    if (event.key === 'ArrowRight') go(Math.round(target) + 1);
+  });
+  document.querySelectorAll('[data-turn]').forEach(button => button.addEventListener('click', () => go(Math.round(target) + Number(button.dataset.turn))));
+  sideButtons.forEach((button, index) => button.addEventListener('click', () => {
+    // Take the shorter way round.
+    const from = Math.round(target);
+    const step = (((index - from) % 4) + 6) % 4 - 2;
+    go(from + (step === -2 ? 2 : step));
+  }));
+  const label = () => { const paused = video.paused; play.textContent = paused ? 'Play' : 'Pause'; play.setAttribute('aria-label', paused ? 'Play' : 'Pause'); };
+  play.addEventListener('click', () => { if (video.paused) video.play(); else video.pause(); });
+  video.addEventListener('play', label);
+  video.addEventListener('pause', label);
+  addEventListener('resize', layout);
+  layout();
+  video.play().catch(label);
+  requestAnimationFrame(frame);
+</script>
+</body>
+</html>

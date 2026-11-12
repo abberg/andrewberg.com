@@ -10,7 +10,7 @@ if (process.env.SKIP_THUMBNAILS) process.exit(0);
 const staged = git('diff', '--cached', '--name-only', '--no-renames', '-z').split('\0').filter(Boolean);
 const changed = new Set(staged.map(file => file.match(/^packages\/([^/]+)\/(.+)$/)).filter(match => match && !/\.md$/i.test(match[2])).map(match => match[1]));
 const thumbnail = id => `apps/site/public/thumbnails/${id}.png`;
-const ids = (await sketches()).map(item => item.id).filter(id => changed.has(id) && !staged.includes(thumbnail(id)));
+const ids = (await sketches()).filter(item => item.listed !== false).map(item => item.id).filter(id => changed.has(id) && !staged.includes(thumbnail(id)));
 // A sketch whose sketch.json is gone no longer needs a thumbnail.
 const removed = [...changed].filter(id => !existsSync(resolve(root, 'packages', id, 'sketch.json')) && git('ls-files', thumbnail(id)).trim());
 for (const id of removed) {
