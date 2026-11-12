@@ -92,11 +92,13 @@
 
   // ---- Turning -----------------------------------------------------------------------------------------
   // Turns are counted in quarter turns to the right: 0 the club, 1 the spade, 2 the heart, 3 the diamond.
+  // The cube stops every half step, so it rests on a side or on a corner between two sides.
+  const stop = value => Math.round(value * 2) / 2;
   let turn = 0, target = 0, drag = null, view = 'cube';
   const wrap = value => ((Math.round(value) % 4) + 4) % 4;
   function go(next) { target = next; document.body.classList.add('turned'); }
   function goToSide(index) {
-    const from = Math.round(target);
+    const from = target;
     const step = (((index - from) % 4) + 6) % 4 - 2; // the shorter way round
     go(from + (step === -2 ? 2 : step));
   }
@@ -125,19 +127,19 @@
   const release = () => {
     if (!drag) return;
     drag = null;
-    target = Math.round(turn);
+    target = stop(turn);
     canvas.classList.remove('dragging');
   };
   canvas.addEventListener('pointerup', release);
   canvas.addEventListener('pointercancel', release);
   addEventListener('keydown', event => {
     if (event.target.closest && event.target.closest('button')) { if (event.key === ' ' || event.key === 'Enter') return; }
-    if (event.key === 'ArrowLeft') go(Math.round(target) - 1);
-    if (event.key === 'ArrowRight') go(Math.round(target) + 1);
+    if (event.key === 'ArrowLeft') go(stop(target) + 0.5);
+    if (event.key === 'ArrowRight') go(stop(target) - 0.5);
     if (event.key === 'Escape') setView('cube');
   });
   document.querySelectorAll('[data-turn]').forEach(button =>
-    button.addEventListener('click', () => { setView('cube'); go(Math.round(target) + Number(button.dataset.turn)); }));
+    button.addEventListener('click', () => { setView('cube'); go(stop(target) + Number(button.dataset.turn) / 2); }));
 
   // ---- Playback ----------------------------------------------------------------------------------------
   const play = document.querySelector('.play'), mute = document.querySelector('.mute'), time = document.querySelector('.time');
@@ -178,7 +180,7 @@
   });
 
   // ---- Unlocking ---------------------------------------------------------------------------------------
-  // Each side unlocks the first time the cube settles on it.
+  // Each side unlocks the first time the cube settles on it, or on a corner that shows it.
   const STORE = 'story-cube-seen';
   const seen = new Set();
   try { for (const index of JSON.parse(localStorage.getItem(STORE) || '[]')) if (index >= 0 && index < 4) seen.add(index); } catch (error) { /* no storage */ }
@@ -235,7 +237,7 @@
   viewButtons.forEach(button => button.addEventListener('click', () => setView(button.dataset.view)));
 
   // ---- Frame -------------------------------------------------------------------------------------------
-  let shown = -1;
+  let shown = null;
   function frame() {
     if (!drag && turn !== target) {
       turn += (target - turn) * 0.14;
@@ -244,12 +246,12 @@
     cube.rotation.y = -turn * Math.PI / 2;
     renderer.render(scene, camera);
     time.textContent = `${clock(video.currentTime)}/${clock(video.duration)}`;
-    const current = wrap(turn);
-    if (!drag && Math.abs(turn - Math.round(turn)) < 0.05) unlock(current);
-    if (current !== shown || !map.hidden) {
-      shown = current;
+    const nearest = stop(turn), facing = [wrap(Math.floor(nearest)), wrap(Math.ceil(nearest))];
+    if (!drag && Math.abs(turn - nearest) < 0.03) facing.forEach(unlock);
+    if (nearest !== shown || !map.hidden) {
+      shown = nearest;
       cameras.forEach((camera, index) => {
-        camera.classList.toggle('current', index === current);
+        camera.classList.toggle('current', facing.includes(index));
         camera.classList.toggle('seen', seen.has(index));
       });
     }
