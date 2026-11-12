@@ -26,3 +26,6 @@ packages/active-strokes/*.pdf
 
 # Sky Castle Garden: the source audio exports.
 packages/sky-castle-garden/public/*.aiff
+
+# Story Cube: the Blender files are rebuilt by gallery.py.
+packages/hbo-cube/blender/*.blend
