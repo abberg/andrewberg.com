@@ -99,7 +99,7 @@
   const back = overshoot => t => 1 + (overshoot + 1) * (t - 1) ** 3 + overshoot * (t - 1) ** 2;
   const SPIN = back(1.7), SETTLE = back(0.8);
   const wrap = value => ((Math.round(value) % 4) + 4) % 4;
-  function go(next, ease = SPIN, duration = 700) {
+  function go(next, ease = SPIN, duration = 500) {
     target = next;
     tween = { from: turn, to: next, start: performance.now(), duration, ease };
     document.body.classList.add('turned');
