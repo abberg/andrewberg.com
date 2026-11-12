@@ -20,3 +20,9 @@ packages/bumping-heads/survey/
 
 # Reference paper for Active Strokes, local only.
 packages/active-strokes/*.pdf
+
+# Blender backup saves.
+*.blend1
+
+# Sky Castle Garden: the source audio exports.
+packages/sky-castle-garden/public/*.aiff

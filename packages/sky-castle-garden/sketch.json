@@ -1,0 +1,10 @@
+{
+  "title": "Sky Castle Gardener",
+  "description": "A small playable garden in a floating city, painted rather than photoreal. Walk a moss-capped robot through overgrown ruins: shove the stonework about, pick fruit and feed the fish, tame the fox that lives in the fruit trees, and lift a fallen planter off a flycatchers' nest.",
+  "category": "3D study",
+  "order": 41,
+  "thumbnail": {
+    "path": "?thumbnail=1",
+    "readySelector": "html[data-thumbnail-ready=\"true\"]"
+  }
+}
