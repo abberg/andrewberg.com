@@ -23,14 +23,16 @@
   .sides { display: flex; gap: 4px; }
   .sides button { min-width: 0; padding: 0 10px; color: #77776f; }
   .sides button[aria-pressed="true"] { color: #fff; }
-  .hint { position: absolute; top: 14px; left: 0; right: 0; text-align: center; color: #77776f; pointer-events: none; transition: opacity .4s; }
+  .stage { position: relative; }
+  .hint { position: absolute; z-index: 1; bottom: 14px; left: 50%; transform: translateX(-50%); margin: 0; padding: 6px 12px; border-radius: 14px; background: #000000b3; color: #fff; white-space: nowrap; pointer-events: none; transition: opacity .4s; }
   .turned .hint { opacity: 0; }
   video { display: none; }
+  @media (max-width: 520px) { .sides { display: none; } .bar { height: 44px; gap: 10px; } }
 </style>
 </head>
 <body>
-<p class="hint">Drag to turn the cube</p>
 <div class="stage" role="group" aria-label="Story cube. Use the left and right arrow keys to turn it." tabindex="0">
+  <p class="hint">Drag to turn the cube</p>
   <div class="cube">
     <canvas class="face" width="960" height="540"></canvas>
     <canvas class="face" width="960" height="540"></canvas>
@@ -72,18 +74,20 @@
     pose();
   }
   function pose() {
-    cube.style.transform = `translateZ(${-width / 2}px) rotateY(${-turn * 90}deg)`;
+    // Shrink the cube as it turns to a corner, where it is widest, so it stays inside the stage.
+    const angle = turn * Math.PI / 2;
+    const scale = 1 / (Math.abs(Math.cos(angle)) + Math.abs(Math.sin(angle))) ** 1.15;
+    cube.style.transform = `scale(${scale}) translateZ(${-width / 2}px) rotateY(${-turn * 90}deg)`;
   }
   function draw() {
     if (video.readyState < 2) return;
     const w = video.videoWidth / 2, h = video.videoHeight / 2;
     faces.forEach((face, index) => {
-      // How far this face is turned away from the viewer, 0 to 2 quarter turns.
+      // How far this face is turned away from the viewer, in quarter turns: 0 faces us, 1 is edge-on.
       const away = Math.abs(((index - turn) % 4 + 6) % 4 - 2);
-      const facing = 2 - away;
-      if (facing >= 1) return;
+      if (away >= 1) return;
       face.drawImage(video, (index % 2) * w, (index >> 1) * h, w, h, 0, 0, 960, 540);
-      if (facing > 0.001) { face.fillStyle = `rgba(0, 0, 0, ${facing * 0.55})`; face.fillRect(0, 0, 960, 540); }
+      if (away > 0.001) { face.fillStyle = `rgba(0, 0, 0, ${away * 0.5})`; face.fillRect(0, 0, 960, 540); }
     });
   }
   function frame() {
