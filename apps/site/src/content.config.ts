@@ -1,10 +1,10 @@
-// Content collections. `interactive` holds the 2004–2014 advertising and marketing projects, one Markdown file each.
+// Content collections. `advertising` holds the 2004–2014 advertising and marketing projects, one Markdown file each.
 import { defineCollection } from 'astro:content';
 import { glob } from 'astro/loaders';
 import { z } from 'astro/zod';
 
-const interactive = defineCollection({
-  loader: glob({ pattern: '*.md', base: './src/content/interactive' }),
+const advertising = defineCollection({
+  loader: glob({ pattern: '*.md', base: './src/content/advertising' }),
   schema: z.object({
     title: z.string(),
     client: z.string(),
@@ -21,4 +21,4 @@ const interactive = defineCollection({
   }),
 });
 
-export const collections = { interactive };
+export const collections = { advertising };

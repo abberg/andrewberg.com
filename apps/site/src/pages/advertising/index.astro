@@ -2,17 +2,17 @@
 import Base from '../../layouts/Base.astro';
 import { getCollection } from 'astro:content';
 // Newest first.
-const projects = (await getCollection('interactive')).sort((a, b) => b.data.year - a.data.year || a.data.title.localeCompare(b.data.title));
+const projects = (await getCollection('advertising')).sort((a, b) => b.data.year - a.data.year || a.data.title.localeCompare(b.data.title));
 ---
 <Base
-  title="Interactive — Andrew Berg"
+  title="Advertising — Andrew Berg"
   description="Interactive advertising and marketing work by Andrew Berg, 2004–2014, mostly built in Flash, with write-ups and modern recreations."
-  path="/interactive/"
-  current="interactive"
+  path="/advertising/"
+  current="advertising"
 >
   <section class="intro">
-    <div class="mono eyebrow">Interactive</div>
-    <h1>Advertising, <span class="nowrap">2004–2014.</span></h1>
+    <div class="mono eyebrow">Advertising</div>
+    <h1>Interactive, <span class="nowrap">2004–2014.</span></h1>
     <p>Before design systems I spent ten years building interactive advertising and marketing, at The Barbarian Group, Digitas, and Demandware Labs. Most of it was Flash, which browsers no longer run, so these pages describe the work and some pieces are rebuilt with today’s web.</p>
   </section>
 
@@ -21,11 +21,11 @@ const projects = (await getCollection('interactive')).sort((a, b) => b.data.year
       <article class="project">
         <p class="mono years">{data.year}</p>
         <div class="project-body">
-          <h2><a href={`/interactive/${id}/`}>{data.title}</a></h2>
+          <h2><a href={`/advertising/${id}/`}>{data.title}</a></h2>
           <p class="meta">{data.client} <span class="role">· {data.agency} · {data.role}</span></p>
           <p class="summary">{data.summary}</p>
         </div>
-        <a class="mono read" href={`/interactive/${id}/`} aria-hidden="true" tabindex="-1">Read →</a>
+        <a class="mono read" href={`/advertising/${id}/`} aria-hidden="true" tabindex="-1">Read →</a>
       </article>
     ))}
   </section>

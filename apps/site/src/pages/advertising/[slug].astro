@@ -2,7 +2,7 @@
 import Base from '../../layouts/Base.astro';
 import { getCollection, render } from 'astro:content';
 export async function getStaticPaths() {
-  const projects = await getCollection('interactive');
+  const projects = await getCollection('advertising');
   return projects.map(project => ({ params: { slug: project.id }, props: { project } }));
 }
 const { project } = Astro.props;
@@ -12,11 +12,11 @@ const { Content } = await render(project);
 <Base
   title={`${data.title} — Andrew Berg`}
   description={data.summary}
-  path={`/interactive/${project.id}/`}
-  current="interactive"
+  path={`/advertising/${project.id}/`}
+  current="advertising"
 >
   <section class="intro">
-    <div class="mono eyebrow"><a href="/interactive/">Interactive</a> · {data.year}</div>
+    <div class="mono eyebrow"><a href="/advertising/">Advertising</a> · {data.year}</div>
     <h1>{data.title}</h1>
     <p>{data.summary}</p>
   </section>
