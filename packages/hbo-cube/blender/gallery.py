@@ -1,12 +1,12 @@
-# Greybox of the gallery from the HBO Imagine "Heist" cube. One column stands in the room with a card suit on
-# each face, and four cameras each frame one face of it with a different part of the gallery beyond:
-#   S looks north at the club: the lettered partition with the slot machines behind it
-#   E looks west at the spade: the big painting
-#   N looks south at the heart: the gold urinals and the CASH wall
-#   W looks east at the diamond: down the aisle of slot machines
+# Greybox of the gallery from the HBO Imagine "Heist" cube, laid out from Andrew's floor plan. One column stands
+# in the room with a card suit on each face, and four cameras each frame one face of it:
+#   club     from the north, looking south: the lettered back of the slot machine row, the B/W painting far left
+#   spade    from the west, looking east: the slot machine painting on its freestanding wall
+#   heart    from the south, looking north: the gold urinals in front of the CASH wall
+#   diamond  from the east, looking west: down the aisle of slot machines
 # A few low-poly figures move on a 12 s loop. Run inside Blender:
 #   HBO_MODE=build   builds the scene, saves tmp/hbo-cube/gallery.blend and renders one still per camera
-#   HBO_MODE=render  renders the 288-frame loop from each camera as PNG sequences into tmp/hbo-cube/<cam>/
+#   HBO_MODE=render  renders the 288-frame loop from each camera as PNG sequences into tmp/hbo-cube/<suit>/
 #   HBO_MODE=all     does both
 import bpy, bmesh, math, os
 from mathutils import Vector
@@ -18,10 +18,11 @@ BLEND = os.path.join(OUT, 'gallery.blend')
 
 H = 5.5                 # ceiling height, metres
 FPS, FRAMES = 24, 288   # 12 s loop
-SIDES = ['S', 'E', 'N', 'W']
-# Camera position and heading in degrees: 0 looks north, 90 west, 180 south, -90 east.
-CAMERAS = {'S': ((2.0, -8.8), 0), 'E': ((6.5, -3.1), 90), 'N': ((-4.4, 6.8), 180), 'W': ((-3.4, 1.7), -95)}
-SUITS = {'S': 'club', 'E': 'spade', 'N': 'heart', 'W': 'diamond'}
+# Camera position and heading in degrees (0 looks north, 90 west, 180 south, -90 east), in the order the
+# video grid and the cube use: top left, top right, bottom left, bottom right.
+CAMERAS = {'club': ((-5.17, 12.2), 191), 'spade': ((-12.1, 2.07), -80), 'heart': ((6.35, -11.0), 0), 'diamond': ((5.0, -2.6), 85)}
+# The suit on each face of the column: south, east, north, west.
+FACES = ['heart', 'diamond', 'club', 'spade']
 
 
 def build():
@@ -104,8 +105,8 @@ def build():
         o.rotation_euler.x = math.pi / 2
         return o
 
-    # Shell: a 21 x 20 m hall.
-    X0, X1, Y0, Y1 = -10.5, 10.5, -9.5, 10.5
+    # Shell: a 26 x 25 m hall.
+    X0, X1, Y0, Y1 = -13.0, 13.0, -11.5, 13.5
     box('floor', X1 - X0, Y1 - Y0, -0.1, 0, ((X0 + X1) / 2, (Y0 + Y1) / 2, 0), 'floor')
     box('ceiling', X1 - X0, Y1 - Y0, H, H + 0.1, ((X0 + X1) / 2, (Y0 + Y1) / 2, 0), 'ceiling')
     box('wall_n', X1 - X0, 0.2, 0, H, (0, Y1 + 0.1, 0), 'wall')
@@ -128,14 +129,15 @@ def build():
         'spade': [[(x, 0.08 - z) for x, z in shape] for shape in heart] + [[(-0.05, -0.1), (0.05, -0.1), (0.17, -0.5), (-0.17, -0.5)]],
         'club': [disc(0, 0.26, 0.22), disc(-0.24, -0.06, 0.22), disc(0.24, -0.06, 0.22), disc(0, 0.04, 0.15), [(-0.04, 0), (0.04, 0), (0.17, -0.5), (-0.17, -0.5)]],
     }
-    for k, side in enumerate(SIDES):
-        face = empty(f'column_face_{side}', turn=k * 90)
+    for k, suit in enumerate(FACES):
+        face = empty(f'column_face_{suit}', turn=k * 90)
         box('column_panel', 0.42, 0.02, 0.75, 1.9, (0, -0.31, 0), 'pillar', parent=face)
         box('column_panel_top', 0.42, 0.02, 3.55, H - 0.55, (0, -0.31, 0), 'pillar', parent=face)
         flat('column_medallion', [disc(0, 0, 0.36, 8)], loc=(0, -0.385, 2.7), material='pillar', parent=face).rotation_euler.y = math.radians(22.5)
-        flat(f'column_{SUITS[side]}', [[(x * 0.47, z * 0.47) for x, z in shape] for shape in suits[SUITS[side]]], loc=(0, -0.392, 2.7), material='panel', parent=face)
+        flat(f'column_{suit}', [[(x * 0.47, z * 0.47) for x, z in shape] for shape in suits[suit]], loc=(0, -0.392, 2.7), material='panel', parent=face)
 
-    # North-east: the aisle of slot machines, with a lettered partition backing the south row.
+    # South-west: the aisle of slot machines. The north row starts just behind the column and is backed by a
+    # lettered partition, which is what the club camera sees.
     def slot(x, y, turn):
         p = empty('slot', (x, y, 0.5), turn=turn)
         box('slot_body', 0.68, 0.6, 0, 1.35, material='mid', parent=p)
@@ -144,76 +146,68 @@ def build():
         box('slot_reels', 0.52, 0.03, 0.46, 0.72, (0, -0.31, 0), 'light', parent=p)
         box('slot_tray', 0.56, 0.14, 0.22, 0.3, (0, -0.36, 0), 'dark', parent=p)
 
-    for name, x0, x1, y, turn in (('south', 1.0, 9.2, 0.55, 180), ('north', -0.5, 9.2, 3.3, 0)):
+    for name, x0, x1, y, turn in (('north', -10.0, -0.8, -1.3, 0), ('south', -10.0, 1.2, -4.1, 180)):
         box(f'slots_{name}_plinth', x1 - x0, 0.9, 0, 0.5, ((x0 + x1) / 2, y, 0))
         box(f'slots_{name}_stripe', x1 - x0 + 0.02, 0.92, 0.26, 0.31, ((x0 + x1) / 2, y, 0), 'gold')
         for i in range(int((x1 - x0 - 0.2) / 0.8)):
-            slot(x0 + 0.5 + i * 0.8, y, turn)
-    box('slots_end_plinth', 0.9, 1.85, 0, 0.5, (9.65, 1.925, 0))
-    for y in (1.5, 2.35):
-        slot(9.65, y, -90)
-    box('partition', 8.4, 0.1, 0, 2.25, (5.2, 0.05, 0), 'plinth')
+            slot(x1 - 0.5 - i * 0.8, y, turn)
+    box('slots_end_plinth', 0.9, 1.9, 0, 0.5, (-10.45, -2.7, 0))
+    for y in (-2.25, -3.15):
+        slot(-10.45, y, 90)
+    box('partition', 9.2, 0.1, 0, 2.25, (-5.4, -0.8, 0), 'plinth')
     for i in range(8):
-        box('partition_letter', 0.5, 0.03, 0.95, 1.75, (2.0 + i * 0.78, -0.01, 0), 'relief')
+        box('partition_letter', 0.5, 0.03, 0.95, 1.75, (-1.9 - i * 0.78, -0.74, 0), 'relief')
 
-    # South: the CASH wall with the urinals in front of it, and a short wall to its east for leaning on.
-    box('cash_wall', 9.0, 0.2, 0, H, (-6.0, -5.0, 0), 'wall')
-    text('cash_text', '$ CASH $', 1.0, (-6.6, -4.88, 3.3), 'relief', turn=180)
-    box('lean_wall', 0.2, 4.5, 0, H, (4.0, -7.25, 0), 'wall')
-    u = empty('urinals', (-7.4, -4.35, 0))
-    box('urinal_plinth', 4.3, 0.9, 0, 0.32, parent=u)
+    # West: a freestanding wall carrying the slot machine painting on its west face.
+    box('painting_wall', 0.2, 4.8, 0, 4.6, (-5.1, 3.8, 0), 'plinth')
+    p = empty('painting', (-5.2, 3.8, 0), turn=-90)
+    box('painting_frame', 2.3, 0.12, 0.7, 3.9, (0, -0.06, 0), 'gold_dark', parent=p)
+    box('painting_canvas', 2.02, 0.04, 0.84, 3.76, (0, -0.13, 0), 'dark', parent=p)
+    for i, (z0, z1) in enumerate(((2.85, 3.6), (1.95, 2.7), (1.0, 1.8))):
+        box('painting_tier', 1.55 - i * 0.1, 0.03, z0, z1, (0, -0.16, 0), 'mid', s1=(0.8, 1) if i == 0 else (1, 1), parent=p)
+        box('painting_tier_inner', 1.1 - i * 0.1, 0.03, z0 + 0.15, z1 - 0.15, (0, -0.18, 0), 'relief', parent=p)
+
+    # South-east: a wall with the B/W painting on its north face and CASH on its south face, the urinals
+    # standing in front of that, and the sinks along the east wall.
+    box('cash_wall', 6.5, 0.2, 0, H, (8.25, -1.9, 0), 'wall')
+    p = empty('bw_painting', (5.95, -1.8, 0), turn=180)
+    box('bw_frame', 1.6, 0.1, 0.8, 4.2, (0, -0.05, 0), 'dark', parent=p)
+    box('bw_figure', 0.45, 0.03, 1.5, 3.6, (0, -0.11, 0), 'panel', parent=p)
+    text('cash_text', '$ CASH $', 0.9, (8.0, -2.02, 3.4), 'relief')
+    u = empty('urinals', (8.6, -3.2, 0), turn=180)
+    box('urinal_plinth', 3.3, 0.9, 0, 0.32, parent=u)
     for i in range(5):
-        x = (i - 2) * 0.78
-        box('urinal', 0.6, 0.42, 0.32, 1.5, (x, -0.05, 0), 'gold', parent=u)
-        box('urinal_bowl', 0.44, 0.04, 0.5, 1.4, (x, 0.17, 0), 'gold_dark', parent=u)
-        box('urinal_lip', 0.6, 0.2, 0.32, 0.5, (x, 0.21, 0), 'gold', parent=u)
+        x = (i - 2) * 0.6
+        box('urinal', 0.5, 0.42, 0.32, 1.5, (x, -0.05, 0), 'gold', parent=u)
+        box('urinal_bowl', 0.36, 0.04, 0.5, 1.4, (x, 0.17, 0), 'gold_dark', parent=u)
+        box('urinal_lip', 0.5, 0.2, 0.32, 0.5, (x, 0.21, 0), 'gold', parent=u)
         box('urinal_pipe', 0.07, 0.07, 1.5, 1.72, (x, -0.1, 0), 'gold', parent=u)
-        box('urinal_valve', 0.26, 0.07, 1.72, 1.79, (x, -0.1, 0), 'gold', parent=u)
+        box('urinal_valve', 0.24, 0.07, 1.72, 1.79, (x, -0.1, 0), 'gold', parent=u)
+    for i in range(5):
+        box('sink', 0.5, 0.9, 0.75, 0.95, (12.75, -2.5 - i * 1.25, 0), 'gold')
+        box('sink_tap', 0.08, 0.08, 0.95, 1.2, (12.92, -2.5 - i * 1.25, 0), 'gold')
 
-    # West wall: the big painting.
-    p = empty('painting', (-10.5, -2.4, 0), turn=90)
-    box('painting_frame', 3.4, 0.12, 0.6, 4.8, (0, -0.06, 0), 'gold_dark', parent=p)
-    box('painting_canvas', 3.05, 0.04, 0.78, 4.62, (0, -0.13, 0), 'dark', parent=p)
-    for i, (z0, z1) in enumerate(((3.45, 4.4), (2.25, 3.25), (1.05, 2.05))):
-        box('painting_tier', 2.4 - i * 0.15, 0.03, z0, z1, (0, -0.16, 0), 'mid', s1=(0.8, 1) if i == 0 else (1, 1), parent=p)
-        box('painting_tier_inner', 1.7 - i * 0.15, 0.03, z0 + 0.18, z1 - 0.18, (0, -0.18, 0), 'relief', parent=p)
-    box('sculpture_plinth', 0.6, 0.6, 0, 1.05, (-9.4, 0.6, 0))
-    bm_obj('sculpture', lambda bm: bmesh.ops.create_icosphere(bm, subdivisions=1, radius=0.2), (-9.4, 0.6, 1.27), 'gold')
+    # North-west: the block of wall the two men lean on.
+    box('lean_wall', 6.45, 2.2, 0, H, (-9.78, 8.7, 0), 'wall')
 
-    # North and west walls: a tall dark piece, a gold plinth, a doorway and a bench.
-    box('tall_frame', 1.7, 0.1, 0.8, 4.3, (-4.5, 10.44, 0), 'dark')
-    box('tall_frame_inner', 0.5, 0.03, 1.5, 3.6, (-4.5, 10.38, 0), 'light')
-    box('gold_plinth', 0.8, 0.8, 0, 1.2, (-7.4, 9.6, 0), 'gold')
-    box('door', 0.06, 1.8, 0, 2.9, (-10.46, 5.5, 0), 'dark')
-    box('bench', 0.5, 2.0, 0.36, 0.46, (-9.6, 3.0, 0), 'mid')
-    for y in (2.15, 3.85):
-        box('bench_leg', 0.42, 0.1, 0, 0.36, (-9.6, y, 0), 'dark')
-
-    # Ceiling panels, their lights, and chandeliers.
-    for x in (-7, 0, 7):
-        for y in (-6.5, 0.5, 7.5):
-            box('ceiling_panel', 3.0, 3.0, H - 0.04, H - 0.01, (x + 1.8, y + 1.5, 0), 'glow')
+    # Ceiling panels and their lights.
+    for x in (-9, 0, 9):
+        for y in (-7.5, 1, 9.5):
+            box('ceiling_panel', 3.0, 3.0, H - 0.04, H - 0.01, (x, y, 0), 'glow')
             light = bpy.data.objects.new('ceiling_light', bpy.data.lights.new('ceiling_light', 'AREA'))
             light.data.size = 3.0
-            light.data.energy = 420
-            light.location = (x + 1.8, y + 1.5, H - 0.1)
+            light.data.energy = 600
+            light.location = (x, y, H - 0.1)
             root_coll.objects.link(light)
-    for cx, cy in ((-4.5, 4.5), (4.5, -2.3), (4.5, 6.8), (-6.5, -1.5)):
-        box('chandelier_stem', 0.05, 0.05, H - 1.0, H, (cx, cy, 0), 'gold_dark')
-        for r, z, n in ((0.75, H - 1.25, 10), (0.45, H - 1.0, 6)):
-            bm_obj('chandelier_ring', lambda bm: bmesh.ops.create_cone(bm, cap_ends=False, segments=n * 2, radius1=r, radius2=r, depth=0.06), (cx, cy, z), 'gold_dark')
-            for i in range(n):
-                a = i / n * math.tau
-                box('chandelier_lamp', 0.07, 0.07, 0.03, 0.22, (cx + r * math.cos(a), cy + r * math.sin(a), z), 'glow')
 
     # Cameras.
-    for side, ((x, y), heading) in CAMERAS.items():
-        cam = bpy.data.objects.new(f'cam_{side}', bpy.data.cameras.new(f'cam_{side}'))
+    for view, ((x, y), heading) in CAMERAS.items():
+        cam = bpy.data.objects.new(f'cam_{view}', bpy.data.cameras.new(f'cam_{view}'))
         root_coll.objects.link(cam)
         cam.location = (x, y, 1.5)
         cam.rotation_euler = (math.pi / 2, 0, math.radians(heading))
         cam.data.sensor_width = 36
-        cam.data.lens = 24
+        cam.data.lens = 28
         cam.data.clip_end = 80
 
     # Figures: built facing +Y, limbs pivoting at hip, shoulder and neck.
@@ -320,18 +314,18 @@ def build():
             if 'arm_l' in f:
                 key(f['arm_l'], frame, rot=(math.radians(6) * math.sin(2 * t + phase), 0, 0))
 
-    pace(figure('guard', 'shirt', 'suit', cap=True, height=1.03), (-6.0, -2.4), (-1.2, 2.6), 5.0, 1.0)
-    pace(figure('waiter', 'suit', 'suit', skirt=True, tray=True, height=0.95), (2.6, -4.3), (-1.8, -2.2), 3.6, 2.4, offset=2.5, swing=22)
-    pace(wheelchair('wheelchair'), (1.6, -1.5), (4.2, -1.5), 3.0, 3.0, offset=6.0)
-    idle(figure('leaning_a', 'suit', 'suit', height=1.04), (3.65, -5.3), 75, 0.4, look=18)
-    idle(figure('leaning_b', 'tan', 'grey', cap=True), (3.65, -6.2), 60, 2.6, look=14)
-    idle(figure('host', 'shirt', 'suit'), (0.5, -2.4), 170, 1.0, look=30)
-    idle(figure('viewer', 'suit', 'suit', height=1.02), (2.2, -3.5), 90, 0.0, look=10)
-    idle(figure('aisle_a', 'suit', 'suit', skirt=True, height=0.95), (4.2, 2.1), 90, 3.1)
-    idle(figure('aisle_b', 'grey', 'tan', skirt=True, height=0.93), (7.4, 1.7), 100, 5.0)
-    idle(figure('patron', 'grey', 'suit'), (-7.8, -3.0), 180, 1.3, look=30)
-    idle(figure('talker_a', 'tan', 'grey', height=1.04), (-2.2, 7.0), -65, 2.1, look=12)
-    idle(figure('talker_b', 'light', 'tan', skirt=True, height=0.94), (-1.7, 7.4), 115, 4.0, look=12)
+    pace(figure('guard', 'shirt', 'suit', cap=True, height=1.03), (10.4, -5.6), (5.2, -5.6), 4.6, 1.4)
+    pace(figure('waiter', 'suit', 'suit', skirt=True, tray=True, height=0.95), (-8.0, 1.6), (-5.4, 0.3), 2.6, 3.4, offset=2.5, swing=22)
+    pace(wheelchair('wheelchair'), (-4.6, 1.0), (-2.2, 0.6), 3.0, 3.0, offset=6.0)
+    idle(figure('leaning_a', 'suit', 'suit', height=1.04), (-6.25, 8.3), -120, 0.4, look=18)
+    idle(figure('leaning_b', 'tan', 'grey', cap=True), (-6.25, 9.1), -100, 2.6, look=14)
+    idle(figure('host', 'shirt', 'suit'), (-3.0, 4.5), 0, 1.0, look=30)
+    idle(figure('viewer', 'suit', 'suit', height=1.02), (-7.4, 2.6), -90, 0.0, look=10)
+    idle(figure('aisle_a', 'suit', 'suit', skirt=True, height=0.95), (-3.0, -2.6), -90, 3.1)
+    idle(figure('aisle_b', 'grey', 'tan', skirt=True, height=0.93), (-6.5, -2.9), -80, 5.0)
+    idle(figure('patron', 'grey', 'suit'), (8.3, -4.4), 0, 1.3, look=30)
+    idle(figure('talker_a', 'tan', 'grey', height=1.04), (1.5, 3.0), -65, 2.1, look=12)
+    idle(figure('talker_b', 'light', 'tan', skirt=True, height=0.94), (2.0, 3.4), 115, 4.0, look=12)
 
     # Render settings.
     scene.render.engine = 'BLENDER_EEVEE' if 'BLENDER_EEVEE' in [e.identifier for e in bpy.types.RenderSettings.bl_rna.properties['engine'].enum_items] else 'BLENDER_EEVEE_NEXT'
@@ -353,31 +347,26 @@ def build():
     bg.inputs['Strength'].default_value = 0.25
     scene.view_settings.view_transform = 'AgX'
     scene.view_settings.exposure = -0.8
-    scene.camera = bpy.data.objects['cam_S']
+    scene.camera = bpy.data.objects['cam_club']
     os.makedirs(OUT, exist_ok=True)
     bpy.ops.wm.save_as_mainfile(filepath=BLEND)
-
-
-def use_camera(side):
-    bpy.context.scene.camera = bpy.data.objects[f'cam_{side}']
 
 
 def stills(frame=70):
     scene = bpy.context.scene
     scene.frame_set(frame)
-    for side in SIDES:
-        use_camera(side)
-        scene.render.filepath = os.path.join(OUT, f'still_{side}.png')
+    for view in CAMERAS:
+        scene.camera = bpy.data.objects[f'cam_{view}']
+        scene.render.filepath = os.path.join(OUT, f'still_{view}.png')
         bpy.ops.render.render(write_still=True)
 
 
 def render():
     scene = bpy.context.scene
-    for side in SIDES:
-        use_camera(side)
-        scene.render.filepath = os.path.join(OUT, side, '')
+    for view in CAMERAS:
+        scene.camera = bpy.data.objects[f'cam_{view}']
+        scene.render.filepath = os.path.join(OUT, view, '')
         bpy.ops.render.render(animation=True)
-    open(os.path.join(OUT, 'done.txt'), 'w').write('done')
 
 
 mode = os.environ.get('HBO_MODE', 'build')
