@@ -7,6 +7,8 @@ export async function getStaticPaths() {
 }
 const { project } = Astro.props;
 const { data } = project;
+// The dev server can hold entries stored before a schema change, without the newer defaults.
+const images = data.images ?? [];
 const { Content } = await render(project);
 ---
 <Base
@@ -39,9 +41,9 @@ const { Content } = await render(project);
     <div class="story"><Content /></div>
   </section>
 
-  {(data.images.length > 0 || data.video) && (
+  {(images.length > 0 || data.video) && (
     <section class="media" aria-label="The original">
-      {data.images.map(image => (
+      {images.map(image => (
         <figure>
           <img src={image.src} width={image.width} height={image.height} alt={image.alt} loading="lazy" />
           <figcaption class="mono">{image.caption}</figcaption>
