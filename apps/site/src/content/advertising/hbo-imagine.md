@@ -17,6 +17,7 @@ credits:
   - { role: Editorial, name: Butcher Editorial }
 recognition:
   - Cannes Lions 2010, Bronze, Titanium and Integrated
+  - Clio Awards 2010, Silver, Integrated Campaign
   - Communication Arts, featured project
 press:
   - { title: HBO Imagine Sets a New Bar for Interactive Fiction, source: GigaOm, url: "https://archive.nytimes.com/www.nytimes.com/external/gigaom/2009/09/21/21gigaom-hbo-imagine-sets-a-new-bar-for-interactive-fiction-969.html" }
