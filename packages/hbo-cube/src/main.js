@@ -94,9 +94,16 @@
   // Turns are counted in quarter turns to the right: 0 the club, 1 the spade, 2 the heart, 3 the diamond.
   // The cube stops every half step, so it rests on a side or on a corner between two sides.
   const stop = value => Math.round(value * 2) / 2;
-  let turn = 0, target = 0, drag = null, view = 'cube';
+  let turn = 0, target = 0, drag = null, tween = null, view = 'cube';
+  // Ease out and past the stop, then settle back onto it. A larger overshoot swings further past.
+  const back = overshoot => t => 1 + (overshoot + 1) * (t - 1) ** 3 + overshoot * (t - 1) ** 2;
+  const SPIN = back(1.7), SETTLE = back(0.8);
   const wrap = value => ((Math.round(value) % 4) + 4) % 4;
-  function go(next) { target = next; document.body.classList.add('turned'); }
+  function go(next, ease = SPIN, duration = 700) {
+    target = next;
+    tween = { from: turn, to: next, start: performance.now(), duration, ease };
+    document.body.classList.add('turned');
+  }
   function goToSide(index) {
     const from = target;
     const step = (((index - from) % 4) + 6) % 4 - 2; // the shorter way round
@@ -115,7 +122,8 @@
   }
 
   canvas.addEventListener('pointerdown', event => {
-    drag = { x: event.clientX, turn };
+    tween = null;
+    drag = { x: event.clientX, turn, samples: [[performance.now(), turn]] };
     canvas.setPointerCapture(event.pointerId);
     canvas.classList.add('dragging');
   });
@@ -123,11 +131,24 @@
     if (!drag) return;
     turn = drag.turn - (event.clientX - drag.x) / (canvas.clientWidth * 0.55);
     if (Math.abs(turn - drag.turn) > 0.02) document.body.classList.add('turned');
+    drag.samples.push([performance.now(), turn]);
+    if (drag.samples.length > 8) drag.samples.shift();
   });
   const release = () => {
     if (!drag) return;
+    // A throw carries on in the direction it was going: the speed over the last moments of the drag
+    // decides how many stops further the cube travels before it settles.
+    const now = performance.now();
+    const recent = drag.samples.filter(([at]) => now - at < 120);
+    let speed = 0;
+    if (recent.length > 1) {
+      const [firstAt, firstTurn] = recent[0], [lastAt, lastTurn] = recent[recent.length - 1];
+      if (lastAt > firstAt) speed = (lastTurn - firstTurn) / (lastAt - firstAt); // quarter turns a millisecond
+    }
     drag = null;
-    target = stop(turn);
+    const carry = Math.max(-3, Math.min(3, speed * 400));
+    const rest = stop(turn + carry);
+    go(rest, SETTLE, 500 + 220 * Math.abs(rest - turn));
     canvas.classList.remove('dragging');
   };
   canvas.addEventListener('pointerup', release);
@@ -239,15 +260,16 @@
   // ---- Frame -------------------------------------------------------------------------------------------
   let shown = null;
   function frame() {
-    if (!drag && turn !== target) {
-      turn += (target - turn) * 0.14;
-      if (Math.abs(target - turn) < 0.002) turn = target;
+    if (tween) {
+      const t = Math.min(1, (performance.now() - tween.start) / tween.duration);
+      turn = tween.from + (tween.to - tween.from) * tween.ease(t);
+      if (t === 1) tween = null;
     }
     cube.rotation.y = -turn * Math.PI / 2;
     renderer.render(scene, camera);
     time.textContent = `${clock(video.currentTime)}/${clock(video.duration)}`;
     const nearest = stop(turn), facing = [wrap(Math.floor(nearest)), wrap(Math.ceil(nearest))];
-    if (!drag && Math.abs(turn - nearest) < 0.03) facing.forEach(unlock);
+    if (!drag && !tween && Math.abs(turn - nearest) < 0.03) facing.forEach(unlock);
     if (nearest !== shown || !map.hidden) {
       shown = nearest;
       cameras.forEach((camera, index) => {
