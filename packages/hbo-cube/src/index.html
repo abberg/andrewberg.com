@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <title>Story Cube — Andrew Berg</title>
 <link rel="icon" href="data:,">
-<meta name="description" content="A recreation of the HBO Imagine story cube: one looping scene seen through the four walls of its room.">
+<meta name="description" content="A recreation of the HBO Imagine story cube: one looping scene seen from four sides.">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   /* One video holds the four camera angles in a 2 x 2 grid. Each face of the cube is a canvas that draws
@@ -21,13 +21,13 @@
   button:hover { color: #fff; background: #ffffff14; }
   button:focus-visible { outline: 2px solid #8fcb6b; outline-offset: 2px; }
   .sides { display: flex; gap: 4px; }
-  .sides button { min-width: 0; padding: 0 10px; color: #77776f; }
+  .sides button { min-width: 36px; padding: 0; color: #77776f; font: 20px/1 system-ui, sans-serif; }
   .sides button[aria-pressed="true"] { color: #fff; }
   .stage { position: relative; }
   .hint { position: absolute; z-index: 1; bottom: 14px; left: 50%; transform: translateX(-50%); margin: 0; padding: 6px 12px; border-radius: 14px; background: #000000b3; color: #fff; white-space: nowrap; pointer-events: none; transition: opacity .4s; }
   .turned .hint { opacity: 0; }
   video { display: none; }
-  @media (max-width: 520px) { .sides { display: none; } .bar { height: 44px; gap: 10px; } }
+  @media (max-width: 520px) { .bar { height: 44px; gap: 6px; } }
 </style>
 </head>
 <body>
@@ -43,10 +43,10 @@
 <div class="bar">
   <button type="button" data-turn="-1" aria-label="Turn left">←</button>
   <div class="sides">
-    <button type="button" data-side="0">South</button>
-    <button type="button" data-side="1">East</button>
-    <button type="button" data-side="2">North</button>
-    <button type="button" data-side="3">West</button>
+    <button type="button" data-side="0" aria-label="Club side">♣&#xFE0E;</button>
+    <button type="button" data-side="1" aria-label="Spade side">♠&#xFE0E;</button>
+    <button type="button" data-side="2" aria-label="Heart side">♥&#xFE0E;</button>
+    <button type="button" data-side="3" aria-label="Diamond side">♦&#xFE0E;</button>
   </div>
   <button type="button" data-turn="1" aria-label="Turn right">→</button>
   <button type="button" class="play" aria-label="Pause">Pause</button>
@@ -63,7 +63,8 @@
   const sideButtons = [...document.querySelectorAll('[data-side]')];
   const play = document.querySelector('.play');
 
-  // Turns are counted in quarter turns to the right: 0 shows the south camera, 1 east, 2 north, 3 west.
+  // Turns are counted in quarter turns to the right. Each side looks at one face of the column in the scene:
+  // 0 the club, 1 the spade, 2 the heart, 3 the diamond.
   let turn = 0, target = 0, drag = null, width = 600;
 
   function layout() {
