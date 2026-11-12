@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { blockStone, columnStone, shifted, urnGeometry } from './columns';
 import { urnPlant } from './foliage';
-import { WALL_GROUPS } from './level';
+import { NEST, TOPPLED, WALL_GROUPS } from './level';
 import { painted } from './look';
 import type { Reach, Robot } from './robot';
 import { play, type Sound } from './sounds';
@@ -21,7 +21,7 @@ import { play, type Sound } from './sounds';
 // pool), and where it lies now: out on the east lawn, south of the east
 // path, away from the fruit trees and the fish on the west side.
 export const FALLEN = { x: 24, z: 38 };
-const LIES = { x: 32, z: 22 };
+const LIES = TOPPLED;
 
 export const nest = {
   // How near its middle the robot has to stand to lift it (m).
@@ -53,7 +53,7 @@ const fallen = new THREE.Vector3(LIES.x, 0.3, LIES.z);
 // Its middle, up its axis from its foot, where it's held (m); and the nest,
 // under its stem.
 const WAIST = 0.8;
-const eggs = new THREE.Vector3(fallen.x + axis.x * 0.52, 0, fallen.z + axis.z * 0.52);
+const eggs = new THREE.Vector3(NEST.x, 0, NEST.z);
 
 type Phase = 'lying' | 'lifting' | 'freed';
 let phase: Phase = 'lying', planter: THREE.Group, guard: RAPIER.Collider, world: RAPIER.World;
@@ -299,7 +299,8 @@ export function updateNest(delta: number, seconds: number, feet: THREE.Vector3) 
       else bird.calls = 1;
     }
     const hover = flap ? Math.sin(seconds * 31 + k) * 0.02 : 0;
-    bird.group.position.set(bird.at.x, bird.at.y + hover + (1 - bird.perched) * 0 + 0.3 * nest.bird * bird.perched, bird.at.z);
+    bird.group.position.set(bird.at.x, bird.at.y + hover + (k ? 0.3 : 0.08) * nest.bird * bird.perched, bird.at.z);
+    // (Standing on the rim; sat down low on the eggs.)
     bird.group.rotation.set(flap ? -0.5 : k ? 0 : 0.15, bird.heading, 0, 'YXZ');
     bird.group.scale.setScalar(nest.bird);
     // Wings beating, or folded along its back.

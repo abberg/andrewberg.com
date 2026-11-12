@@ -4,7 +4,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { ARCH, cityFront, CROWN as CITY_TOP } from './city';
 import { DRIFTS, drifting } from './drift';
 import { bothSidesAlike, wander } from './growth';
-import { EAST, EAST_LAWN, lawnSouth, ledgeEdge, ledgeFront, MOATS_FROM, northEdge, onSunk, PATHS, OUTER, POOLS, WALL_GROUPS, WEST, WEST_LAWN } from './level';
+import { EAST, EAST_LAWN, lawnSouth, ledgeEdge, ledgeFront, MOATS_FROM, NEST, northEdge, onSunk, PATHS, OUTER, POOLS, WALL_GROUPS, WEST, WEST_LAWN } from './level';
 import { leafy, painted, palette } from './look';
 import { SWAY, type Sway, swaying } from './wind';
 import { DRAWN, SHADOW_STENCIL } from './robot';
@@ -1018,8 +1018,13 @@ export function createFoliage(world: RAPIER.World, scene: THREE.Scene) {
   const sward: THREE.Matrix4[] = [];
   const drifts = [wander(97, 7), wander(98, 9)], field = (x: number, z: number, y: number) => {
     const drift = (drifts[0](x * 0.8 + z * 0.6) + drifts[1](z * 0.8 - x * 0.6)) / 2;
-    const tall = 0.2 + Math.max(0, drift) * 0.35 + random() * 0.1;
-    sward.push(new THREE.Matrix4().compose(new THREE.Vector3(x, y, z),
+    let tall = 0.2 + Math.max(0, drift) * 0.35 + random() * 0.1;
+    // Round the flycatchers' nest (nest.ts) it's short and thin, and there's
+    // none right at it, so the nest and the bird on it can be seen. (Drawn
+    // for all the same, so the rest of the lawn stays put.)
+    const nest = Math.hypot(x - NEST.x, z - NEST.z), keep = nest > 0.42 && (nest > 1.5 || ((x * 13.7 + z * 7.9) % 1 + 1) % 1 < 0.35 + 0.65 * (nest - 0.42) / 1.08);
+    if (nest < 2) tall = Math.min(tall, 0.07 + 0.2 * Math.max(0, nest - 0.4) / 1.6);
+    (keep ? sward : []).push(new THREE.Matrix4().compose(new THREE.Vector3(x, y, z),
       new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), random() * Math.PI * 2), new THREE.Vector3(tall * (1.6 + random() * 0.6), tall, tall * (1.6 + random() * 0.6))));
   };
   const along = new THREE.Vector2(16.2, 5.8).normalize(), fallen = new THREE.Vector2(-5.6, 39.1);

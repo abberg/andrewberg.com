@@ -51,6 +51,9 @@ export const BODY_GROUPS = (0xffff << 16) | (0xffff & ~TREADS);
 // east, and stubs to the pools.
 export const PATHS = [[-2.5, 2.5, 0, 50.4], [-44.1, -2.5, 4.4, 7.7], [-40.7, -2.5, 24.6, 28], [-44.7, -2.5, 35.4, 38.7],
   [2.5, 46.2, 10.9, 14.2], [-17.85, -14.35, 22.5, 24.6], [2.5, 8.5, 32.35, 35.85]];
+// Where a planter lies knocked over on a flycatchers' nest (nest.ts), and
+// the nest under it: the lawn's grass is kept short and thin round it.
+export const TOPPLED = { x: 32, z: 22 }, NEST = { x: 32.42, z: 21.69 };
 // The pools' middles; their rims are 7.4 m across the outside.
 export const POOLS = [[-16.1, 15.8], [15.3, 34.1]];
 
