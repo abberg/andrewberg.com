@@ -15,6 +15,10 @@ const advertising = defineCollection({
     summary: z.string(),
     // Slug of a sketch package that recreates the piece, embedded on the project page when present.
     recreation: z.string().optional(),
+    // Stills of the original work, served from public/advertising/<project>/.
+    images: z.array(z.object({ src: z.string(), width: z.number(), height: z.number(), alt: z.string(), caption: z.string() })).default([]),
+    // A film of the original work on YouTube.
+    video: z.object({ youtube: z.string(), title: z.string(), caption: z.string() }).optional(),
     credits: z.array(z.object({ role: z.string(), name: z.string() })).default([]),
     recognition: z.array(z.string()).default([]),
     press: z.array(z.object({ title: z.string(), source: z.string(), url: z.string().url() })).default([]),

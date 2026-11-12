@@ -6,6 +6,16 @@ partners: [BBDO New York]
 year: 2009
 role: Technical lead
 recreation: hbo-cube
+images:
+  - src: /advertising/hbo-imagine/original-site.jpg
+    width: 1274
+    height: 669
+    alt: The HBO Imagine site in 2009. A cube turned to a corner shows two angles of The Affair, a bedroom on one side and a living room on the other, with Spin buttons either side, playback controls below, and a bar reading 70% unlocked.
+    caption: The original site in 2009, with the cube for The Affair turned to a corner.
+video:
+  youtube: UWVeFt3IyoI
+  title: HBO Imagine case film
+  caption: The campaign film, from The One Club for Creativity.
 summary: An interactive mystery told through a four-sided story cube. Spin it to change angles mid-scene, then piece together the story from 41 more films, recordings, and clues.
 credits:
   - { role: Client, name: HBO }
@@ -18,6 +28,7 @@ credits:
 recognition:
   - Cannes Lions 2010, Bronze, Titanium and Integrated
   - Clio Awards 2010, Silver, Integrated Campaign
+  - The One Show 2010, Pencil winner, Entertainment
   - Communication Arts, featured project
 press:
   - { title: HBO Imagine Sets a New Bar for Interactive Fiction, source: GigaOm, url: "https://archive.nytimes.com/www.nytimes.com/external/gigaom/2009/09/21/21gigaom-hbo-imagine-sets-a-new-bar-for-interactive-fiction-969.html" }

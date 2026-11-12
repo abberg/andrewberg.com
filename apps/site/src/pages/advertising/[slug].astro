@@ -39,6 +39,30 @@ const { Content } = await render(project);
     <div class="story"><Content /></div>
   </section>
 
+  {(data.images.length > 0 || data.video) && (
+    <section class="media" aria-label="The original">
+      {data.images.map(image => (
+        <figure>
+          <img src={image.src} width={image.width} height={image.height} alt={image.alt} loading="lazy" />
+          <figcaption class="mono">{image.caption}</figcaption>
+        </figure>
+      ))}
+      {data.video && (
+        <figure>
+          <iframe
+            src={`https://www.youtube-nocookie.com/embed/${data.video.youtube}`}
+            title={data.video.title}
+            loading="lazy"
+            allow="fullscreen; picture-in-picture; encrypted-media"
+            referrerpolicy="strict-origin-when-cross-origin"
+            allowfullscreen
+          ></iframe>
+          <figcaption class="mono">{data.video.caption}</figcaption>
+        </figure>
+      )}
+    </section>
+  )}
+
   {(data.credits.length > 0 || data.recognition.length > 0 || data.press.length > 0) && (
     <section class="notes">
       {data.credits.length > 0 && (
@@ -79,6 +103,9 @@ const { Content } = await render(project);
   .story { max-width: 62ch; font-size: 17px; line-height: 1.6; }
   .story :global(p) { margin: 0 0 1.1em; }
 
+  .media { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px 20px; align-items: start; margin-top: 64px; padding-top: 40px; border-top: 1px solid var(--rule); }
+  .media figure { display: flex; flex-direction: column; gap: 10px; margin: 0; }
+  .media img, .media iframe { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; border: 0; border-radius: 10px; background: #0b0b0c; object-fit: contain; }
   .notes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px; margin-top: 64px; padding-top: 40px; border-top: 1px solid var(--rule); }
   .notes h2 { margin: 0 0 16px; font-weight: 400; }
   .notes ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; font-size: 15px; line-height: 1.4; }
@@ -98,6 +125,7 @@ const { Content } = await render(project);
     .facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 20px; }
     .story { font-size: 15px; }
     .notes { display: flex; flex-direction: column; gap: 32px; margin-top: 40px; padding-top: 28px; }
+    .media { display: flex; flex-direction: column; gap: 24px; margin-top: 40px; padding-top: 28px; }
     .recreation { margin-bottom: 40px; }
     .recreation iframe { aspect-ratio: 4 / 3; }
   }
