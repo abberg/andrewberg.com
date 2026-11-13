@@ -90,7 +90,8 @@
   // Turns are counted in quarter turns to the right: 0 the club, 1 the spade, 2 the heart, 3 the diamond.
   // The cube stops every half step, so it rests on a side or on a corner between two sides.
   const stop = value => Math.round(value * 2) / 2;
-  let turn = 0, target = 0, drag = null, tween = null, view = 'cube';
+  // The cube opens resting on a corner, with the first two sides in view.
+  let turn = 0.5, target = 0.5, drag = null, tween = null, view = 'cube';
   // Ease out and past the stop, then settle back onto it. A larger overshoot swings further past.
   const back = overshoot => t => 1 + (overshoot + 1) * (t - 1) ** 3 + overshoot * (t - 1) ** 2;
   const SPIN = back(1.7), SETTLE = back(0.8);
