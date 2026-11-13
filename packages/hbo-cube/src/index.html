@@ -47,17 +47,22 @@
   .percent { position: absolute; left: var(--p); bottom: calc(100% + 5px); transform: translateX(-50%); font-size: 10px; letter-spacing: .04em; transition: left .9s ease; }
   .percent::after { content: ''; position: absolute; left: 50%; top: calc(100% + 1px); height: 5px; border-left: 1px solid #fff; }
 
-  .map { position: absolute; inset: 36px 0 106px; display: grid; place-items: center; padding: 8px 16px; background: #050506f2; z-index: 3; }
+  .map { position: absolute; inset: 0; display: grid; place-items: center; padding: 28px 16px 16px; background: #050506; z-index: 6; }
   .map[hidden] { display: none; }
-  .plan { position: relative; width: min(100%, calc((100vh - 158px) * 160 / 96)); aspect-ratio: 160 / 96; }
+  .plan { position: relative; width: min(100%, calc((100vh - 44px) * 160 / 96)); aspect-ratio: 160 / 96; }
   .plan .links { position: absolute; inset: 0; width: 100%; height: 100%; stroke: #ffffff38; stroke-width: 1; }
   .plan .links path { vector-effect: non-scaling-stroke; }
-  .plan .item { position: absolute; display: block; border: 1px solid #66665f; background: #0b0b0c; overflow: hidden; }
-  .plan .picture { background: #3c3c40; }
-  .plan .paper { background: #8c8c86; border-color: #a8a8a2; }
-  .plan .audio svg { width: 100%; height: 100%; stroke: #a9c98f; stroke-width: 1; }
+  /* Every piece is an empty frame until it has been viewed. */
+  .plan .item { position: absolute; display: block; border: 1px solid #5a5a54; background: #070708; overflow: hidden; cursor: pointer; }
+  .plan .item:hover, .plan .item:focus-visible { border-color: #fff; }
+  .plan .viewed { border-color: #b4b4ac; }
+  .plan .video.viewed, .plan .cube.viewed { background: #2a2a2e; }
+  .plan .video.viewed::after { content: ''; position: absolute; left: 50%; top: 50%; transform: translate(-35%, -50%); border: 5px solid transparent; border-left: 8px solid #fff; border-right: 0; }
+  .plan .picture.viewed { background: #8c8c86; }
+  .plan .audio svg { width: 100%; height: 100%; stroke: #6a6a66; stroke-width: 1; transform: scaleY(.04); }
+  .plan .audio.viewed svg { stroke: #a9c98f; transform: none; }
   .plan .audio polyline { vector-effect: non-scaling-stroke; }
-  .plan .open { border: 2px solid #fff; box-shadow: 0 0 12px #ffffff66; cursor: pointer; }
+  .plan .open { border: 2px solid #fff; box-shadow: 0 0 12px #ffffff66; }
   .plan .open canvas { display: block; width: 100%; height: 100%; }
   .map .close { position: absolute; top: 8px; right: 16px; color: #cfcfca; }
   .map .close:hover { color: #fff; }

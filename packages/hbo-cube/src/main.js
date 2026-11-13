@@ -196,38 +196,49 @@
   for (const type of ['play', 'pause']) video.addEventListener(type, showPlayback);
 
   // ---- Unlocking ---------------------------------------------------------------------------------------
-  // Each side unlocks the first time the cube settles on it, or on a corner that shows it.
-  const STORE = 'story-cube-seen';
-  const seen = new Set();
-  try { for (const index of JSON.parse(localStorage.getItem(STORE) || '[]')) if (index >= 0 && index < 4) seen.add(index); } catch (error) { /* no storage */ }
-  // The whole story was never on the cube alone: the last fifth stays locked, as the hidden final film was.
+  // Each side of the cube unlocks the first time the cube settles on it, or on a corner that shows it, and
+  // every other piece the first time the camera flies in to face it. The count is kept between visits.
+  const SIDES = 'story-cube-seen', PIECES = 'story-cube-viewed';
+  const stored = key => { try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch (error) { return []; } };
+  const store = (key, set) => { try { localStorage.setItem(key, JSON.stringify([...set])); } catch (error) { /* no storage */ } };
+  const seen = new Set(stored(SIDES).filter(index => index >= 0 && index < 4));
+  const viewed = new Set(); // pieces, filled in once the content is laid out
   const meter = document.querySelector('.unlock'), percent = document.querySelector('.percent');
   function showUnlocked() {
-    const share = seen.size * 20;
+    // One more share than there is to find stays locked, as the hidden final film was.
+    const share = Math.round((seen.size + viewed.size) / (4 + ITEMS.length) * 100);
     percent.textContent = `${share}% unlocked`;
     meter.style.setProperty('--p', `${share}%`);
   }
   function unlock(index) {
     if (seen.has(index)) return;
     seen.add(index);
-    try { localStorage.setItem(STORE, JSON.stringify([...seen])); } catch (error) { /* no storage */ }
+    store(SIDES, seen);
+    showUnlocked();
+  }
+  function view1st(item) {
+    if (item === hub || viewed.has(item)) return;
+    viewed.add(item);
+    store(PIECES, new Set([...viewed].map(piece => ITEMS.indexOf(piece))));
+    reveal(item);
     showUnlocked();
   }
 
   // ---- The content --------------------------------------------------------------------------------------
-  // The original held two cubes and 41 more films, recordings, pictures and papers. Only this cube is real
-  // here: the rest are locked stand-ins, laid out once and shared by the map and the universe.
+  // The original held two cubes and 41 more films, recordings and pictures. Only this cube is real here:
+  // the rest are stand-ins of four kinds (cube, video, audio, picture), laid out once and shared by the map
+  // and the universe. Each is an empty frame until it has been viewed.
   // Each is [kind, left, top] on a 160 x 96 sheet. The first is this cube.
-  const SIZES = { cube: [26, 11], video: [17, 8], audio: [17, 8], picture: [8, 6], paper: [5, 6] };
+  const SIZES = { cube: [26, 11], video: [17, 8], audio: [17, 8], picture: [8, 6] };
   const ITEMS = [
     ['cube', 67, 26], ['cube', 86, 39],
     ['video', 9, 28], ['video', 9, 45],
-    ['audio', 27, 25], ['video', 27, 35], ['paper', 33, 46], ['video', 27, 57], ['audio', 27, 68],
+    ['audio', 27, 25], ['video', 27, 35], ['picture', 33, 46], ['video', 27, 57], ['audio', 27, 68],
     ['audio', 45, 13], ['video', 45, 25], ['video', 45, 46], ['video', 45, 57], ['video', 45, 68],
     ['audio', 71, 7], ['picture', 64, 18], ['picture', 67, 40], ['video', 71, 51], ['picture', 70, 64], ['video', 71, 72],
-    ['picture', 84, 17], ['paper', 102, 54], ['video', 90, 64], ['paper', 92, 74], ['video', 90, 86],
-    ['picture', 94, 8], ['video', 98, 17], ['video', 98, 28], ['audio', 101, 78],
-    ['paper', 119, 23], ['video', 113, 41], ['video', 113, 52], ['video', 113, 68], ['paper', 121, 79],
+    ['picture', 84, 17], ['picture', 102, 54], ['video', 90, 64], ['picture', 92, 74], ['video', 90, 86],
+    ['picture', 94, 8], ['video', 98, 17], ['video', 98, 28], ['audio', 102, 78],
+    ['picture', 119, 23], ['video', 113, 41], ['video', 113, 52], ['video', 113, 68], ['picture', 121, 79],
     ['video', 131, 32], ['audio', 131, 52], ['audio', 131, 62],
   ].map(([kind, left, top]) => {
     const [width, height] = SIZES[kind];
@@ -247,7 +258,8 @@
     [i / (count - 1) * width, height / 2 + (random() - 0.5) * height * (i % (count - 1) ? 0.5 : 0)]);
 
   // ---- Map ---------------------------------------------------------------------------------------------
-  // A flat sheet of everything, joined by thin lines. This cube shows what it is playing; the rest are locked.
+  // A flat sheet of everything, joined by thin lines. This cube shows what it is playing, and a click on any
+  // piece flies to it.
   const map = document.querySelector('.map');
   const NS = 'http://www.w3.org/2000/svg';
   const plan = document.createElement('div');
@@ -262,18 +274,18 @@
   plan.append(links);
   let thumb;
   ITEMS.forEach((item, index) => {
-    const node = document.createElement(index ? 'div' : 'button');
+    const node = document.createElement('button');
+    node.type = 'button';
     node.className = `item ${item.kind}`;
     node.style.cssText = `left:${item.left / 1.6}%;top:${item.top / 0.96}%;width:${item.width / 1.6}%;height:${item.height / 0.96}%`;
-    if (index) node.title = 'Locked';
-    else {
-      node.type = 'button';
+    node.setAttribute('aria-label', index ? `${item.kind[0].toUpperCase()}${item.kind.slice(1)} ${index}` : 'The Heist');
+    node.addEventListener('click', () => flyTo(item));
+    item.node = node;
+    if (!index) {
       node.classList.add('open');
-      node.setAttribute('aria-label', 'The Heist');
       thumb = document.createElement('canvas');
       thumb.width = 260; thumb.height = 110;
       node.append(thumb);
-      node.addEventListener('click', () => flyTo(hub));
     }
     if (item.kind === 'audio') {
       const sound = document.createElementNS(NS, 'svg');
@@ -310,14 +322,17 @@
   scene.add(universe);
   const edge = new THREE.LineBasicMaterial({ color: 0x8a8a84 });
   const thread = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0 });
-  const sound = new THREE.LineBasicMaterial({ color: 0xa9c98f });
-  const fills = {
-    video: new THREE.MeshBasicMaterial({ color: 0x0b0b0c, side: THREE.DoubleSide }),
-    audio: new THREE.MeshBasicMaterial({ color: 0x0b0b0c, side: THREE.DoubleSide }),
-    picture: new THREE.MeshBasicMaterial({ color: 0x55555a, side: THREE.DoubleSide }),
-    paper: new THREE.MeshBasicMaterial({ color: 0xb8b8b2, side: THREE.DoubleSide }),
-    cube: new THREE.MeshBasicMaterial({ color: 0x0b0b0c }),
-  };
+  // How each kind looks once viewed; until then every piece is an empty dark frame.
+  const DARK = 0x020203, FLAT = 0x4a4a48;
+  const LIT = { video: 0x101013, cube: 0x101013, audio: 0x050506, picture: 0x5c5c58 };
+  const arrow = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-1.3, 1.7, 0.05), new THREE.Vector3(-1.3, -1.7, 0.05), new THREE.Vector3(1.7, 0, 0.05)]);
+  const white = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide });
+  function reveal(item) {
+    item.node.classList.add('viewed');
+    item.card.material.color.setHex(LIT[item.kind]);
+    if (item.sound) { item.sound.material.color.setHex(0xa9c98f); item.sound.scale.y = 1; }
+    if (item.play) item.play.visible = true;
+  }
   const SPREAD = 3.4, CLEAR = 105;
   hub.place = new THREE.Vector3();
   const threads = [], ends = []; // the points of each line, and the piece at each point
@@ -329,11 +344,19 @@
       place.z = (random() < 0.5 ? -1 : 1) * (Math.sqrt(CLEAR * CLEAR - place.x * place.x) + random() * 140);
     item.place = place;
     const geometry = item.kind === 'cube' ? new THREE.BoxGeometry(18, 11, 18) : new THREE.PlaneGeometry(item.width, item.height);
-    const card = new THREE.Mesh(geometry, fills[item.kind]);
+    const card = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ color: DARK, side: THREE.DoubleSide }));
     card.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), edge));
     if (item.kind === 'audio') {
       const points = wave(40, item.width * 0.8, item.height).map(([x, y]) => new THREE.Vector3(x - item.width * 0.4, y - item.height / 2, 0.05));
-      card.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), sound));
+      // Flat and grey until it has been heard.
+      item.sound = new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), new THREE.LineBasicMaterial({ color: FLAT }));
+      item.sound.scale.y = 0.04;
+      card.add(item.sound);
+    }
+    if (item.kind === 'video') {
+      item.play = new THREE.Mesh(arrow, white);
+      item.play.visible = false;
+      card.add(item.play);
     }
     card.userData.item = item;
     item.card = card;
@@ -351,6 +374,7 @@
       ends.push(item, other);
     }
   });
+  for (const index of stored(PIECES)) if (index > 0 && index < ITEMS.length) { viewed.add(ITEMS[index]); reveal(ITEMS[index]); }
   // An unseen box round the cube, generous enough to click when the cube is small.
   const reach = new THREE.Mesh(new THREE.BoxGeometry(46, 34, 46), new THREE.MeshBasicMaterial({ visible: false }));
   scene.add(reach);
@@ -472,7 +496,10 @@
       const t = Math.min(1, (now - fly.start) / 1400), eased = t * t * (3 - 2 * t);
       camera.position.lerpVectors(fly.position, seat.position, eased);
       camera.quaternion.copy(fly.quaternion).slerp(seat.quaternion, eased);
-      if (t === 1) fly = null;
+      if (t === 1) {
+        fly = null;
+        if (stage === 'piece') view1st(focus); // arriving in front of a piece counts as viewing it
+      }
     } else {
       camera.position.copy(seat.position);
       camera.quaternion.copy(seat.quaternion);
