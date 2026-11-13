@@ -500,6 +500,7 @@ THREE.ColorManagement.enabled = false;
   // 'universe' pulls back from it, and 'map' lays the flat sheet over whichever of those was showing.
   const viewButtons = [...document.querySelectorAll('.views [data-view]')];
   let focus = hub, under = 'cube', flown = 'cube:0', fly = null;
+  let resume = false; // whether the film was playing when the cube view was left
   function setView(next) {
     let started = false;
     if (next === 'map') { if (view !== 'map') under = view; }
@@ -515,6 +516,10 @@ THREE.ColorManagement.enabled = false;
         flown = place;
       }
     }
+    // The cube's film plays only in the cube view. Leaving it, for the galaxy, the map or another piece,
+    // pauses it, and coming back starts it again if it was playing when the view changed.
+    if (view === 'cube' && next !== 'cube') { resume = !video.paused; video.pause(); }
+    else if (view !== 'cube' && next === 'cube' && resume) { resume = false; video.play().catch(() => {}); }
     view = next;
     const stage = view === 'map' ? under : view;
     app.dataset.view = view;
@@ -525,13 +530,8 @@ THREE.ColorManagement.enabled = false;
     return started;
   }
   const nearView = () => (focus === hub ? 'cube' : 'piece');
-  // The cube's film plays only while the cube is the piece chosen. Choosing another pauses it, and coming
-  // back to the cube starts it again if it was playing when the camera left.
-  let resume = false;
   function flyTo(item, track) {
     unglow(item);
-    if (item !== hub && focus === hub) { resume = !video.paused; video.pause(); }
-    else if (item === hub && focus !== hub && resume) { resume = false; video.play().catch(() => {}); }
     if (item !== hub) {
       // Face the side of the piece that the camera is already on.
       item.card.getWorldPosition(centre);
