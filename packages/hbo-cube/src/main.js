@@ -5,12 +5,6 @@
   const app = document.querySelector('.app');
   const canvas = document.querySelector('.gl');
   const video = document.querySelector('video');
-  const SUITS = [
-    { name: 'Club', glyph: '♣', at: [-5.17, 12.2], heading: 191 },
-    { name: 'Spade', glyph: '♠', at: [-12.1, 2.07], heading: -80 },
-    { name: 'Heart', glyph: '♥', at: [6.35, -11.0], heading: 0 },
-    { name: 'Diamond', glyph: '♦', at: [5.0, -2.6], heading: 85 },
-  ];
 
   let renderer;
   try { renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true }); }
@@ -30,7 +24,7 @@
   const X = W / 2 + BORDER_X, Y = H / 2 + BORDER_Y, RADIUS = X * Math.SQRT2;
 
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(40, 1, 1, 200);
+  const camera = new THREE.PerspectiveCamera(40, 1, 1, 3000);
   const cube = new THREE.Group();
   scene.add(cube);
 
@@ -103,12 +97,8 @@
     target = next;
     tween = { from: turn, to: next, start: performance.now(), duration, ease };
   }
-  function goToSide(index) {
-    const from = target;
-    const step = (((index - from) % 4) + 6) % 4 - 2; // the shorter way round
-    go(from + (step === -2 ? 2 : step));
-  }
 
+  let fit = 60; // how far back the camera sits in the cube view
   function resize() {
     const width = canvas.clientWidth, height = canvas.clientHeight;
     if (!width || !height) return;
@@ -116,18 +106,24 @@
     camera.aspect = width / height;
     // Back the camera off until the cube fits both face on and turned to a corner, where it is widest.
     const tanV = Math.tan(camera.fov * Math.PI / 360) * 0.88, tanH = tanV * camera.aspect * 0.9;
-    camera.position.z = Math.max(RADIUS / tanH, RADIUS + Y / tanV, X + X / tanH);
+    fit = Math.max(RADIUS / tanH, RADIUS + Y / tanV, X + X / tanH);
     camera.updateProjectionMatrix();
   }
 
   canvas.addEventListener('pointerdown', event => {
-    tween = null;
-    drag = { x: event.clientX, turn, samples: [[performance.now(), turn]] };
+    if (view === 'universe') drag = { universe: true, x: event.clientX, y: event.clientY, orbit, moved: false };
+    else { tween = null; drag = { x: event.clientX, turn, samples: [[performance.now(), turn]] }; }
     canvas.setPointerCapture(event.pointerId);
     canvas.classList.add('dragging');
   });
   canvas.addEventListener('pointermove', event => {
     if (!drag) return;
+    if (drag.universe) {
+      // In the universe a drag swings the camera round the web of content.
+      orbit = drag.orbit - (event.clientX - drag.x) * 0.004;
+      if (Math.abs(event.clientX - drag.x) > 4) drag.moved = true;
+      return;
+    }
     turn = drag.turn - (event.clientX - drag.x) / (canvas.clientWidth * 0.55);
     drag.samples.push([performance.now(), turn]);
     if (drag.samples.length > 8) drag.samples.shift();
@@ -135,7 +131,7 @@
   // The triangles follow a mouse, which has a cursor to sit beside; touch and pen have none.
   const arrows = document.querySelector('.arrows');
   const follow = event => {
-    if (event.pointerType !== 'mouse') return;
+    if (event.pointerType !== 'mouse' || view !== 'cube') { arrows.classList.remove('show'); return; }
     const box = app.getBoundingClientRect();
     arrows.style.transform = `translate(${event.clientX - box.left}px, ${event.clientY - box.top}px)`;
     arrows.classList.add('show');
@@ -145,6 +141,16 @@
   canvas.addEventListener('pointerleave', () => arrows.classList.remove('show'));
   const release = () => {
     if (!drag) return;
+    canvas.classList.remove('dragging');
+    if (drag.universe) {
+      // A click on the cube, rather than a drag, flies back in to it.
+      const box = canvas.getBoundingClientRect();
+      pointer.set((drag.x - box.left) / box.width * 2 - 1, 1 - (drag.y - box.top) / box.height * 2);
+      raycaster.setFromCamera(pointer, camera);
+      if (!drag.moved && raycaster.intersectObject(reach).length) setView('cube');
+      drag = null;
+      return;
+    }
     // A throw carries on in the direction it was going: the speed over the last moments of the drag
     // decides how many stops further the cube travels before it settles.
     const now = performance.now();
@@ -158,14 +164,13 @@
     const carry = Math.max(-3, Math.min(3, speed * 400));
     const rest = stop(turn + carry);
     go(rest, SETTLE, 500 + 220 * Math.abs(rest - turn));
-    canvas.classList.remove('dragging');
   };
   canvas.addEventListener('pointerup', release);
   canvas.addEventListener('pointercancel', release);
   addEventListener('keydown', event => {
     if (event.target.closest && event.target.closest('button')) { if (event.key === ' ' || event.key === 'Enter') return; }
-    if (event.key === 'ArrowLeft') go(stop(target) + 0.5);
-    if (event.key === 'ArrowRight') go(stop(target) - 0.5);
+    if (event.key === 'ArrowLeft' && view === 'cube') go(stop(target) + 0.5);
+    if (event.key === 'ArrowRight' && view === 'cube') go(stop(target) - 0.5);
     if (event.key === 'Escape') setView('cube');
   });
   document.querySelectorAll('[data-turn]').forEach(button =>
@@ -204,65 +209,184 @@
     showUnlocked();
   }
 
+  // ---- The content --------------------------------------------------------------------------------------
+  // The original held two cubes and 41 more films, recordings, pictures and papers. Only this cube is real
+  // here: the rest are locked stand-ins, laid out once and shared by the map and the universe.
+  // Each is [kind, left, top] on a 160 x 96 sheet. The first is this cube.
+  const SIZES = { cube: [26, 11], video: [17, 8], audio: [17, 8], picture: [8, 6], paper: [5, 6] };
+  const ITEMS = [
+    ['cube', 67, 26], ['cube', 86, 39],
+    ['video', 9, 28], ['video', 9, 45],
+    ['audio', 27, 25], ['video', 27, 35], ['paper', 33, 46], ['video', 27, 57], ['audio', 27, 68],
+    ['audio', 45, 13], ['video', 45, 25], ['video', 45, 46], ['video', 45, 57], ['video', 45, 68],
+    ['audio', 71, 7], ['picture', 64, 18], ['picture', 67, 40], ['video', 71, 51], ['picture', 70, 64], ['video', 71, 72],
+    ['picture', 84, 17], ['paper', 102, 54], ['video', 90, 64], ['paper', 92, 74], ['video', 90, 86],
+    ['picture', 94, 8], ['video', 98, 17], ['video', 98, 28], ['audio', 101, 78],
+    ['paper', 119, 23], ['video', 113, 41], ['video', 113, 52], ['video', 113, 68], ['paper', 121, 79],
+    ['video', 131, 32], ['audio', 131, 52], ['audio', 131, 62],
+  ].map(([kind, left, top]) => {
+    const [width, height] = SIZES[kind];
+    return { kind, left, top, width, height, x: left + width / 2, y: top + height / 2 };
+  });
+  // A small seeded generator, so the layout is the same on every visit.
+  let seed = 2009;
+  const random = () => { seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  // Every piece hangs off the nearest piece that is closer to this cube, which makes a tree rooted on it.
+  const hub = ITEMS[0];
+  const reachOf = item => Math.hypot(item.x - hub.x, item.y - hub.y);
+  ITEMS.slice(1).forEach(item => {
+    item.parent = ITEMS.filter(other => other !== item && reachOf(other) < reachOf(item))
+      .sort((a, b) => Math.hypot(a.x - item.x, a.y - item.y) - Math.hypot(b.x - item.x, b.y - item.y))[0];
+  });
+  const wave = (count, width, height) => Array.from({ length: count }, (_, i) =>
+    [i / (count - 1) * width, height / 2 + (random() - 0.5) * height * (i % (count - 1) ? 0.5 : 0)]);
+
   // ---- Map ---------------------------------------------------------------------------------------------
-  // A plan of the room: the column in the middle and the four cameras, each of which turns the cube to its side.
+  // A flat sheet of everything, joined by thin lines. This cube shows what it is playing; the rest are locked.
   const map = document.querySelector('.map');
   const NS = 'http://www.w3.org/2000/svg';
-  const make = (name, attributes, parent) => {
-    const node = document.createElementNS(NS, name);
-    for (const [k, v] of Object.entries(attributes)) node.setAttribute(k, v);
-    parent.append(node);
-    return node;
-  };
-  const plan = make('svg', { viewBox: '-15 -14.5 30 29', role: 'group', 'aria-label': 'Map of the room' }, map);
-  make('rect', { class: 'room', x: -13, y: -12.5, width: 26, height: 25 }, plan);
-  for (const [x1, y1, x2, y2] of [[-10, -1.3, -0.8, -1.3], [-10, -4.1, 1.2, -4.1], [-5.1, 1.4, -5.1, 6.2], [5, -1.9, 11.5, -1.9]])
-    make('line', { class: 'wall', x1, y1: -y1, x2, y2: -y2 }, plan);
-  make('rect', { class: 'column', x: -0.6, y: -0.6, width: 1.2, height: 1.2 }, plan);
-  // The suit on each face of the column: heart to the south, diamond east, club north, spade west.
-  for (const [glyph, x, y] of [['♥', 0, 1.7], ['♦', 1.7, 0], ['♣', 0, -1.7], ['♠', -1.7, 0]])
-    make('text', { x, y }, plan).textContent = glyph;
-  const cameras = SUITS.map((suit, index) => {
-    const [x, north] = suit.at, y = -north;
-    // Headings run 0 north, 90 west, 180 south.
-    const ray = degrees => { const r = degrees * Math.PI / 180; return [x - Math.sin(r) * 5.5, y - Math.cos(r) * 5.5]; };
-    const group = make('g', { class: 'cam', tabindex: 0, role: 'button', 'aria-label': `${suit.name} side` }, plan);
-    make('path', { class: 'cone', d: `M${x} ${y}L${ray(suit.heading - 24)}L${ray(suit.heading + 24)}Z` }, group);
-    make('circle', { cx: x, cy: y, r: 1.25 }, group);
-    make('text', { x, y }, group).textContent = suit.glyph;
-    const choose = () => { goToSide(index); setView('cube'); };
-    group.addEventListener('click', choose);
-    group.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); choose(); } });
-    return group;
+  const plan = document.createElement('div');
+  plan.className = 'plan';
+  const links = document.createElementNS(NS, 'svg');
+  links.setAttribute('class', 'links');
+  links.setAttribute('viewBox', '0 0 160 96');
+  links.setAttribute('preserveAspectRatio', 'none');
+  const path = document.createElementNS(NS, 'path');
+  path.setAttribute('d', ITEMS.slice(1).map(item => `M${item.x} ${item.y}V${item.parent.y}H${item.parent.x}`).join(''));
+  links.append(path);
+  plan.append(links);
+  let thumb;
+  ITEMS.forEach((item, index) => {
+    const node = document.createElement(index ? 'div' : 'button');
+    node.className = `item ${item.kind}`;
+    node.style.cssText = `left:${item.left / 1.6}%;top:${item.top / 0.96}%;width:${item.width / 1.6}%;height:${item.height / 0.96}%`;
+    if (index) node.title = 'Locked';
+    else {
+      node.type = 'button';
+      node.classList.add('open');
+      node.setAttribute('aria-label', 'The Heist');
+      thumb = document.createElement('canvas');
+      thumb.width = 260; thumb.height = 110;
+      node.append(thumb);
+      node.addEventListener('click', () => setView('cube'));
+    }
+    if (item.kind === 'audio') {
+      const sound = document.createElementNS(NS, 'svg');
+      sound.setAttribute('viewBox', '0 0 100 40');
+      sound.setAttribute('preserveAspectRatio', 'none');
+      const line = document.createElementNS(NS, 'polyline');
+      line.setAttribute('points', wave(40, 80, 40).map(([x, y]) => `${x + 10},${y}`).join(' '));
+      sound.append(line);
+      node.append(sound);
+    }
+    plan.append(node);
   });
-  const viewButtons = [...document.querySelectorAll('[data-view]')];
+  const close = document.createElement('button');
+  close.type = 'button';
+  close.className = 'close';
+  close.textContent = 'Close ✕';
+  close.addEventListener('click', () => setView('cube'));
+  map.append(plan, close);
+  const sheet = thumb.getContext('2d');
+  function drawThumb(side) {
+    if (video.readyState < 2) return;
+    // The two sides nearest the viewer, side by side, each cropped from its quarter of the frame.
+    const w = video.videoWidth / 2, h = video.videoHeight / 2, crop = h * 130 / 110;
+    for (let half = 0; half < 2; half++) {
+      const index = (side + half) % 4;
+      sheet.drawImage(video, (index % 2) * w + (w - crop) / 2, (index >> 1) * h, crop, h, half * 130, 0, 130, 110);
+    }
+  }
+
+  // ---- Universe ----------------------------------------------------------------------------------------
+  // Pulling back shows the cube as one piece in a web of content hanging in space, joined by lines.
+  const universe = new THREE.Group();
+  universe.visible = false;
+  scene.add(universe);
+  const fading = []; // [material, full opacity], faded in as the camera pulls back
+  const fade = (material, opacity) => { material.transparent = true; fading.push([material, opacity]); return material; };
+  const edge = fade(new THREE.LineBasicMaterial({ color: 0xa8a8a0 }), 0.9);
+  const thread = fade(new THREE.LineBasicMaterial({ color: 0xffffff }), 0.2);
+  const sound = fade(new THREE.LineBasicMaterial({ color: 0xa9c98f }), 0.9);
+  const fills = {
+    video: fade(new THREE.MeshBasicMaterial({ color: 0x0b0b0c, side: THREE.DoubleSide }), 1),
+    audio: fade(new THREE.MeshBasicMaterial({ color: 0x0b0b0c, side: THREE.DoubleSide }), 1),
+    picture: fade(new THREE.MeshBasicMaterial({ color: 0x55555a, side: THREE.DoubleSide }), 1),
+    paper: fade(new THREE.MeshBasicMaterial({ color: 0xb8b8b2, side: THREE.DoubleSide }), 1),
+    cube: fade(new THREE.MeshBasicMaterial({ color: 0x0b0b0c }), 1),
+  };
+  const SPREAD = 3.4;
+  hub.place = new THREE.Vector3();
+  const threads = [];
+  ITEMS.slice(1).forEach(item => {
+    const place = new THREE.Vector3((item.x - hub.x) * SPREAD, (hub.y - item.y) * SPREAD, (random() - 0.5) * 280);
+    if (place.length() < 60) place.z = (random() < 0.5 ? -1 : 1) * (70 + random() * 80);
+    item.place = place;
+    const geometry = item.kind === 'cube' ? new THREE.BoxGeometry(18, 11, 18) : new THREE.PlaneGeometry(item.width, item.height);
+    const card = new THREE.Mesh(geometry, fills[item.kind]);
+    card.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), edge));
+    if (item.kind === 'audio') {
+      const points = wave(40, item.width * 0.8, item.height).map(([x, y]) => new THREE.Vector3(x - item.width * 0.4, y - item.height / 2, 0.05));
+      card.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), sound));
+    }
+    card.position.copy(place);
+    card.rotation.set((random() - 0.5) * 0.9, (random() - 0.5) * 2.4, (random() - 0.5) * 0.5);
+    universe.add(card);
+  });
+  ITEMS.slice(1).forEach((item, index) => {
+    threads.push(item.place, item.parent.place);
+    // A few threads cut across the tree, so it reads as a web.
+    if (index % 4 === 0) threads.push(item.place, ITEMS[1 + Math.floor(random() * (ITEMS.length - 1))].place);
+  });
+  universe.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(threads), thread));
+  // An unseen box round the cube, generous enough to click when the cube is small.
+  const reach = new THREE.Mesh(new THREE.BoxGeometry(46, 34, 46), new THREE.MeshBasicMaterial({ visible: false }));
+  scene.add(reach);
+  const raycaster = new THREE.Raycaster(), pointer = new THREE.Vector2();
+  const FAR = 340, LIFT = 0.24;
+  const near = new THREE.Vector3(), far = new THREE.Vector3();
+  let zoom = 0, orbit = 0.55;
+
+  // ---- Views -------------------------------------------------------------------------------------------
+  const viewButtons = [...document.querySelectorAll('.views [data-view]')];
   function setView(next) {
     view = next;
+    app.dataset.view = view;
     map.hidden = view !== 'map';
+    arrows.classList.remove('show');
     viewButtons.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.view === view)));
   }
-  viewButtons.forEach(button => button.addEventListener('click', () => setView(button.dataset.view)));
+  // Each button opens its view, and pressed again returns to the cube.
+  viewButtons.forEach(button => button.addEventListener('click', () => setView(view === button.dataset.view ? 'cube' : button.dataset.view)));
 
   // ---- Frame -------------------------------------------------------------------------------------------
-  let shown = null;
-  function frame() {
+  let last = performance.now();
+  function frame(now) {
+    const elapsed = Math.min(100, now - last);
+    last = now;
     if (tween) {
       const t = Math.min(1, (performance.now() - tween.start) / tween.duration);
       turn = tween.from + (tween.to - tween.from) * tween.ease(t);
       if (t === 1) tween = null;
     }
     cube.rotation.y = -turn * Math.PI / 2;
+
+    // The camera eases between its seat in front of the cube and a slow orbit far out in the universe.
+    zoom = Math.max(0, Math.min(1, zoom + (view === 'universe' ? 1 : -1) * elapsed / 1500));
+    const out = zoom * zoom * (3 - 2 * zoom);
+    if (view === 'universe' && !drag) orbit += elapsed * 0.00004;
+    near.set(0, 0, fit);
+    far.set(Math.sin(orbit) * Math.cos(LIFT) * FAR, Math.sin(LIFT) * FAR, Math.cos(orbit) * Math.cos(LIFT) * FAR);
+    camera.position.lerpVectors(near, far, out);
+    camera.lookAt(0, 0, 0);
+    universe.visible = zoom > 0;
+    if (universe.visible) for (const [material, opacity] of fading) material.opacity = opacity * out;
+
     renderer.render(scene, camera);
     time.textContent = `${clock(video.currentTime)}/${clock(video.duration)}`;
     const nearest = stop(turn), facing = [wrap(Math.floor(nearest)), wrap(Math.ceil(nearest))];
-    if (!drag && !tween && Math.abs(turn - nearest) < 0.03) facing.forEach(unlock);
-    if (nearest !== shown || !map.hidden) {
-      shown = nearest;
-      cameras.forEach((camera, index) => {
-        camera.classList.toggle('current', facing.includes(index));
-        camera.classList.toggle('seen', seen.has(index));
-      });
-    }
+    if (view === 'cube' && !drag && !tween && Math.abs(turn - nearest) < 0.03) facing.forEach(unlock);
+    if (view === 'map') drawThumb(wrap(Math.floor(turn)));
     requestAnimationFrame(frame);
   }
 
