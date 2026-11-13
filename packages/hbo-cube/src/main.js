@@ -342,7 +342,44 @@
   const LIT = { video: 0x101013, cube: 0x101013, audio: 0x050506, picture: 0x5c5c58 };
   const arrow = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-1.3, 1.7, 0.05), new THREE.Vector3(-1.3, -1.7, 0.05), new THREE.Vector3(1.7, 0, 0.05)]);
   const white = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide });
-  function reveal(item) {
+  // Pieces not yet viewed glow: a soft pale halo on a quad behind the card, bright at the card's edge and
+  // fading out a quarter or so of its height beyond it. Each card gets its own texture, so the halo is as
+  // wide on a long card as on a tall one.
+  const GLOW = 0.3; // how far the halo reaches beyond the card, as a share of its height
+  function glowFor(width, height) {
+    const reach = height * GLOW, scale = 256 / (width + reach * 2);
+    const sheet = document.createElement('canvas');
+    sheet.width = 256;
+    sheet.height = Math.max(8, Math.round((height + reach * 2) * scale));
+    const pen = sheet.getContext('2d');
+    pen.shadowColor = '#fff';
+    pen.shadowBlur = reach * scale * 0.55;
+    pen.fillStyle = '#fff';
+    // Drawn far off the canvas so only its blurred shadow lands on it, inside the halo's reach.
+    const r = Math.min(reach, height) * scale * 0.25, x = reach * scale, y = reach * scale, w = width * scale, h = height * scale;
+    pen.translate(-4096, 0);
+    pen.shadowOffsetX = 4096;
+    pen.beginPath();
+    pen.roundRect(x, y, w, h, r);
+    pen.fill();
+    pen.fill(); // twice, so the halo is bright right up to the card's edge
+    const texture = new THREE.CanvasTexture(sheet);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    const glow = new THREE.Mesh(new THREE.PlaneGeometry(width + reach * 2, height + reach * 2), new THREE.MeshBasicMaterial({
+      map: texture, color: 0xdfeeff, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending,
+      depthWrite: false, side: THREE.DoubleSide, toneMapped: false,
+      // Pushed back in depth, so the card in front of it hides its middle from either side.
+      polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 4,
+    }));
+    glow.raycast = () => {}; // never picked
+    return glow;
+  }
+  const fading = new Set(); // glows fading out, after their pieces have been viewed
+  function reveal(item, instantly) {
+    if (item.glow) {
+      if (instantly) item.glow.visible = false;
+      else { item.glow.userData.fadeFrom = performance.now(); fading.add(item.glow); }
+    }
     item.node.classList.add('viewed');
     item.card.material.color.setHex(LIT[item.kind]);
     if (item.sound) { item.sound.material.color.setHex(0xa9c98f); item.sound.scale.y = 1; }
@@ -373,6 +410,8 @@
       item.play.visible = false;
       card.add(item.play);
     }
+    item.glow = item.kind === 'cube' ? glowFor(18, 11) : glowFor(item.width, item.height);
+    card.add(item.glow);
     card.userData.item = item;
     item.card = card;
     card.position.copy(place);
@@ -389,7 +428,7 @@
       ends.push(item, other);
     }
   });
-  for (const index of stored(PIECES)) if (index > 0 && index < ITEMS.length) { viewed.add(ITEMS[index]); reveal(ITEMS[index]); }
+  for (const index of stored(PIECES)) if (index > 0 && index < ITEMS.length) { viewed.add(ITEMS[index]); reveal(ITEMS[index], true); }
   // An unseen box round the cube, generous enough to click when the cube is small.
   const reach = new THREE.Mesh(new THREE.BoxGeometry(24, 16, 24), new THREE.MeshBasicMaterial({ visible: false }));
   scene.add(reach);
@@ -687,6 +726,12 @@
       // position and rotation that leaves it with.
       camera.position.copy(seat.position);
       camera.quaternion.copy(seat.quaternion);
+    }
+
+    for (const glow of fading) {
+      const left = 1 - (now - glow.userData.fadeFrom) / 600;
+      glow.material.opacity = 0.55 * Math.max(0, Math.min(1, left));
+      if (left <= 0) { glow.visible = false; fading.delete(glow); }
     }
 
     renderer.render(scene, camera);
