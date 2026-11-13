@@ -446,11 +446,14 @@
   const viewButtons = [...document.querySelectorAll('.views [data-view]')];
   let focus = hub, under = 'cube', flown = 'cube:0', fly = null;
   function setView(next) {
+    let started = false;
     if (next === 'map') { if (view !== 'map') under = view; }
     else {
-      // Fly whenever the place to be has changed, and start each flight looking straight at the piece.
+      // Fly whenever the place to be has changed. A flight sets off from exactly the view the camera has,
+      // drag and all, and ends looking straight at the piece.
       const place = `${next}:${ITEMS.indexOf(focus)}`;
       if (place !== flown) {
+        started = true;
         // A flight that sets off with the lines showing keeps them until it lands.
         fly = { position: camera.position.clone(), quaternion: camera.quaternion.clone(), start: performance.now(), lines: zoom > 0.5 };
         yaw = pitch = 0;
@@ -465,6 +468,7 @@
     arrows.classList.remove('show');
     canvas.classList.remove('pick');
     viewButtons.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.view === view)));
+    return started;
   }
   const nearView = () => (focus === hub ? 'cube' : 'piece');
   function flyTo(item, track) {
@@ -475,8 +479,8 @@
       item.side = normal.set(0, 0, 1).applyQuaternion(facing).dot(spot.copy(camera.position).sub(centre)) < 0 ? -1 : 1;
     }
     focus = item;
-    setView(nearView());
-    if (fly && track) fly.track = track; // by way of the line that was clicked
+    // By way of the line that was clicked, but only on a flight that has just set off from where the camera is.
+    if (setView(nearView()) && track) fly.track = track;
   }
   // Where the camera belongs: in front of the focus, square to it, further back in the universe.
   const centre = new THREE.Vector3(), normal = new THREE.Vector3(), up = new THREE.Vector3();
@@ -511,10 +515,10 @@
   }
 
   // ---- The gaze ----------------------------------------------------------------------------------------
-  // Where the camera is and where it looks are kept apart, like a camera on a gimbal. A flight, or the
-  // seat at rest, moves the body; the eyes are a direction on a spring that chases whatever they are meant to be
-  // looking at, so they lag behind a turn and overshoot it a little before settling.
-  const GAZE_RATE = 4.5, GAZE_DAMPING = 0.72; // how quickly the eyes catch up, and how little they overshoot
+  // In flight, where the camera is and where it looks are kept apart, like a camera on a gimbal. The
+  // flight moves the body; the eyes are a direction that eases after whatever they are meant to be looking at,
+  // so they trail a turn a little. It is critically damped: it never overshoots or wobbles.
+  const GAZE_RATE = 4.5, GAZE_DAMPING = 1; // how quickly the eyes catch up; 1 means no overshoot
   const gaze = new THREE.Vector3(0, 0, -1), gazeVelocity = new THREE.Vector3(), wanted = new THREE.Vector3();
   function aim(toward, dt) {
     wanted.copy(toward).normalize();
@@ -563,7 +567,7 @@
     }
     // Speed builds steadily the whole way to the end of the rail, then brakes over the swing into the seat,
     // with no jolt between the two.
-    const t = Math.min(1, (now - fly.start) / fly.duration), turnOver = 0.78;
+    const t = Math.max(0, Math.min(1, (now - fly.start) / fly.duration)), turnOver = 0.78;
     const s = t < turnOver ? t * t / turnOver : 1 - (1 - t) * (1 - t) / (1 - turnOver);
     fly.curve.getPointAt(s, camera.position);
     // Eyes on the track a little way ahead, and a gentle sway from side to side once on the rail.
@@ -574,7 +578,9 @@
     lookAt.sub(camera.position).normalize().lerp(spot.copy(centre).sub(camera.position).normalize(), swing);
     aim(lookAt, dt);
     const onRail = smooth((s - fly.on * 0.6) / (fly.on * 0.4 + 0.02)) * (1 - swing);
-    face(up.copy(fly.lift).applyAxisAngle(gaze, Math.sin(t * 9) * 0.05 * onRail));
+    // Up turns gradually from where it was when the flight set off to the rider's up, so nothing rolls with a jump.
+    up.set(0, 1, 0).applyQuaternion(fly.quaternion).lerp(fly.lift, smooth(s / (fly.on + 0.02))).normalize();
+    face(up.applyAxisAngle(gaze, Math.sin(t * 9) * 0.05 * onRail));
     camera.quaternion.slerp(seat.quaternion, smooth((s - fly.off - (1 - fly.off) * 0.2) / ((1 - fly.off) * 0.8 + 1e-3)));
     // The view widens a touch with speed.
     const speed = t < turnOver ? t / turnOver : (1 - t) / (1 - turnOver);
@@ -607,19 +613,21 @@
       const dt = elapsed / 1000;
       const smooth = value => { const x = Math.max(0, Math.min(1, value)); return x * x * (3 - 2 * x); };
       if (!fly.track) {
-        const t = Math.min(1, (now - fly.start) / 1400), eased = smooth(t);
+        const t = Math.max(0, Math.min(1, (now - fly.start) / 1400)), eased = smooth(t);
         camera.position.lerpVectors(fly.position, seat.position, eased);
         aim(spot.copy(centre).sub(camera.position), dt);
-        face(up);
+        // Up eases from the camera's own at the moment of the click, so the first frame is that same view.
+        face(lookAt.set(0, 1, 0).applyQuaternion(fly.quaternion).lerp(up, eased).normalize());
         camera.quaternion.slerp(seat.quaternion, smooth((t - 0.6) / 0.4)); // settled into the seat by the end
         if (t === 1) land(stage);
       } else ride(now, smooth, stage, dt);
     } else {
-      // At rest the body sits in its seat and the eyes follow where the seat faces on the same spring, so
-      // dragging to look around lags and settles like a flight does.
+      // At rest the camera sits in its seat and a drag turns it directly. The eyes are kept wherever it
+      // faces, so the next flight sets off from exactly where the look was left.
       camera.position.copy(seat.position);
-      aim(spot.set(0, 0, -1).applyQuaternion(seat.quaternion), elapsed / 1000);
-      face(up.set(0, 1, 0).applyQuaternion(seat.quaternion));
+      camera.quaternion.copy(seat.quaternion);
+      gaze.set(0, 0, -1).applyQuaternion(camera.quaternion);
+      gazeVelocity.set(0, 0, 0);
     }
 
     renderer.render(scene, camera);
