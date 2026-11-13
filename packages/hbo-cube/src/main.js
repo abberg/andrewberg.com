@@ -518,7 +518,7 @@
   // ---- Timing ------------------------------------------------------------------------------------------
   // Every flight eases in from rest and out to rest. Its speed rises smoothly over the first part of the
   // time, holds through the middle and falls smoothly to zero over the last part, with no jolt anywhere:
-  // the speed follows a smoothstep up over \`rise\` of the time and back down over \`fall\` of it. This gives the
+  // the speed follows a smoothstep up over `rise` of the time and back down over `fall` of it. This gives the
   // share of the way covered by time t, and the speed then as a share of the top speed.
   const ramp = x => x * x * x - x * x * x * x / 2; // the integral of smoothstep from 0 to x
   function travel(t, rise, fall) {
@@ -527,19 +527,29 @@
     if (t > 1 - fall) return { share: 1 - top * fall * ramp((1 - t) / fall), speed: smoothstep((1 - t) / fall) };
     return { share: top * (rise / 2 + t - rise), speed: 1 };
   }
+  // When, as a share of the time, a share of the way has been covered.
+  function timeAt(share, rise, fall) {
+    let low = 0, high = 1;
+    for (let i = 0; i < 40; i++) { const mid = (low + high) / 2; if (travel(mid, rise, fall).share < share) low = mid; else high = mid; }
+    return (low + high) / 2;
+  }
   function smoothstep(value) { const x = Math.max(0, Math.min(1, value)); return x * x * (3 - 2 * x); }
+  // Smootherstep: an ease in and out whose speed and acceleration are both zero at either end.
+  function smootherstep(value) { const x = Math.max(0, Math.min(1, value)); return x * x * x * (x * (x * 6 - 15) + 10); }
   // How long a flight takes: longer the further it goes and the more the camera turns.
   const flightTime = (distance, angle) => Math.max(900, Math.min(3500, 600 + distance * 3 + angle * 500));
   const rideTime = (distance, angle) => Math.max(2000, Math.min(9000, 800 + distance * 4 + angle * 500));
   const RIDE_RISE = 0.3, RIDE_FALL = 0.4, FLIGHT_RISE = 0.45, FLIGHT_FALL = 0.55;
+  const SETTLE_TURN = 1.5; // the fastest the camera should turn as it settles onto a piece, in radians a second
 
   // ---- The ride ----------------------------------------------------------------------------------------
   // A line is ridden like a roller coaster track: the camera drops onto the rail where it was clicked,
   // sitting just above it and looking down it, gathers speed along it toward the piece, then brakes and
   // swings off the end round into its seat in front of the piece. The camera's rotation is one quaternion,
-  // slerped from its rotation at the click onto the rider's (looking down the track), and from that onto
-  // the seat's over the slowing down at the end. The approach, the rail and the swing are one path,
-  // travelled by its length with a single ease in and out.
+  // eased in three parts, each between fixed rotations: one slerp from its rotation at the click to the
+  // rider's (looking straight down the rail), finishing as it reaches the rail; the rider's, with a gentle
+  // sway, along the rail; and one slerp from the rider's to the seat's as it slows down. The approach, the
+  // rail and the swing are one path, travelled by its length with a single ease in and out.
   const RIDE_HEIGHT = 2.5; // how high above the rail
   const ahead = new THREE.Vector3(), lift = new THREE.Vector3(), lookAt = new THREE.Vector3();
   function ride(now, smooth, stage) {
@@ -567,28 +577,35 @@
       fly.off = Math.max(fly.on, 1 - off / total); // and left
       // The turning the ride does: onto the rail looking down it, and from there round to the seat.
       const railFrom = spot.copy(start).addScaledVector(lift, RIDE_HEIGHT);
-      const onto = turned.setFromRotationMatrix(look.lookAt(railFrom, lookAt.copy(railFrom).add(ahead), lift));
-      fly.duration = rideTime(total, fly.quaternion.angleTo(onto) + onto.angleTo(seat.quaternion));
-      // The turn round to the seat starts as the camera leaves the rail, or as it starts to slow down if that
-      // comes first, so it is spread over the whole of the settling.
-      const top = 1 / (1 - (RIDE_RISE + RIDE_FALL) / 2);
-      fly.settle = Math.max(fly.on, Math.min(fly.off, 1 - top * RIDE_FALL / 2));
+      fly.rider = new THREE.Quaternion().setFromRotationMatrix(look.lookAt(railFrom, lookAt.copy(railFrom).add(ahead), lift));
+      const boardAngle = fly.quaternion.angleTo(fly.rider), settleAngle = fly.rider.angleTo(seat.quaternion);
+      fly.duration = rideTime(total, boardAngle + settleAngle);
+      // The turn onto the rail is done as the camera reaches it. The final turn starts as the camera starts to
+      // slow down or leaves the rail, whichever comes first, or earlier still so that it never turns faster
+      // than SETTLE_TURN. If either turn would still be too fast, the whole ride takes longer.
+      fly.boarded = timeAt(fly.on, RIDE_RISE, RIDE_FALL);
+      fly.settle = Math.max(fly.boarded, Math.min(1 - RIDE_FALL, timeAt(fly.off, RIDE_RISE, RIDE_FALL)));
+      const fastest = angle => 1.875 * angle / SETTLE_TURN * 1000; // smootherstep peaks at 1.875 times the mean
+      if ((1 - fly.settle) * fly.duration < fastest(settleAngle)) fly.settle = Math.max(fly.boarded, 1 - fastest(settleAngle) / fly.duration);
+      fly.duration = Math.min(12000, Math.max(fly.duration,
+        fastest(settleAngle) / (1 - fly.settle + 1e-6), fastest(boardAngle) / (fly.boarded + 1e-6)));
+      fly.roll = new THREE.Quaternion();
     }
     const t = Math.max(0, Math.min(1, (now - fly.start) / fly.duration));
     const { share: s, speed } = travel(t, RIDE_RISE, RIDE_FALL);
     fly.curve.getPointAt(s, camera.position);
     // The rider's rotation: eyes on the track a little way ahead, with a gentle sway from side to side
     // while on the rail.
-    fly.curve.getPointAt(Math.min(1, s + 0.035), lookAt);
-    if (lookAt.distanceToSquared(camera.position) < 1e-6) lookAt.copy(camera.position).add(ahead);
-    const swing = smooth((s - fly.settle) / (1 - fly.settle + 1e-3)); // turning round into the seat
     const onRail = smooth((s - fly.on * 0.6) / (fly.on * 0.4 + 0.02)) * (1 - smooth((s - fly.off) / (1 - fly.off + 1e-3)));
-    up.copy(fly.lift).applyAxisAngle(spot.copy(lookAt).sub(camera.position).normalize(), Math.sin((now - fly.start) * 0.0023) * 0.05 * onRail);
-    const rider = turned.setFromRotationMatrix(look.lookAt(camera.position, lookAt, up));
-    // From the rotation at the click onto the rider's over the way to the rail, then onto the seat's.
-    camera.quaternion.copy(fly.quaternion)
-      .slerp(rider, smooth(s / (fly.on * 0.7 + 0.03)))
-      .slerp(seat.quaternion, swing);
+    if (t < fly.boarded) camera.quaternion.copy(fly.quaternion).slerp(fly.rider, smootherstep(t / fly.boarded));
+    else if (t < fly.settle) {
+      // On the rail, a gentle sway from side to side, rising over 0.4 s after the camera boards and dying
+      // away over 0.4 s before the final turn; none at all when the time on the rail is too short for it.
+      const span = fly.settle - fly.boarded, edge = Math.min(400 / fly.duration, span / 2) + 1e-6;
+      const sway = smooth((t - fly.boarded) / edge) * smooth((fly.settle - t) / edge) * smooth((span * fly.duration - 800) / 800);
+      fly.roll.setFromAxisAngle(spot.set(0, 0, 1), Math.sin((now - fly.start) * 0.0023) * 0.05 * sway);
+      camera.quaternion.copy(fly.rider).multiply(fly.roll);
+    } else camera.quaternion.copy(fly.rider).slerp(seat.quaternion, smootherstep((t - fly.settle) / (1 - fly.settle + 1e-6)));
     // The view widens a touch with speed on the rail, and is back to normal by the time the ride stops.
     camera.fov = LENS + 14 * speed * speed * onRail;
     camera.updateProjectionMatrix();
