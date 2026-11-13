@@ -542,17 +542,19 @@
   const RIDE_RISE = 0.3, RIDE_FALL = 0.4, FLIGHT_RISE = 0.45, FLIGHT_FALL = 0.55;
   // How fast the camera should turn at most, in radians a second: onto a rail, and as it settles onto a piece
   // (before and after TURN_DELAY), and how much of the time left the final turn of a line ride is held back.
-  const BOARD_TURN = 1.5, SETTLE_TURN = 2, SETTLE_TURN_MOST = 2.5, TURN_DELAY = 0.25;
+  const BOARD_TURN = 1.2, SETTLE_TURN = 2, SETTLE_TURN_MOST = 2.5, TURN_DELAY = 0.25;
 
   // ---- The ride ----------------------------------------------------------------------------------------
   // A line is ridden like a roller coaster track: the camera drops onto the rail where it was clicked,
   // sitting just above it and looking down it, gathers speed along it toward the piece, then brakes and
   // swings off the end round into its seat in front of the piece. The camera's rotation is one quaternion,
-  // eased in three parts, each between fixed rotations: one slerp from its rotation at the click to the
-  // rider's (looking straight down the rail), finishing as it reaches the rail; the rider's, with a gentle
-  // sway, along the rail; and one slerp from the rider's to the seat's as it slows down. The approach, the
+  // eased in parts, each a slerp between fixed rotations: it keeps its rotation at the click, facing about
+  // where it was clicked, until it nears the rail; then turns gradually round to the rider's (looking
+  // straight down the rail), carrying on a way along the rail; holds the rider's, with a gentle sway; and
+  // turns from the rider's to the seat's as it slows down. The approach, the
   // rail and the swing are one path, travelled by its length with a single ease in and out.
   const RIDE_HEIGHT = 2.5; // how high above the rail
+  const JOIN_TURN_START = 0.6, BOARD_END = 0.75; // when the turn down the rail starts, as a share of the way to it, and the latest it may end, as a share of the ride's time
   const ahead = new THREE.Vector3(), lift = new THREE.Vector3(), lookAt = new THREE.Vector3();
   function ride(now, smooth, stage) {
     if (!fly.curve) {
@@ -587,8 +589,16 @@
       // than SETTLE_TURN; it is then held back by TURN_DELAY of the time left. The delay only gives way if
       // the turn would then be faster than SETTLE_TURN_MOST, and if that is not enough the ride takes longer.
       const fastest = (angle, most) => 1.875 * angle / most * 1000; // smootherstep peaks at 1.875 times the mean
-      fly.boarded = timeAt(fly.on, RIDE_RISE, RIDE_FALL);
-      fly.duration = Math.min(12000, Math.max(fly.duration, fastest(boardAngle, BOARD_TURN) / (fly.boarded + 1e-6)));
+      // The turn down the rail starts once JOIN_TURN_START of the way to the rail is covered, and lasts long
+      // enough never to turn faster than BOARD_TURN, carrying on along the rail if need be. It must be done by
+      // BOARD_END of the ride, leaving room for the final turn: the ride takes longer if it would not be, and
+      // only if that is not enough does the turn start sooner.
+      const boardTime = Math.max(400, fastest(boardAngle, BOARD_TURN));
+      fly.boardFrom = timeAt(fly.on * JOIN_TURN_START, RIDE_RISE, RIDE_FALL);
+      if (fly.boardFrom + boardTime / fly.duration > BOARD_END)
+        fly.duration = Math.min(12000, boardTime / Math.max(1e-3, BOARD_END - fly.boardFrom));
+      fly.boardFrom = Math.max(0, Math.min(fly.boardFrom, BOARD_END - boardTime / fly.duration));
+      fly.boarded = Math.min(BOARD_END, fly.boardFrom + boardTime / fly.duration);
       let settle = Math.max(fly.boarded, Math.min(1 - RIDE_FALL, timeAt(fly.off, RIDE_RISE, RIDE_FALL)));
       settle = Math.max(fly.boarded, Math.min(settle, 1 - fastest(settleAngle, SETTLE_TURN) / fly.duration));
       const base = settle;
@@ -605,7 +615,7 @@
     // The rider's rotation: eyes on the track a little way ahead, with a gentle sway from side to side
     // while on the rail.
     const onRail = smooth((s - fly.on * 0.6) / (fly.on * 0.4 + 0.02)) * (1 - smooth((s - fly.off) / (1 - fly.off + 1e-3)));
-    if (t < fly.boarded) camera.quaternion.copy(fly.quaternion).slerp(fly.rider, smootherstep(t / fly.boarded));
+    if (t < fly.boarded) camera.quaternion.copy(fly.quaternion).slerp(fly.rider, smootherstep((t - fly.boardFrom) / (fly.boarded - fly.boardFrom)));
     else if (t < fly.settle) {
       // On the rail, a gentle sway from side to side, rising over 0.4 s after the camera boards and dying
       // away over 0.4 s before the final turn; none at all when the time on the rail is too short for it.
