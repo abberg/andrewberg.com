@@ -343,33 +343,36 @@
   const arrow = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-1.3, 1.7, 0.05), new THREE.Vector3(-1.3, -1.7, 0.05), new THREE.Vector3(1.7, 0, 0.05)]);
   const white = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide });
   // Pieces not yet viewed glow: a soft pale halo on a quad behind the card, bright at the card's edge and
-  // fading out a quarter or so of its height beyond it. Each card gets its own texture, so the halo is as
-  // wide on a long card as on a tall one.
-  const GLOW = 0.3; // how far the halo reaches beyond the card, as a share of its height
+  // fading out GLOW of its height beyond every edge. Each card gets its own texture, so the halo is as wide
+  // on a long card as on a tall one. Its strength falls off as (1 - d)^1.6 across the halo, which keeps it
+  // full and cloudy rather than a thin rim.
+  const GLOW = 0.45, GLOW_OPACITY = 0.8;
   function glowFor(width, height) {
     const reach = height * GLOW, scale = 256 / (width + reach * 2);
     const sheet = document.createElement('canvas');
     sheet.width = 256;
     sheet.height = Math.max(8, Math.round((height + reach * 2) * scale));
-    const pen = sheet.getContext('2d');
-    pen.shadowColor = '#fff';
-    pen.shadowBlur = reach * scale * 0.55;
-    pen.fillStyle = '#fff';
-    // Drawn far off the canvas so only its blurred shadow lands on it, inside the halo's reach.
-    const r = Math.min(reach, height) * scale * 0.25, x = reach * scale, y = reach * scale, w = width * scale, h = height * scale;
-    pen.translate(-4096, 0);
-    pen.shadowOffsetX = 4096;
-    pen.beginPath();
-    pen.roundRect(x, y, w, h, r);
-    pen.fill();
-    pen.fill(); // twice, so the halo is bright right up to the card's edge
+    const pen = sheet.getContext('2d'), image = pen.createImageData(sheet.width, sheet.height);
+    // Distance from the card's rounded rectangle, in texture pixels, for each pixel of the halo.
+    const halfW = width * scale / 2, halfH = height * scale / 2, round = Math.min(halfW, halfH) * 0.25, span = reach * scale;
+    for (let y = 0; y < sheet.height; y++) {
+      for (let x = 0; x < sheet.width; x++) {
+        const qx = Math.max(0, Math.abs(x + 0.5 - sheet.width / 2) - halfW + round);
+        const qy = Math.max(0, Math.abs(y + 0.5 - sheet.height / 2) - halfH + round);
+        const d = Math.max(0, Math.hypot(qx, qy) - round) / span;
+        const at = (y * sheet.width + x) * 4;
+        image.data[at] = image.data[at + 1] = image.data[at + 2] = 255;
+        image.data[at + 3] = d >= 1 ? 0 : Math.round(230 * Math.pow(1 - d, 1.6));
+      }
+    }
+    pen.putImageData(image, 0, 0);
     const texture = new THREE.CanvasTexture(sheet);
     texture.colorSpace = THREE.SRGBColorSpace;
     const glow = new THREE.Mesh(new THREE.PlaneGeometry(width + reach * 2, height + reach * 2), new THREE.MeshBasicMaterial({
-      map: texture, color: 0xdfeeff, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending,
+      map: texture, color: 0xdfeeff, transparent: true, opacity: GLOW_OPACITY, blending: THREE.AdditiveBlending,
       depthWrite: false, side: THREE.DoubleSide, toneMapped: false,
-      // Pushed back in depth, so the card in front of it hides its middle from either side.
-      polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 4,
+      // Pushed back in depth, so the card in front of it hides its middle from either side without flicker.
+      polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 8,
     }));
     glow.raycast = () => {}; // never picked
     return glow;
@@ -730,7 +733,7 @@
 
     for (const glow of fading) {
       const left = 1 - (now - glow.userData.fadeFrom) / 600;
-      glow.material.opacity = 0.55 * Math.max(0, Math.min(1, left));
+      glow.material.opacity = GLOW_OPACITY * Math.max(0, Math.min(1, left));
       if (left <= 0) { glow.visible = false; fading.delete(glow); }
     }
 
