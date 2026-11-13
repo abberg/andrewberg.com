@@ -388,7 +388,7 @@
   // ---- Picking -----------------------------------------------------------------------------------------
   // A click lands on a piece, or on a line. A line leads to whichever of its two pieces has not been viewed,
   // or to the nearer one when both or neither have. The camera flies to the clicked point on the line and
-  // stops there, looking down the line at that piece.
+  // stops there, still facing the way it came.
   const raycaster = new THREE.Raycaster(), pointer = new THREE.Vector2(), spot = new THREE.Vector3();
   const endA = new THREE.Vector3(), endB = new THREE.Vector3();
   const cards = ITEMS.slice(1).map(item => item.card);
@@ -465,12 +465,12 @@
     focus = item;
     setView(nearView());
   }
-  // A perch is a seat out on a line: where it was clicked, looking down it at the piece it leads to. That
-  // piece becomes the focus, so flying in from the perch carries on to it.
+  // A perch is a seat out on a line, at the point where it was clicked. The camera turns to face that point
+  // and keeps facing the same way as it travels there. The piece the line leads to becomes the focus, so
+  // flying in from the perch carries on to it.
   function perchAt(via, item) {
     focus = item;
-    if (item === hub) centre.set(0, 0, 0); else item.card.getWorldPosition(centre);
-    perch = { position: via, quaternion: new THREE.Quaternion().setFromRotationMatrix(look.lookAt(via, centre, up.set(0, 1, 0))) };
+    perch = { position: via, quaternion: new THREE.Quaternion().setFromRotationMatrix(look.lookAt(camera.position, via, up.set(0, 1, 0))) };
     fly = { position: camera.position.clone(), quaternion: camera.quaternion.clone(), start: performance.now() };
     yaw = pitch = 0;
     flown = `perch:${ITEMS.indexOf(item)}`;
