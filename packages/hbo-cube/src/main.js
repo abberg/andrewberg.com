@@ -102,7 +102,6 @@
   function go(next, ease = SPIN, duration = 500) {
     target = next;
     tween = { from: turn, to: next, start: performance.now(), duration, ease };
-    document.body.classList.add('turned');
   }
   function goToSide(index) {
     const from = target;
@@ -130,10 +129,20 @@
   canvas.addEventListener('pointermove', event => {
     if (!drag) return;
     turn = drag.turn - (event.clientX - drag.x) / (canvas.clientWidth * 0.55);
-    if (Math.abs(turn - drag.turn) > 0.02) document.body.classList.add('turned');
     drag.samples.push([performance.now(), turn]);
     if (drag.samples.length > 8) drag.samples.shift();
   });
+  // The triangles follow a mouse, which has a cursor to sit beside; touch and pen have none.
+  const arrows = document.querySelector('.arrows');
+  const follow = event => {
+    if (event.pointerType !== 'mouse') return;
+    const box = app.getBoundingClientRect();
+    arrows.style.transform = `translate(${event.clientX - box.left}px, ${event.clientY - box.top}px)`;
+    arrows.classList.add('show');
+  };
+  canvas.addEventListener('pointerenter', follow);
+  canvas.addEventListener('pointermove', follow);
+  canvas.addEventListener('pointerleave', () => arrows.classList.remove('show'));
   const release = () => {
     if (!drag) return;
     // A throw carries on in the direction it was going: the speed over the last moments of the drag

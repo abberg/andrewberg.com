@@ -58,9 +58,12 @@
   .map .cam circle { fill: #19191b; stroke: currentColor; stroke-width: .16; }
   .map .cam text { fill: currentColor; font-size: 1.6px; }
 
-  .hint { position: absolute; left: 50%; transform: translateX(-50%); margin: 0; padding: 7px 12px; background: #000000b3; color: #fff; white-space: nowrap; pointer-events: none; transition: opacity .4s; z-index: 4; }
-  .hint { bottom: 112px; }
-  .turned .hint { opacity: 0; }
+  /* Two triangles that sit either side of the hand cursor while it is over the cube. */
+  .arrows { position: absolute; left: 0; top: 0; width: 0; height: 0; opacity: 0; pointer-events: none; transition: opacity .15s; z-index: 4; }
+  .arrows.show { opacity: 1; }
+  .arrows i { position: absolute; top: -5px; border: 5px solid transparent; filter: drop-shadow(0 0 2px #000); }
+  .arrows i:first-child { right: 15px; border-right: 7px solid #fff; border-left: 0; }
+  .arrows i:last-child { left: 15px; border-left: 7px solid #fff; border-right: 0; }
   .fallback { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; padding: 24px; text-align: center; }
   video { display: none; }
 
@@ -107,7 +110,7 @@
   </div>
 
   <div class="map" hidden></div>
-  <p class="hint">Drag to turn the cube</p>
+  <div class="arrows" aria-hidden="true"><i></i><i></i></div>
 </div>
 <video muted loop playsinline preload="auto">
   <source src="gallery.mp4" type="video/mp4">
