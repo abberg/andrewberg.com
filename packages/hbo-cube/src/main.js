@@ -386,8 +386,9 @@
   let zoom = 0, yaw = 0, pitch = 0;
 
   // ---- Picking -----------------------------------------------------------------------------------------
-  // A click lands on a piece, or on a line. A line leads to whichever of its two pieces has not been viewed,
-  // or to the nearer one when both or neither have. The camera flies to the clicked point on the line and
+  // A click lands on a piece, or on a line. A line off the piece the camera is at leads to its other end;
+  // otherwise it leads to whichever of its two pieces has not been viewed, or to the nearer one when both or
+  // neither have. The camera flies to the clicked point on the line and
   // on down it to that piece without stopping.
   const raycaster = new THREE.Raycaster(), pointer = new THREE.Vector2(), spot = new THREE.Vector3();
   const endA = new THREE.Vector3(), endB = new THREE.Vector3();
@@ -429,7 +430,10 @@
     if (!best) return null;
     const from = ends[best.index], to = ends[best.index + 1];
     const known = piece => piece === hub || viewed.has(piece);
-    const item = known(from) !== known(to) ? (known(from) ? to : from) : best.along < 0.5 ? from : to;
+    // A line off the piece the camera is at always leads to its other end. Otherwise it leads to the end
+    // not yet viewed, and to the nearer end only when both or neither have been.
+    const item = from === focus ? to : to === focus ? from
+      : known(from) !== known(to) ? (known(from) ? to : from) : best.along < 0.5 ? from : to;
     // The way in: a point just off the line where it was clicked, on the camera's side of it.
     const via = endA.copy(from.place).lerp(to.place, best.along).applyMatrix4(universe.matrixWorld).clone();
     via.add(spot.copy(camera.position).sub(via).setLength(3));
