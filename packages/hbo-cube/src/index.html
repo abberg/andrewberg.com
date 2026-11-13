@@ -14,7 +14,7 @@
     radial-gradient(60% 55% at 30% 30%, #1d1d1f 0%, transparent 70%),
     radial-gradient(50% 60% at 78% 62%, #18181a 0%, transparent 70%),
     radial-gradient(90% 80% at 50% 50%, #101011 0%, #070708 100%); }
-  .gl { position: absolute; left: 0; top: 36px; width: 100%; height: calc(100% - 36px - 66px); touch-action: pan-y; cursor: grab; user-select: none; -webkit-user-select: none; outline: none; }
+  .gl { position: absolute; left: 0; top: 36px; width: 100%; height: calc(100% - 36px - 84px); touch-action: pan-y; cursor: grab; user-select: none; -webkit-user-select: none; outline: none; }
   .gl.dragging { cursor: grabbing; }
   .gl:focus-visible { outline: 1px solid #ffffff55; outline-offset: -1px; }
   button { display: inline-grid; place-items: center; grid-auto-flow: column; gap: 8px; margin: 0; padding: 0; border: 0; background: none; color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; }
@@ -28,18 +28,14 @@
   .views button + button { border-left: 1px dotted #ffffff40; }
   .views button[aria-pressed="true"], .views button:hover { color: #fff; }
 
-  .spin { position: absolute; top: calc(36px + (100% - 102px) / 2); transform: translateY(-50%); z-index: 2; }
+  .spin { position: absolute; top: calc(36px + (100% - 120px) / 2); transform: translateY(-50%); z-index: 2; }
   .spin.left { left: 3.5%; }
   .spin.right { right: 3.5%; }
   .spin svg { width: 18px; height: 18px; stroke-width: 2.4; }
 
-  .controls { position: absolute; left: 50%; bottom: 30px; transform: translateX(-50%); display: flex; align-items: center; gap: 12px; white-space: nowrap; z-index: 2; }
-  .controls .share { color: #77776f; }
-  .controls .share:hover { color: #fff; }
+  .controls { position: absolute; left: 50%; bottom: 28px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 7px; white-space: nowrap; z-index: 2; }
   .controls .play svg { fill: currentColor; stroke: none; }
-  .controls .mute { width: 20px; height: 20px; color: #cfcfca; }
-  .controls .mute:hover { color: #fff; }
-  .time { font-variant-numeric: tabular-nums; min-width: 9ch; }
+  .time { font-variant-numeric: tabular-nums; }
 
   .unlock { position: absolute; left: 50%; bottom: 6px; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; white-space: nowrap; }
   .tagline { position: relative; font-size: 12px; letter-spacing: .14em; color: #3a3a3c; }
@@ -47,7 +43,7 @@
   .meter { position: relative; width: 84px; height: 8px; border-bottom: 1px dotted #ffffff66; }
   .meter i { position: absolute; left: 0; bottom: -1px; height: 1px; width: 0; background: #fff; box-shadow: 0 0 6px #fff; transition: width .9s ease; }
 
-  .map { position: absolute; inset: 36px 0 66px; display: grid; place-items: center; background: #070708eb; z-index: 3; }
+  .map { position: absolute; inset: 36px 0 84px; display: grid; place-items: center; background: #070708eb; z-index: 3; }
   .map[hidden] { display: none; }
   .map svg { width: auto; height: 100%; max-width: 100%; stroke-width: .12; }
   .map .room { stroke: #55555a; }
@@ -62,11 +58,9 @@
   .map .cam circle { fill: #19191b; stroke: currentColor; stroke-width: .16; }
   .map .cam text { fill: currentColor; font-size: 1.6px; }
 
-  .hint, .toast { position: absolute; left: 50%; transform: translateX(-50%); margin: 0; padding: 7px 12px; background: #000000b3; color: #fff; white-space: nowrap; pointer-events: none; transition: opacity .4s; z-index: 4; }
-  .hint { bottom: 76px; }
+  .hint { position: absolute; left: 50%; transform: translateX(-50%); margin: 0; padding: 7px 12px; background: #000000b3; color: #fff; white-space: nowrap; pointer-events: none; transition: opacity .4s; z-index: 4; }
+  .hint { bottom: 112px; }
   .turned .hint { opacity: 0; }
-  .toast { top: 44px; opacity: 0; }
-  .toast.show { opacity: 1; }
   .fallback { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; padding: 24px; text-align: center; }
   video { display: none; }
 
@@ -102,10 +96,8 @@
 
   <div class="controls">
     <span>The Heist</span>
-    <button type="button" class="share">Share</button>
     <button type="button" class="play tile" aria-label="Pause"><svg viewBox="0 0 16 16"><path d=""/></svg></button>
     <span class="time">00:00/00:00</span>
-    <button type="button" class="mute" aria-label="Unmute" aria-pressed="true"><svg viewBox="0 0 16 16"><path d=""/></svg></button>
   </div>
 
   <div class="unlock" role="status">
@@ -116,7 +108,6 @@
 
   <div class="map" hidden></div>
   <p class="hint">Drag to turn the cube</p>
-  <p class="toast" role="status"></p>
 </div>
 <video muted loop playsinline preload="auto">
   <source src="gallery.mp4" type="video/mp4">

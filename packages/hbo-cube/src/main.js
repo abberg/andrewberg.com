@@ -163,7 +163,7 @@
     button.addEventListener('click', () => { setView('cube'); go(stop(target) + Number(button.dataset.turn) / 2); }));
 
   // ---- Playback ----------------------------------------------------------------------------------------
-  const play = document.querySelector('.play'), mute = document.querySelector('.mute'), time = document.querySelector('.time');
+  const play = document.querySelector('.play'), time = document.querySelector('.time');
   const clock = seconds => {
     const whole = Math.floor(seconds || 0);
     return `${String(Math.floor(whole / 60)).padStart(2, '0')}:${String(whole % 60).padStart(2, '0')}`;
@@ -172,33 +172,9 @@
     const paused = video.paused;
     play.querySelector('path').setAttribute('d', paused ? 'M5 3.2 12.6 8 5 12.8z' : 'M4.4 3.2h2.6v9.6H4.4zM9 3.2h2.6v9.6H9z');
     play.setAttribute('aria-label', paused ? 'Play' : 'Pause');
-    const muted = video.muted;
-    mute.querySelector('path').setAttribute('d', 'M2 6.2h2.4L8 3.4v9.2L4.4 9.8H2z' + (muted ? 'M10.6 6.2l3.6 3.6M14.2 6.2l-3.6 3.6' : 'M10.4 6a3 3 0 0 1 0 4M12 4.2a5.6 5.6 0 0 1 0 7.6'));
-    mute.setAttribute('aria-label', muted ? 'Unmute' : 'Mute');
-    mute.setAttribute('aria-pressed', String(muted));
   }
   play.addEventListener('click', () => { if (video.paused) video.play(); else video.pause(); });
-  mute.addEventListener('click', () => { video.muted = !video.muted; showPlayback(); });
-  for (const type of ['play', 'pause', 'volumechange']) video.addEventListener(type, showPlayback);
-
-  // ---- Share -------------------------------------------------------------------------------------------
-  const toast = document.querySelector('.toast');
-  let toastTimer;
-  function say(message) {
-    toast.textContent = message;
-    toast.classList.add('show');
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => toast.classList.remove('show'), 1800);
-  }
-  document.querySelector('.share').addEventListener('click', async () => {
-    // Share the page the cube sits in when it is embedded, otherwise this page.
-    let url = location.href;
-    try { if (parent !== window) url = parent.location.href; } catch (error) { /* a different origin */ }
-    try {
-      if (navigator.share) await navigator.share({ title: document.title, url });
-      else { await navigator.clipboard.writeText(url); say('Link copied'); }
-    } catch (error) { if (error.name !== 'AbortError') say(url); }
-  });
+  for (const type of ['play', 'pause']) video.addEventListener(type, showPlayback);
 
   // ---- Unlocking ---------------------------------------------------------------------------------------
   // Each side unlocks the first time the cube settles on it, or on a corner that shows it.
