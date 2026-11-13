@@ -511,8 +511,8 @@
   }
 
   // ---- The gaze ----------------------------------------------------------------------------------------
-  // In flight, where the camera is and where it looks are kept apart, like a camera on a gimbal. The
-  // flight moves the body; the eyes are a direction on a spring that chases whatever they are meant to be
+  // Where the camera is and where it looks are kept apart, like a camera on a gimbal. A flight, or the
+  // seat at rest, moves the body; the eyes are a direction on a spring that chases whatever they are meant to be
   // looking at, so they lag behind a turn and overshoot it a little before settling.
   const GAZE_RATE = 4.5, GAZE_DAMPING = 0.72; // how quickly the eyes catch up, and how little they overshoot
   const gaze = new THREE.Vector3(0, 0, -1), gazeVelocity = new THREE.Vector3(), wanted = new THREE.Vector3();
@@ -615,11 +615,11 @@
         if (t === 1) land(stage);
       } else ride(now, smooth, stage, dt);
     } else {
+      // At rest the body sits in its seat and the eyes follow where the seat faces on the same spring, so
+      // dragging to look around lags and settles like a flight does.
       camera.position.copy(seat.position);
-      camera.quaternion.copy(seat.quaternion);
-      // At rest the eyes are wherever the camera faces, so a flight sets off from there.
-      gaze.set(0, 0, -1).applyQuaternion(camera.quaternion);
-      gazeVelocity.set(0, 0, 0);
+      aim(spot.set(0, 0, -1).applyQuaternion(seat.quaternion), elapsed / 1000);
+      face(up.set(0, 1, 0).applyQuaternion(seat.quaternion));
     }
 
     renderer.render(scene, camera);
