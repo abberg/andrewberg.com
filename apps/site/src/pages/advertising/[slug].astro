@@ -114,6 +114,27 @@ const { Content } = await render(project);
   .facts dd { margin: 0; font-size: 15px; }
   .story { max-width: 62ch; font-size: 17px; line-height: 1.6; }
   .story :global(p) { margin: 0 0 1.1em; }
+  /* Diagrams in a write-up: inline SVG drawn in the page's own colours, so they follow the theme. */
+  .story :global(.diagram) { margin: 1.6em 0 2em; display: flex; flex-direction: column; gap: 10px; }
+  .story :global(.diagram svg) { display: block; width: 100%; height: auto; }
+  .story :global(.diagram text) { fill: var(--ink); font-family: var(--mono); letter-spacing: .02em; }
+  .story :global(.diagram .d-label) { font-size: 12px; text-transform: uppercase; fill: var(--mute); }
+  .story :global(.diagram .d-tag) { font-size: 13px; }
+  .story :global(.diagram .d-small) { font-size: 12px; fill: var(--mute); }
+  .story :global(.diagram .d-mid) { text-anchor: middle; }
+  .story :global(.diagram .d-tone) { fill: var(--accent); }
+  .story :global(.diagram .d-frame) { fill: none; stroke: var(--ink); stroke-width: 1.25; }
+  .story :global(.diagram rect.d-tone) { stroke: var(--ink); stroke-width: .75; stroke-opacity: .5; }
+  .story :global(.diagram .d-face) { stroke: var(--ink); stroke-width: 1.25; stroke-linejoin: round; }
+  .story :global(.diagram .d-top), .story :global(.diagram .d-back) { fill: var(--bg); }
+  .story :global(.diagram .d-dot) { fill: var(--ink); }
+  .story :global(.diagram .d-hidden) { fill: none; stroke: var(--mute); stroke-width: 1; stroke-dasharray: 3 3; }
+  .story :global(.diagram .d-edge) { fill: none; stroke: var(--accent); stroke-width: 4; stroke-linecap: round; }
+  .story :global(.diagram .d-time) { stroke: var(--mute); stroke-width: 1; }
+  .story :global(.diagram .d-play) { fill: var(--ink); }
+  .story :global(.diagram .d-play-line) { stroke: var(--ink); stroke-width: 1.25; }
+  .story :global(.diagram .d-link) { fill: none; stroke: var(--mute); stroke-width: 1; }
+  .story :global(.diagram .d-head) { fill: var(--mute); }
 
   .media { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px 20px; align-items: start; margin-top: 64px; padding-top: 40px; border-top: 1px solid var(--rule); }
   .media figure { display: flex; flex-direction: column; gap: 10px; margin: 0; }
