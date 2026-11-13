@@ -31,7 +31,8 @@
   .spin { position: absolute; top: calc(36px + (100% - 120px) / 2); transform: translateY(-50%); z-index: 2; }
   .spin.left { left: 3.5%; }
   .spin.right { right: 3.5%; }
-  .spin svg { width: 18px; height: 18px; stroke-width: 2.4; }
+  .spin svg { width: 18px; height: 18px; stroke-width: 2.6; stroke-linecap: butt; }
+  .spin polygon { fill: currentColor; stroke: none; }
 
   .controls { position: absolute; left: 50%; bottom: 28px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 7px; white-space: nowrap; z-index: 2; }
   .controls .play svg { fill: currentColor; stroke: none; }
@@ -90,10 +91,10 @@
 
   <button type="button" class="spin left" data-turn="1" aria-label="Spin left">
     <span>Spin</span>
-    <span class="tile"><svg viewBox="0 0 18 18"><path d="M4.5 11.5A5.5 5.5 0 1 1 13 12.5"/><path d="M14.2 8.4 13 13l-4.4-1.2"/></svg></span>
+    <span class="tile"><svg viewBox="0 0 18 18" style="transform: scaleX(-1)"><path d="M7.5 15A5.5 5.5 0 0 0 7.5 4"/><polygon points="7.5,0.6 7.5,7.4 2.6,4"/></svg></span>
   </button>
   <button type="button" class="spin right" data-turn="-1" aria-label="Spin right">
-    <span class="tile"><svg viewBox="0 0 18 18" style="transform: scaleX(-1)"><path d="M4.5 11.5A5.5 5.5 0 1 1 13 12.5"/><path d="M14.2 8.4 13 13l-4.4-1.2"/></svg></span>
+    <span class="tile"><svg viewBox="0 0 18 18"><path d="M7.5 15A5.5 5.5 0 0 0 7.5 4"/><polygon points="7.5,0.6 7.5,7.4 2.6,4"/></svg></span>
     <span>Spin</span>
   </button>
 
