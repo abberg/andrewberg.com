@@ -14,7 +14,13 @@ hero:
   caption: The original 2009 Flash site
 after:
   text: Offline, the same four-sided film played on a 14-foot cube that toured New York, Philadelphia, and Washington, D.C.
-  link: { title: HBO Imagine Case Study, url: "https://vimeo.com/47259703", source: Barbarian on Vimeo }
+images:
+  - src: /advertising/hbo-imagine/case-study.jpg
+    width: 1280
+    height: 717
+    alt: A still from the HBO Imagine case study. The cube, turned to a corner, shows two angles of The Affair, above a line of copy ending “It’s more than you imagined. It’s HBO.”
+    caption: HBO Imagine Case Study · Watch on Vimeo ↗
+    href: "https://vimeo.com/47259703"
 video:
   youtube: UWVeFt3IyoI
   title: HBO Imagine case film

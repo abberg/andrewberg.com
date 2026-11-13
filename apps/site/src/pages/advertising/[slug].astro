@@ -51,18 +51,11 @@ const { Content } = await render(project);
   {data.after && (
     <section class="after">
       <p>{data.after.text}</p>
-      {data.after.link && <p class="mono"><a href={data.after.link.url}>{data.after.link.title}</a> <span class="source">{data.after.link.source} ↗</span></p>}
     </section>
   )}
 
   {(images.length > 0 || data.video) && (
     <section class="media" aria-label="The original">
-      {images.map(image => (
-        <figure>
-          <img src={image.src} width={image.width} height={image.height} alt={image.alt} loading="lazy" />
-          <figcaption class="mono">{image.caption}</figcaption>
-        </figure>
-      ))}
       {data.video && (
         <figure>
           <iframe
@@ -76,6 +69,14 @@ const { Content } = await render(project);
           <figcaption class="mono">{data.video.caption}</figcaption>
         </figure>
       )}
+      {images.map(image => (
+        <figure>
+          {image.href
+            ? <a class="still" href={image.href} target="_blank" rel="noopener"><img src={image.src} width={image.width} height={image.height} alt={image.alt} loading="lazy" /><span class="mono tag">Vimeo ↗</span></a>
+            : <img src={image.src} width={image.width} height={image.height} alt={image.alt} loading="lazy" />}
+          <figcaption class="mono">{image.href ? <a href={image.href} target="_blank" rel="noopener">{image.caption}</a> : image.caption}</figcaption>
+        </figure>
+      ))}
     </section>
   )}
 
@@ -140,6 +141,11 @@ const { Content } = await render(project);
 
   .media { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px 20px; align-items: start; margin-top: 64px; padding-top: 40px; border-top: 1px solid var(--rule); }
   .media figure { display: flex; flex-direction: column; gap: 10px; margin: 0; }
+  .media .still { position: relative; display: block; border-radius: 10px; }
+  .media .still .tag { position: absolute; right: 10px; bottom: 10px; padding: 4px 8px; border-radius: 6px; background: rgba(0,0,0,.65); color: #fff; }
+  .media .still:hover img { opacity: .85; }
+  .media figcaption a { color: inherit; text-decoration: none; }
+  .media figcaption a:hover { color: var(--accent); }
   .media img, .media iframe { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; border: 0; border-radius: 10px; background: #0b0b0c; object-fit: contain; }
   .notes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px; margin-top: 64px; padding-top: 40px; border-top: 1px solid var(--rule); }
   .notes h2 { margin: 0 0 16px; font-weight: 400; }

@@ -17,13 +17,10 @@ const advertising = defineCollection({
     recreation: z.string().optional(),
     // A still of the original work shown large at the top of the project page, served from public/advertising/<project>/.
     hero: z.object({ src: z.string(), width: z.number(), height: z.number(), alt: z.string(), caption: z.string() }).optional(),
-    // Stills of the original work, served from public/advertising/<project>/.
-    images: z.array(z.object({ src: z.string(), width: z.number(), height: z.number(), alt: z.string(), caption: z.string() })).default([]),
-    // A short note shown after the recreation, such as how the work lived offline, with an optional link to a film of it.
-    after: z.object({
-      text: z.string(),
-      link: z.object({ title: z.string(), url: z.string().url(), source: z.string() }).optional(),
-    }).optional(),
+    // Stills of the original work, served from public/advertising/<project>/; one with an href links off to where it came from.
+    images: z.array(z.object({ src: z.string(), width: z.number(), height: z.number(), alt: z.string(), caption: z.string(), href: z.string().url().optional() })).default([]),
+    // A short note shown after the recreation, such as how the work lived offline.
+    after: z.object({ text: z.string() }).optional(),
     // A film of the original work on YouTube.
     video: z.object({ youtube: z.string(), title: z.string(), caption: z.string() }).optional(),
     recognition: z.array(z.string()).default([]),
