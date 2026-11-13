@@ -510,13 +510,33 @@
     if (stage === 'piece') view1st(focus); // arriving in front of a piece counts as viewing it
   }
 
+  // ---- The gaze ----------------------------------------------------------------------------------------
+  // In flight, where the camera is and where it looks are kept apart, like a camera on a gimbal. The
+  // flight moves the body; the eyes are a direction on a spring that chases whatever they are meant to be
+  // looking at, so they lag behind a turn and overshoot it a little before settling.
+  const GAZE_RATE = 4.5, GAZE_DAMPING = 0.72; // how quickly the eyes catch up, and how little they overshoot
+  const gaze = new THREE.Vector3(0, 0, -1), gazeVelocity = new THREE.Vector3(), wanted = new THREE.Vector3();
+  function aim(toward, dt) {
+    wanted.copy(toward).normalize();
+    // In two half steps, so a slow frame cannot throw the spring.
+    for (let step = 0; step < 2; step++) {
+      const h = dt / 2;
+      gazeVelocity.addScaledVector(wanted.clone().sub(gaze), GAZE_RATE * GAZE_RATE * h)
+        .multiplyScalar(Math.max(0, 1 - 2 * GAZE_DAMPING * GAZE_RATE * h));
+      gaze.addScaledVector(gazeVelocity, h).normalize();
+    }
+  }
+  function face(upward) {
+    camera.quaternion.setFromRotationMatrix(look.lookAt(camera.position, spot.copy(camera.position).add(gaze), upward));
+  }
+
   // ---- The ride ----------------------------------------------------------------------------------------
   // A line is ridden like a roller coaster track: the camera drops onto the rail where it was clicked,
   // sitting just above it and looking down it, gathers speed along it toward the piece, then brakes and
   // swings off the end round into its seat in front of the piece.
   const RIDE_HEIGHT = 2.5, RIDE_SPEED = 0.16; // how high above the rail, and the rail's length covered per millisecond at full speed
   const ahead = new THREE.Vector3(), lift = new THREE.Vector3(), lookAt = new THREE.Vector3();
-  function ride(now, smooth, stage) {
+  function ride(now, smooth, stage, dt) {
     if (!fly.curve) {
       const { start, end } = fly.track;
       ahead.copy(end).sub(start);
@@ -549,12 +569,13 @@
     // Eyes on the track a little way ahead, and a gentle sway from side to side once on the rail.
     fly.curve.getPointAt(Math.min(1, s + 0.035), lookAt);
     if (lookAt.distanceToSquared(camera.position) < 1e-6) lookAt.copy(camera.position).add(ahead);
-    const onRail = smooth((s - fly.on * 0.6) / (fly.on * 0.4 + 0.02)) * (1 - smooth((s - fly.off) / (1 - fly.off + 1e-3)));
-    up.copy(fly.lift).applyAxisAngle(spot.copy(lookAt).sub(camera.position).normalize(), Math.sin(t * 9) * 0.05 * onRail);
-    const rider = turned.setFromRotationMatrix(look.lookAt(camera.position, lookAt, up));
-    camera.quaternion.copy(fly.quaternion)
-      .slerp(rider, smooth(s / (fly.on * 0.7 + 0.03)))
-      .slerp(seat.quaternion, smooth((s - fly.off - (1 - fly.off) * 0.2) / ((1 - fly.off) * 0.8 + 1e-3)));
+    // Swinging off the end of the rail, the eyes move from the track onto the piece.
+    const swing = smooth((s - fly.off) / (1 - fly.off + 1e-3));
+    lookAt.sub(camera.position).normalize().lerp(spot.copy(centre).sub(camera.position).normalize(), swing);
+    aim(lookAt, dt);
+    const onRail = smooth((s - fly.on * 0.6) / (fly.on * 0.4 + 0.02)) * (1 - swing);
+    face(up.copy(fly.lift).applyAxisAngle(gaze, Math.sin(t * 9) * 0.05 * onRail));
+    camera.quaternion.slerp(seat.quaternion, smooth((s - fly.off - (1 - fly.off) * 0.2) / ((1 - fly.off) * 0.8 + 1e-3)));
     // The view widens a touch with speed.
     const speed = t < turnOver ? t / turnOver : (1 - t) / (1 - turnOver);
     camera.fov = LENS + 14 * speed * speed * onRail;
@@ -583,16 +604,22 @@
     scene.updateMatrixWorld();
     findSeat(stage);
     if (fly) {
+      const dt = elapsed / 1000;
       const smooth = value => { const x = Math.max(0, Math.min(1, value)); return x * x * (3 - 2 * x); };
       if (!fly.track) {
         const t = Math.min(1, (now - fly.start) / 1400), eased = smooth(t);
         camera.position.lerpVectors(fly.position, seat.position, eased);
-        camera.quaternion.copy(fly.quaternion).slerp(seat.quaternion, eased);
+        aim(spot.copy(centre).sub(camera.position), dt);
+        face(up);
+        camera.quaternion.slerp(seat.quaternion, smooth((t - 0.6) / 0.4)); // settled into the seat by the end
         if (t === 1) land(stage);
-      } else ride(now, smooth, stage);
+      } else ride(now, smooth, stage, dt);
     } else {
       camera.position.copy(seat.position);
       camera.quaternion.copy(seat.quaternion);
+      // At rest the eyes are wherever the camera faces, so a flight sets off from there.
+      gaze.set(0, 0, -1).applyQuaternion(camera.quaternion);
+      gazeVelocity.set(0, 0, 0);
     }
 
     renderer.render(scene, camera);
