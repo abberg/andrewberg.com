@@ -16,7 +16,7 @@ video:
   youtube: UWVeFt3IyoI
   title: HBO Imagine case film
   caption: The campaign film, from The One Club for Creativity.
-summary: An interactive mystery told through a four-sided story cube. Spin it to change angles mid-scene, then piece together the story from 41 more films, recordings, and clues.
+summary: An interactive mystery centered on four-sided story cubes. Spin them to change angles mid-scene and watch every side for the full story, then unlock the bigger story from the content around them.
 credits:
   - { role: Client, name: HBO }
   - { role: Agency, name: BBDO New York }
