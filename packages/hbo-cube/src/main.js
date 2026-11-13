@@ -365,19 +365,19 @@
   raycaster.params.Line.threshold = 2.5;
   const cards = ITEMS.slice(1).map(item => item.card);
   function pick(x, y) {
+    if (view !== 'universe') return null; // only the pulled-back view is clickable
     const box = canvas.getBoundingClientRect();
     pointer.set((x - box.left) / box.width * 2 - 1, 1 - (y - box.top) / box.height * 2);
     raycaster.setFromCamera(pointer, camera);
-    // Up close the cube itself hides what is behind it; from further off a generous box stands in for it.
-    const atCube = focus === hub && view === 'cube';
-    const [hit] = raycaster.intersectObjects([...cards, ...(atCube ? cube.children : [reach])], true);
+    // A generous box stands in for the cube, which is small from back here.
+    const [hit] = raycaster.intersectObjects([...cards, reach], true);
     if (hit) {
       let object = hit.object;
       while (object && !object.userData.item) object = object.parent;
       const item = object ? object.userData.item : hub;
-      return item === focus && view !== 'universe' ? null : item;
+      return item;
     }
-    if (!lines.visible || zoom < 0.5) return null;
+    if (zoom < 0.5) return null;
     const [line] = raycaster.intersectObject(lines);
     if (!line) return null;
     universe.worldToLocal(spot.copy(line.point));
