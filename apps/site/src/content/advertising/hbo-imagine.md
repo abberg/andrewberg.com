@@ -11,7 +11,7 @@ hero:
   width: 1274
   height: 669
   alt: The HBO Imagine site in 2009. A cube turned to a corner shows two angles of The Affair, a bedroom on one side and a living room on the other, with Spin buttons either side, playback controls below, and a bar reading 70% unlocked.
-  caption: The original site in 2009, with the cube for The Affair turned to a corner.
+  caption: The original 2009 Flash site
 video:
   youtube: UWVeFt3IyoI
   title: HBO Imagine case film
