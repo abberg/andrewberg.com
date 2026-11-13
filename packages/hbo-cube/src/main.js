@@ -212,11 +212,10 @@
 
   // ---- Unlocking ---------------------------------------------------------------------------------------
   // Each side of the cube unlocks the first time the cube settles on it, or on a corner that shows it, and
-  // every other piece the first time the camera flies in to face it. The count is kept between visits.
-  const SIDES = 'story-cube-seen', PIECES = 'story-cube-viewed';
-  const stored = key => { try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch (error) { return []; } };
-  const store = (key, set) => { try { localStorage.setItem(key, JSON.stringify([...set])); } catch (error) { /* no storage */ } };
-  const seen = new Set(stored(SIDES).filter(index => index >= 0 && index < 4));
+  // every other piece the first time the camera flies in to face it. Every visit starts afresh, so the
+  // demo always opens with everything still to find; progress from older builds is cleared.
+  try { localStorage.removeItem('story-cube-seen'); localStorage.removeItem('story-cube-viewed'); } catch (error) { /* no storage */ }
+  const seen = new Set();
   const viewed = new Set(); // pieces, filled in once the content is laid out
   const meter = document.querySelector('.unlock'), percent = document.querySelector('.percent');
   function showUnlocked() {
@@ -228,13 +227,11 @@
   function unlock(index) {
     if (seen.has(index)) return;
     seen.add(index);
-    store(SIDES, seen);
     showUnlocked();
   }
   function view1st(item) {
     if (item === hub || viewed.has(item)) return;
     viewed.add(item);
-    store(PIECES, new Set([...viewed].map(piece => ITEMS.indexOf(piece))));
     reveal(item);
     showUnlocked();
   }
@@ -378,11 +375,8 @@
     return glow;
   }
   const fading = new Set(); // glows fading out, after their pieces have been viewed
-  function reveal(item, instantly) {
-    if (item.glow) {
-      if (instantly) item.glow.visible = false;
-      else { item.glow.userData.fadeFrom = performance.now(); fading.add(item.glow); }
-    }
+  function reveal(item) {
+    if (item.glow) { item.glow.userData.fadeFrom = performance.now(); fading.add(item.glow); }
     item.node.classList.add('viewed');
     item.card.material.color.setHex(LIT[item.kind]);
     if (item.sound) { item.sound.material.color.setHex(0xa9c98f); item.sound.scale.y = 1; }
@@ -431,7 +425,6 @@
       ends.push(item, other);
     }
   });
-  for (const index of stored(PIECES)) if (index > 0 && index < ITEMS.length) { viewed.add(ITEMS[index]); reveal(ITEMS[index], true); }
   // An unseen box round the cube, generous enough to click when the cube is small.
   const reach = new THREE.Mesh(new THREE.BoxGeometry(24, 16, 24), new THREE.MeshBasicMaterial({ visible: false }));
   scene.add(reach);
