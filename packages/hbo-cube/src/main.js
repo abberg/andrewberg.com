@@ -130,8 +130,9 @@
     if (Math.hypot(dx, dy) > 4) drag.moved = true;
     if (drag.gaze) {
       // Away from the cube the camera stays where it is and a drag turns where it looks, as if pulling the view along.
-      yaw = Math.max(-1.2, Math.min(1.2, drag.yaw + dx * 0.0022));
-      pitch = Math.max(-0.7, Math.min(0.7, drag.pitch + dy * 0.0022));
+      // It can turn all the way round, and up or down until it is nearly looking straight along the axis.
+      yaw = drag.yaw + dx * 0.0022;
+      pitch = Math.max(-1.4, Math.min(1.4, drag.pitch + dy * 0.0022));
       return;
     }
     turn = drag.turn - dx / (canvas.clientWidth * 0.55);
@@ -154,7 +155,7 @@
     canvas.classList.remove('dragging');
     // A click, rather than a drag, flies to whatever piece is under it.
     const picked = drag.moved ? null : pick(drag.x, drag.y);
-    if (picked) flyTo(picked.item, picked.via);
+    if (picked) { if (picked.via) perchAt(picked.via, picked.item); else flyTo(picked.item); }
     if (drag.gaze) { drag = null; return; }
     // A throw carries on in the direction it was going: the speed over the last moments of the drag
     // decides how many stops further the cube travels before it settles.
@@ -386,7 +387,8 @@
 
   // ---- Picking -----------------------------------------------------------------------------------------
   // A click lands on a piece, or on a line. A line leads to whichever of its two pieces has not been viewed,
-  // or to the nearer one when both or neither have, and the camera travels down the line to get there.
+  // or to the nearer one when both or neither have. The camera flies to the clicked point on the line and
+  // stops there, looking down the line at that piece.
   const raycaster = new THREE.Raycaster(), pointer = new THREE.Vector2(), spot = new THREE.Vector3();
   const endA = new THREE.Vector3(), endB = new THREE.Vector3();
   const cards = ITEMS.slice(1).map(item => item.card);
@@ -430,7 +432,7 @@
   // The camera always faces one piece, the focus: the cube to begin with. 'cube' and 'piece' sit close to it,
   // 'universe' pulls back from it, and 'map' lays the flat sheet over whichever of those was showing.
   const viewButtons = [...document.querySelectorAll('.views [data-view]')];
-  let focus = hub, under = 'cube', flown = 'cube:0', fly = null;
+  let focus = hub, under = 'cube', flown = 'cube:0', fly = null, perch = null;
   function setView(next) {
     if (next === 'map') { if (view !== 'map') under = view; }
     else {
@@ -440,6 +442,7 @@
         fly = { position: camera.position.clone(), quaternion: camera.quaternion.clone(), start: performance.now() };
         yaw = pitch = 0;
         flown = place;
+        perch = null;
       }
     }
     view = next;
@@ -452,7 +455,7 @@
     viewButtons.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.view === view)));
   }
   const nearView = () => (focus === hub ? 'cube' : 'piece');
-  function flyTo(item, via) {
+  function flyTo(item) {
     if (item !== hub) {
       // Face the side of the piece that the camera is already on.
       item.card.getWorldPosition(centre);
@@ -461,13 +464,27 @@
     }
     focus = item;
     setView(nearView());
-    if (fly && via) fly.via = via; // by way of the line that was clicked
+  }
+  // A perch is a seat out on a line: where it was clicked, looking down it at the piece it leads to. That
+  // piece becomes the focus, so flying in from the perch carries on to it.
+  function perchAt(via, item) {
+    focus = item;
+    if (item === hub) centre.set(0, 0, 0); else item.card.getWorldPosition(centre);
+    perch = { position: via, quaternion: new THREE.Quaternion().setFromRotationMatrix(look.lookAt(via, centre, up.set(0, 1, 0))) };
+    fly = { position: camera.position.clone(), quaternion: camera.quaternion.clone(), start: performance.now() };
+    yaw = pitch = 0;
+    flown = `perch:${ITEMS.indexOf(item)}`;
   }
   // Where the camera belongs: in front of the focus, square to it, further back in the universe.
   const centre = new THREE.Vector3(), normal = new THREE.Vector3(), up = new THREE.Vector3();
   const facing = new THREE.Quaternion(), look = new THREE.Matrix4(), turned = new THREE.Quaternion(), euler = new THREE.Euler();
   const seat = { position: new THREE.Vector3(), quaternion: new THREE.Quaternion() };
   function findSeat(stage) {
+    if (perch && stage === 'universe') {
+      seat.position.copy(perch.position);
+      seat.quaternion.copy(perch.quaternion).multiply(turned.setFromEuler(euler.set(pitch, yaw, 0, 'YXZ')));
+      return;
+    }
     let distance = fit;
     if (focus === hub) { centre.set(0, 0, 0); normal.set(0, 0, 1); up.set(0, 1, 0); }
     else {
@@ -510,25 +527,9 @@
     scene.updateMatrixWorld();
     findSeat(stage);
     if (fly) {
-      const smooth = value => value * value * (3 - 2 * value);
-      let t = Math.min(1, (now - fly.start) / 1400);
-      if (!fly.via) {
-        camera.position.lerpVectors(fly.position, seat.position, smooth(t));
-        camera.quaternion.copy(fly.quaternion).slerp(seat.quaternion, smooth(t));
-      } else {
-        // By way of a line: over to the point on it, turning to look down it, then along it to the piece,
-        // turning square to the piece over the last stretch.
-        const along = turned.setFromRotationMatrix(look.lookAt(fly.via, centre, up.set(0, 1, 0)));
-        const reachLine = (now - fly.start) / 900;
-        t = Math.min(1, Math.max(0, (now - fly.start - 900) / 1700));
-        if (reachLine < 1) {
-          camera.position.lerpVectors(fly.position, fly.via, smooth(reachLine));
-          camera.quaternion.copy(fly.quaternion).slerp(along, smooth(reachLine));
-        } else {
-          camera.position.lerpVectors(fly.via, seat.position, smooth(t));
-          camera.quaternion.copy(along).slerp(seat.quaternion, smooth(Math.max(0, (t - 0.45) / 0.55)));
-        }
-      }
+      const t = Math.min(1, (now - fly.start) / 1400), eased = t * t * (3 - 2 * t);
+      camera.position.lerpVectors(fly.position, seat.position, eased);
+      camera.quaternion.copy(fly.quaternion).slerp(seat.quaternion, eased);
       if (t === 1) {
         fly = null;
         if (stage === 'piece') view1st(focus); // arriving in front of a piece counts as viewing it
