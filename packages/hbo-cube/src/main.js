@@ -26,7 +26,6 @@
   const scene = new THREE.Scene();
   const LENS = 40; // the camera's usual vertical field of view, which widens a little at speed on a line
   const camera = new THREE.PerspectiveCamera(LENS, 1, 1, 3000);
-  window.__cube = { camera }; // for checking the camera's motion from the console
   const cube = new THREE.Group();
   scene.add(cube);
 
