@@ -141,7 +141,7 @@
   // The triangles follow a mouse, which has a cursor to sit beside; touch and pen have none.
   const arrows = document.querySelector('.arrows');
   const follow = event => {
-    if (event.pointerType !== 'mouse' || view !== 'cube' || canvas.classList.contains('pick')) { arrows.classList.remove('show'); return; }
+    if (event.pointerType !== 'mouse' || (view !== 'cube' && view !== 'universe') || canvas.classList.contains('pick')) { arrows.classList.remove('show'); return; }
     const box = app.getBoundingClientRect();
     arrows.style.transform = `translate(${event.clientX - box.left}px, ${event.clientY - box.top}px)`;
     arrows.classList.add('show');
@@ -363,7 +363,7 @@
   // ---- Picking -----------------------------------------------------------------------------------------
   // A click lands on a piece, or on a line, which stands for whichever of its two pieces is nearer the click.
   const raycaster = new THREE.Raycaster(), pointer = new THREE.Vector2(), spot = new THREE.Vector3();
-  raycaster.params.Line.threshold = 2.5;
+  raycaster.params.Line.threshold = 1.2;
   const cards = ITEMS.slice(1).map(item => item.card);
   function pick(x, y) {
     if (view !== 'universe') return null; // only the pulled-back view is clickable

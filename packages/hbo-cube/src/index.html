@@ -66,12 +66,17 @@
   .gl.pick { cursor: pointer; }
   .app[data-view="piece"] .gl { cursor: default; }
 
-  /* Two triangles that sit either side of the hand cursor while it is over the cube. */
+  /* Triangles that sit round the hand cursor while it is over the cube: one either side. */
   .arrows { position: absolute; left: 0; top: 0; width: 0; height: 0; opacity: 0; pointer-events: none; transition: opacity .15s; z-index: 4; }
   .arrows.show { opacity: 1; }
   .arrows i { position: absolute; top: -5px; border: 5px solid transparent; filter: drop-shadow(0 0 2px #000); }
   .arrows i:first-child { right: 15px; border-right: 7px solid #fff; border-left: 0; }
-  .arrows i:last-child { left: 15px; border-left: 7px solid #fff; border-right: 0; }
+  .arrows i:nth-child(2) { left: 15px; border-left: 7px solid #fff; border-right: 0; }
+  /* Pulled back, a drag looks up and down as well, so two more join them above and below. */
+  .arrows i:nth-child(n+3) { display: none; left: -5px; }
+  .app[data-view="universe"] .arrows i:nth-child(n+3) { display: block; }
+  .arrows i:nth-child(3) { top: auto; bottom: 15px; border-bottom: 7px solid #fff; border-top: 0; }
+  .arrows i:nth-child(4) { top: 15px; border-top: 7px solid #fff; border-bottom: 0; }
   .fallback { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; padding: 24px; text-align: center; }
   video { display: none; }
 
@@ -119,7 +124,7 @@
   </div>
 
   <div class="map" hidden></div>
-  <div class="arrows" aria-hidden="true"><i></i><i></i></div>
+  <div class="arrows" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
 </div>
 <video muted loop playsinline preload="auto">
   <source src="gallery.mp4" type="video/mp4">
