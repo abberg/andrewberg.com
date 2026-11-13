@@ -24,7 +24,8 @@
   const X = W / 2 + BORDER_X, Y = H / 2 + BORDER_Y, RADIUS = X * Math.SQRT2;
 
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(40, 1, 1, 3000);
+  const LENS = 40; // the camera's usual vertical field of view, which widens a little at speed on a line
+  const camera = new THREE.PerspectiveCamera(LENS, 1, 1, 3000);
   const cube = new THREE.Group();
   scene.add(cube);
 
@@ -105,7 +106,7 @@
     renderer.setSize(width, height, false);
     camera.aspect = width / height;
     // Back the camera off until the cube fits both face on and turned to a corner, where it is widest.
-    tanV = Math.tan(camera.fov * Math.PI / 360);
+    tanV = Math.tan(LENS * Math.PI / 360);
     tanH = tanV * camera.aspect;
     const v = tanV * 0.88, h = v * camera.aspect * 0.9;
     fit = Math.max(RADIUS / h, RADIUS + Y / v, X + X / h);
@@ -155,7 +156,7 @@
     canvas.classList.remove('dragging');
     // A click, rather than a drag, flies to whatever piece is under it.
     const picked = drag.moved ? null : pick(drag.x, drag.y);
-    if (picked) flyTo(picked.item, picked.via);
+    if (picked) flyTo(picked.item, picked.via && { start: picked.via, end: picked.end });
     if (drag.gaze) { drag = null; return; }
     // A throw carries on in the direction it was going: the speed over the last moments of the drag
     // decides how many stops further the cube travels before it settles.
@@ -434,10 +435,9 @@
     // not yet viewed, and to the nearer end only when both or neither have been.
     const item = from === focus ? to : to === focus ? from
       : known(from) !== known(to) ? (known(from) ? to : from) : best.along < 0.5 ? from : to;
-    // The way in: a point just off the line where it was clicked, on the camera's side of it.
+    // The track: from the clicked point on the line to the piece it leads to.
     const via = endA.copy(from.place).lerp(to.place, best.along).applyMatrix4(universe.matrixWorld).clone();
-    via.add(spot.copy(camera.position).sub(via).setLength(3));
-    return { item, via };
+    return { item, via, end: item.place.clone().applyMatrix4(universe.matrixWorld) };
   }
 
   // ---- Views -------------------------------------------------------------------------------------------
@@ -467,7 +467,7 @@
     viewButtons.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.view === view)));
   }
   const nearView = () => (focus === hub ? 'cube' : 'piece');
-  function flyTo(item, via) {
+  function flyTo(item, track) {
     if (item !== hub) {
       // Face the side of the piece that the camera is already on.
       item.card.getWorldPosition(centre);
@@ -476,7 +476,7 @@
     }
     focus = item;
     setView(nearView());
-    if (fly && via) fly.via = via; // by way of the line that was clicked
+    if (fly && track) fly.track = track; // by way of the line that was clicked
   }
   // Where the camera belongs: in front of the focus, square to it, further back in the universe.
   const centre = new THREE.Vector3(), normal = new THREE.Vector3(), up = new THREE.Vector3();
@@ -504,6 +504,64 @@
     else setView(view === 'universe' ? nearView() : 'universe');
   }));
 
+  function land(stage) {
+    fly = null;
+    if (camera.fov !== LENS) { camera.fov = LENS; camera.updateProjectionMatrix(); }
+    if (stage === 'piece') view1st(focus); // arriving in front of a piece counts as viewing it
+  }
+
+  // ---- The ride ----------------------------------------------------------------------------------------
+  // A line is ridden like a roller coaster track: the camera drops onto the rail where it was clicked,
+  // sitting just above it and looking down it, gathers speed along it toward the piece, then brakes and
+  // swings off the end round into its seat in front of the piece.
+  const RIDE_HEIGHT = 2.5, RIDE_SPEED = 0.16; // how high above the rail, and the rail's length covered per millisecond at full speed
+  const ahead = new THREE.Vector3(), lift = new THREE.Vector3(), lookAt = new THREE.Vector3();
+  function ride(now, smooth, stage) {
+    if (!fly.curve) {
+      const { start, end } = fly.track;
+      ahead.copy(end).sub(start);
+      const length = ahead.length();
+      ahead.normalize();
+      // Up for the rider is the camera's own up, squared to the rail.
+      lift.set(0, 1, 0).applyQuaternion(fly.quaternion).addScaledVector(ahead, -lift.dot(ahead));
+      if (lift.lengthSq() < 1e-4) lift.set(0, 0, 1).addScaledVector(ahead, -ahead.z);
+      lift.normalize();
+      // The rail runs out about as far from the piece as the seat is, where the camera swings round into it.
+      const rail = Math.max(0, length - seat.position.distanceTo(end));
+      const steps = Math.max(1, Math.round(rail / 25));
+      const points = [fly.position.clone()];
+      for (let step = 0; step <= steps; step++)
+        points.push(start.clone().addScaledVector(ahead, rail * step / steps).addScaledVector(lift, RIDE_HEIGHT));
+      points.push(seat.position.clone());
+      const kept = points.filter((point, index) => index === 0 || point.distanceTo(points[index - 1]) > 0.5);
+      fly.curve = new THREE.CatmullRomCurve3(kept, false, 'centripetal');
+      fly.lift = lift.clone();
+      const total = fly.curve.getLength(), board = fly.position.distanceTo(start), off = seat.position.distanceTo(points[points.length - 2]);
+      fly.on = Math.min(0.9, board / total); // how far along the way the rail is reached
+      fly.off = Math.max(fly.on, 1 - off / total); // and left
+      fly.duration = 1300 + rail / RIDE_SPEED + 1100;
+    }
+    // Speed builds steadily the whole way to the end of the rail, then brakes over the swing into the seat,
+    // with no jolt between the two.
+    const t = Math.min(1, (now - fly.start) / fly.duration), turnOver = 0.78;
+    const s = t < turnOver ? t * t / turnOver : 1 - (1 - t) * (1 - t) / (1 - turnOver);
+    fly.curve.getPointAt(s, camera.position);
+    // Eyes on the track a little way ahead, and a gentle sway from side to side once on the rail.
+    fly.curve.getPointAt(Math.min(1, s + 0.035), lookAt);
+    if (lookAt.distanceToSquared(camera.position) < 1e-6) lookAt.copy(camera.position).add(ahead);
+    const onRail = smooth((s - fly.on * 0.6) / (fly.on * 0.4 + 0.02)) * (1 - smooth((s - fly.off) / (1 - fly.off + 1e-3)));
+    up.copy(fly.lift).applyAxisAngle(spot.copy(lookAt).sub(camera.position).normalize(), Math.sin(t * 9) * 0.05 * onRail);
+    const rider = turned.setFromRotationMatrix(look.lookAt(camera.position, lookAt, up));
+    camera.quaternion.copy(fly.quaternion)
+      .slerp(rider, smooth(s / (fly.on * 0.7 + 0.03)))
+      .slerp(seat.quaternion, smooth((s - fly.off - (1 - fly.off) * 0.2) / ((1 - fly.off) * 0.8 + 1e-3)));
+    // The view widens a touch with speed.
+    const speed = t < turnOver ? t / turnOver : (1 - t) / (1 - turnOver);
+    camera.fov = LENS + 14 * speed * speed * onRail;
+    camera.updateProjectionMatrix();
+    if (t === 1) land(stage);
+  }
+
   // ---- Frame -------------------------------------------------------------------------------------------
   let last = performance.now();
   function frame(now) {
@@ -526,32 +584,12 @@
     findSeat(stage);
     if (fly) {
       const smooth = value => { const x = Math.max(0, Math.min(1, value)); return x * x * (3 - 2 * x); };
-      const t = Math.min(1, (now - fly.start) / (fly.via ? 3200 : 1400)), eased = smooth(t);
-      if (!fly.via) {
+      if (!fly.track) {
+        const t = Math.min(1, (now - fly.start) / 1400), eased = smooth(t);
         camera.position.lerpVectors(fly.position, seat.position, eased);
         camera.quaternion.copy(fly.quaternion).slerp(seat.quaternion, eased);
-      } else {
-        // By way of a line, in one sweep: out to the clicked point, round onto the line and down it to the piece.
-        if (!fly.curve) {
-          fly.curve = new THREE.CatmullRomCurve3([fly.position, fly.via, seat.position.clone()], false, 'centripetal');
-          const first = fly.position.distanceTo(fly.via);
-          fly.meet = Math.max(0.05, first / (first + fly.via.distanceTo(seat.position))); // how far along the way the line is met
-          fly.face = new THREE.Quaternion().setFromRotationMatrix(look.lookAt(fly.position, fly.via, up.set(0, 1, 0)));
-        }
-        fly.curve.getPointAt(eased, camera.position);
-        // The camera first turns to face the clicked point and holds that. Nearing the line it starts to turn
-        // slowly toward the piece, and squares up to it over the last of the way.
-        const meet = fly.meet, rest = 1 - meet;
-        const toward = turned.setFromRotationMatrix(look.lookAt(camera.position, centre, up.set(0, 1, 0)));
-        camera.quaternion.copy(fly.quaternion)
-          .slerp(fly.face, smooth(eased / (meet * 0.4)))
-          .slerp(toward, smooth((eased - meet * 0.7) / (meet * 0.3 + rest * 0.5)))
-          .slerp(seat.quaternion, smooth((eased - meet - rest * 0.55) / (rest * 0.45)));
-      }
-      if (t === 1) {
-        fly = null;
-        if (stage === 'piece') view1st(focus); // arriving in front of a piece counts as viewing it
-      }
+        if (t === 1) land(stage);
+      } else ride(now, smooth, stage);
     } else {
       camera.position.copy(seat.position);
       camera.quaternion.copy(seat.quaternion);
