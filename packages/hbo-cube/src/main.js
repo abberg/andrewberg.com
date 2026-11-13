@@ -525,8 +525,13 @@ THREE.ColorManagement.enabled = false;
     return started;
   }
   const nearView = () => (focus === hub ? 'cube' : 'piece');
+  // The cube's film plays only while the cube is the piece chosen. Choosing another pauses it, and coming
+  // back to the cube starts it again if it was playing when the camera left.
+  let resume = false;
   function flyTo(item, track) {
     unglow(item);
+    if (item !== hub && focus === hub) { resume = !video.paused; video.pause(); }
+    else if (item === hub && focus !== hub && resume) { resume = false; video.play().catch(() => {}); }
     if (item !== hub) {
       // Face the side of the piece that the camera is already on.
       item.card.getWorldPosition(centre);
