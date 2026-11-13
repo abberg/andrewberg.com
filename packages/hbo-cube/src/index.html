@@ -4,6 +4,10 @@
 <meta charset="utf-8">
 <title>Story Cube — Andrew Berg</title>
 <link rel="icon" href="data:,">
+<link rel="preload" as="image" href="assets/hand-open-2.svg">
+<link rel="preload" as="image" href="assets/hand-closed-2.svg">
+<link rel="preload" as="image" href="assets/hand-open-4.svg">
+<link rel="preload" as="image" href="assets/hand-closed-4.svg">
 <meta name="description" content="A recreation of the HBO Imagine story cube: one looping scene seen from four sides.">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
@@ -14,8 +18,7 @@
     radial-gradient(60% 55% at 30% 30%, #1d1d1f 0%, transparent 70%),
     radial-gradient(50% 60% at 78% 62%, #18181a 0%, transparent 70%),
     radial-gradient(90% 80% at 50% 50%, #101011 0%, #070708 100%); }
-  .gl { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: pan-y; cursor: grab; user-select: none; -webkit-user-select: none; outline: none; }
-  .gl.dragging { cursor: grabbing; }
+  .gl { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: pan-y; user-select: none; -webkit-user-select: none; outline: none; }
   .gl:focus-visible { outline: 1px solid #ffffff55; outline-offset: -1px; }
   button { display: inline-grid; place-items: center; grid-auto-flow: column; gap: 8px; margin: 0; padding: 0; border: 0; background: none; color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; }
   button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
@@ -72,20 +75,14 @@
   .map .close:hover { color: #fff; }
   .spin, .controls { transition: opacity .4s; }
   .app[data-stage="away"] .spin, .app[data-stage="away"] .controls { opacity: 0; pointer-events: none; }
-  .gl.pick { cursor: pointer; }
+  /* The cursor is a hand, open and closed while dragging, with a triangle either side over the cube, and
+     above and below as well pulled back, where a drag looks up and down too. The hot spot is the middle. */
+  .gl { cursor: url('assets/hand-open-2.svg') 24 24, grab; }
+  .gl.dragging { cursor: url('assets/hand-closed-2.svg') 24 24, grabbing; }
+  .app[data-view="universe"] .gl { cursor: url('assets/hand-open-4.svg') 24 24, grab; }
+  .app[data-view="universe"] .gl.dragging { cursor: url('assets/hand-closed-4.svg') 24 24, grabbing; }
+  .app[data-view] .gl.pick { cursor: pointer; }
   .app[data-view="piece"] .gl { cursor: default; }
-
-  /* Triangles that sit round the hand cursor while it is over the cube: one either side. */
-  .arrows { position: absolute; left: 0; top: 0; width: 0; height: 0; opacity: 0; pointer-events: none; transition: opacity .15s; z-index: 4; }
-  .arrows.show { opacity: 1; }
-  .arrows i { position: absolute; top: -5px; border: 5px solid transparent; filter: drop-shadow(0 0 2px #000); }
-  .arrows i:first-child { right: 15px; border-right: 7px solid #fff; border-left: 0; }
-  .arrows i:nth-child(2) { left: 15px; border-left: 7px solid #fff; border-right: 0; }
-  /* Pulled back, a drag looks up and down as well, so two more join them above and below. */
-  .arrows i:nth-child(n+3) { display: none; left: -5px; }
-  .app[data-view="universe"] .arrows i:nth-child(n+3) { display: block; }
-  .arrows i:nth-child(3) { top: auto; bottom: 15px; border-bottom: 7px solid #fff; border-top: 0; }
-  .arrows i:nth-child(4) { top: 15px; border-top: 7px solid #fff; border-bottom: 0; }
   .fallback { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; padding: 24px; text-align: center; }
   video { display: none; }
 
@@ -132,7 +129,6 @@
   </div>
 
   <div class="map" hidden></div>
-  <div class="arrows" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
 </div>
 <video muted loop playsinline preload="auto">
   <source src="gallery.mp4" type="video/mp4">

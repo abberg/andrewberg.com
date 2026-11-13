@@ -153,17 +153,6 @@
     drag.samples.push([performance.now(), turn]);
     if (drag.samples.length > 8) drag.samples.shift();
   });
-  // The triangles follow a mouse, which has a cursor to sit beside; touch and pen have none.
-  const arrows = document.querySelector('.arrows');
-  const follow = event => {
-    if (event.pointerType !== 'mouse' || (view !== 'cube' && view !== 'universe') || canvas.classList.contains('pick')) { arrows.classList.remove('show'); return; }
-    const box = app.getBoundingClientRect();
-    arrows.style.transform = `translate(${event.clientX - box.left}px, ${event.clientY - box.top}px)`;
-    arrows.classList.add('show');
-  };
-  canvas.addEventListener('pointerenter', follow);
-  canvas.addEventListener('pointermove', follow);
-  canvas.addEventListener('pointerleave', () => arrows.classList.remove('show'));
   const release = () => {
     if (!drag) return;
     canvas.classList.remove('dragging');
@@ -526,7 +515,6 @@
     app.dataset.view = view;
     app.dataset.stage = stage === 'cube' ? 'cube' : 'away';
     map.hidden = view !== 'map';
-    arrows.classList.remove('show');
     canvas.classList.remove('pick');
     viewButtons.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.view === view)));
     return started;
