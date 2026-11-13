@@ -439,7 +439,8 @@
       // Fly whenever the place to be has changed, and start each flight looking straight at the piece.
       const place = `${next}:${ITEMS.indexOf(focus)}`;
       if (place !== flown) {
-        fly = { position: camera.position.clone(), quaternion: camera.quaternion.clone(), start: performance.now() };
+        // A flight that sets off with the lines showing keeps them until it lands.
+        fly = { position: camera.position.clone(), quaternion: camera.quaternion.clone(), start: performance.now(), lines: zoom > 0.5 };
         yaw = pitch = 0;
         flown = place;
       }
@@ -505,7 +506,7 @@
 
     // The lines of the web come up as the camera pulls back.
     const stage = view === 'map' ? under : view;
-    zoom = Math.max(0, Math.min(1, zoom + (stage === 'universe' ? 1 : -1) * elapsed / 1200));
+    zoom = Math.max(0, Math.min(1, zoom + (stage === 'universe' || (fly && fly.lines) ? 1 : -1) * elapsed / 1200));
     lines.visible = zoom > 0;
     thread.opacity = 0.22 * zoom * zoom * (3 - 2 * zoom);
     // The camera sits in its seat, or is on its way there from wherever it was when the flight began.
