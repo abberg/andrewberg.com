@@ -514,33 +514,15 @@
     if (stage === 'piece') view1st(focus); // arriving in front of a piece counts as viewing it
   }
 
-  // ---- The gaze ----------------------------------------------------------------------------------------
-  // In flight, where the camera is and where it looks are kept apart, like a camera on a gimbal. The
-  // flight moves the body; the eyes are a direction that eases after whatever they are meant to be looking at,
-  // so they trail a turn a little. It is critically damped: it never overshoots or wobbles.
-  const GAZE_RATE = 4.5, GAZE_DAMPING = 1; // how quickly the eyes catch up; 1 means no overshoot
-  const gaze = new THREE.Vector3(0, 0, -1), gazeVelocity = new THREE.Vector3(), wanted = new THREE.Vector3();
-  function aim(toward, dt) {
-    wanted.copy(toward).normalize();
-    // In two half steps, so a slow frame cannot throw the spring.
-    for (let step = 0; step < 2; step++) {
-      const h = dt / 2;
-      gazeVelocity.addScaledVector(wanted.clone().sub(gaze), GAZE_RATE * GAZE_RATE * h)
-        .multiplyScalar(Math.max(0, 1 - 2 * GAZE_DAMPING * GAZE_RATE * h));
-      gaze.addScaledVector(gazeVelocity, h).normalize();
-    }
-  }
-  function face(upward) {
-    camera.quaternion.setFromRotationMatrix(look.lookAt(camera.position, spot.copy(camera.position).add(gaze), upward));
-  }
-
   // ---- The ride ----------------------------------------------------------------------------------------
   // A line is ridden like a roller coaster track: the camera drops onto the rail where it was clicked,
   // sitting just above it and looking down it, gathers speed along it toward the piece, then brakes and
-  // swings off the end round into its seat in front of the piece.
+  // swings off the end round into its seat in front of the piece. The camera's rotation is one quaternion,
+  // slerped from its rotation at the click onto the rider's (looking down the track), and from that onto
+  // the seat's over the swing at the end.
   const RIDE_HEIGHT = 2.5, RIDE_SPEED = 0.16; // how high above the rail, and the rail's length covered per millisecond at full speed
   const ahead = new THREE.Vector3(), lift = new THREE.Vector3(), lookAt = new THREE.Vector3();
-  function ride(now, smooth, stage, dt) {
+  function ride(now, smooth, stage) {
     if (!fly.curve) {
       const { start, end } = fly.track;
       ahead.copy(end).sub(start);
@@ -570,18 +552,18 @@
     const t = Math.max(0, Math.min(1, (now - fly.start) / fly.duration)), turnOver = 0.78;
     const s = t < turnOver ? t * t / turnOver : 1 - (1 - t) * (1 - t) / (1 - turnOver);
     fly.curve.getPointAt(s, camera.position);
-    // Eyes on the track a little way ahead, and a gentle sway from side to side once on the rail.
+    // The rider's rotation: eyes on the track a little way ahead, with a gentle sway from side to side
+    // while on the rail.
     fly.curve.getPointAt(Math.min(1, s + 0.035), lookAt);
     if (lookAt.distanceToSquared(camera.position) < 1e-6) lookAt.copy(camera.position).add(ahead);
-    // Swinging off the end of the rail, the eyes move from the track onto the piece.
-    const swing = smooth((s - fly.off) / (1 - fly.off + 1e-3));
-    lookAt.sub(camera.position).normalize().lerp(spot.copy(centre).sub(camera.position).normalize(), swing);
-    aim(lookAt, dt);
+    const swing = smooth((s - fly.off) / (1 - fly.off + 1e-3)); // swinging off the end of the rail into the seat
     const onRail = smooth((s - fly.on * 0.6) / (fly.on * 0.4 + 0.02)) * (1 - swing);
-    // Up turns gradually from where it was when the flight set off to the rider's up, so nothing rolls with a jump.
-    up.set(0, 1, 0).applyQuaternion(fly.quaternion).lerp(fly.lift, smooth(s / (fly.on + 0.02))).normalize();
-    face(up.applyAxisAngle(gaze, Math.sin(t * 9) * 0.05 * onRail));
-    camera.quaternion.slerp(seat.quaternion, smooth((s - fly.off - (1 - fly.off) * 0.2) / ((1 - fly.off) * 0.8 + 1e-3)));
+    up.copy(fly.lift).applyAxisAngle(spot.copy(lookAt).sub(camera.position).normalize(), Math.sin(t * 9) * 0.05 * onRail);
+    const rider = turned.setFromRotationMatrix(look.lookAt(camera.position, lookAt, up));
+    // From the rotation at the click onto the rider's over the way to the rail, then onto the seat's.
+    camera.quaternion.copy(fly.quaternion)
+      .slerp(rider, smooth(s / (fly.on * 0.7 + 0.03)))
+      .slerp(seat.quaternion, swing);
     // The view widens a touch with speed.
     const speed = t < turnOver ? t / turnOver : (1 - t) / (1 - turnOver);
     camera.fov = LENS + 14 * speed * speed * onRail;
@@ -610,24 +592,18 @@
     scene.updateMatrixWorld();
     findSeat(stage);
     if (fly) {
-      const dt = elapsed / 1000;
       const smooth = value => { const x = Math.max(0, Math.min(1, value)); return x * x * (3 - 2 * x); };
       if (!fly.track) {
         const t = Math.max(0, Math.min(1, (now - fly.start) / 1400)), eased = smooth(t);
         camera.position.lerpVectors(fly.position, seat.position, eased);
-        aim(spot.copy(centre).sub(camera.position), dt);
-        // Up eases from the camera's own at the moment of the click, so the first frame is that same view.
-        face(lookAt.set(0, 1, 0).applyQuaternion(fly.quaternion).lerp(up, eased).normalize());
-        camera.quaternion.slerp(seat.quaternion, smooth((t - 0.6) / 0.4)); // settled into the seat by the end
+        camera.quaternion.copy(fly.quaternion).slerp(seat.quaternion, eased); // from the rotation at the click
         if (t === 1) land(stage);
-      } else ride(now, smooth, stage, dt);
+      } else ride(now, smooth, stage);
     } else {
-      // At rest the camera sits in its seat and a drag turns it directly. The eyes are kept wherever it
-      // faces, so the next flight sets off from exactly where the look was left.
+      // At rest the camera sits in its seat, and a drag turns it directly. A flight sets off from whatever
+      // position and rotation that leaves it with.
       camera.position.copy(seat.position);
       camera.quaternion.copy(seat.quaternion);
-      gaze.set(0, 0, -1).applyQuaternion(camera.quaternion);
-      gazeVelocity.set(0, 0, 0);
     }
 
     renderer.render(scene, camera);
