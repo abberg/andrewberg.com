@@ -410,13 +410,21 @@
     let best = null;
     const halfW = box.width / 2, halfH = box.height / 2, px = pointer.x * halfW, py = pointer.y * halfH;
     for (let index = 0; index < ends.length; index += 2) {
-      endA.copy(ends[index].place).applyMatrix4(universe.matrixWorld).project(camera);
-      endB.copy(ends[index + 1].place).applyMatrix4(universe.matrixWorld).project(camera);
-      if (endA.z > 1 || endB.z > 1) continue; // behind the camera
+      // In the camera's own space, where it looks down -z. A line that runs off behind the camera is cut
+      // where it passes the camera, so the part still in view can be clicked.
+      endA.copy(ends[index].place).applyMatrix4(universe.matrixWorld).applyMatrix4(camera.matrixWorldInverse);
+      endB.copy(ends[index + 1].place).applyMatrix4(universe.matrixWorld).applyMatrix4(camera.matrixWorldInverse);
+      const front = -camera.near;
+      if (endA.z > front && endB.z > front) continue;
+      let start = 0, end = 1;
+      if (endA.z > front) { start = (front - endA.z) / (endB.z - endA.z); endA.lerp(endB, start); }
+      else if (endB.z > front) { end = (front - endA.z) / (endB.z - endA.z); endB.lerpVectors(endA, endB, end); }
+      endA.applyMatrix4(camera.projectionMatrix);
+      endB.applyMatrix4(camera.projectionMatrix);
       const ax = endA.x * halfW, ay = endA.y * halfH, bx = endB.x * halfW - ax, by = endB.y * halfH - ay;
       const along = Math.max(0, Math.min(1, ((px - ax) * bx + (py - ay) * by) / (bx * bx + by * by || 1)));
       const gap = Math.hypot(ax + bx * along - px, ay + by * along - py);
-      if (gap < 9 && (!best || gap < best.gap)) best = { gap, index, along };
+      if (gap < 9 && (!best || gap < best.gap)) best = { gap, index, along: start + along * (end - start) };
     }
     if (!best) return null;
     const from = ends[best.index], to = ends[best.index + 1];
