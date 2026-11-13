@@ -542,7 +542,7 @@
   const RIDE_RISE = 0.3, RIDE_FALL = 0.4, FLIGHT_RISE = 0.45, FLIGHT_FALL = 0.55;
   // How fast the camera should turn at most, in radians a second: onto a rail, and as it settles onto a piece
   // (before and after TURN_DELAY), and how much of the time left the final turn of a line ride is held back.
-  const BOARD_TURN = 1.2, SETTLE_TURN = 2, SETTLE_TURN_MOST = 2.5, TURN_DELAY = 0.25;
+  const BOARD_TURN = 2.2, BOARD_TURN_MOST = 3, SETTLE_TURN = 2, SETTLE_TURN_MOST = 2.5, TURN_DELAY = 0.25;
 
   // ---- The ride ----------------------------------------------------------------------------------------
   // A line is ridden like a roller coaster track: the camera drops onto the rail where it was clicked,
@@ -554,7 +554,10 @@
   // turns from the rider's to the seat's as it slows down. The approach, the
   // rail and the swing are one path, travelled by its length with a single ease in and out.
   const RIDE_HEIGHT = 2.5; // how high above the rail
-  const JOIN_TURN_START = 0.6, BOARD_END = 0.75; // when the turn down the rail starts, as a share of the way to it, and the latest it may end, as a share of the ride's time
+  // When the turn down the rail starts, and the soonest it may, as shares of the way to the rail; and the
+  // latest it may end, as a share of the ride's time.
+  const JOIN_TURN_START = 0.6, JOIN_TURN_EARLIEST = 0.35, BOARD_END = 0.75;
+  const RIDE_STRETCH = 0.3, RIDE_LONGEST = 6000; // how much the turns may lengthen a ride, and the longest a ride may be, in ms
   const ahead = new THREE.Vector3(), lift = new THREE.Vector3(), lookAt = new THREE.Vector3();
   function ride(now, smooth, stage) {
     if (!fly.curve) {
@@ -583,22 +586,30 @@
       const railFrom = spot.copy(start).addScaledVector(lift, RIDE_HEIGHT);
       fly.rider = new THREE.Quaternion().setFromRotationMatrix(look.lookAt(railFrom, lookAt.copy(railFrom).add(ahead), lift));
       const boardAngle = fly.quaternion.angleTo(fly.rider), settleAngle = fly.rider.angleTo(seat.quaternion);
-      fly.duration = rideTime(total, boardAngle + settleAngle);
-      // The turn onto the rail is done as the camera reaches it. The final turn would start as the camera
-      // starts to slow down or leaves the rail, whichever comes first, or earlier so it never turns faster
-      // than SETTLE_TURN; it is then held back by TURN_DELAY of the time left. The delay only gives way if
-      // the turn would then be faster than SETTLE_TURN_MOST, and if that is not enough the ride takes longer.
+      // The ride's own time comes from its length and turns. The turns may stretch it by RIDE_STRETCH at
+      // most, and never past RIDE_LONGEST, so the ride keeps its pace.
+      const own = rideTime(total, boardAngle + settleAngle), longest = Math.min(RIDE_LONGEST, own * (1 + RIDE_STRETCH));
+      fly.duration = Math.min(RIDE_LONGEST, own);
       const fastest = (angle, most) => 1.875 * angle / most * 1000; // smootherstep peaks at 1.875 times the mean
       // The turn down the rail starts once JOIN_TURN_START of the way to the rail is covered, and lasts long
-      // enough never to turn faster than BOARD_TURN, carrying on along the rail if need be. It must be done by
-      // BOARD_END of the ride, leaving room for the final turn: the ride takes longer if it would not be, and
-      // only if that is not enough does the turn start sooner.
-      const boardTime = Math.max(400, fastest(boardAngle, BOARD_TURN));
+      // enough not to turn faster than BOARD_TURN, carrying on along the rail if need be, and must be done by
+      // BOARD_END of the ride to leave room for the final turn. When it does not fit: the ride stretches as
+      // far as it may; then the turn may peak at up to BOARD_TURN_MOST; then it starts sooner, but never
+      // before JOIN_TURN_EARLIEST of the way to the rail.
+      const gentle = Math.max(400, fastest(boardAngle, BOARD_TURN)), brisk = Math.max(400, fastest(boardAngle, BOARD_TURN_MOST));
       fly.boardFrom = timeAt(fly.on * JOIN_TURN_START, RIDE_RISE, RIDE_FALL);
-      if (fly.boardFrom + boardTime / fly.duration > BOARD_END)
-        fly.duration = Math.min(12000, boardTime / Math.max(1e-3, BOARD_END - fly.boardFrom));
-      fly.boardFrom = Math.max(0, Math.min(fly.boardFrom, BOARD_END - boardTime / fly.duration));
-      fly.boarded = Math.min(BOARD_END, fly.boardFrom + boardTime / fly.duration);
+      if (fly.boardFrom + gentle / fly.duration > BOARD_END)
+        fly.duration = Math.min(longest, Math.max(fly.duration, gentle / Math.max(1e-3, BOARD_END - fly.boardFrom)));
+      let turnSpan = Math.min(gentle / fly.duration, BOARD_END - fly.boardFrom);
+      if (turnSpan < brisk / fly.duration) {
+        fly.boardFrom = Math.max(timeAt(fly.on * JOIN_TURN_EARLIEST, RIDE_RISE, RIDE_FALL), BOARD_END - brisk / fly.duration);
+        turnSpan = BOARD_END - fly.boardFrom;
+      }
+      fly.boarded = fly.boardFrom + turnSpan;
+      // The final turn would start as the camera starts to slow down or leaves the rail, whichever comes
+      // first, or earlier so it never turns faster than SETTLE_TURN; it is then held back by TURN_DELAY of the
+      // time left. The delay only gives way if the turn would then be faster than SETTLE_TURN_MOST, and if
+      // that is not enough the ride stretches, as far as it may.
       let settle = Math.max(fly.boarded, Math.min(1 - RIDE_FALL, timeAt(fly.off, RIDE_RISE, RIDE_FALL)));
       settle = Math.max(fly.boarded, Math.min(settle, 1 - fastest(settleAngle, SETTLE_TURN) / fly.duration));
       const base = settle;
@@ -606,7 +617,7 @@
       if ((1 - settle) * fly.duration < fastest(settleAngle, SETTLE_TURN_MOST))
         settle = Math.max(base, 1 - fastest(settleAngle, SETTLE_TURN_MOST) / fly.duration);
       fly.settle = settle;
-      fly.duration = Math.min(12000, Math.max(fly.duration, fastest(settleAngle, SETTLE_TURN_MOST) / (1 - fly.settle + 1e-6)));
+      fly.duration = Math.min(longest, Math.max(fly.duration, fastest(settleAngle, SETTLE_TURN_MOST) / (1 - fly.settle + 1e-6)));
       fly.roll = new THREE.Quaternion();
     }
     const t = Math.max(0, Math.min(1, (now - fly.start) / fly.duration));
