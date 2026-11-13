@@ -44,7 +44,7 @@ const { Content } = await render(project);
   {data.recreation && (
     <section class="recreation" aria-label="Recreation">
       <iframe src={`/sketches/${data.recreation}/`} title={`${data.title}, recreated`} loading="lazy" allowfullscreen></iframe>
-      <p class="mono">Recreated in the browser · <a href={`/sketches/${data.recreation}/`}>Open full screen ↗</a></p>
+      <p class="mono"><a href={`/sketches/${data.recreation}/`}>Open full screen ↗</a></p>
     </section>
   )}
 
