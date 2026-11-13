@@ -26,7 +26,6 @@ const advertising = defineCollection({
     }).optional(),
     // A film of the original work on YouTube.
     video: z.object({ youtube: z.string(), title: z.string(), caption: z.string() }).optional(),
-    credits: z.array(z.object({ role: z.string(), name: z.string() })).default([]),
     recognition: z.array(z.string()).default([]),
     press: z.array(z.object({ title: z.string(), source: z.string(), url: z.string().url() })).default([]),
   }),

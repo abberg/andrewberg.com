@@ -20,14 +20,6 @@ video:
   title: HBO Imagine case film
   caption: The campaign film, from The One Club for Creativity.
 summary: An interactive mystery centered on four-sided story cubes. Spin them to change angles mid-scene and watch every side for the full story, then unlock the bigger story from the content around them.
-credits:
-  - { role: Client, name: HBO }
-  - { role: Agency, name: BBDO New York }
-  - { role: Interactive, name: The Barbarian Group }
-  - { role: Director, name: Noam Murro }
-  - { role: Production, name: Biscuit Filmworks }
-  - { role: Visual effects, name: Animal Logic }
-  - { role: Editorial, name: Butcher Editorial }
 recognition:
   - Cannes Lions 2010, Bronze, Titanium and Integrated
   - Clio Awards 2010, Silver, Integrated Campaign
