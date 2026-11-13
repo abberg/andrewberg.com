@@ -100,16 +100,21 @@
     tween = { from: turn, to: next, start: performance.now(), duration, ease };
   }
 
-  let fit = 60, tanV = 0.36, tanH = 0.6; // how far back the camera sits in the cube view, and the half angles of its view
+  // The canvas fills the window, under the top bar and the bottom controls. Things are framed in the band
+  // between them: the view is shifted up so its centre is the band's, and fitted to the band's height.
+  const TOP_BAR = 36, BOTTOM_BAR = 106;
+  let fit = 60, tanV = 0.36, tanH = 0.6; // how far back the camera sits in the cube view, and the half angles of the band
   function resize() {
     const width = canvas.clientWidth, height = canvas.clientHeight;
     if (!width || !height) return;
     renderer.setSize(width, height, false);
     camera.aspect = width / height;
+    camera.setViewOffset(width, height, 0, (BOTTOM_BAR - TOP_BAR) / 2, width, height);
     // Back the camera off until the cube fits both face on and turned to a corner, where it is widest.
-    tanV = Math.tan(LENS * Math.PI / 360);
-    tanH = tanV * camera.aspect;
-    const v = tanV * 0.88, h = v * camera.aspect * 0.9;
+    const band = Math.max(0.3, (height - TOP_BAR - BOTTOM_BAR) / height);
+    tanV = Math.tan(LENS * Math.PI / 360) * band;
+    tanH = Math.tan(LENS * Math.PI / 360) * camera.aspect;
+    const v = tanV * 0.88, h = tanH * 0.88 * 0.9;
     fit = Math.max(RADIUS / h, RADIUS + Y / v, X + X / h);
     camera.updateProjectionMatrix();
   }

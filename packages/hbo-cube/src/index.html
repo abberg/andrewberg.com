@@ -14,7 +14,7 @@
     radial-gradient(60% 55% at 30% 30%, #1d1d1f 0%, transparent 70%),
     radial-gradient(50% 60% at 78% 62%, #18181a 0%, transparent 70%),
     radial-gradient(90% 80% at 50% 50%, #101011 0%, #070708 100%); }
-  .gl { position: absolute; left: 0; top: 36px; width: 100%; height: calc(100% - 36px - 106px); touch-action: pan-y; cursor: grab; user-select: none; -webkit-user-select: none; outline: none; }
+  .gl { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: pan-y; cursor: grab; user-select: none; -webkit-user-select: none; outline: none; }
   .gl.dragging { cursor: grabbing; }
   .gl:focus-visible { outline: 1px solid #ffffff55; outline-offset: -1px; }
   button { display: inline-grid; place-items: center; grid-auto-flow: column; gap: 8px; margin: 0; padding: 0; border: 0; background: none; color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; }
@@ -28,7 +28,7 @@
   .views button + button { border-left: 1px dotted #ffffff40; }
   .views button[aria-pressed="true"], .views button:hover { color: #fff; }
 
-  .spin { position: absolute; top: calc(36px + (100% - 142px) / 2); transform: translateY(-50%); z-index: 2; }
+  .spin { position: absolute; top: calc(36px + (100% - 142px) / 2); /* the middle of the band between the top bar and the bottom controls */ transform: translateY(-50%); z-index: 2; }
   .spin.left { left: 3.5%; }
   .spin.right { right: 3.5%; }
   .spin svg { width: 18px; height: 18px; stroke-width: 2.6; stroke-linecap: butt; }
