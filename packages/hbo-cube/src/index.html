@@ -14,7 +14,7 @@
     radial-gradient(60% 55% at 30% 30%, #1d1d1f 0%, transparent 70%),
     radial-gradient(50% 60% at 78% 62%, #18181a 0%, transparent 70%),
     radial-gradient(90% 80% at 50% 50%, #101011 0%, #070708 100%); }
-  .gl { position: absolute; left: 0; top: 36px; width: 100%; height: calc(100% - 36px - 84px); touch-action: pan-y; cursor: grab; user-select: none; -webkit-user-select: none; outline: none; }
+  .gl { position: absolute; left: 0; top: 36px; width: 100%; height: calc(100% - 36px - 106px); touch-action: pan-y; cursor: grab; user-select: none; -webkit-user-select: none; outline: none; }
   .gl.dragging { cursor: grabbing; }
   .gl:focus-visible { outline: 1px solid #ffffff55; outline-offset: -1px; }
   button { display: inline-grid; place-items: center; grid-auto-flow: column; gap: 8px; margin: 0; padding: 0; border: 0; background: none; color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; }
@@ -28,23 +28,26 @@
   .views button + button { border-left: 1px dotted #ffffff40; }
   .views button[aria-pressed="true"], .views button:hover { color: #fff; }
 
-  .spin { position: absolute; top: calc(36px + (100% - 120px) / 2); transform: translateY(-50%); z-index: 2; }
+  .spin { position: absolute; top: calc(36px + (100% - 142px) / 2); transform: translateY(-50%); z-index: 2; }
   .spin.left { left: 3.5%; }
   .spin.right { right: 3.5%; }
   .spin svg { width: 18px; height: 18px; stroke-width: 2.6; stroke-linecap: butt; }
   .spin polygon { fill: currentColor; stroke: none; }
 
-  .controls { position: absolute; left: 50%; bottom: 28px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 7px; white-space: nowrap; z-index: 2; }
+  .controls { position: absolute; left: 50%; bottom: 52px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 7px; white-space: nowrap; z-index: 2; }
   .controls .play svg { fill: currentColor; stroke: none; }
   .time { font-variant-numeric: tabular-nums; }
 
-  .unlock { position: absolute; left: 50%; bottom: 6px; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; white-space: nowrap; }
-  .tagline { position: relative; font-size: 12px; letter-spacing: .14em; color: #3a3a3c; }
-  .tagline .lit { position: absolute; inset: 0 auto 0 0; width: 0; overflow: hidden; color: #fff; text-shadow: 0 0 8px #fffc; transition: width .9s ease; }
-  .meter { position: relative; width: 84px; height: 8px; border-bottom: 1px dotted #ffffff66; }
-  .meter i { position: absolute; left: 0; bottom: -1px; height: 1px; width: 0; background: #fff; box-shadow: 0 0 6px #fff; transition: width .9s ease; }
+  /* The tagline is the meter: it is revealed up to the unlocked share, and the rest is a dotted line. */
+  .unlock { --p: 0%; position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); white-space: nowrap; font-size: 12px; letter-spacing: .16em; }
+  .tagline { display: block; color: transparent; }
+  .tagline .lit { position: absolute; inset: 0; color: #fff; text-shadow: 0 0 7px #cfe8ffcc, 0 0 2px #fff; clip-path: inset(-12px calc(100% - var(--p)) -12px -12px); transition: clip-path .9s ease; }
+  .unlock .rest { position: absolute; left: calc(var(--p) + 3px); right: 0; top: 62%; border-top: 1px dotted #ffffffb3; transition: left .9s ease; }
+  .unlock .rest::after { content: ''; position: absolute; right: -1px; top: -2px; width: 3px; height: 3px; border-radius: 50%; background: #fff; }
+  .percent { position: absolute; left: var(--p); bottom: calc(100% + 5px); transform: translateX(-50%); font-size: 10px; letter-spacing: .04em; transition: left .9s ease; }
+  .percent::after { content: ''; position: absolute; left: 50%; top: calc(100% + 1px); height: 5px; border-left: 1px solid #fff; }
 
-  .map { position: absolute; inset: 36px 0 84px; display: grid; place-items: center; background: #070708eb; z-index: 3; }
+  .map { position: absolute; inset: 36px 0 106px; display: grid; place-items: center; background: #070708eb; z-index: 3; }
   .map[hidden] { display: none; }
   .map svg { width: auto; height: 100%; max-width: 100%; stroke-width: .12; }
   .map .room { stroke: #55555a; }
@@ -69,7 +72,8 @@
   video { display: none; }
 
   @media (max-width: 560px) {
-    .spin span, .tagline { display: none; }
+    .spin > span:not(.tile) { display: none; }
+    .unlock { font-size: 10px; letter-spacing: .1em; }
     .spin.left { left: 4px; } .spin.right { right: 4px; }
     .tile { width: 30px; height: 30px; }
     .controls { gap: 8px; }
@@ -105,9 +109,9 @@
   </div>
 
   <div class="unlock" role="status">
-    <span class="tagline" aria-hidden="true"><span class="lit">It&rsquo;s more than you imagined</span>It&rsquo;s more than you imagined</span>
+    <span class="tagline" aria-hidden="true">It&rsquo;s more than you imagined<span class="lit">It&rsquo;s more than you imagined</span></span>
+    <span class="rest" aria-hidden="true"></span>
     <span class="percent">0% unlocked</span>
-    <span class="meter" aria-hidden="true"><i></i></span>
   </div>
 
   <div class="map" hidden></div>

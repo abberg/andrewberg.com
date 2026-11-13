@@ -190,11 +190,12 @@
   const STORE = 'story-cube-seen';
   const seen = new Set();
   try { for (const index of JSON.parse(localStorage.getItem(STORE) || '[]')) if (index >= 0 && index < 4) seen.add(index); } catch (error) { /* no storage */ }
-  const percent = document.querySelector('.percent'), lit = document.querySelector('.lit'), meter = document.querySelector('.meter i');
+  // The whole story was never on the cube alone: the last fifth stays locked, as the hidden final film was.
+  const meter = document.querySelector('.unlock'), percent = document.querySelector('.percent');
   function showUnlocked() {
-    const share = seen.size / 4;
-    percent.textContent = `${share * 100}% unlocked`;
-    lit.style.width = meter.style.width = `${share * 100}%`;
+    const share = seen.size * 20;
+    percent.textContent = `${share}% unlocked`;
+    meter.style.setProperty('--p', `${share}%`);
   }
   function unlock(index) {
     if (seen.has(index)) return;
