@@ -155,7 +155,7 @@
     canvas.classList.remove('dragging');
     // A click, rather than a drag, flies to whatever piece is under it.
     const picked = drag.moved ? null : pick(drag.x, drag.y);
-    if (picked) { if (picked.via) perchAt(picked.via, picked.item); else flyTo(picked.item); }
+    if (picked) flyTo(picked.item, picked.via);
     if (drag.gaze) { drag = null; return; }
     // A throw carries on in the direction it was going: the speed over the last moments of the drag
     // decides how many stops further the cube travels before it settles.
@@ -388,7 +388,7 @@
   // ---- Picking -----------------------------------------------------------------------------------------
   // A click lands on a piece, or on a line. A line leads to whichever of its two pieces has not been viewed,
   // or to the nearer one when both or neither have. The camera flies to the clicked point on the line and
-  // stops there, still facing the way it came.
+  // on down it to that piece without stopping.
   const raycaster = new THREE.Raycaster(), pointer = new THREE.Vector2(), spot = new THREE.Vector3();
   const endA = new THREE.Vector3(), endB = new THREE.Vector3();
   const cards = ITEMS.slice(1).map(item => item.card);
@@ -432,7 +432,7 @@
   // The camera always faces one piece, the focus: the cube to begin with. 'cube' and 'piece' sit close to it,
   // 'universe' pulls back from it, and 'map' lays the flat sheet over whichever of those was showing.
   const viewButtons = [...document.querySelectorAll('.views [data-view]')];
-  let focus = hub, under = 'cube', flown = 'cube:0', fly = null, perch = null;
+  let focus = hub, under = 'cube', flown = 'cube:0', fly = null;
   function setView(next) {
     if (next === 'map') { if (view !== 'map') under = view; }
     else {
@@ -442,7 +442,6 @@
         fly = { position: camera.position.clone(), quaternion: camera.quaternion.clone(), start: performance.now() };
         yaw = pitch = 0;
         flown = place;
-        perch = null;
       }
     }
     view = next;
@@ -455,7 +454,7 @@
     viewButtons.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.view === view)));
   }
   const nearView = () => (focus === hub ? 'cube' : 'piece');
-  function flyTo(item) {
+  function flyTo(item, via) {
     if (item !== hub) {
       // Face the side of the piece that the camera is already on.
       item.card.getWorldPosition(centre);
@@ -464,27 +463,13 @@
     }
     focus = item;
     setView(nearView());
-  }
-  // A perch is a seat out on a line, at the point where it was clicked. The camera turns to face that point
-  // and keeps facing the same way as it travels there. The piece the line leads to becomes the focus, so
-  // flying in from the perch carries on to it.
-  function perchAt(via, item) {
-    focus = item;
-    perch = { position: via, quaternion: new THREE.Quaternion().setFromRotationMatrix(look.lookAt(camera.position, via, up.set(0, 1, 0))) };
-    fly = { position: camera.position.clone(), quaternion: camera.quaternion.clone(), start: performance.now() };
-    yaw = pitch = 0;
-    flown = `perch:${ITEMS.indexOf(item)}`;
+    if (fly && via) fly.via = via; // by way of the line that was clicked
   }
   // Where the camera belongs: in front of the focus, square to it, further back in the universe.
   const centre = new THREE.Vector3(), normal = new THREE.Vector3(), up = new THREE.Vector3();
   const facing = new THREE.Quaternion(), look = new THREE.Matrix4(), turned = new THREE.Quaternion(), euler = new THREE.Euler();
   const seat = { position: new THREE.Vector3(), quaternion: new THREE.Quaternion() };
   function findSeat(stage) {
-    if (perch && stage === 'universe') {
-      seat.position.copy(perch.position);
-      seat.quaternion.copy(perch.quaternion).multiply(turned.setFromEuler(euler.set(pitch, yaw, 0, 'YXZ')));
-      return;
-    }
     let distance = fit;
     if (focus === hub) { centre.set(0, 0, 0); normal.set(0, 0, 1); up.set(0, 1, 0); }
     else {
@@ -527,9 +512,29 @@
     scene.updateMatrixWorld();
     findSeat(stage);
     if (fly) {
-      const t = Math.min(1, (now - fly.start) / 1400), eased = t * t * (3 - 2 * t);
-      camera.position.lerpVectors(fly.position, seat.position, eased);
-      camera.quaternion.copy(fly.quaternion).slerp(seat.quaternion, eased);
+      const smooth = value => { const x = Math.max(0, Math.min(1, value)); return x * x * (3 - 2 * x); };
+      const t = Math.min(1, (now - fly.start) / (fly.via ? 3200 : 1400)), eased = smooth(t);
+      if (!fly.via) {
+        camera.position.lerpVectors(fly.position, seat.position, eased);
+        camera.quaternion.copy(fly.quaternion).slerp(seat.quaternion, eased);
+      } else {
+        // By way of a line, in one sweep: out to the clicked point, round onto the line and down it to the piece.
+        if (!fly.curve) {
+          fly.curve = new THREE.CatmullRomCurve3([fly.position, fly.via, seat.position.clone()], false, 'centripetal');
+          const first = fly.position.distanceTo(fly.via);
+          fly.meet = Math.max(0.05, first / (first + fly.via.distanceTo(seat.position))); // how far along the way the line is met
+          fly.face = new THREE.Quaternion().setFromRotationMatrix(look.lookAt(fly.position, fly.via, up.set(0, 1, 0)));
+        }
+        fly.curve.getPointAt(eased, camera.position);
+        // The camera first turns to face the clicked point and holds that. Nearing the line it starts to turn
+        // slowly toward the piece, and squares up to it over the last of the way.
+        const meet = fly.meet, rest = 1 - meet;
+        const toward = turned.setFromRotationMatrix(look.lookAt(camera.position, centre, up.set(0, 1, 0)));
+        camera.quaternion.copy(fly.quaternion)
+          .slerp(fly.face, smooth(eased / (meet * 0.4)))
+          .slerp(toward, smooth((eased - meet * 0.7) / (meet * 0.3 + rest * 0.5)))
+          .slerp(seat.quaternion, smooth((eased - meet - rest * 0.55) / (rest * 0.45)));
+      }
       if (t === 1) {
         fly = null;
         if (stage === 'piece') view1st(focus); // arriving in front of a piece counts as viewing it
