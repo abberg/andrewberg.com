@@ -410,8 +410,8 @@
       item.play.visible = false;
       card.add(item.play);
     }
-    item.glow = item.kind === 'cube' ? glowFor(18, 11) : glowFor(item.width, item.height);
-    card.add(item.glow);
+    // Every piece of content glows until it is chosen; the other cube is not content, so it does not.
+    if (item.kind !== 'cube') { item.glow = glowFor(item.width, item.height); card.add(item.glow); }
     card.userData.item = item;
     item.card = card;
     card.position.copy(place);

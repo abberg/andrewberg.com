@@ -58,7 +58,7 @@
   .plan .item { position: absolute; display: block; border: 1px solid #5a5a54; background: #070708; overflow: hidden; cursor: pointer; }
   .plan .item:hover, .plan .item:focus-visible { border-color: #fff; }
   /* Content not yet chosen glows; the glow goes the moment it is chosen. */
-  .plan .item:not(.chosen):not(.open) { box-shadow: 0 0 10px 2px rgba(223, 238, 255, .22), 0 0 24px 6px rgba(223, 238, 255, .09); }
+  .plan .item:not(.chosen):not(.open):not(.cube) { box-shadow: 0 0 10px 2px rgba(223, 238, 255, .22), 0 0 24px 6px rgba(223, 238, 255, .09); }
   .plan .viewed { border-color: #b4b4ac; }
   .plan .video.viewed, .plan .cube.viewed { background: #2a2a2e; }
   .plan .video.viewed::after { content: ''; position: absolute; left: 50%; top: 50%; transform: translate(-35%, -50%); border: 5px solid transparent; border-left: 8px solid #fff; border-right: 0; }
