@@ -154,7 +154,7 @@
     canvas.classList.remove('dragging');
     // A click, rather than a drag, flies to whatever piece is under it.
     const picked = drag.moved ? null : pick(drag.x, drag.y);
-    if (picked) flyTo(picked);
+    if (picked) flyTo(picked.item, picked.via);
     if (drag.gaze) { drag = null; return; }
     // A throw carries on in the direction it was going: the speed over the last moments of the drag
     // decides how many stops further the cube travels before it settles.
@@ -376,7 +376,7 @@
   });
   for (const index of stored(PIECES)) if (index > 0 && index < ITEMS.length) { viewed.add(ITEMS[index]); reveal(ITEMS[index]); }
   // An unseen box round the cube, generous enough to click when the cube is small.
-  const reach = new THREE.Mesh(new THREE.BoxGeometry(46, 34, 46), new THREE.MeshBasicMaterial({ visible: false }));
+  const reach = new THREE.Mesh(new THREE.BoxGeometry(24, 16, 24), new THREE.MeshBasicMaterial({ visible: false }));
   scene.add(reach);
   const lines = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(threads), thread);
   lines.visible = false;
@@ -385,9 +385,10 @@
   let zoom = 0, yaw = 0, pitch = 0;
 
   // ---- Picking -----------------------------------------------------------------------------------------
-  // A click lands on a piece, or on a line, which stands for whichever of its two pieces is nearer the click.
+  // A click lands on a piece, or on a line. A line leads to whichever of its two pieces has not been viewed,
+  // or to the nearer one when both or neither have, and the camera travels down the line to get there.
   const raycaster = new THREE.Raycaster(), pointer = new THREE.Vector2(), spot = new THREE.Vector3();
-  raycaster.params.Line.threshold = 1.2;
+  const endA = new THREE.Vector3(), endB = new THREE.Vector3();
   const cards = ITEMS.slice(1).map(item => item.card);
   function pick(x, y) {
     if (view !== 'universe') return null; // only the pulled-back view is clickable
@@ -400,14 +401,29 @@
       let object = hit.object;
       while (object && !object.userData.item) object = object.parent;
       const item = object ? object.userData.item : hub;
-      return item;
+      return { item };
     }
     if (zoom < 0.5) return null;
-    const [line] = raycaster.intersectObject(lines);
-    if (!line) return null;
-    universe.worldToLocal(spot.copy(line.point));
-    const from = ends[line.index], to = ends[line.index + 1];
-    return spot.distanceTo(from.place) < spot.distanceTo(to.place) ? from : to;
+    // Lines are thin, so they are picked on the screen: the one passing within a few pixels of the click.
+    let best = null;
+    const halfW = box.width / 2, halfH = box.height / 2, px = pointer.x * halfW, py = pointer.y * halfH;
+    for (let index = 0; index < ends.length; index += 2) {
+      endA.copy(ends[index].place).applyMatrix4(universe.matrixWorld).project(camera);
+      endB.copy(ends[index + 1].place).applyMatrix4(universe.matrixWorld).project(camera);
+      if (endA.z > 1 || endB.z > 1) continue; // behind the camera
+      const ax = endA.x * halfW, ay = endA.y * halfH, bx = endB.x * halfW - ax, by = endB.y * halfH - ay;
+      const along = Math.max(0, Math.min(1, ((px - ax) * bx + (py - ay) * by) / (bx * bx + by * by || 1)));
+      const gap = Math.hypot(ax + bx * along - px, ay + by * along - py);
+      if (gap < 9 && (!best || gap < best.gap)) best = { gap, index, along };
+    }
+    if (!best) return null;
+    const from = ends[best.index], to = ends[best.index + 1];
+    const known = piece => piece === hub || viewed.has(piece);
+    const item = known(from) !== known(to) ? (known(from) ? to : from) : best.along < 0.5 ? from : to;
+    // The way in: a point just off the line where it was clicked, on the camera's side of it.
+    const via = endA.copy(from.place).lerp(to.place, best.along).applyMatrix4(universe.matrixWorld).clone();
+    via.add(spot.copy(camera.position).sub(via).setLength(3));
+    return { item, via };
   }
 
   // ---- Views -------------------------------------------------------------------------------------------
@@ -436,7 +452,7 @@
     viewButtons.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.view === view)));
   }
   const nearView = () => (focus === hub ? 'cube' : 'piece');
-  function flyTo(item) {
+  function flyTo(item, via) {
     if (item !== hub) {
       // Face the side of the piece that the camera is already on.
       item.card.getWorldPosition(centre);
@@ -445,6 +461,7 @@
     }
     focus = item;
     setView(nearView());
+    if (fly && via) fly.via = via; // by way of the line that was clicked
   }
   // Where the camera belongs: in front of the focus, square to it, further back in the universe.
   const centre = new THREE.Vector3(), normal = new THREE.Vector3(), up = new THREE.Vector3();
@@ -493,9 +510,25 @@
     scene.updateMatrixWorld();
     findSeat(stage);
     if (fly) {
-      const t = Math.min(1, (now - fly.start) / 1400), eased = t * t * (3 - 2 * t);
-      camera.position.lerpVectors(fly.position, seat.position, eased);
-      camera.quaternion.copy(fly.quaternion).slerp(seat.quaternion, eased);
+      const smooth = value => value * value * (3 - 2 * value);
+      let t = Math.min(1, (now - fly.start) / 1400);
+      if (!fly.via) {
+        camera.position.lerpVectors(fly.position, seat.position, smooth(t));
+        camera.quaternion.copy(fly.quaternion).slerp(seat.quaternion, smooth(t));
+      } else {
+        // By way of a line: over to the point on it, turning to look down it, then along it to the piece,
+        // turning square to the piece over the last stretch.
+        const along = turned.setFromRotationMatrix(look.lookAt(fly.via, centre, up.set(0, 1, 0)));
+        const reachLine = (now - fly.start) / 900;
+        t = Math.min(1, Math.max(0, (now - fly.start - 900) / 1700));
+        if (reachLine < 1) {
+          camera.position.lerpVectors(fly.position, fly.via, smooth(reachLine));
+          camera.quaternion.copy(fly.quaternion).slerp(along, smooth(reachLine));
+        } else {
+          camera.position.lerpVectors(fly.via, seat.position, smooth(t));
+          camera.quaternion.copy(along).slerp(seat.quaternion, smooth(Math.max(0, (t - 0.45) / 0.55)));
+        }
+      }
       if (t === 1) {
         fly = null;
         if (stage === 'piece') view1st(focus); // arriving in front of a piece counts as viewing it
