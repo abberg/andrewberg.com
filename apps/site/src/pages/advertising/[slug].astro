@@ -128,7 +128,8 @@ const { Content } = await render(project);
   .story :global(.diagram .d-face) { stroke: var(--ink); stroke-width: 1.25; stroke-linejoin: round; }
   .story :global(.diagram .d-top), .story :global(.diagram .d-back) { fill: var(--bg); }
   .story :global(.diagram .d-hidden) { fill: none; stroke: var(--mute); stroke-width: 1; stroke-dasharray: 3 3; }
-  .story :global(.diagram .d-edge) { fill: none; stroke: var(--accent); stroke-width: 7; stroke-linecap: butt; }
+  .story :global(.diagram .d-ghost) { opacity: .4; }
+  .story :global(.diagram .d-ghost rect) { stroke: var(--ink); stroke-width: 1; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; }
   .story :global(.diagram .d-time) { stroke: var(--mute); stroke-width: 1; }
   .story :global(.diagram .d-play) { fill: var(--ink); }
   .story :global(.diagram .d-play-line) { stroke: var(--ink); stroke-width: 1.25; }
