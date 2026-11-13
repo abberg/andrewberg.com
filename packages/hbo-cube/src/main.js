@@ -343,7 +343,7 @@
   // fading out GLOW of its height beyond every edge. Each card gets its own texture, so the halo is as wide
   // on a long card as on a tall one. Its strength falls off as (1 - d)^1.6 across the halo, which keeps it
   // full and cloudy rather than a thin rim.
-  const GLOW = 0.45, GLOW_OPACITY = 0.35;
+  const GLOW = 0.35, GLOW_OPACITY = 0.35;
   function glowFor(width, height) {
     const reach = height * GLOW, scale = 256 / (width + reach * 2);
     const sheet = document.createElement('canvas');
@@ -374,14 +374,12 @@
     glow.raycast = () => {}; // never picked
     return glow;
   }
-  const fading = new Set(); // glows fading out, after their pieces have been viewed
   // A piece's glow goes out the moment it is chosen, by a click on it or on a line that leads to it.
   function unglow(item) {
-    if (item.glow) { item.glow.visible = false; fading.delete(item.glow); }
+    if (item.glow) item.glow.visible = false;
     if (item.node) item.node.classList.add('chosen');
   }
   function reveal(item) {
-    if (item.glow) { item.glow.userData.fadeFrom = performance.now(); fading.add(item.glow); }
     item.node.classList.add('viewed');
     item.card.material.color.setHex(LIT[item.kind]);
     if (item.sound) { item.sound.material.color.setHex(0xa9c98f); item.sound.scale.y = 1; }
@@ -728,12 +726,6 @@
       // position and rotation that leaves it with.
       camera.position.copy(seat.position);
       camera.quaternion.copy(seat.quaternion);
-    }
-
-    for (const glow of fading) {
-      const left = 1 - (now - glow.userData.fadeFrom) / 600;
-      glow.material.opacity = GLOW_OPACITY * Math.max(0, Math.min(1, left));
-      if (left <= 0) { glow.visible = false; fading.delete(glow); }
     }
 
     renderer.render(scene, camera);
