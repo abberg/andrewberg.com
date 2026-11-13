@@ -53,6 +53,8 @@ The four angles had to stay in step, even with the cube turned to a corner and t
 
 
 
-The cube below works the same way. The scene is a greybox of the gallery from *Heist*, modelled and rendered in Blender.
+The other piece worth calling out is the camera. I built it as a gimbal rig, with where the camera sat and where it looked kept as two separate things. Its position rode the lines between pieces of content like a car on a roller coaster track, while its orientation was a quaternion, slerped toward the next piece on its own timing. Keeping the two apart let the camera travel down a connection while still looking around, then turn smoothly to face the content as it arrived.
+
+The cube below works the same way, with one video across all four sides and the same kind of camera rig. The scene is a greybox of the gallery from *Heist*, modelled and rendered in Blender.
 
 Offline, the same four-sided film played on a 14-foot cube that toured New York, Philadelphia, and Washington, D.C.
