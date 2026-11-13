@@ -301,7 +301,7 @@
   }
 
   // ---- Universe ----------------------------------------------------------------------------------------
-  // The other pieces hang in space behind the cube, always in view. Pulling back shows the lines that join
+  // The other pieces hang in space around the cube, always in view, and turn with it. Pulling back shows the lines that join
   // them into a web, with the cube as one piece among them.
   const universe = new THREE.Group();
   scene.add(universe);
@@ -315,13 +315,15 @@
     paper: new THREE.MeshBasicMaterial({ color: 0xb8b8b2, side: THREE.DoubleSide }),
     cube: new THREE.MeshBasicMaterial({ color: 0x0b0b0c }),
   };
-  const SPREAD = 3.4;
+  const SPREAD = 3.4, CLEAR = 105;
   hub.place = new THREE.Vector3();
   const threads = [];
   ITEMS.slice(1).forEach(item => {
-    const place = new THREE.Vector3((item.x - hub.x) * SPREAD, (hub.y - item.y) * SPREAD, 40 - random() * 320);
-    // Nothing sits between the camera and the cube, or close around it.
-    if (Math.hypot(place.x, place.y) < 70 && place.z > -50) place.z = -(60 + random() * 220);
+    const place = new THREE.Vector3((item.x - hub.x) * SPREAD, (hub.y - item.y) * SPREAD, (random() - 0.5) * 520);
+    // The universe turns with the cube, so every piece keeps far enough from the axis to swing round
+    // behind the camera's seat and never between it and the cube.
+    if (Math.hypot(place.x, place.z) < CLEAR)
+      place.z = (random() < 0.5 ? -1 : 1) * (Math.sqrt(CLEAR * CLEAR - place.x * place.x) + random() * 140);
     item.place = place;
     const geometry = item.kind === 'cube' ? new THREE.BoxGeometry(18, 11, 18) : new THREE.PlaneGeometry(item.width, item.height);
     const card = new THREE.Mesh(geometry, fills[item.kind]);
@@ -371,7 +373,7 @@
       turn = tween.from + (tween.to - tween.from) * tween.ease(t);
       if (t === 1) tween = null;
     }
-    cube.rotation.y = -turn * Math.PI / 2;
+    cube.rotation.y = universe.rotation.y = -turn * Math.PI / 2;
 
     // The camera eases straight back from its seat in front of the cube, and the lines of the web come up.
     zoom = Math.max(0, Math.min(1, zoom + (view === 'universe' ? 1 : -1) * elapsed / 1200));
