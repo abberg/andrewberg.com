@@ -1,4 +1,8 @@
-/* global THREE */
+import * as THREE from 'three';
+// Colours here are written as the linear values they were tuned at, as three.js treated them before it
+// managed colour, so they are used as they are rather than converted from sRGB.
+THREE.ColorManagement.enabled = false;
+
 // One video holds the four camera angles in a 2 x 2 grid. Every side of the cube is a panel textured with
 // the same video, its UVs offset to one quarter of the frame, so the angles can never drift out of sync.
 (() => {
@@ -15,7 +19,7 @@
     app.append(note);
     return;
   }
-  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 
   // ---- The cube ----------------------------------------------------------------------------------------
@@ -53,7 +57,7 @@
   cube.add(new THREE.Mesh(capGeometry, black));
 
   const texture = new THREE.VideoTexture(video);
-  texture.encoding = THREE.sRGBEncoding;
+  texture.colorSpace = THREE.SRGBColorSpace;
   const screen = new THREE.MeshBasicMaterial({ map: texture, toneMapped: false });
   const TEXEL_X = 0.5 / 1920, TEXEL_Y = 0.5 / 1080;
   for (let index = 0; index < 4; index++) {
@@ -77,11 +81,12 @@
     cube.add(frame, holder);
   }
 
-  // The lights stay put while the cube turns under them.
-  scene.add(new THREE.AmbientLight(0xffffff, 0.2));
-  const key = new THREE.PointLight(0xffffff, 0.45);
+  // The lights stay put while the cube turns under them. Their strengths are in physical units, π times the
+  // values they were tuned at, and the point lights do not fall off with distance.
+  scene.add(new THREE.AmbientLight(0xffffff, 0.2 * Math.PI));
+  const key = new THREE.PointLight(0xffffff, 0.45 * Math.PI, 0, 0);
   key.position.set(-8, 13, 21);
-  const rim = new THREE.PointLight(0xdfe6ff, 0.18);
+  const rim = new THREE.PointLight(0xdfe6ff, 0.18 * Math.PI, 0, 0);
   rim.position.set(26, 4, 20);
   scene.add(key, rim);
 

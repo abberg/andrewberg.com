@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 <title>Story Cube — Andrew Berg</title>
 <link rel="icon" href="data:,">
-<link rel="preload" as="image" href="assets/hand-open-2.svg">
-<link rel="preload" as="image" href="assets/hand-closed-2.svg">
-<link rel="preload" as="image" href="assets/hand-open-4.svg">
-<link rel="preload" as="image" href="assets/hand-closed-4.svg">
+<link rel="preload" as="image" href="./src/cursors/hand-open-2.svg">
+<link rel="preload" as="image" href="./src/cursors/hand-closed-2.svg">
+<link rel="preload" as="image" href="./src/cursors/hand-open-4.svg">
+<link rel="preload" as="image" href="./src/cursors/hand-closed-4.svg">
 <meta name="description" content="A recreation of the HBO Imagine story cube: one looping scene seen from four sides.">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
@@ -77,10 +77,10 @@
   .app[data-stage="away"] .spin, .app[data-stage="away"] .controls { opacity: 0; pointer-events: none; }
   /* The cursor is a hand, open and closed while dragging, with a triangle either side over the cube, and
      above and below as well pulled back, where a drag looks up and down too. The hot spot is the middle. */
-  .gl { cursor: url('assets/hand-open-2.svg') 24 24, grab; }
-  .gl.dragging { cursor: url('assets/hand-closed-2.svg') 24 24, grabbing; }
-  .app[data-view="universe"] .gl { cursor: url('assets/hand-open-4.svg') 24 24, grab; }
-  .app[data-view="universe"] .gl.dragging { cursor: url('assets/hand-closed-4.svg') 24 24, grabbing; }
+  .gl { cursor: url('./src/cursors/hand-open-2.svg') 24 24, grab; }
+  .gl.dragging { cursor: url('./src/cursors/hand-closed-2.svg') 24 24, grabbing; }
+  .app[data-view="universe"] .gl { cursor: url('./src/cursors/hand-open-4.svg') 24 24, grab; }
+  .app[data-view="universe"] .gl.dragging { cursor: url('./src/cursors/hand-closed-4.svg') 24 24, grabbing; }
   .app[data-view] .gl.pick { cursor: pointer; }
   .app[data-view="piece"] .gl { cursor: default; }
   .fallback { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; padding: 24px; text-align: center; }
@@ -131,10 +131,9 @@
   <div class="map" hidden></div>
 </div>
 <video muted loop playsinline preload="auto">
-  <source src="gallery.mp4" type="video/mp4">
-  <source src="gallery.webm" type="video/webm">
+  <source src="./src/gallery.mp4" type="video/mp4">
+  <source src="./src/gallery.webm" type="video/webm">
 </video>
-<script src="assets/three.min.js"></script>
-<script src="main.js"></script>
+<script type="module" src="./src/main.js"></script>
 </body>
 </html>
