@@ -64,6 +64,7 @@
   .spin, .controls { transition: opacity .4s; }
   .app[data-stage="away"] .spin, .app[data-stage="away"] .controls { opacity: 0; pointer-events: none; }
   .gl.pick { cursor: pointer; }
+  .app[data-view="piece"] .gl { cursor: default; }
 
   /* Two triangles that sit either side of the hand cursor while it is over the cube. */
   .arrows { position: absolute; left: 0; top: 0; width: 0; height: 0; opacity: 0; pointer-events: none; transition: opacity .15s; z-index: 4; }

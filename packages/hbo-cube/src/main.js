@@ -113,6 +113,7 @@
   }
 
   canvas.addEventListener('pointerdown', event => {
+    if (view === 'piece') return; // facing another piece there is nothing to drag or click until the view pulls back
     drag = { x: event.clientX, y: event.clientY, moved: false };
     if (view === 'cube') { tween = null; Object.assign(drag, { turn, samples: [[performance.now(), turn]] }); }
     else Object.assign(drag, { gaze: true, yaw, pitch });
