@@ -62,7 +62,8 @@
   .map .close { position: absolute; top: 8px; right: 16px; color: #cfcfca; }
   .map .close:hover { color: #fff; }
   .spin, .controls { transition: opacity .4s; }
-  .app[data-view="universe"] .spin, .app[data-view="universe"] .controls { opacity: 0; pointer-events: none; }
+  .app[data-stage="away"] .spin, .app[data-stage="away"] .controls { opacity: 0; pointer-events: none; }
+  .gl.pick { cursor: pointer; }
 
   /* Two triangles that sit either side of the hand cursor while it is over the cube. */
   .arrows { position: absolute; left: 0; top: 0; width: 0; height: 0; opacity: 0; pointer-events: none; transition: opacity .15s; z-index: 4; }
@@ -83,7 +84,7 @@
 </style>
 </head>
 <body>
-<div class="app" data-view="cube">
+<div class="app" data-view="cube" data-stage="cube">
   <canvas class="gl" tabindex="0" role="img" aria-label="Story cube showing four views of one scene. Use the left and right arrow keys to turn it."></canvas>
 
   <div class="views" role="group" aria-label="View">

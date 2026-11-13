@@ -98,42 +98,49 @@
     tween = { from: turn, to: next, start: performance.now(), duration, ease };
   }
 
-  let fit = 60; // how far back the camera sits in the cube view
+  let fit = 60, tanV = 0.36, tanH = 0.6; // how far back the camera sits in the cube view, and the half angles of its view
   function resize() {
     const width = canvas.clientWidth, height = canvas.clientHeight;
     if (!width || !height) return;
     renderer.setSize(width, height, false);
     camera.aspect = width / height;
     // Back the camera off until the cube fits both face on and turned to a corner, where it is widest.
-    const tanV = Math.tan(camera.fov * Math.PI / 360) * 0.88, tanH = tanV * camera.aspect * 0.9;
-    fit = Math.max(RADIUS / tanH, RADIUS + Y / tanV, X + X / tanH);
+    tanV = Math.tan(camera.fov * Math.PI / 360);
+    tanH = tanV * camera.aspect;
+    const v = tanV * 0.88, h = v * camera.aspect * 0.9;
+    fit = Math.max(RADIUS / h, RADIUS + Y / v, X + X / h);
     camera.updateProjectionMatrix();
   }
 
   canvas.addEventListener('pointerdown', event => {
-    if (view === 'universe') drag = { universe: true, x: event.clientX, y: event.clientY, yaw, pitch, moved: false };
-    else { tween = null; drag = { x: event.clientX, turn, samples: [[performance.now(), turn]] }; }
+    drag = { x: event.clientX, y: event.clientY, moved: false };
+    if (view === 'cube') { tween = null; Object.assign(drag, { turn, samples: [[performance.now(), turn]] }); }
+    else Object.assign(drag, { gaze: true, yaw, pitch });
     canvas.setPointerCapture(event.pointerId);
     canvas.classList.add('dragging');
   });
   canvas.addEventListener('pointermove', event => {
-    if (!drag) return;
-    if (drag.universe) {
-      // In the universe the camera stays where it is and a drag turns where it looks, as if pulling the view along.
-      const dx = event.clientX - drag.x, dy = event.clientY - drag.y;
-      yaw = Math.max(-1.2, Math.min(1.2, drag.yaw + dx * 0.0022));
-      pitch = Math.max(-0.7, Math.min(0.7, drag.pitch + dy * 0.0022));
-      if (Math.hypot(dx, dy) > 4) drag.moved = true;
+    if (!drag) {
+      // A piece or a line that a click would fly to shows the pointing hand.
+      if (event.pointerType === 'mouse') canvas.classList.toggle('pick', Boolean(pick(event.clientX, event.clientY)));
       return;
     }
-    turn = drag.turn - (event.clientX - drag.x) / (canvas.clientWidth * 0.55);
+    const dx = event.clientX - drag.x, dy = event.clientY - drag.y;
+    if (Math.hypot(dx, dy) > 4) drag.moved = true;
+    if (drag.gaze) {
+      // Away from the cube the camera stays where it is and a drag turns where it looks, as if pulling the view along.
+      yaw = Math.max(-1.2, Math.min(1.2, drag.yaw + dx * 0.0022));
+      pitch = Math.max(-0.7, Math.min(0.7, drag.pitch + dy * 0.0022));
+      return;
+    }
+    turn = drag.turn - dx / (canvas.clientWidth * 0.55);
     drag.samples.push([performance.now(), turn]);
     if (drag.samples.length > 8) drag.samples.shift();
   });
   // The triangles follow a mouse, which has a cursor to sit beside; touch and pen have none.
   const arrows = document.querySelector('.arrows');
   const follow = event => {
-    if (event.pointerType !== 'mouse' || view !== 'cube') { arrows.classList.remove('show'); return; }
+    if (event.pointerType !== 'mouse' || view !== 'cube' || canvas.classList.contains('pick')) { arrows.classList.remove('show'); return; }
     const box = app.getBoundingClientRect();
     arrows.style.transform = `translate(${event.clientX - box.left}px, ${event.clientY - box.top}px)`;
     arrows.classList.add('show');
@@ -144,15 +151,10 @@
   const release = () => {
     if (!drag) return;
     canvas.classList.remove('dragging');
-    if (drag.universe) {
-      // A click on the cube, rather than a drag, flies back in to it.
-      const box = canvas.getBoundingClientRect();
-      pointer.set((drag.x - box.left) / box.width * 2 - 1, 1 - (drag.y - box.top) / box.height * 2);
-      raycaster.setFromCamera(pointer, camera);
-      if (!drag.moved && raycaster.intersectObject(reach).length) setView('cube');
-      drag = null;
-      return;
-    }
+    // A click, rather than a drag, flies to whatever piece is under it.
+    const picked = drag.moved ? null : pick(drag.x, drag.y);
+    if (picked) flyTo(picked);
+    if (drag.gaze) { drag = null; return; }
     // A throw carries on in the direction it was going: the speed over the last moments of the drag
     // decides how many stops further the cube travels before it settles.
     const now = performance.now();
@@ -173,10 +175,10 @@
     if (event.target.closest && event.target.closest('button')) { if (event.key === ' ' || event.key === 'Enter') return; }
     if (event.key === 'ArrowLeft' && view === 'cube') go(stop(target) + 0.5);
     if (event.key === 'ArrowRight' && view === 'cube') go(stop(target) - 0.5);
-    if (event.key === 'Escape') setView('cube');
+    if (event.key === 'Escape') flyTo(hub);
   });
   document.querySelectorAll('[data-turn]').forEach(button =>
-    button.addEventListener('click', () => { setView('cube'); go(stop(target) + Number(button.dataset.turn) / 2); }));
+    button.addEventListener('click', () => { flyTo(hub); go(stop(target) + Number(button.dataset.turn) / 2); }));
 
   // ---- Playback ----------------------------------------------------------------------------------------
   const play = document.querySelector('.play'), time = document.querySelector('.time');
@@ -270,7 +272,7 @@
       thumb = document.createElement('canvas');
       thumb.width = 260; thumb.height = 110;
       node.append(thumb);
-      node.addEventListener('click', () => setView('cube'));
+      node.addEventListener('click', () => flyTo(hub));
     }
     if (item.kind === 'audio') {
       const sound = document.createElementNS(NS, 'svg');
@@ -287,7 +289,7 @@
   close.type = 'button';
   close.className = 'close';
   close.textContent = 'Close ✕';
-  close.addEventListener('click', () => setView('cube'));
+  close.addEventListener('click', () => setView(under));
   map.append(plan, close);
   const sheet = thumb.getContext('2d');
   function drawThumb(side) {
@@ -317,7 +319,7 @@
   };
   const SPREAD = 3.4, CLEAR = 105;
   hub.place = new THREE.Vector3();
-  const threads = [];
+  const threads = [], ends = []; // the points of each line, and the piece at each point
   ITEMS.slice(1).forEach(item => {
     const place = new THREE.Vector3((item.x - hub.x) * SPREAD, (hub.y - item.y) * SPREAD, (random() - 0.5) * 520);
     // The universe turns with the cube, so every piece keeps far enough from the axis to swing round
@@ -332,36 +334,118 @@
       const points = wave(40, item.width * 0.8, item.height).map(([x, y]) => new THREE.Vector3(x - item.width * 0.4, y - item.height / 2, 0.05));
       card.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), sound));
     }
+    card.userData.item = item;
+    item.card = card;
     card.position.copy(place);
     card.rotation.set((random() - 0.5) * 0.9, (random() - 0.5) * 2.4, (random() - 0.5) * 0.5);
     universe.add(card);
   });
   ITEMS.slice(1).forEach((item, index) => {
     threads.push(item.place, item.parent.place);
+    ends.push(item, item.parent);
     // A few threads cut across the tree, so it reads as a web.
-    if (index % 4 === 0) threads.push(item.place, ITEMS[1 + Math.floor(random() * (ITEMS.length - 1))].place);
+    if (index % 4 === 0) {
+      const other = ITEMS[1 + Math.floor(random() * (ITEMS.length - 1))];
+      threads.push(item.place, other.place);
+      ends.push(item, other);
+    }
   });
   // An unseen box round the cube, generous enough to click when the cube is small.
   const reach = new THREE.Mesh(new THREE.BoxGeometry(46, 34, 46), new THREE.MeshBasicMaterial({ visible: false }));
   scene.add(reach);
-  const raycaster = new THREE.Raycaster(), pointer = new THREE.Vector2();
   const lines = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(threads), thread);
+  lines.visible = false;
   universe.add(lines);
   const PULL = 110; // how much further back the camera sits in the universe
-  const gaze = new THREE.Vector3();
   let zoom = 0, yaw = 0, pitch = 0;
 
+  // ---- Picking -----------------------------------------------------------------------------------------
+  // A click lands on a piece, or on a line, which stands for whichever of its two pieces is nearer the click.
+  const raycaster = new THREE.Raycaster(), pointer = new THREE.Vector2(), spot = new THREE.Vector3();
+  raycaster.params.Line.threshold = 2.5;
+  const cards = ITEMS.slice(1).map(item => item.card);
+  function pick(x, y) {
+    const box = canvas.getBoundingClientRect();
+    pointer.set((x - box.left) / box.width * 2 - 1, 1 - (y - box.top) / box.height * 2);
+    raycaster.setFromCamera(pointer, camera);
+    // Up close the cube itself hides what is behind it; from further off a generous box stands in for it.
+    const atCube = focus === hub && view === 'cube';
+    const [hit] = raycaster.intersectObjects([...cards, ...(atCube ? cube.children : [reach])], true);
+    if (hit) {
+      let object = hit.object;
+      while (object && !object.userData.item) object = object.parent;
+      const item = object ? object.userData.item : hub;
+      return item === focus && view !== 'universe' ? null : item;
+    }
+    if (!lines.visible || zoom < 0.5) return null;
+    const [line] = raycaster.intersectObject(lines);
+    if (!line) return null;
+    universe.worldToLocal(spot.copy(line.point));
+    const from = ends[line.index], to = ends[line.index + 1];
+    return spot.distanceTo(from.place) < spot.distanceTo(to.place) ? from : to;
+  }
+
   // ---- Views -------------------------------------------------------------------------------------------
+  // The camera always faces one piece, the focus: the cube to begin with. 'cube' and 'piece' sit close to it,
+  // 'universe' pulls back from it, and 'map' lays the flat sheet over whichever of those was showing.
   const viewButtons = [...document.querySelectorAll('.views [data-view]')];
+  let focus = hub, under = 'cube', flown = 'cube:0', fly = null;
   function setView(next) {
+    if (next === 'map') { if (view !== 'map') under = view; }
+    else {
+      // Fly whenever the place to be has changed, and start each flight looking straight at the piece.
+      const place = `${next}:${ITEMS.indexOf(focus)}`;
+      if (place !== flown) {
+        fly = { position: camera.position.clone(), quaternion: camera.quaternion.clone(), start: performance.now() };
+        yaw = pitch = 0;
+        flown = place;
+      }
+    }
     view = next;
+    const stage = view === 'map' ? under : view;
     app.dataset.view = view;
+    app.dataset.stage = stage === 'cube' ? 'cube' : 'away';
     map.hidden = view !== 'map';
     arrows.classList.remove('show');
+    canvas.classList.remove('pick');
     viewButtons.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.view === view)));
   }
-  // Each button opens its view, and pressed again returns to the cube.
-  viewButtons.forEach(button => button.addEventListener('click', () => setView(view === button.dataset.view ? 'cube' : button.dataset.view)));
+  const nearView = () => (focus === hub ? 'cube' : 'piece');
+  function flyTo(item) {
+    if (item !== hub) {
+      // Face the side of the piece that the camera is already on.
+      item.card.getWorldPosition(centre);
+      item.card.getWorldQuaternion(facing);
+      item.side = normal.set(0, 0, 1).applyQuaternion(facing).dot(spot.copy(camera.position).sub(centre)) < 0 ? -1 : 1;
+    }
+    focus = item;
+    setView(nearView());
+  }
+  // Where the camera belongs: in front of the focus, square to it, further back in the universe.
+  const centre = new THREE.Vector3(), normal = new THREE.Vector3(), up = new THREE.Vector3();
+  const facing = new THREE.Quaternion(), look = new THREE.Matrix4(), turned = new THREE.Quaternion(), euler = new THREE.Euler();
+  const seat = { position: new THREE.Vector3(), quaternion: new THREE.Quaternion() };
+  function findSeat(stage) {
+    let distance = fit;
+    if (focus === hub) { centre.set(0, 0, 0); normal.set(0, 0, 1); up.set(0, 1, 0); }
+    else {
+      focus.card.getWorldPosition(centre);
+      focus.card.getWorldQuaternion(facing);
+      normal.set(0, 0, focus.side).applyQuaternion(facing);
+      up.set(0, 1, 0).applyQuaternion(facing);
+      distance = (focus.kind === 'cube' ? 9 : 0) + Math.max(focus.height / 2 / tanV, focus.width / 2 / tanH) * 2.2;
+    }
+    seat.position.copy(centre).addScaledVector(normal, distance + (stage === 'universe' ? PULL : 0));
+    seat.quaternion.setFromRotationMatrix(look.lookAt(seat.position, centre, up));
+    // Away from the cube a drag turns the gaze.
+    if (stage !== 'cube') seat.quaternion.multiply(turned.setFromEuler(euler.set(pitch, yaw, 0, 'YXZ')));
+  }
+  // The map button opens the sheet and closes it again; the universe button pulls back and flies back in.
+  viewButtons.forEach(button => button.addEventListener('click', () => {
+    const name = button.dataset.view;
+    if (name === 'map') setView(view === 'map' ? under : 'map');
+    else setView(view === 'universe' ? nearView() : 'universe');
+  }));
 
   // ---- Frame -------------------------------------------------------------------------------------------
   let last = performance.now();
@@ -375,17 +459,23 @@
     }
     cube.rotation.y = universe.rotation.y = -turn * Math.PI / 2;
 
-    // The camera eases straight back from its seat in front of the cube, and the lines of the web come up.
-    zoom = Math.max(0, Math.min(1, zoom + (view === 'universe' ? 1 : -1) * elapsed / 1200));
-    const out = zoom * zoom * (3 - 2 * zoom);
-    if (!zoom) yaw = pitch = 0;
-    camera.position.set(0, 0, fit + PULL * out);
-    // Its gaze is turned by the drag, and comes back to the cube on the way in.
-    const side = yaw * out, lift = pitch * out;
-    gaze.set(-Math.sin(side) * Math.cos(lift), Math.sin(lift), -Math.cos(side) * Math.cos(lift)).add(camera.position);
-    camera.lookAt(gaze);
+    // The lines of the web come up as the camera pulls back.
+    const stage = view === 'map' ? under : view;
+    zoom = Math.max(0, Math.min(1, zoom + (stage === 'universe' ? 1 : -1) * elapsed / 1200));
     lines.visible = zoom > 0;
-    thread.opacity = 0.22 * out;
+    thread.opacity = 0.22 * zoom * zoom * (3 - 2 * zoom);
+    // The camera sits in its seat, or is on its way there from wherever it was when the flight began.
+    scene.updateMatrixWorld();
+    findSeat(stage);
+    if (fly) {
+      const t = Math.min(1, (now - fly.start) / 1400), eased = t * t * (3 - 2 * t);
+      camera.position.lerpVectors(fly.position, seat.position, eased);
+      camera.quaternion.copy(fly.quaternion).slerp(seat.quaternion, eased);
+      if (t === 1) fly = null;
+    } else {
+      camera.position.copy(seat.position);
+      camera.quaternion.copy(seat.quaternion);
+    }
 
     renderer.render(scene, camera);
     time.textContent = `${clock(video.currentTime)}/${clock(video.duration)}`;
