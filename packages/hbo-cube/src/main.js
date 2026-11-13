@@ -111,7 +111,7 @@
   }
 
   canvas.addEventListener('pointerdown', event => {
-    if (view === 'universe') drag = { universe: true, x: event.clientX, y: event.clientY, orbit, moved: false };
+    if (view === 'universe') drag = { universe: true, x: event.clientX, y: event.clientY, yaw, pitch, moved: false };
     else { tween = null; drag = { x: event.clientX, turn, samples: [[performance.now(), turn]] }; }
     canvas.setPointerCapture(event.pointerId);
     canvas.classList.add('dragging');
@@ -119,9 +119,11 @@
   canvas.addEventListener('pointermove', event => {
     if (!drag) return;
     if (drag.universe) {
-      // In the universe a drag swings the camera round the web of content.
-      orbit = drag.orbit - (event.clientX - drag.x) * 0.004;
-      if (Math.abs(event.clientX - drag.x) > 4) drag.moved = true;
+      // In the universe the camera stays where it is and a drag turns where it looks, as if pulling the view along.
+      const dx = event.clientX - drag.x, dy = event.clientY - drag.y;
+      yaw = Math.max(-1.2, Math.min(1.2, drag.yaw + dx * 0.0022));
+      pitch = Math.max(-0.7, Math.min(0.7, drag.pitch + dy * 0.0022));
+      if (Math.hypot(dx, dy) > 4) drag.moved = true;
       return;
     }
     turn = drag.turn - (event.clientX - drag.x) / (canvas.clientWidth * 0.55);
@@ -299,28 +301,27 @@
   }
 
   // ---- Universe ----------------------------------------------------------------------------------------
-  // Pulling back shows the cube as one piece in a web of content hanging in space, joined by lines.
+  // The other pieces hang in space behind the cube, always in view. Pulling back shows the lines that join
+  // them into a web, with the cube as one piece among them.
   const universe = new THREE.Group();
-  universe.visible = false;
   scene.add(universe);
-  const fading = []; // [material, full opacity], faded in as the camera pulls back
-  const fade = (material, opacity) => { material.transparent = true; fading.push([material, opacity]); return material; };
-  const edge = fade(new THREE.LineBasicMaterial({ color: 0xa8a8a0 }), 0.9);
-  const thread = fade(new THREE.LineBasicMaterial({ color: 0xffffff }), 0.2);
-  const sound = fade(new THREE.LineBasicMaterial({ color: 0xa9c98f }), 0.9);
+  const edge = new THREE.LineBasicMaterial({ color: 0x8a8a84 });
+  const thread = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0 });
+  const sound = new THREE.LineBasicMaterial({ color: 0xa9c98f });
   const fills = {
-    video: fade(new THREE.MeshBasicMaterial({ color: 0x0b0b0c, side: THREE.DoubleSide }), 1),
-    audio: fade(new THREE.MeshBasicMaterial({ color: 0x0b0b0c, side: THREE.DoubleSide }), 1),
-    picture: fade(new THREE.MeshBasicMaterial({ color: 0x55555a, side: THREE.DoubleSide }), 1),
-    paper: fade(new THREE.MeshBasicMaterial({ color: 0xb8b8b2, side: THREE.DoubleSide }), 1),
-    cube: fade(new THREE.MeshBasicMaterial({ color: 0x0b0b0c }), 1),
+    video: new THREE.MeshBasicMaterial({ color: 0x0b0b0c, side: THREE.DoubleSide }),
+    audio: new THREE.MeshBasicMaterial({ color: 0x0b0b0c, side: THREE.DoubleSide }),
+    picture: new THREE.MeshBasicMaterial({ color: 0x55555a, side: THREE.DoubleSide }),
+    paper: new THREE.MeshBasicMaterial({ color: 0xb8b8b2, side: THREE.DoubleSide }),
+    cube: new THREE.MeshBasicMaterial({ color: 0x0b0b0c }),
   };
   const SPREAD = 3.4;
   hub.place = new THREE.Vector3();
   const threads = [];
   ITEMS.slice(1).forEach(item => {
-    const place = new THREE.Vector3((item.x - hub.x) * SPREAD, (hub.y - item.y) * SPREAD, (random() - 0.5) * 280);
-    if (place.length() < 60) place.z = (random() < 0.5 ? -1 : 1) * (70 + random() * 80);
+    const place = new THREE.Vector3((item.x - hub.x) * SPREAD, (hub.y - item.y) * SPREAD, 40 - random() * 320);
+    // Nothing sits between the camera and the cube, or close around it.
+    if (Math.hypot(place.x, place.y) < 70 && place.z > -50) place.z = -(60 + random() * 220);
     item.place = place;
     const geometry = item.kind === 'cube' ? new THREE.BoxGeometry(18, 11, 18) : new THREE.PlaneGeometry(item.width, item.height);
     const card = new THREE.Mesh(geometry, fills[item.kind]);
@@ -338,14 +339,15 @@
     // A few threads cut across the tree, so it reads as a web.
     if (index % 4 === 0) threads.push(item.place, ITEMS[1 + Math.floor(random() * (ITEMS.length - 1))].place);
   });
-  universe.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(threads), thread));
   // An unseen box round the cube, generous enough to click when the cube is small.
   const reach = new THREE.Mesh(new THREE.BoxGeometry(46, 34, 46), new THREE.MeshBasicMaterial({ visible: false }));
   scene.add(reach);
   const raycaster = new THREE.Raycaster(), pointer = new THREE.Vector2();
-  const FAR = 340, LIFT = 0.24;
-  const near = new THREE.Vector3(), far = new THREE.Vector3();
-  let zoom = 0, orbit = 0.55;
+  const lines = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(threads), thread);
+  universe.add(lines);
+  const PULL = 110; // how much further back the camera sits in the universe
+  const gaze = new THREE.Vector3();
+  let zoom = 0, yaw = 0, pitch = 0;
 
   // ---- Views -------------------------------------------------------------------------------------------
   const viewButtons = [...document.querySelectorAll('.views [data-view]')];
@@ -371,16 +373,17 @@
     }
     cube.rotation.y = -turn * Math.PI / 2;
 
-    // The camera eases between its seat in front of the cube and a slow orbit far out in the universe.
-    zoom = Math.max(0, Math.min(1, zoom + (view === 'universe' ? 1 : -1) * elapsed / 1500));
+    // The camera eases straight back from its seat in front of the cube, and the lines of the web come up.
+    zoom = Math.max(0, Math.min(1, zoom + (view === 'universe' ? 1 : -1) * elapsed / 1200));
     const out = zoom * zoom * (3 - 2 * zoom);
-    if (view === 'universe' && !drag) orbit += elapsed * 0.00004;
-    near.set(0, 0, fit);
-    far.set(Math.sin(orbit) * Math.cos(LIFT) * FAR, Math.sin(LIFT) * FAR, Math.cos(orbit) * Math.cos(LIFT) * FAR);
-    camera.position.lerpVectors(near, far, out);
-    camera.lookAt(0, 0, 0);
-    universe.visible = zoom > 0;
-    if (universe.visible) for (const [material, opacity] of fading) material.opacity = opacity * out;
+    if (!zoom) yaw = pitch = 0;
+    camera.position.set(0, 0, fit + PULL * out);
+    // Its gaze is turned by the drag, and comes back to the cube on the way in.
+    const side = yaw * out, lift = pitch * out;
+    gaze.set(-Math.sin(side) * Math.cos(lift), Math.sin(lift), -Math.cos(side) * Math.cos(lift)).add(camera.position);
+    camera.lookAt(gaze);
+    lines.visible = zoom > 0;
+    thread.opacity = 0.22 * out;
 
     renderer.render(scene, camera);
     time.textContent = `${clock(video.currentTime)}/${clock(video.duration)}`;
