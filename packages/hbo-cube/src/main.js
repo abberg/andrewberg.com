@@ -339,40 +339,50 @@
   const LIT = { video: 0x101013, cube: 0x101013, audio: 0x050506, picture: 0x5c5c58 };
   const arrow = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-1.3, 1.7, 0.05), new THREE.Vector3(-1.3, -1.7, 0.05), new THREE.Vector3(1.7, 0, 0.05)]);
   const white = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide });
-  // Pieces not yet viewed glow: a soft pale halo on a quad behind the card, bright at the card's edge and
-  // fading out GLOW of its height beyond every edge. Each card gets its own texture, so the halo is as wide
-  // on a long card as on a tall one. Its strength falls off as (1 - d)^1.6 across the halo, which keeps it
-  // full and cloudy rather than a thin rim.
-  const GLOW = 0.35, GLOW_OPACITY = 0.35;
+  // Pieces not yet chosen glow: a soft pale halo around the card, brightest at its edge and fading to
+  // nothing with no visible edge. The halo is about GLOW_PX wide on screen however near or far the card is,
+  // but never wider than GLOW of the card's height, so it stays a thin soft rim up close and a halo at a
+  // distance; it also dims as the card grows large on screen. A shader works out the fade from the card's
+  // rounded outline, so it can change width every frame.
+  const GLOW = 0.35, GLOW_PX = 14, GLOW_OPACITY = 0.35, GLOW_NEAR = 0.15; // GLOW_NEAR: its opacity once the card is 400 px tall
+  const glowVertex = `varying vec2 vAt; void main() { vAt = position.xy; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
+  const glowFragment = `
+    uniform vec2 halfSize; uniform float reach, corner, opacity; varying vec2 vAt;
+    void main() {
+      vec2 q = abs(vAt) - halfSize + corner;
+      float outside = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - corner; // distance from the card's rounded outline
+      if (outside <= 0.0) discard; // nothing over the card itself
+      float a = pow(1.0 - clamp(outside / reach, 0.0, 1.0), 2.5); // reaches nothing with no slope at the far edge
+      gl_FragColor = vec4(0.875, 0.933, 1.0, a * opacity); // #dfeeff, as written to the screen
+    }`;
+  const glowing = []; // the glows still showing, to be resized each frame
   function glowFor(width, height) {
-    const reach = height * GLOW, scale = 256 / (width + reach * 2);
-    const sheet = document.createElement('canvas');
-    sheet.width = 256;
-    sheet.height = Math.max(8, Math.round((height + reach * 2) * scale));
-    const pen = sheet.getContext('2d'), image = pen.createImageData(sheet.width, sheet.height);
-    // Distance from the card's rounded rectangle, in texture pixels, for each pixel of the halo.
-    const halfW = width * scale / 2, halfH = height * scale / 2, round = Math.min(halfW, halfH) * 0.25, span = reach * scale;
-    for (let y = 0; y < sheet.height; y++) {
-      for (let x = 0; x < sheet.width; x++) {
-        const qx = Math.max(0, Math.abs(x + 0.5 - sheet.width / 2) - halfW + round);
-        const qy = Math.max(0, Math.abs(y + 0.5 - sheet.height / 2) - halfH + round);
-        const d = Math.max(0, Math.hypot(qx, qy) - round) / span;
-        const at = (y * sheet.width + x) * 4;
-        image.data[at] = image.data[at + 1] = image.data[at + 2] = 255;
-        image.data[at + 3] = d >= 1 ? 0 : Math.round(230 * Math.pow(1 - d, 1.6));
-      }
-    }
-    pen.putImageData(image, 0, 0);
-    const texture = new THREE.CanvasTexture(sheet);
-    texture.colorSpace = THREE.SRGBColorSpace;
-    const glow = new THREE.Mesh(new THREE.PlaneGeometry(width + reach * 2, height + reach * 2), new THREE.MeshBasicMaterial({
-      map: texture, color: 0xdfeeff, transparent: true, opacity: GLOW_OPACITY, blending: THREE.AdditiveBlending,
-      depthWrite: false, side: THREE.DoubleSide, toneMapped: false,
+    const most = height * GLOW;
+    const glow = new THREE.Mesh(new THREE.PlaneGeometry(width + most * 2, height + most * 2), new THREE.ShaderMaterial({
+      vertexShader: glowVertex, fragmentShader: glowFragment, transparent: true, depthWrite: false,
+      blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+      uniforms: { halfSize: { value: new THREE.Vector2(width / 2, height / 2) }, reach: { value: most }, corner: { value: Math.min(width, height) * 0.06 }, opacity: { value: GLOW_OPACITY } },
       // Pushed back in depth, so the card in front of it hides its middle from either side without flicker.
       polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 8,
     }));
+    glow.userData.most = most;
+    glow.userData.height = height;
     glow.raycast = () => {}; // never picked
+    glowing.push(glow);
     return glow;
+  }
+  const glowAt = new THREE.Vector3();
+  function sizeGlows() {
+    // World units per screen pixel at a distance of one.
+    const perPixel = 2 * Math.tan(camera.fov * Math.PI / 360) / Math.max(1, canvas.clientHeight);
+    for (const glow of glowing) {
+      if (!glow.visible) continue;
+      glow.getWorldPosition(glowAt);
+      const across = perPixel * glowAt.distanceTo(camera.position); // world units per screen pixel at the card
+      glow.material.uniforms.reach.value = Math.max(1e-3, Math.min(glow.userData.most, GLOW_PX * across));
+      const tall = glow.userData.height / across; // the card's height on screen, in pixels
+      glow.material.uniforms.opacity.value = GLOW_OPACITY + (GLOW_NEAR - GLOW_OPACITY) * smoothstep((tall - 120) / 280);
+    }
   }
   // A piece's glow goes out the moment it is chosen, by a click on it or on a line that leads to it.
   function unglow(item) {
@@ -728,6 +738,7 @@
       camera.quaternion.copy(seat.quaternion);
     }
 
+    sizeGlows();
     renderer.render(scene, camera);
     time.textContent = `${clock(video.currentTime)}/${clock(video.duration)}`;
     const nearest = stop(turn), facing = [wrap(Math.floor(nearest)), wrap(Math.ceil(nearest))];
