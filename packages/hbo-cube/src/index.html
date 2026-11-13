@@ -29,8 +29,10 @@
   .views button[aria-pressed="true"], .views button:hover { color: #fff; }
 
   .spin { position: absolute; top: calc(36px + (100% - 142px) / 2); /* the middle of the band between the top bar and the bottom controls */ transform: translateY(-50%); z-index: 2; }
-  .spin.left { left: 3.5%; }
-  .spin.right { right: 3.5%; }
+  /* Each spin button sits beside the cube's front face, a gap of one and a half tiles out from its edge.
+     --edge (the face's half width on screen) and --gap are set by the script. */
+  .spin.left { right: calc(50% + var(--edge, 200px) + var(--gap, 51px)); }
+  .spin.right { left: calc(50% + var(--edge, 200px) + var(--gap, 51px)); }
   .spin svg { width: 18px; height: 18px; stroke-width: 2.6; stroke-linecap: butt; }
   .spin polygon { fill: currentColor; stroke: none; }
 
@@ -88,7 +90,6 @@
   @media (max-width: 560px) {
     .spin > span:not(.tile) { display: none; }
     .unlock { font-size: 10px; letter-spacing: .1em; }
-    .spin.left { left: 4px; } .spin.right { right: 4px; }
     .tile { width: 30px; height: 30px; }
     .controls { gap: 8px; }
   }

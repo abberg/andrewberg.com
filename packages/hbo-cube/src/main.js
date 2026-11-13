@@ -116,6 +116,13 @@
     tanH = Math.tan(LENS * Math.PI / 360) * camera.aspect;
     const v = tanV * 0.88, h = tanH * 0.88 * 0.9;
     fit = Math.max(RADIUS / h, RADIUS + Y / v, X + X / h);
+    // The spin buttons sit beside the cube's front face (face on, so they hold still as it turns), one and
+    // a half tiles out from its edge, closer on a narrow window so that they stay 12 px inside it.
+    const edge = X / (fit - X) / Math.tan(LENS * Math.PI / 360) * height / 2;
+    const spin = document.querySelector('.spin'), tile = spin && spin.querySelector('.tile');
+    const gap = tile ? Math.max(0, Math.min(tile.offsetWidth * 1.5, width / 2 - edge - 12 - spin.offsetWidth)) : 51;
+    canvas.parentElement.style.setProperty('--edge', `${edge}px`);
+    canvas.parentElement.style.setProperty('--gap', `${gap}px`);
     camera.updateProjectionMatrix();
   }
 
