@@ -540,7 +540,9 @@
   const flightTime = (distance, angle) => Math.max(900, Math.min(3500, 600 + distance * 3 + angle * 500));
   const rideTime = (distance, angle) => Math.max(2000, Math.min(9000, 800 + distance * 4 + angle * 500));
   const RIDE_RISE = 0.3, RIDE_FALL = 0.4, FLIGHT_RISE = 0.45, FLIGHT_FALL = 0.55;
-  const SETTLE_TURN = 1.5; // the fastest the camera should turn as it settles onto a piece, in radians a second
+  // How fast the camera should turn at most, in radians a second: onto a rail, and as it settles onto a piece
+  // (before and after TURN_DELAY), and how much of the time left the final turn of a line ride is held back.
+  const BOARD_TURN = 1.5, SETTLE_TURN = 2, SETTLE_TURN_MOST = 2.5, TURN_DELAY = 0.25;
 
   // ---- The ride ----------------------------------------------------------------------------------------
   // A line is ridden like a roller coaster track: the camera drops onto the rail where it was clicked,
@@ -580,15 +582,21 @@
       fly.rider = new THREE.Quaternion().setFromRotationMatrix(look.lookAt(railFrom, lookAt.copy(railFrom).add(ahead), lift));
       const boardAngle = fly.quaternion.angleTo(fly.rider), settleAngle = fly.rider.angleTo(seat.quaternion);
       fly.duration = rideTime(total, boardAngle + settleAngle);
-      // The turn onto the rail is done as the camera reaches it. The final turn starts as the camera starts to
-      // slow down or leaves the rail, whichever comes first, or earlier still so that it never turns faster
-      // than SETTLE_TURN. If either turn would still be too fast, the whole ride takes longer.
+      // The turn onto the rail is done as the camera reaches it. The final turn would start as the camera
+      // starts to slow down or leaves the rail, whichever comes first, or earlier so it never turns faster
+      // than SETTLE_TURN; it is then held back by TURN_DELAY of the time left. The delay only gives way if
+      // the turn would then be faster than SETTLE_TURN_MOST, and if that is not enough the ride takes longer.
+      const fastest = (angle, most) => 1.875 * angle / most * 1000; // smootherstep peaks at 1.875 times the mean
       fly.boarded = timeAt(fly.on, RIDE_RISE, RIDE_FALL);
-      fly.settle = Math.max(fly.boarded, Math.min(1 - RIDE_FALL, timeAt(fly.off, RIDE_RISE, RIDE_FALL)));
-      const fastest = angle => 1.875 * angle / SETTLE_TURN * 1000; // smootherstep peaks at 1.875 times the mean
-      if ((1 - fly.settle) * fly.duration < fastest(settleAngle)) fly.settle = Math.max(fly.boarded, 1 - fastest(settleAngle) / fly.duration);
-      fly.duration = Math.min(12000, Math.max(fly.duration,
-        fastest(settleAngle) / (1 - fly.settle + 1e-6), fastest(boardAngle) / (fly.boarded + 1e-6)));
+      fly.duration = Math.min(12000, Math.max(fly.duration, fastest(boardAngle, BOARD_TURN) / (fly.boarded + 1e-6)));
+      let settle = Math.max(fly.boarded, Math.min(1 - RIDE_FALL, timeAt(fly.off, RIDE_RISE, RIDE_FALL)));
+      settle = Math.max(fly.boarded, Math.min(settle, 1 - fastest(settleAngle, SETTLE_TURN) / fly.duration));
+      const base = settle;
+      settle += TURN_DELAY * (1 - settle);
+      if ((1 - settle) * fly.duration < fastest(settleAngle, SETTLE_TURN_MOST))
+        settle = Math.max(base, 1 - fastest(settleAngle, SETTLE_TURN_MOST) / fly.duration);
+      fly.settle = settle;
+      fly.duration = Math.min(12000, Math.max(fly.duration, fastest(settleAngle, SETTLE_TURN_MOST) / (1 - fly.settle + 1e-6)));
       fly.roll = new THREE.Quaternion();
     }
     const t = Math.max(0, Math.min(1, (now - fly.start) / fly.duration));
