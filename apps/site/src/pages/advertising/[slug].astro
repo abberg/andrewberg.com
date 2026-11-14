@@ -24,9 +24,16 @@ const { Content } = await render(project);
   </section>
 
   {data.hero && (
-    <figure class="hero">
+    <figure class="lead">
       <img src={data.hero.src} width={data.hero.width} height={data.hero.height} alt={data.hero.alt} loading="eager" fetchpriority="high" />
       <figcaption class="mono">{data.hero.caption}</figcaption>
+    </figure>
+  )}
+
+  {!data.hero && data.film && (
+    <figure class="lead">
+      <video src={data.film.src} poster={data.film.poster} width={data.film.width} height={data.film.height} controls preload="none" playsinline aria-label={data.film.title}></video>
+      <figcaption class="mono">{data.film.caption}</figcaption>
     </figure>
   )}
 
@@ -100,9 +107,9 @@ const { Content } = await render(project);
 
 <style>
   .eyebrow a:hover { color: var(--accent); }
-  .hero { display: flex; flex-direction: column; gap: 12px; margin: 0 0 64px; }
-  .hero img { display: block; width: 100%; height: auto; border-radius: 10px; background: #0b0b0c; }
-  .hero figcaption { margin: 0; }
+  .lead { display: flex; flex-direction: column; gap: 12px; margin: 0 0 64px; }
+  .lead img, .lead video { display: block; width: 100%; height: auto; border-radius: 10px; background: #0b0b0c; }
+  .lead figcaption { margin: 0; }
   .recreation { margin-top: 64px; padding-top: 40px; border-top: 1px solid var(--rule); }
   .recreation iframe { display: block; width: 100%; aspect-ratio: 16 / 9; border: 0; border-radius: 10px; background: var(--edge); }
   .recreation p { margin: 12px 0 0; }
@@ -164,7 +171,7 @@ const { Content } = await render(project);
     .story { font-size: 15px; }
     .notes { display: flex; flex-direction: column; gap: 32px; margin-top: 40px; padding-top: 28px; }
     .media { display: flex; flex-direction: column; gap: 24px; margin-top: 40px; padding-top: 28px; }
-    .hero { margin-bottom: 40px; }
+    .lead { margin-bottom: 40px; }
     .recreation { margin-top: 40px; padding-top: 28px; }
     .after { margin: 28px 0 0; font-size: 15px; }
     .recreation iframe { aspect-ratio: 4 / 3; }

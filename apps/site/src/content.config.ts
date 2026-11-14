@@ -17,6 +17,8 @@ const advertising = defineCollection({
     recreation: z.string().optional(),
     // A still of the original work shown large at the top of the project page, served from public/advertising/<project>/.
     hero: z.object({ src: z.string(), width: z.number(), height: z.number(), alt: z.string(), caption: z.string() }).optional(),
+    // A self-hosted film of the original work, such as an awards case study, shown large at the top of the project page in place of a hero still; served from public/advertising/<project>/.
+    film: z.object({ src: z.string(), poster: z.string(), width: z.number(), height: z.number(), title: z.string(), caption: z.string() }).optional(),
     // Stills of the original work, served from public/advertising/<project>/; one with an href links off to where it came from.
     images: z.array(z.object({ src: z.string(), width: z.number(), height: z.number(), alt: z.string(), caption: z.string(), href: z.string().url().optional() })).default([]),
     // A short note shown after the recreation, such as how the work lived offline.
