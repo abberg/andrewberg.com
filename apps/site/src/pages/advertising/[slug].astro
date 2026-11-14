@@ -57,7 +57,7 @@ const { Content } = await render(project);
 
   {data.after && (
     <section class="after">
-      <p>{data.after.text}</p>
+      {data.after.text.trim().split(/\n\s*\n/).map(paragraph => <p>{paragraph}</p>)}
     </section>
   )}
 

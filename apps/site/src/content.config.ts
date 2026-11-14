@@ -21,7 +21,7 @@ const advertising = defineCollection({
     film: z.object({ src: z.string(), poster: z.string(), width: z.number(), height: z.number(), title: z.string(), caption: z.string() }).optional(),
     // Stills of the original work, served from public/advertising/<project>/; one with an href links off to where it came from.
     images: z.array(z.object({ src: z.string(), width: z.number(), height: z.number(), alt: z.string(), caption: z.string(), href: z.string().url().optional() })).default([]),
-    // A short note shown after the recreation, such as how the work lived offline.
+    // Text shown after the recreation, such as how the work lived offline. A blank line starts a new paragraph.
     after: z.object({ text: z.string() }).optional(),
     // A film of the original work on YouTube.
     video: z.object({ youtube: z.string(), title: z.string(), caption: z.string() }).optional(),
