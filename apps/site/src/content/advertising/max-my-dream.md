@@ -4,7 +4,7 @@ client: Pepcid
 agency: The Barbarian Group
 partners: [JWT]
 year: 2011
-role: Developer
+role: Flash developer
 images:
   - src: /advertising/max-my-dream/dream-input.png
     width: 450
@@ -37,5 +37,7 @@ press:
 Max My Dream was a minisite for Pepcid Max, made by The Barbarian Group with JWT and launched in January 2011. Its pitch was the sweet dreams you have after a night free of heartburn. Visitors typed a dream of up to 140 characters, pressed Max My Dream, and the curtain of a night sky opened onto it, played out as a short animation over a music box loop. Then it faded, and each dream got its own link to share or embed.
 
 Behind the curtain was a language problem. A natural language processor parsed each short sentence for its grammar, with an eye on internet slang, and pulled out the main characters, the actions, the mood, and the bystanders. It matched those against a database of everything the team could think of and illustrate, from pets to Kim Kardashian, mapped to the many ways people say the same thing: walking, strolling, trotting. The matches became a set of illustrations and animation templates, drawn by a dozen illustrators, that Flash assembled and played back.
+
+I wrote the Flash player that put the scenes together. It took the parser’s output, a list of characters, actions, settings, and a mood, and built each dream from it at playback: loading the illustrations, placing them in a scene, and running the animation templates that moved them.
 
 Parsing was slow and expensive, so dreams went into a central queue and a pool of language servers worked through them. New servers could be added in minutes when traffic spiked.
