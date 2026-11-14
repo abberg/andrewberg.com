@@ -27,6 +27,8 @@ images:
     alt: The end of a dream. Under the line “Start dreaming, heartburn free,” a box reads “Your dream now lives at” with a short maxmydream.com URL and buttons for Facebook, Twitter, email, and embed, then Replay Dream and Max another Dream.
     caption: Every dream got its own link
 summary: Type a dream in 140 characters and watch it play. A language parser read each sentence for its characters, actions, and mood, and Flash animated it from a library of illustrated scenes.
+recognition:
+  - Clio Health 2011, Bronze, Innovative Media
 press:
   - { title: Who Knew Heartburn Meds Could Be So Dreamy?, source: Adweek AgencySpy, url: "https://www.adweek.com/agencyspy/who-new-heartburn-meds-could-be-so-dreamy/" }
   - { title: Dream a little dream…of flying space tigers, source: The Barbarian Group, url: "https://web.archive.org/web/20121118060512/http://barbariangroup.com/posts/7389-dream_a_little_dream_of_flying_space_tigers" }
