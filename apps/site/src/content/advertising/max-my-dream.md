@@ -40,4 +40,6 @@ Behind the curtain was a language problem. A natural language processor parsed e
 
 I wrote the Flash player that put the scenes together. It took the parser’s output, a list of characters, actions, settings, and a mood, and built each dream from it at playback: loading the illustrations, placing them in a scene, and running the animation templates that moved them.
 
+I also built the base animation templates. Other developers wrote effects that layered on top, so I worked with them to agree on an event API: the templates fired triggers as they played, and each effect listened for them to stay in sync with the animation.
+
 Parsing was slow and expensive, so dreams went into a central queue and a pool of language servers worked through them. New servers could be added in minutes when traffic spiked.
