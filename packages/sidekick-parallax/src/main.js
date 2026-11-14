@@ -4,8 +4,7 @@
 (() => {
   const H = 360;            // the scene's height, in scene units
   const T = 300;            // the width of one tile, in scene units
-  const INK = '#1c1d1f';
-  const PAPER = '#F5F5F1';
+  let INK = '#16181A', PAPER = '#F5F5F1';   // set from the page's theme, below
 
   // Back to front. `tiles` sets the ring's length; `loose` is a speed picked by eye, for comparison.
   const LAYERS = [
@@ -20,8 +19,6 @@
     layer.index = index;
     layer.length = layer.tiles * T;
     layer.speed = layer.tiles / FRONT;
-    // A darker shade of the layer's colour, for its tile edges and seam.
-    layer.dark = '#' + [1, 3, 5].map(at => Math.round(parseInt(layer.color.slice(at, at + 2), 16) * 0.5).toString(16).padStart(2, '0')).join('');
   });
 
   const mod = (n, m) => ((n % m) + m) % m;
@@ -301,6 +298,39 @@
       cell.classList.toggle('off', !fitTarget && layer.loose !== layer.speed);
     }
   }
+
+  // ---- Theme. Embedded in a page of the site, the demo follows that page's light or dark theme.
+  // On its own it uses the theme saved by the site, or the system's.
+
+  function theme() {
+    try { const set = parent !== window && parent.document.documentElement.dataset.theme; if (set) return set; } catch {}
+    try { const saved = localStorage.getItem('theme'); if (saved === 'light' || saved === 'dark') return saved; } catch {}
+    return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  function applyTheme() {
+    const dark = theme() === 'dark';
+    document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+    // Take the page's exact colours where there is one, so the demo sits flush with it.
+    for (const name of ['--bg', '--ink', '--mute']) {
+      let value = '';
+      try { if (parent !== window) value = getComputedStyle(parent.document.documentElement).getPropertyValue(name).trim(); } catch {}
+      if (value) document.documentElement.style.setProperty(name, value); else document.documentElement.style.removeProperty(name);
+    }
+    const style = getComputedStyle(document.documentElement);
+    INK = style.getPropertyValue('--ink').trim(); PAPER = style.getPropertyValue('--bg').trim();
+    // Tile edges and seams take a shade of their layer's colour: darker on paper, lighter on the dark page.
+    for (const layer of LAYERS) {
+      layer.dark = '#' + [1, 3, 5].map(at => {
+        const value = parseInt(layer.color.slice(at, at + 2), 16);
+        return Math.round(dark ? value + (255 - value) * 0.6 : value * 0.5).toString(16).padStart(2, '0');
+      }).join('');
+    }
+    cache.clear();
+  }
+  applyTheme();
+  try { new MutationObserver(applyTheme).observe(parent.document.documentElement, { attributes: true, attributeFilter: ['data-theme'] }); } catch {}
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
+  window.addEventListener('storage', applyTheme);
 
   // ---- Input
 
