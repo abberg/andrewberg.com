@@ -20,6 +20,8 @@
     layer.index = index;
     layer.length = layer.tiles * T;
     layer.speed = layer.tiles / FRONT;
+    // A darker shade of the layer's colour, for its tile edges and seam.
+    layer.dark = '#' + [1, 3, 5].map(at => Math.round(parseInt(layer.color.slice(at, at + 2), 16) * 0.5).toString(16).padStart(2, '0')).join('');
   });
 
   const mod = (n, m) => ((n % m) + m) % m;
@@ -243,7 +245,7 @@
       const top = Math.round(layer.band[0] * scale) + (layer.index ? 0 : Math.round(4 * scale)), bottom = Math.round(layer.band[1] * scale);
       for (let k = layer.first; k <= layer.last + 1; k++) {
         const index = mod(k, layer.tiles), px = layer.origin + k * tilePixels, seam = index === 0;
-        g.strokeStyle = INK; g.lineWidth = Math.max(1, dpr * (seam ? 3 : 1.2));
+        g.strokeStyle = layer.dark; g.lineWidth = Math.max(1, dpr * (seam ? 3 : 1.5));
         g.setLineDash(seam ? [] : [dpr * 5, dpr * 4]);
         g.beginPath(); g.moveTo(px, top); g.lineTo(px, bottom); g.stroke();
         g.setLineDash([]);
@@ -268,11 +270,11 @@
         rg.arc(cx, cy, radius + thick / 2, a0, a1); rg.arc(cx, cy, radius - thick / 2, a1, a0, true); rg.closePath();
         rg.fillStyle = layer.inView && layer.inView.has(index) ? layer.color : PAPER;
         rg.fill();
-        rg.strokeStyle = INK; rg.lineWidth = dpr * 1.2; rg.stroke();
+        rg.strokeStyle = layer.dark; rg.lineWidth = dpr * 1.2; rg.stroke();
       }
       // The seam, where the last tile meets the first.
       const seam = up - centre * turn;
-      rg.strokeStyle = INK; rg.lineWidth = dpr * 3;
+      rg.strokeStyle = layer.dark; rg.lineWidth = dpr * 3;
       rg.beginPath();
       rg.moveTo(cx + Math.cos(seam) * (radius - thick * 0.8), cy + Math.sin(seam) * (radius - thick * 0.8));
       rg.lineTo(cx + Math.cos(seam) * (radius + thick * 0.8), cy + Math.sin(seam) * (radius + thick * 0.8));
