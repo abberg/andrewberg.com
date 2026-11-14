@@ -5,15 +5,12 @@ agency: The Barbarian Group
 partners: [BBDO New York]
 year: 2009
 role: Technical lead
-recreation: hbo-cube
 hero:
   src: /advertising/hbo-imagine/original-site.jpg
   width: 1274
   height: 669
   alt: The HBO Imagine site in 2009. A cube turned to a corner shows two angles of The Affair, a bedroom on one side and a living room on the other, with Spin buttons either side, playback controls below, and a bar reading 70% unlocked.
   caption: The original 2009 Flash site
-after:
-  text: Offline, the same four-sided film played on a 14-foot cube that toured New York, Philadelphia, and Washington, D.C.
 images:
   - src: /advertising/hbo-imagine/case-study.jpg
     width: 1280
@@ -57,3 +54,7 @@ The four angles had to stay in step, even with the cube turned to a corner and t
 Navigating between pieces of content relied on a gimbal camera rig, which kept the camera’s position separate from the direction it faced. Its position rode the lines between pieces like a car on a roller coaster track, while its view turned independently, easing toward the next piece. Keeping the two apart let the camera travel down a connection while still looking around, then turn smoothly to face the content as it arrived.
 
 The cube below works the same way, with one video across all four sides and the same kind of camera rig. The scene is a greybox of the gallery from *Heist*, modelled and rendered in Blender.
+
+<sketch-demo name="hbo-cube" title="HBO Imagine, recreated"></sketch-demo>
+
+Offline, the same four-sided film played on a 14-foot cube that toured New York, Philadelphia, and Washington, D.C.

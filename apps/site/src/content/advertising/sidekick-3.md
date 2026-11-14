@@ -5,20 +5,12 @@ agency: The Barbarian Group
 partners: [Publicis West]
 year: 2006
 role: Technical lead
-recreation: sidekick-parallax
 hero:
   src: /advertising/sidekick-3/newsstand.jpg
   width: 1089
   height: 641
   alt: The Sidekick 3 site in 2006. An illustrated city street with a newsstand marked Bad News and Good News, a girl in a pink dress and boots holding a DJ turntable rig, and a boy in a number 8 jersey sitting on the pavement sorting records, under a navigation bar reading Buy Now, Demo It, Kick It to a Friend, Sidekick Events, Support.
   caption: The original 2006 Flash site, illustrated by We Love Dust
-after:
-  text: |
-    The street ran all the way round, with no start or end, so every layer had to loop with it. Each layer was a ring of tiles, and its length was set by its speed. A layer that scrolled at half the pace of the street had a ring half as long. Sized that way, all of the rings came back to the same place together after one lap.
-
-    Each part of the street also had its own soundscape. The engine blended these as the visitor moved, fading each one in as its scene came into view and out as it scrolled away.
-
-    I was also responsible for all of the animation, including the timeline animation for the on-screen characters and the build-in transition that introduced the city scene once the site had loaded.
 images:
   - src: /advertising/sidekick-3/skate-street.jpg
     width: 1093
@@ -44,3 +36,11 @@ The Sidekick 3 was T-Mobile’s 2006 successor to its messaging phone with the s
 The site presented an illustrated city for visitors to explore, drawn by We Love Dust and animated in Flash throughout. Each scene introduced a feature of the phone: a DJ at a newsstand, skaters in animal masks outside a costume shop, a gorilla sending an instant message. The site launched ahead of the phone, and further features were unlocked in the weeks leading up to its release.
 
 As technical lead, I designed and built the tiling parallax scrolling engine that the site ran on. Each scene was composed of layers, from the skyline in the background to the street and characters in the foreground. As visitors interacted, the scene scrolled horizontally, with each layer moving at a different speed to give the flat illustrations a sense of depth.
+
+<sketch-demo name="sidekick-parallax" title="How the layers of the Sidekick 3 street looped"></sketch-demo>
+
+The street ran all the way round, with no start or end, so every layer had to loop with it. Each layer was a ring of tiles, and its length was set by its speed. A layer that scrolled at half the pace of the street had a ring half as long. Sized that way, all of the rings came back to the same place together after one lap.
+
+Each part of the street also had its own soundscape. The engine blended these as the visitor moved, fading each one in as its scene came into view and out as it scrolled away.
+
+I was also responsible for all of the animation, including the timeline animation for the on-screen characters and the build-in transition that introduced the city scene once the site had loaded.
