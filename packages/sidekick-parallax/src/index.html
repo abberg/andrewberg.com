@@ -27,8 +27,10 @@
   .legend .n, .legend .r { text-align: right; color: #5E635E; }
   .legend .r.off { color: #B3261E; }
   .toggles { display: flex; flex-wrap: wrap; gap: 8px; }
-  button { margin: 0; padding: 5px 9px 5px 26px; position: relative; border: 1.5px solid #16181A; border-radius: 0; background: none; color: inherit; font: inherit; text-transform: uppercase; letter-spacing: .04em; cursor: pointer; }
-  button::before { content: ''; position: absolute; left: 8px; top: 50%; width: 10px; height: 10px; margin-top: -5px; border: 1.5px solid #16181A; }
+  button { display: inline-flex; align-items: center; gap: 7px; margin: 0; padding: 8px 10px 8px 8px; border: 1.5px solid #16181A; border-radius: 0; background: none; color: inherit; font: inherit; line-height: 1; text-transform: uppercase; letter-spacing: .04em; cursor: pointer; }
+  button::before { content: ''; flex: none; width: 10px; height: 10px; border: 1.5px solid #16181A; }
+  /* The label is all capitals, so its box is trimmed to the cap height to centre it on the square. */
+  button span { display: block; text-box: trim-both cap alphabetic; }
   button[aria-pressed="true"]::before { background: #16181A; }
   button:focus-visible { outline: 2px solid #16181A; outline-offset: 2px; }
   .status { margin: 0; color: #5E635E; font-family: system-ui, sans-serif; font-size: 13px; line-height: 1.4; min-height: 2.8em; }
@@ -39,8 +41,8 @@
     .legend { gap: 2px 8px; }
     .legend i { width: 9px; height: 9px; }
     .toggles { flex-wrap: nowrap; gap: 5px; }
-    button { padding: 3px 5px 3px 18px; font-size: 9px; letter-spacing: 0; white-space: nowrap; }
-    button::before { left: 5px; width: 8px; height: 8px; margin-top: -4px; }
+    button { gap: 5px; padding: 6px 6px 6px 5px; font-size: 9px; letter-spacing: 0; white-space: nowrap; }
+    button::before { width: 8px; height: 8px; }
     .status { font-size: 11px; min-height: 0; }
   }
   @media (max-height: 340px) { .status, .hint { display: none; } }
@@ -57,8 +59,8 @@
     <div class="info">
       <ul class="legend" id="legend"></ul>
       <div class="toggles">
-        <button type="button" id="tiles" aria-pressed="true">Show tiles</button>
-        <button type="button" id="fit" aria-pressed="true">Size rings to speed</button>
+        <button type="button" id="tiles" aria-pressed="true"><span>Show tiles</span></button>
+        <button type="button" id="fit" aria-pressed="true"><span>Size rings to speed</span></button>
       </div>
       <p class="status" id="status" aria-live="polite"></p>
     </div>
