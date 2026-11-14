@@ -39,4 +39,4 @@ As technical lead, I designed and built the tiling parallax scrolling engine tha
 
 Each part of the street also had its own soundscape. The engine blended these as the visitor moved, fading each one in as its scene came into view and out as it scrolled away.
 
-I was also responsible for much of the animation: the timeline animation for the on-screen characters, and the build-in transition that introduced the city scene once the site had loaded.
+I was also responsible for all of the animation, including the timeline animation for the on-screen characters and the build-in transition that introduced the city scene once the site had loaded.
