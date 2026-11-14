@@ -31,10 +31,12 @@ press:
   - { title: Sidekick 3 Minisite, source: The Barbarian Group, url: "https://web.archive.org/web/20121028125444/http://barbariangroup.com/portfolio/sidekick_3_minisite" }
 ---
 
-The Sidekick 3 was T-Mobile’s 2006 update to the messaging phone with the flip-out keyboard, and by then it carried real street credibility with younger owners. The Barbarian Group built its brand site with Publicis West and the illustration studio We Love Dust.
+The Sidekick 3 was T-Mobile’s 2006 successor to its messaging phone with the swivel screen and full keyboard, a device with a strong following among younger consumers. The Barbarian Group built the brand site in partnership with Publicis West and the illustration studio We Love Dust.
 
-The site was an illustrated city to explore, drawn in We Love Dust’s inked, flat-coloured style and animated in Flash throughout. Each scene hid a feature of the phone: a DJ at a newsstand, skaters in animal masks outside a costume shop, a gorilla thumbing out an instant message to its buddies. The site went live before the phone did, and more of it unlocked as launch day got closer.
+The site presented an illustrated city for visitors to explore, drawn by We Love Dust and animated in Flash throughout. Each scene introduced a feature of the phone: a DJ at a newsstand, skaters in animal masks outside a costume shop, a gorilla sending an instant message. The site launched ahead of the phone, and further features were unlocked in the weeks leading up to its release.
 
 As technical lead, I designed and built the tiling parallax scrolling engine that the site ran on. Each scene was composed of layers, from the skyline in the background to the street and characters in the foreground. As visitors interacted, the scene scrolled horizontally, with each layer moving at a different speed to give the flat illustrations a sense of depth.
+
+Each part of the street also had its own soundscape. The engine blended these as the visitor moved, fading each one in as its scene came into view and out as it scrolled away.
 
 I was also responsible for much of the animation: the timeline animation for the on-screen characters, and the build-in transition that introduced the city scene once the site had loaded.
