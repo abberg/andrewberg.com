@@ -35,6 +35,6 @@ The Sidekick 3 was T-Mobile’s 2006 update to the messaging phone with the flip
 
 The site was an illustrated city to explore, drawn in We Love Dust’s inked, flat-coloured style and animated in Flash throughout. Each scene hid a feature of the phone: a DJ at a newsstand, skaters in animal masks outside a costume shop, a gorilla thumbing out an instant message to its buddies. The site went live before the phone did, and more of it unlocked as launch day got closer.
 
-I was the technical lead, and the part I built was the engine underneath: a tiling parallax scroller. Each scene was stacked in layers, from the skyline at the back to the street and the characters up front. When you interacted, the whole scene scrolled left or right, and each layer moved at its own speed, so the flat illustrations opened up into a city with depth.
+As technical lead, I designed and built the tiling parallax scrolling engine that the site ran on. Each scene was composed of layers, from the skyline in the background to the street and characters in the foreground. As visitors interacted, the scene scrolled horizontally, with each layer moving at a different speed to give the flat illustrations a sense of depth.
 
-I also did a lot of the animation on top of it: timeline animation for the characters on screen, and the build-in transition that brought the city scene in once the site had loaded.
+I was also responsible for much of the animation: the timeline animation for the on-screen characters, and the build-in transition that introduced the city scene once the site had loaded.
