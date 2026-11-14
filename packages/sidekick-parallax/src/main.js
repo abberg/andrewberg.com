@@ -9,10 +9,10 @@
 
   // Back to front. `tiles` sets the ring's length; `loose` is a speed picked by eye, for comparison.
   const LAYERS = [
-    { name: 'Sky', tiles: 4, color: '#3f88ad', band: [0, 150], loose: 0.2 },
-    { name: 'Skyline', tiles: 6, color: '#7d63ad', band: [50, 240], loose: 0.48 },
-    { name: 'Shops', tiles: 9, color: '#c8701f', band: [115, 305], loose: 0.72 },
-    { name: 'Street', tiles: 14, color: '#c22f68', band: [222, 360], loose: 1 },
+    { name: 'Sky', tiles: 4, color: '#00b9d5', band: [0, 150], loose: 0.2 },
+    { name: 'Skyline', tiles: 6, color: '#009b92', band: [50, 240], loose: 0.48 },
+    { name: 'Shops', tiles: 9, color: '#307b57', band: [115, 305], loose: 0.72 },
+    { name: 'Street', tiles: 14, color: '#3e5a2b', band: [222, 360], loose: 1 },
   ];
   const FRONT = LAYERS[LAYERS.length - 1].tiles;
   const LAP = FRONT * T;
