@@ -6,26 +6,26 @@ partners: [JWT]
 year: 2011
 role: Flash developer
 images:
-  - src: /advertising/max-my-dream/dream-input.png
-    width: 450
-    height: 343
-    alt: The Max My Dream home screen. A full moon over a night sky behind a curtain, and a text box reading “I dreamed that… an army of intelligent sea robots invaded the universe and took over the city!” with 62 characters left and a Max my Dream button.
+  - src: /advertising/max-my-dream/dream-input.jpg
+    width: 624
+    height: 424
+    alt: The Max My Dream home screen. A full moon over a night sky behind a curtain, and a text box reading “I dreamed that… an army of intelligent sea robots invaded the universe and took over the city!” with a character count and a Max my Dream button.
     caption: Typing a dream, up to 140 characters
-  - src: /advertising/max-my-dream/sea-robots.png
-    width: 450
-    height: 343
+  - src: /advertising/max-my-dream/parsing.jpg
+    width: 624
+    height: 424
+    alt: The dream being read. Words from the sentence, army, invaded, intelligent, sea robots, took, drift around an alarm clock whose face fills in as it works.
+    caption: Reading the dream, word by word
+  - src: /advertising/max-my-dream/sea-robots.jpg
+    width: 624
+    height: 424
     alt: The same dream played back. A row of green wind-up robots wades through stylised waves in front of a dark city skyline, with glowing pink brains floating in the sky.
     caption: “An army of intelligent sea robots…”
   - src: /advertising/max-my-dream/faces.png
-    width: 450
-    height: 343
+    width: 438
+    height: 308
     alt: Another dream. A silhouetted figure stands among large illustrated faces grimacing in anger, under clouds with eyes peering out of the sky.
     caption: The dreamer in silhouette, among the cast
-  - src: /advertising/max-my-dream/share.png
-    width: 450
-    height: 343
-    alt: The end of a dream. Under the line “Start dreaming, heartburn free,” a box reads “Your dream now lives at” with a short maxmydream.com URL and buttons for Facebook, Twitter, email, and embed, then Replay Dream and Max another Dream.
-    caption: Every dream got its own link
 summary: Type a dream in 140 characters and watch it play. A language parser read each sentence for its characters, actions, and mood, and Flash animated it from a library of illustrated scenes.
 recognition:
   - Clio Health 2011, Bronze, Innovative Media
