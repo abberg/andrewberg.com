@@ -34,37 +34,33 @@
   const pick = (r, list) => list[Math.floor(r() * list.length)];
   const between = (r, a, b) => a + r() * (b - a);
 
-  // ---- The artwork. Each layer is a list of items placed along its ring, drawn in ring coordinates.
+  // ---- The artwork. Each layer is a list of flat shapes placed along its ring, drawn in ring coordinates
+  // in the layer's own colour, the same one its ring has in the diagram. `cut` punches a paper-coloured hole.
 
-  function box(c, x, y, w, h, fill) {
-    c.fillStyle = fill; c.fillRect(x, y, w, h); c.strokeRect(x, y, w, h);
-  }
-  function shape(c, points, fill) {
+  function box(c, x, y, w, h) { c.fillRect(x, y, w, h); }
+  function shape(c, points) {
     c.beginPath();
     points.forEach(([x, y], i) => (i ? c.lineTo(x, y) : c.moveTo(x, y)));
-    c.closePath();
-    if (fill) { c.fillStyle = fill; c.fill(); }
-    c.stroke();
+    c.closePath(); c.fill();
   }
-  function line(c, x1, y1, x2, y2) { c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2); c.stroke(); }
+  function disc(c, x, y, radius) { c.beginPath(); c.arc(x, y, radius, 0, Math.PI * 2); c.fill(); }
+  function cut(c, draw) { const paint = c.fillStyle; c.fillStyle = PAPER; draw(); c.fillStyle = paint; }
 
   function sky(layer) {
     const r = random(11), items = [];
     // The landmark at the seam: a blimp.
     items.push({ x0: -70, x1: 70, draw(c) {
-      shape(c, [[38, 52], [62, 38], [62, 82], [38, 68]], '#e9c24a');
-      c.beginPath(); c.ellipse(0, 60, 52, 22, 0, 0, Math.PI * 2); c.fillStyle = '#e8739b'; c.fill(); c.stroke();
-      c.beginPath(); c.ellipse(0, 60, 52, 8, 0, 0, Math.PI); c.stroke();
-      box(c, -14, 82, 28, 9, '#f3ead2');
+      c.beginPath(); c.ellipse(0, 60, 52, 22, 0, 0, Math.PI * 2); c.fill();
+      shape(c, [[38, 54], [64, 38], [64, 82], [38, 66]]);
+      box(c, -14, 80, 28, 11);
     } });
     const count = 9;
     for (let i = 0; i < count; i++) {
       const x = 140 + (i + r() * 0.6) * (layer.length - 280) / count, y = between(r, 34, 112);
       const puffs = Array.from({ length: 5 }, (_, n) => [x + (n - 2) * between(r, 15, 21), y - (n % 2) * between(r, 5, 14), between(r, 13, 24)]);
       items.push({ x0: x - 80, x1: x + 80, draw(c) {
-        c.fillStyle = '#e3f1e6';
-        for (const [px, py, pr] of puffs) { c.beginPath(); c.arc(px, py, pr, 0, Math.PI * 2); c.fill(); }
-        c.fillRect(puffs[0][0], y, puffs[4][0] - puffs[0][0], 16);
+        for (const [px, py, pr] of puffs) disc(c, px, py, pr);
+        box(c, puffs[0][0], y, puffs[4][0] - puffs[0][0], 16);
       } });
     }
     return items;
@@ -72,29 +68,19 @@
 
   function skyline(layer) {
     const r = random(23), items = [], base = 240;
-    const fills = ['#cbc7dc', '#b9c6d2', '#d8d2c5', '#c0d0c6', '#dcc9d3', '#c6cfdc'];
-    // The landmark: a tall pink tower with a spire.
+    // The landmark: a tall tower with a spire.
     items.push({ x0: -40, x1: 40, draw(c) {
-      box(c, -32, 96, 64, base - 96, '#ec9bb8');
-      box(c, -20, 74, 40, 22, '#f2b6ca');
-      shape(c, [[-9, 74], [0, 52], [9, 74]], '#f2b6ca');
-      for (let y = 106; y < base - 12; y += 16) line(c, -24, y, 24, y);
+      box(c, -30, 96, 60, base - 96); box(c, -19, 74, 38, 22);
+      shape(c, [[-9, 74], [0, 50], [9, 74]]);
     } });
     let x = 40;
     while (layer.length - 40 - x > 26) {
-      const w = Math.min(between(r, 42, 96), layer.length - 40 - x), h = between(r, 62, 158), top = base - h;
-      const fill = pick(r, fills), kind = Math.floor(r() * 4), left = x, columns = Math.max(1, Math.floor((w - 12) / 13)), rows = Math.floor((h - 18) / 17);
-      const lit = Array.from({ length: columns * rows }, () => r() < 0.72);
+      const w = Math.min(between(r, 42, 96), layer.length - 40 - x), h = between(r, 62, 158), top = base - h, kind = Math.floor(r() * 4), left = x;
       items.push({ x0: left, x1: left + w, draw(c) {
-        box(c, left, top, w, h, fill);
-        if (kind === 0) shape(c, [[left + w * 0.2, top], [left + w / 2, top - 22], [left + w * 0.8, top]], fill);
-        if (kind === 1) box(c, left + w * 0.25, top - 14, w * 0.5, 14, fill);
-        if (kind === 2) shape(c, [[left, top], [left, top - 12], [left + w, top - 26], [left + w, top]], fill);
-        c.fillStyle = '#1c1d1f55';
-        const pitch = (w - 12) / columns;
-        for (let row = 0; row < rows; row++) for (let col = 0; col < columns; col++) {
-          if (lit[row * columns + col]) c.fillRect(left + 6 + col * pitch + pitch / 2 - 3, top + 12 + row * 17, 6, 9);
-        }
+        box(c, left + 2, top, w - 4, h);
+        if (kind === 0) shape(c, [[left + w * 0.2, top], [left + w / 2, top - 22], [left + w * 0.8, top]]);
+        if (kind === 1) box(c, left + w * 0.25, top - 14, w * 0.5, 14);
+        if (kind === 2) shape(c, [[left + 2, top], [left + 2, top - 12], [left + w - 2, top - 26], [left + w - 2, top]]);
       } });
       x += w;
     }
@@ -103,41 +89,25 @@
 
   function shops(layer) {
     const r = random(37), items = [], base = 305;
-    const walls = ['#eadfb0', '#dcb99a', '#c9d6a9', '#e6cbc1', '#bccdd8', '#dac6e0', '#e8d39a'];
-    const trims = ['#c8443c', '#2f7d8a', '#5b7a3a', '#8a4f9e', '#d98a2b'];
     // The landmark: a clock tower.
     items.push({ x0: -72, x1: 72, draw(c) {
-      box(c, -64, 150, 128, base - 150, '#8fc7c2');
-      shape(c, [[-72, 150], [0, 122], [72, 150]], '#2f7d8a');
-      c.beginPath(); c.arc(0, 192, 24, 0, Math.PI * 2); c.fillStyle = '#f7f1dc'; c.fill(); c.stroke();
-      line(c, 0, 192, 0, 175); line(c, 0, 192, 12, 198);
-      box(c, -22, 246, 44, base - 246, '#2f5d63');
-      box(c, -52, 232, 20, 30, '#f7f1dc'); box(c, 32, 232, 20, 30, '#f7f1dc');
+      box(c, -62, 150, 124, base - 150);
+      shape(c, [[-72, 150], [0, 120], [72, 150]]);
+      cut(c, () => disc(c, 0, 192, 22));
+      box(c, -1.5, 174, 3, 19); shape(c, [[0, 190], [13, 197], [11, 200], [-1, 193]]);
     } });
     let x = 72;
     while (layer.length - 72 - x > 60) {
       let w = between(r, 92, 172);
       if (layer.length - 72 - x - w < 60) w = layer.length - 72 - x;
-      const h = between(r, 78, 150), top = base - h, left = x, wall = pick(r, walls), trim = pick(r, trims);
-      const columns = Math.max(1, Math.floor((w - 16) / 30)), rows = Math.max(0, Math.floor((h - 62) / 36)), awning = r() < 0.6, stripes = Math.max(3, Math.round(w / 18));
+      const h = between(r, 78, 150), top = base - h, left = x, columns = Math.max(1, Math.floor((w - 20) / 34)), rows = Math.max(0, Math.floor((h - 62) / 38));
       items.push({ x0: left, x1: left + w, draw(c) {
-        box(c, left, top, w, h, wall);
-        box(c, left - 3, top - 6, w + 6, 8, trim);
-        const pitch = (w - 16) / columns;
-        for (let row = 0; row < rows; row++) for (let col = 0; col < columns; col++) {
-          const wx = left + 8 + col * pitch + pitch / 2 - 8, wy = top + 14 + row * 36;
-          box(c, wx, wy, 16, 22, '#f7f1dc');
-          box(c, wx - 5, wy, 5, 22, trim); box(c, wx + 16, wy, 5, 22, trim);
-        }
-        const floor = base - 44;
-        box(c, left + 10, floor + 8, w * 0.5, 26, '#bfe0e6');
-        box(c, left + w * 0.5 + 22, floor + 4, 22, 40, trim);
-        if (awning) {
-          const sw = (w - 8) / stripes;
-          for (let n = 0; n < stripes; n++) shape(c, [[left + 4 + n * sw, floor - 6], [left + 4 + (n + 1) * sw, floor - 6], [left + 2 + (n + 1) * sw, floor + 8], [left + 2 + n * sw, floor + 8]], n % 2 ? '#f7f1dc' : trim);
-        } else {
-          box(c, left + 12, floor - 10, w - 24, 12, '#f7f1dc');
-        }
+        box(c, left + 3, top, w - 6, h);
+        box(c, left, top - 6, w, 8);
+        const pitch = (w - 20) / columns;
+        cut(c, () => {
+          for (let row = 0; row < rows; row++) for (let col = 0; col < columns; col++) box(c, left + 10 + col * pitch + pitch / 2 - 8, top + 16 + row * 38, 16, 22);
+        });
       } });
       x += w;
     }
@@ -146,45 +116,31 @@
 
   function street(layer) {
     const r = random(53), items = [], ground = 292;
-    const stones = Array.from({ length: 150 }, () => [r() * layer.length, between(r, ground + 12, H - 6), between(r, 2, 5)]);
     items.push({ x0: 0, x1: layer.length, draw(c) {
-      c.fillStyle = '#c2c4ba'; c.fillRect(0, ground, layer.length, H - ground);
-      c.fillStyle = '#d6d7ce'; c.fillRect(0, ground, layer.length, 12);
-      line(c, 0, ground, layer.length, ground); line(c, 0, ground + 12, layer.length, ground + 12);
-      c.fillStyle = '#e9c24a';
-      for (let x = 20; x < layer.length; x += 100) { c.fillRect(x, 338, 60, 5); c.strokeRect(x, 338, 60, 5); }
-      c.fillStyle = '#a9ab9f';
-      for (const [x, y, s] of stones) { c.beginPath(); c.ellipse(x, y, s, s * 0.5, 0, 0, Math.PI * 2); c.fill(); c.stroke(); }
+      box(c, 0, ground, layer.length, H - ground);
+      cut(c, () => { for (let x = 20; x < layer.length; x += 100) box(c, x, 336, 60, 6); });
     } });
     // The landmark: a kiosk.
     items.push({ x0: -70, x1: 70, draw(c) {
-      box(c, -52, 262, 104, 48, '#f3ead2');
-      box(c, -44, 270, 60, 22, '#3b3f58');
-      box(c, 24, 270, 20, 40, '#c8443c');
-      for (let n = 0; n < 8; n++) shape(c, [[-64 + n * 16, 246], [-48 + n * 16, 246], [-50 + n * 16, 264], [-66 + n * 16, 264]], n % 2 ? '#f7f1dc' : '#e8739b');
-      shape(c, [[-64, 246], [-40, 230], [40, 230], [64, 246]], '#e8739b');
-      for (let n = 0; n < 4; n++) box(c, -40 + n * 14, 296, 11, 14, pick(random(n + 2), ['#e9c24a', '#8fc7c2', '#f7f1dc']));
+      box(c, -50, 258, 100, 40);
+      shape(c, [[-66, 262], [-40, 232], [40, 232], [66, 262]]);
+      cut(c, () => box(c, -38, 270, 50, 18));
     } });
     let x = 110;
     while (x < layer.length - 110) {
-      const at = x, kind = Math.floor(r() * 5), tint = pick(r, ['#3f88ad', '#c8443c', '#5b7a3a', '#e9c24a']);
+      const at = x, kind = Math.floor(r() * 5);
       items.push({ x0: at - 50, x1: at + 60, draw(c) {
         if (kind === 0) { // a lamp post
-          box(c, at - 2.5, 236, 5, 70, '#3b3f58'); box(c, at - 6, 300, 12, 8, '#3b3f58');
-          shape(c, [[at - 9, 236], [at + 9, 236], [at + 6, 226], [at - 6, 226]], '#f7e9a6');
+          box(c, at - 2.5, 236, 5, 60); shape(c, [[at - 10, 238], [at + 10, 238], [at + 6, 226], [at - 6, 226]]);
         } else if (kind === 1) { // bollards
-          for (const dx of [0, 22, 44]) { box(c, at + dx - 3, 286, 6, 26, tint); c.beginPath(); c.arc(at + dx, 286, 4.5, 0, Math.PI * 2); c.fillStyle = tint; c.fill(); c.stroke(); }
+          for (const dx of [0, 22, 44]) { box(c, at + dx - 3.5, 274, 7, 20); disc(c, at + dx, 274, 5); }
         } else if (kind === 2) { // a hydrant
-          box(c, at - 6, 292, 12, 20, '#c8443c'); box(c, at - 9, 298, 18, 5, '#c8443c');
-          c.beginPath(); c.arc(at, 292, 6, Math.PI, 0); c.fillStyle = '#c8443c'; c.fill(); c.stroke();
+          box(c, at - 6, 276, 12, 18); box(c, at - 10, 281, 20, 5); disc(c, at, 276, 6);
         } else if (kind === 3) { // a bench
-          box(c, at - 26, 290, 52, 6, '#b98a55'); box(c, at - 26, 278, 52, 6, '#b98a55');
-          box(c, at - 22, 296, 4, 14, '#3b3f58'); box(c, at + 18, 296, 4, 14, '#3b3f58');
-        } else { // a tree in a planter
-          box(c, at - 3, 262, 6, 40, '#8a6a4a');
-          c.fillStyle = '#7fb069';
-          for (const [dx, dy, pr] of [[-12, 252, 16], [12, 250, 17], [0, 238, 18]]) { c.beginPath(); c.arc(at + dx, dy, pr, 0, Math.PI * 2); c.fill(); c.stroke(); }
-          box(c, at - 14, 300, 28, 12, '#d98a2b');
+          box(c, at - 26, 280, 52, 5); box(c, at - 26, 268, 52, 6); box(c, at - 22, 282, 4, 12); box(c, at + 18, 282, 4, 12);
+        } else { // a tree
+          box(c, at - 3, 256, 6, 38);
+          for (const [dx, dy, pr] of [[-12, 250, 16], [12, 248, 17], [0, 236, 18]]) disc(c, at + dx, dy, pr);
         }
       } });
       x += between(r, 110, 230);
@@ -248,7 +204,7 @@
     const c = canvas.getContext('2d');
     c.scale(scale, scale);
     c.translate(-index * T, -layer.band[0]);
-    c.lineWidth = 1.7; c.lineJoin = 'round'; c.lineCap = 'round'; c.strokeStyle = INK;
+    c.fillStyle = layer.color;
     for (const item of layer.items) for (const shift of [-layer.length, 0, layer.length]) {
       if (item.x0 + shift - 4 < (index + 1) * T && item.x1 + shift + 4 > index * T) {
         c.save(); c.translate(shift, 0); item.draw(c); c.restore();
@@ -260,9 +216,7 @@
 
   function drawScene() {
     const w = scene.width, h = scene.height;
-    const gradient = g.createLinearGradient(0, 0, 0, h);
-    gradient.addColorStop(0, '#9fd2e8'); gradient.addColorStop(0.75, '#d5ebee');
-    g.fillStyle = gradient; g.fillRect(0, 0, w, h);
+    g.fillStyle = PAPER; g.fillRect(0, 0, w, h);
     const wanted = new Set();
     for (const layer of LAYERS) {
       const left = rate(layer) * x - viewWidth / 2;
@@ -289,12 +243,13 @@
       const top = Math.round(layer.band[0] * scale) + (layer.index ? 0 : Math.round(4 * scale)), bottom = Math.round(layer.band[1] * scale);
       for (let k = layer.first; k <= layer.last + 1; k++) {
         const index = mod(k, layer.tiles), px = layer.origin + k * tilePixels, seam = index === 0;
-        g.strokeStyle = layer.color; g.lineWidth = Math.max(1, dpr * (seam ? 3 : 1.5));
+        g.strokeStyle = INK; g.lineWidth = Math.max(1, dpr * (seam ? 3 : 1.2));
         g.setLineDash(seam ? [] : [dpr * 5, dpr * 4]);
         g.beginPath(); g.moveTo(px, top); g.lineTo(px, bottom); g.stroke();
         g.setLineDash([]);
         const label = String(index + 1), pad = size * 0.45, width = g.measureText(label).width + pad * 2;
         g.fillStyle = layer.color; g.fillRect(px, top, width, size * 1.5);
+        g.lineWidth = Math.max(1, dpr * 1.2); g.strokeRect(px, top, width, size * 1.5);
         g.fillStyle = '#fff'; g.fillText(label, px + pad, top + size * 0.8);
       }
     }
