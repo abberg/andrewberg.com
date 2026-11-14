@@ -5,12 +5,15 @@ agency: The Barbarian Group
 partners: [Publicis West]
 year: 2006
 role: Technical lead
+recreation: sidekick-parallax
 hero:
   src: /advertising/sidekick-3/newsstand.jpg
   width: 1089
   height: 641
   alt: The Sidekick 3 site in 2006. An illustrated city street with a newsstand marked Bad News and Good News, a girl in a pink dress and boots holding a DJ turntable rig, and a boy in a number 8 jersey sitting on the pavement sorting records, under a navigation bar reading Buy Now, Demo It, Kick It to a Friend, Sidekick Events, Support.
   caption: The original 2006 Flash site, illustrated by We Love Dust
+after:
+  text: The street ran all the way round, with no start or end, so every layer had to loop with it. Each layer was a ring of tiles, and its length was set by its speed. A layer that scrolled at half the pace of the street had a ring half as long. Sized that way, all of the rings came back to the same place together after one lap.
 images:
   - src: /advertising/sidekick-3/skate-street.jpg
     width: 1093
