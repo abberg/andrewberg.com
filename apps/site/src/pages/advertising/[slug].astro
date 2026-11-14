@@ -30,6 +30,13 @@ const { Content } = await render(project);
     </figure>
   )}
 
+  {!data.hero && data.film && (
+    <figure class="hero">
+      <video src={data.film.src} poster={data.film.poster} width={data.film.width} height={data.film.height} controls preload="none" playsinline aria-label={data.film.title}></video>
+      <figcaption class="mono">{data.film.caption}</figcaption>
+    </figure>
+  )}
+
   <section class="detail">
     <dl class="facts">
       <div><dt class="mono">Client</dt><dd>{data.client}</dd></div>
@@ -101,7 +108,7 @@ const { Content } = await render(project);
 <style>
   .eyebrow a:hover { color: var(--accent); }
   .hero { display: flex; flex-direction: column; gap: 12px; margin: 0 0 64px; }
-  .hero img { display: block; width: 100%; height: auto; border-radius: 10px; background: #0b0b0c; }
+  .hero img, .hero video { display: block; width: 100%; height: auto; border-radius: 10px; background: #0b0b0c; }
   .hero figcaption { margin: 0; }
   .recreation { margin-top: 64px; padding-top: 40px; border-top: 1px solid var(--rule); }
   .recreation iframe { display: block; width: 100%; aspect-ratio: 16 / 9; border: 0; border-radius: 10px; background: var(--edge); }

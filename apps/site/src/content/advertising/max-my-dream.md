@@ -5,6 +5,13 @@ agency: The Barbarian Group
 partners: [JWT]
 year: 2011
 role: Flash developer
+film:
+  src: /advertising/max-my-dream/case-study.mp4
+  poster: /advertising/max-my-dream/case-study-poster.jpg
+  width: 1280
+  height: 720
+  title: Max My Dream case study
+  caption: The case study film, from the Clio Health 2011 entry
 images:
   - src: /advertising/max-my-dream/dream-input.jpg
     width: 624
