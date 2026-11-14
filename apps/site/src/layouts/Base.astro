@@ -5,7 +5,7 @@ interface Props {
   description: string;
   ogDescription?: string;
   path: string;
-  current: 'systems' | 'sketches';
+  current: 'systems' | 'sketches' | 'advertising';
 }
 const { title, description, ogDescription, path, current } = Astro.props;
 const site = 'https://andrewberg.com/';
@@ -48,12 +48,14 @@ const systemsHref = current === 'systems' ? '#systems' : '/#systems';
           <nav class="nav mono" aria-label="Main">
             <a href={systemsHref} class:list={{ current: current === 'systems' }}>Design systems</a>
             <a href="/sketches/" class:list={{ current: current === 'sketches' }}>Sketches</a>
+            <a href="/advertising/" class:list={{ current: current === 'advertising' }}>Advertising</a>
           </nav>
           <details class="menu mono">
             <summary>Menu</summary>
             <nav aria-label="Main">
               <a href={systemsHref}>Design systems</a>
               <a href="/sketches/">Sketches</a>
+              <a href="/advertising/">Advertising</a>
             </nav>
           </details>
           <button class="theme-toggle" type="button" aria-label="Dark mode" aria-pressed="false">

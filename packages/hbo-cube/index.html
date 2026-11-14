@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Story Cube — Andrew Berg</title>
+<link rel="icon" href="data:,">
+<link rel="preload" as="image" href="./src/cursors/hand-open-2.svg">
+<link rel="preload" as="image" href="./src/cursors/hand-closed-2.svg">
+<link rel="preload" as="image" href="./src/cursors/hand-open-4.svg">
+<link rel="preload" as="image" href="./src/cursors/hand-closed-4.svg">
+<meta name="description" content="A recreation of the HBO Imagine story cube: one looping scene seen from four sides.">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { background: #070708; color: #e8e8e4; font: 700 10px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: .04em; text-transform: uppercase; overflow: hidden; }
+  .app { position: relative; height: 100%; background:
+    radial-gradient(60% 55% at 30% 30%, #1d1d1f 0%, transparent 70%),
+    radial-gradient(50% 60% at 78% 62%, #18181a 0%, transparent 70%),
+    radial-gradient(90% 80% at 50% 50%, #101011 0%, #070708 100%); }
+  .gl { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: pan-y; user-select: none; -webkit-user-select: none; outline: none; }
+  .gl:focus-visible { outline: 1px solid #ffffff55; outline-offset: -1px; }
+  button { display: inline-grid; place-items: center; grid-auto-flow: column; gap: 8px; margin: 0; padding: 0; border: 0; background: none; color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; }
+  button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+  svg { display: block; width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+  .tile { display: grid; place-items: center; width: 34px; height: 34px; background: #19191b; box-shadow: inset 0 1px 0 #ffffff12, 0 1px 6px #0009; color: #cfcfca; transition: color .15s, background .15s; }
+  button:hover .tile, button.tile:hover { color: #fff; background: #29292c; }
+
+  .views { position: absolute; top: 6px; left: 50%; transform: translateX(-50%); display: flex; background: #19191b; box-shadow: inset 0 1px 0 #ffffff12; }
+  .views button { width: 32px; height: 28px; color: #6f6f6a; }
+  .views button + button { border-left: 1px dotted #ffffff40; }
+  .views button[aria-pressed="true"], .views button:hover { color: #fff; }
+
+  .spin { position: absolute; top: calc(36px + (100% - 142px) / 2); /* the middle of the band between the top bar and the bottom controls */ transform: translateY(-50%); z-index: 2; }
+  /* Each spin button sits beside the cube's front face, a gap of one and a half tiles out from its edge.
+     --edge (the face's half width on screen) and --gap are set by the script. */
+  .spin.left { right: calc(50% + var(--edge, 200px) + var(--gap, 51px)); }
+  .spin.right { left: calc(50% + var(--edge, 200px) + var(--gap, 51px)); }
+  .spin svg { width: 18px; height: 18px; stroke-width: 2.6; stroke-linecap: butt; }
+  .spin polygon { fill: currentColor; stroke: none; }
+
+  .controls { position: absolute; left: 50%; bottom: 52px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 7px; white-space: nowrap; z-index: 2; }
+  .controls .play svg { fill: currentColor; stroke: none; }
+  .time { font-variant-numeric: tabular-nums; }
+
+  /* The tagline is the meter: it is revealed up to the unlocked share, and the rest is a dotted line. */
+  .unlock { --p: 0%; position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); white-space: nowrap; font-size: 12px; letter-spacing: .16em; }
+  .tagline { display: block; color: transparent; }
+  .tagline .lit { position: absolute; inset: 0; color: #fff; text-shadow: 0 0 7px #cfe8ffcc, 0 0 2px #fff; clip-path: inset(-12px calc(100% - var(--p)) -12px -12px); transition: clip-path .9s ease; }
+  .unlock .rest { position: absolute; left: calc(var(--p) + 3px); right: 0; top: 62%; border-top: 1px dotted #ffffffb3; transition: left .9s ease; }
+  .unlock .rest::after { content: ''; position: absolute; right: -1px; top: -2px; width: 3px; height: 3px; border-radius: 50%; background: #fff; }
+  .percent { position: absolute; left: var(--p); bottom: calc(100% + 5px); transform: translateX(-50%); font-size: 10px; letter-spacing: .04em; transition: left .9s ease; }
+  .percent::after { content: ''; position: absolute; left: 50%; top: calc(100% + 1px); height: 5px; border-left: 1px solid #fff; }
+
+  .map { position: absolute; inset: 0; display: grid; place-items: center; padding: 28px 16px 16px; background: #050506; z-index: 6; }
+  .map[hidden] { display: none; }
+  .plan { position: relative; width: min(100%, calc((100vh - 44px) * 160 / 96)); aspect-ratio: 160 / 96; }
+  .plan .links { position: absolute; inset: 0; width: 100%; height: 100%; stroke: #ffffff38; stroke-width: 1; }
+  .plan .links path { vector-effect: non-scaling-stroke; }
+  /* Every piece is an empty frame until it has been viewed. */
+  .plan .item { position: absolute; display: block; border: 1px solid #5a5a54; background: #070708; overflow: hidden; cursor: pointer; }
+  .plan .item:hover, .plan .item:focus-visible { border-color: #fff; }
+  /* Content not yet chosen glows; the glow goes the moment it is chosen. */
+  .plan .item:not(.chosen):not(.open):not(.cube) { box-shadow: 0 0 10px 2px rgba(223, 238, 255, .22), 0 0 24px 6px rgba(223, 238, 255, .09); }
+  .plan .viewed { border-color: #b4b4ac; }
+  .plan .video.viewed, .plan .cube.viewed { background: #2a2a2e; }
+  .plan .video.viewed::after { content: ''; position: absolute; left: 50%; top: 50%; transform: translate(-35%, -50%); border: 5px solid transparent; border-left: 8px solid #fff; border-right: 0; }
+  .plan .picture.viewed { background: #8c8c86; }
+  .plan .audio svg { width: 100%; height: 100%; stroke: #6a6a66; stroke-width: 1; transform: scaleY(.04); }
+  .plan .audio.viewed svg { stroke: #a9c98f; transform: none; }
+  .plan .audio polyline { vector-effect: non-scaling-stroke; }
+  .plan .open { border: 2px solid #fff; box-shadow: 0 0 12px #ffffff66; }
+  .plan .open canvas { display: block; width: 100%; height: 100%; }
+  .map .close { position: absolute; top: 8px; right: 16px; color: #cfcfca; }
+  .map .close:hover { color: #fff; }
+  .spin, .controls { transition: opacity .4s; }
+  .app[data-stage="away"] .spin, .app[data-stage="away"] .controls { opacity: 0; pointer-events: none; }
+  /* The cursor is a hand, open and closed while dragging, with a triangle either side over the cube, and
+     above and below as well pulled back, where a drag looks up and down too. The hot spot is the middle. */
+  .gl { cursor: url('./src/cursors/hand-open-2.svg') 24 24, grab; }
+  .gl.dragging { cursor: url('./src/cursors/hand-closed-2.svg') 24 24, grabbing; }
+  .app[data-view="universe"] .gl { cursor: url('./src/cursors/hand-open-4.svg') 24 24, grab; }
+  .app[data-view="universe"] .gl.dragging { cursor: url('./src/cursors/hand-closed-4.svg') 24 24, grabbing; }
+  .app[data-view] .gl.pick { cursor: pointer; }
+  .app[data-view="piece"] .gl { cursor: default; }
+  .fallback { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; padding: 24px; text-align: center; }
+  video { display: none; }
+
+  @media (max-width: 560px) {
+    .spin > span:not(.tile) { display: none; }
+    .unlock { font-size: 10px; letter-spacing: .1em; }
+    .tile { width: 30px; height: 30px; }
+    .controls { gap: 8px; }
+  }
+</style>
+</head>
+<body>
+<div class="app" data-view="cube" data-stage="cube">
+  <canvas class="gl" tabindex="0" role="img" aria-label="Story cube showing four views of one scene. Use the left and right arrow keys to turn it."></canvas>
+
+  <div class="views" role="group" aria-label="View">
+    <button type="button" data-view="map" aria-pressed="false" aria-label="Map of the content">
+      <svg viewBox="0 0 16 16"><path d="M8 7.8 4 4.4M8 7.8l4.2-1.6M8 7.8l-.6 4.8"/><g fill="currentColor" stroke="none"><circle cx="4" cy="4.4" r="2"/><circle cx="12.2" cy="6.2" r="2"/><circle cx="7.4" cy="12.4" r="2"/></g></svg>
+    </button>
+    <button type="button" data-view="universe" aria-pressed="false" aria-label="Universe of the content">
+      <svg viewBox="0 0 16 16" stroke-width="1"><path d="M8 8 3 3M8 8V2.4M8 8l5-4M8 8l5.6 1.6M8 8l2.6 5.6M8 8l-3 5M8 8 2.4 8.6M3 3l5-.6M13.6 9.6l-3 4M5 13 2.4 8.6M13 4l.6 5.6"/><g fill="currentColor" stroke="none"><circle cx="8" cy="8" r="1.3"/><circle cx="3" cy="3" r="1.2"/><circle cx="8" cy="2.4" r="1.2"/><circle cx="13" cy="4" r="1.2"/><circle cx="13.6" cy="9.6" r="1.2"/><circle cx="10.6" cy="13.6" r="1.2"/><circle cx="5" cy="13" r="1.2"/><circle cx="2.4" cy="8.6" r="1.2"/></g></svg>
+    </button>
+  </div>
+
+  <button type="button" class="spin left" data-turn="1" aria-label="Spin left">
+    <span>Spin</span>
+    <span class="tile"><svg viewBox="0 0 18 18" style="transform: scaleX(-1)"><path d="M7.5 15A5.5 5.5 0 0 0 7.5 4"/><polygon points="7.5,0.6 7.5,7.4 2.6,4"/></svg></span>
+  </button>
+  <button type="button" class="spin right" data-turn="-1" aria-label="Spin right">
+    <span class="tile"><svg viewBox="0 0 18 18"><path d="M7.5 15A5.5 5.5 0 0 0 7.5 4"/><polygon points="7.5,0.6 7.5,7.4 2.6,4"/></svg></span>
+    <span>Spin</span>
+  </button>
+
+  <div class="controls">
+    <span>The Heist</span>
+    <button type="button" class="play tile" aria-label="Pause"><svg viewBox="0 0 16 16"><path d=""/></svg></button>
+    <span class="time">00:00/00:00</span>
+  </div>
+
+  <div class="unlock" role="status">
+    <span class="tagline" aria-hidden="true">It&rsquo;s more than you imagined<span class="lit">It&rsquo;s more than you imagined</span></span>
+    <span class="rest" aria-hidden="true"></span>
+    <span class="percent">0% unlocked</span>
+  </div>
+
+  <div class="map" hidden></div>
+</div>
+<video muted loop playsinline preload="auto">
+  <source src="./src/gallery.mp4" type="video/mp4">
+  <source src="./src/gallery.webm" type="video/webm">
+</video>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
