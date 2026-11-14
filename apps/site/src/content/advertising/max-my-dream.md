@@ -4,7 +4,7 @@ client: Pepcid
 agency: The Barbarian Group
 partners: [JWT]
 year: 2011
-role: Flash developer
+role: Frontend Technical Lead
 film:
   src: /advertising/max-my-dream/case-study.mp4
   poster: /advertising/max-my-dream/case-study-poster.jpg
