@@ -20,8 +20,7 @@
     level.loaded = new Map();       // tile → when it arrived. Tiles stay loaded when the visitor zooms away.
     level.queue = null;             // the load order, sorted the first time the level is shown
     level.cursor = 0;
-    level.grid = index === 0 ? 1 : 0;   // how much of the tile grid shows, eased as the level comes into view
-    level.frost = 0;                    // how much of the frosted fill shows, eased as the view drops below the level
+    level.shown = index === 0 ? 1 : 0;  // how much of the level is drawn, eased as the view arrives and leaves
   });
   const TOP = LEVELS.length - 1;
 
@@ -145,12 +144,9 @@
 
   function step(now, dt) {
     const level = LEVELS[current];
-    // Ease the grid and the frosting over about as long as the zoom's slide.
+    // Ease levels in and out over about as long as the zoom's slide.
     const rate = calm ? 1 : Math.min(1, dt / 280);
-    for (const item of LEVELS) {
-      item.grid += ((item.index === current ? 1 : 0) - item.grid) * rate;
-      item.frost += ((item.index < current ? 1 : 0) - item.frost) * rate;
-    }
+    for (const item of LEVELS) item.shown += ((item.index === current ? 1 : 0) - item.shown) * rate;
     if (phase === 'slide' && now - phaseStart >= SLIDE) { phase = 'loading'; budget = 0; show(level); update(); }
     if (phase === 'loading') {
       const delay = delayFor(level);
@@ -254,22 +250,15 @@
     const line = Math.max(1, dpr);
     const frames = [];
 
-    // Bottom to top, so a level hides the ones below it. The levels above the one in view are drawn as outlines only.
+    // Only the level in view is drawn; the others are marked by their corner markers alone.
+    // A level fades out as the view leaves it and in as the view arrives.
     for (let k = TOP; k >= 0; k--) {
-      const level = LEVELS[k], z = height(level), active = k === current, above = k < current;
+      const level = LEVELS[k], z = height(level), active = k === current, shown = level.shown;
+      const w = W / level.scale, h = H / level.scale;
+      frames[k] = [cx - w / 2, cy - h / 2, w, h];
+      if (shown < 0.005) continue;
 
-      if (!above) { outline(z, 0, 0, W, H, level.scale); g.fillStyle = PAPER; g.fill(); }
-      // The levels above the one in view are frosted sheets, so it shows through them.
-      if (level.frost > 0.005) {
-        g.setTransform(1, 0, 0, 1, 0, 0);
-        outline(z, 0, 0, W, H, level.scale);
-        // Cut out where it lies over the view on the level in view, so the visitor's screen stays clear.
-        const view = LEVELS[current], vw = W / view.scale, vh = H / view.scale, vz = height(view);
-        const hole = [[0, 0], [0, 1], [1, 1], [1, 0]].map(([a, b]) => project(cx - vw / 2 + a * vw, cy - vh / 2 + b * vh, vz, view.scale));
-        g.moveTo(...hole[0]); for (let c = 1; c < 4; c++) g.lineTo(...hole[c]); g.closePath();
-        g.fillStyle = PAPER; g.globalAlpha = 0.13 * level.frost; g.fill('evenodd');
-        g.globalAlpha = 1;
-      }
+      if (active) { outline(z, 0, 0, W, H, level.scale); g.fillStyle = PAPER; g.fill(); }
 
       if (ready && active) {
         g.save();
@@ -283,20 +272,8 @@
           g.drawImage(image, x, y, level.tw, level.th, x - 0.3, y - 0.3, level.tw + 0.6, level.th + 0.6);
         }
         g.restore();
-      }
 
-      if (!active && !above && k > 0 && level.loaded.size) {
-        // Tiles already loaded on a level below the one in view, kept for when the visitor comes back.
-        g.save();
-        planTransform(z, level.scale);
-        g.fillStyle = MUTE; g.globalAlpha = 0.22;
-        for (const i of level.loaded.keys()) { const t = level.tiles[i]; g.fillRect(t.col * level.tw, t.row * level.th, level.tw, level.th); }
-        g.restore();
-      }
-
-      // A wash over everything outside the view, so what is on screen stands out and what is off it still shows loading.
-      if (!above) {
-        const w = W / level.scale, h = H / level.scale;
+        // A wash over everything outside the view, so what is on screen stands out and what is off it still shows loading.
         g.setTransform(1, 0, 0, 1, 0, 0);
         outline(z, 0, 0, W, H, level.scale);
         const [[ax, ay], [bx, by], [qx, qy], [dx, dy]] = [[0, 0], [1, 0], [1, 1], [0, 1]].map(([a, b]) => project(cx - w / 2 + a * w, cy - h / 2 + b * h, z, level.scale));
@@ -306,18 +283,13 @@
       }
 
       g.setTransform(1, 0, 0, 1, 0, 0);
-      // The tile grid, on the level in view only.
-      if (level.grid > 0.005) {
-        g.globalAlpha = 0.35 * level.grid;
-        g.strokeStyle = INK; g.lineWidth = line;
-        grid(level, z);
-        g.globalAlpha = 1;
-      }
+      g.globalAlpha = 0.35 * shown;
+      g.strokeStyle = INK; g.lineWidth = line;
+      grid(level, z);
+      g.globalAlpha = shown;
       outline(z, 0, 0, W, H, level.scale);
-      g.strokeStyle = active ? INK : MUTE; g.lineWidth = active ? line * 1.6 : line; g.stroke();
-
-      const w = W / level.scale, h = H / level.scale;
-      frames[k] = [cx - w / 2, cy - h / 2, w, h];
+      g.lineWidth = line * 1.6; g.stroke();
+      g.globalAlpha = 1;
     }
 
     // Whether a point is inside a convex quad, whichever way round its corners go.
