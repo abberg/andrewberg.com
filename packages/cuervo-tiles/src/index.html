@@ -42,6 +42,10 @@
   .bar { height: 6px; border: 1.5px solid var(--ink); }
   .bar i { display: block; height: 100%; width: 0; background: var(--ink); }
   .count { font-variant-numeric: tabular-nums; color: var(--mute); }
+  .projection { display: flex; }
+  .projection button { flex: 1; margin: 0; padding: 7px 6px; border: 1.5px solid var(--ink); border-radius: 0; background: none; color: inherit; font: inherit; line-height: 1; text-transform: uppercase; letter-spacing: .04em; cursor: pointer; }
+  .projection button + button { border-left: 0; }
+  .projection button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
   .visitor { display: flex; flex-direction: column; gap: 6px; }
   .visitor canvas { display: block; width: 100%; aspect-ratio: 884 / 564; border: 1.5px solid var(--ink); }
   .status { margin: 0; color: var(--mute); font-family: system-ui, sans-serif; font-size: 13px; line-height: 1.4; min-height: 4.2em; }
@@ -54,6 +58,9 @@
     .track button.stop { height: 18px; }
     .knob { height: 16px; }
     .meter { justify-content: center; }
+    .projection { grid-column: 2; grid-row: 1; align-self: start; }
+    .projection button { padding: 5px 4px; font-size: 9px; letter-spacing: 0; }
+    .zoom { grid-row: 1 / span 2; }
     .buttons button { padding: 5px 7px 5px 5px; }
   }
 </style>
@@ -68,6 +75,10 @@
         <button type="button" id="out"><b>−</b>Out</button>
         <button type="button" id="in"><b>+</b>In</button>
       </div>
+    </div>
+    <div class="projection" role="group" aria-label="Projection">
+      <button type="button" data-projection="oblique">Plan oblique</button>
+      <button type="button" data-projection="dimetric">Dimetric</button>
     </div>
     <div class="visitor">
       <h2>What the visitor sees</h2>
