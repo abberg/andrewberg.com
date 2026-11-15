@@ -6,15 +6,15 @@ partners: [Tribal DDB]
 year: 2005
 role: Flash developer
 hero:
-  src: /advertising/cuervo-nation/island-map.jpg
-  width: 884
-  height: 564
-  alt: An aerial photo of a small wooded island ringed by white sand and turquoise shallows, with red-roofed buildings among the trees, a jetty with moored boats on the left, and a ferry docked at a pier on the right.
-  caption: The whole island at the widest zoom, the low-resolution map built into the site
+  src: /advertising/cuervo-nation/original-site.jpg
+  width: 1768
+  height: 1128
+  alt: The Cuervo Nation site in 2005. An aerial photo of a small wooded island ringed by turquoise shallows, with a black and gold Cuervo Nation flag flying over red-roofed buildings and a numbered pin on the shore. Zoom and scroll controls and a volume slider sit at the top left, a banner in the corner reads Current Citizenship 5120, and a wave of gold tequila along the bottom carries the Cuervo Nation logo, “No politics. Just parties.”, and a Welcome to CuervoNation menu beside two bottles.
+  caption: The original 2005 Flash site
 summary: An explorable map of a Caribbean island nation run by Jose Cuervo. Drag and zoom across a high-resolution aerial photo, built from hundreds of tiles that loaded from the centre of the view outward.
 ---
 
-Cuervo Nation was a Flash site for Jose Cuervo, made by The Barbarian Group with Tribal DDB. It presented a Caribbean island as a nation of its own, and the site was its map. Visitors dragged and zoomed around an aerial photo of the island, where numbered pins opened sections about life there, and a few hidden extras, a message in a bottle and a party shark among them, waited to be found.
+Cuervo Nation was a Flash site for Jose Cuervo, made by The Barbarian Group with Tribal DDB. It presented a Caribbean island as a nation of its own, and the site was its map. Visitors dragged around an aerial photo of the island and zoomed in with a four-step slider, where numbered pins opened sections about life there, and a few hidden extras, a message in a bottle and a party shark among them, waited to be found.
 
 I built the map. Its job was to make one big photo feel immediate: the island had to be on screen right away, and it had to stay sharp at every zoom.
 
