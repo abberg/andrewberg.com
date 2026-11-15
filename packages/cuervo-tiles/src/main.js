@@ -258,7 +258,7 @@
       }
 
       g.setTransform(1, 0, 0, 1, 0, 0);
-      g.globalAlpha = 0.35 * shown;
+      g.globalAlpha = 0.15 * shown;
       g.strokeStyle = INK; g.lineWidth = line;
       grid(level, z);
       g.globalAlpha = shown;
