@@ -4,7 +4,7 @@ client: Jose Cuervo
 agency: The Barbarian Group
 partners: [Tribal DDB]
 year: 2005
-role: Flash developer
+role: Technical Lead
 hero:
   src: /advertising/cuervo-nation/original-site.jpg
   width: 1768
