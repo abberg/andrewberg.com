@@ -57,8 +57,8 @@
     level.row = row;
   });
 
-  // ---- The map. The tiles are cut from the low-resolution map built into the site,
-  // and a blurrier copy stands in for that map scaled up past its size.
+  // ---- The map. The tiles are cut from the whole-island image built into the site,
+  // and a blurrier copy stands in for that image scaled up past its size.
 
   const image = new Image();
   image.src = './island-map.jpg';
@@ -74,12 +74,15 @@
 
   let current = 0;                  // the level in view
   let cx = W / 2, cy = H / 2;       // the centre of the view, in widest-level pixels
-  let phase = 'built-in';           // built-in, slide, loading, done
+  let phase = 'slide';              // slide, loading, done
   let phaseStart = 0, budget = 0, dropped = null, resumed = 0;
   let from = { scale: 1, cx, cy };  // where the slide started, for the visitor's view
 
   let S = 1, ox = 0, oy = 0, dpr = 1;
-  LEVELS[0].tiles.forEach((_, i) => LEVELS[0].loaded.set(i, -1e9));   // the widest level is built in
+  // As in the original, the site opens with a zoom to the widest level: the built-in map settles for a second,
+  // then that level's 16 tiles load over it like any other level's.
+  phaseStart = performance.now();
+  let opening = true;
 
   const ease = t => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
   function delayFor(level) { return Math.min(90, Math.max(6, 2600 / level.count)); }
@@ -102,14 +105,14 @@
     index = Math.max(0, Math.min(TOP, index));
     if (index === current) return;
     const now = performance.now();
+    opening = false;
     from = liveView(now);
     const leaving = LEVELS[current];
     dropped = phase === 'loading' && leaving.loaded.size < leaving.count ? current : null;
     current = index;
     clampView();
-    if (index === 0) phase = 'built-in';
-    else { phase = SLIDE ? 'slide' : 'loading'; phaseStart = now; budget = 0; }
-    if (!SLIDE && index > 0) show(LEVELS[index]);
+    phase = SLIDE ? 'slide' : 'loading'; phaseStart = now; budget = 0;
+    if (!SLIDE) show(LEVELS[index]);
     touched();
     update();
   }
@@ -213,7 +216,7 @@
     const p = DROP ? Math.min(1, Math.max(0, (now - at) / DROP)) : 1;
     return 1 - (1 - p) * (1 - p) * (1 - p);
   };
-  const tilesShowing = level => level.index === 0 || (level.index === current && phase !== 'slide');
+  const tilesShowing = level => level.index === current && phase !== 'slide';
 
   function drawStack(now) {
     g.setTransform(1, 0, 0, 1, 0, 0);
@@ -236,7 +239,7 @@
         g.save();
         outline(z, 0, 0, W, H, level.scale); g.clip();
         planTransform(z, level.scale);
-        if (k > 0) { g.globalAlpha = 0.5; g.drawImage(soft, 0, 0, W, H); }
+        g.globalAlpha = 0.5; g.drawImage(k > 0 ? soft : image, 0, 0, W, H);
         if (tilesShowing(level)) for (const [i, at] of level.loaded) {
           const tile = level.tiles[i], x = tile.col * level.tw, y = tile.row * level.th, e = settled(at, now);
           planTransform(z + (1 - e) * GAP * 0.45, level.scale);
@@ -314,7 +317,7 @@
     const left = live.cx - W / live.scale / 2, top = live.cy - H / live.scale / 2;
     v.setTransform(live.scale * k, 0, 0, live.scale * k, -left * live.scale * k, -top * live.scale * k);
     v.drawImage(live.scale > 1.01 ? soft : image, 0, 0, W, H);
-    if (current > 0 && tilesShowing(level)) for (const [i, at] of level.loaded) {
+    if (tilesShowing(level)) for (const [i, at] of level.loaded) {
       const tile = level.tiles[i], x = tile.col * level.tw, y = tile.row * level.th;
       v.globalAlpha = settled(at, now);
       v.drawImage(image, x, y, level.tw, level.th, x - 0.2, y - 0.2, level.tw + 0.4, level.th + 0.4);
@@ -335,12 +338,12 @@
     const tally = `${shown} / ${level.count} tiles`;
     if (count.textContent !== tally) count.textContent = tally;
     let text;
-    if (phase === 'built-in') text = 'The widest view: 16 tiles built into the site, so the whole island is on screen from the start.';
-    else if (phase === 'slide') text = `Zooming to level ${n}. The built-in map scales up while the view slides into place${dropped ? `, and level ${dropped + 1} stops loading` : ''}.`;
+    if (phase === 'slide' && opening) text = 'The whole-island image built into the site is on screen at once. After a second, level 1’s tiles start loading over it.';
+    else if (phase === 'slide') text = `Zooming to level ${n}. The built-in map scales ${level.scale > from.scale ? 'up' : 'down'} while the view slides into place${dropped ? `, and level ${dropped + 1} stops loading` : ''}.`;
     else if (phase === 'loading') text = resumed
       ? `Back on level ${n}: the ${resumed} tiles already loaded show at once, and the rest pick up where they stopped.`
       : `Loading level ${n} one tile at a time, nearest the centre of the view first.`;
-    else text = `Level ${n} is sharp: all ${level.count} tiles have arrived.${current < TOP ? ' Zoom in again.' : ''}`;
+    else text = `Level ${n} is sharp: all ${level.count} tiles have arrived.${current === 0 ? ' Zoom in.' : current < TOP ? ' Zoom in again.' : ''}`;
     if (text !== lastStatus) { status.textContent = text; lastStatus = text; }
   }
 

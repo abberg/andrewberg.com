@@ -18,9 +18,9 @@ Cuervo Nation was a Flash site for Jose Cuervo, made by The Barbarian Group with
 
 Building the map was the central challenge. Its job was to make one big photo feel immediate: the island had to be on screen right away, and it had to stay sharp at every zoom.
 
-There were four zoom levels. The widest fit the whole island on the 884 × 564 stage, and the closest was four and a half times larger, nearly 4,000 pixels across. Each level was cut into a grid of tiles, 221 × 141 pixels each: 16 at the widest zoom, then 64, 196, and 324 at the closest. Only the widest view was built into the site. Every other tile was a separate JPG, loaded as it was needed.
+There were four zoom levels. The widest fit the whole island on the 884 × 564 stage, and the closest was four and a half times larger, nearly 4,000 pixels across. Each level was cut into a grid of tiles, 221 × 141 pixels each: 16 at the widest zoom, then 64, 196, and 324 at the closest. One image of the whole island was built into the site. Every tile, even at the widest zoom, was a separate JPG, loaded as it was needed.
 
-Zooming worked in two passes. First, the low-resolution map built into the site scaled up to the new size while the view slid to its new position, so the change felt instant, if soft. When the slide finished, the tiles for that level began to load over the top, sharpening the picture piece by piece.
+Zooming worked in two passes. First, the whole-island image built into the site scaled up to the new size while the view slid to its new position, so the change felt instant, if soft. When the slide finished, the tiles for that level began to load over the top, sharpening the picture piece by piece.
 
 <sketch-demo name="cuervo-tiles" title="The four zoom levels of the Cuervo Nation map, loading tile by tile"></sketch-demo>
 
