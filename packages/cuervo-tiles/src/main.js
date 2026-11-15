@@ -1,7 +1,7 @@
 // Tile Pyramid: how the Cuervo Nation map loaded.
-// The map had four zoom levels, each cut into tiles of 221 × 141 pixels. Here they are stacked in a plan-oblique
-// (military) projection: every level keeps its true shape, turned on the page, and stands straight up from the one
-// below, with the widest level on top. Zooming slides the built-in map to the new scale first, then the level's
+// The map had four zoom levels, each cut into tiles of 221 × 141 pixels. Here they are stacked in a 2:1 dimetric
+// projection, every level at its true size and standing straight up from the one below, with the widest level on top.
+// Zooming slides the built-in map to the new scale first, then the level's
 // tiles load one at a time, nearest the centre of the view first.
 (() => {
   const W = 884, H = 564;                 // the stage, and the widest level of the map, in pixels
@@ -24,26 +24,10 @@
   });
   const TOP = LEVELS.length - 1;
 
+  const ROOM = 1.3;                       // how much room to leave around the view, in views
   const GAP = 125;                        // how far each level stands from the next, in plan pixels
-  // Two ways to draw the stack. Plan oblique keeps the plan true and turns it; verticals stand at full length.
-  // Dimetric turns the plan 45° and halves it top to bottom, the 2:1 of pixel-art maps, with shorter verticals.
-  const PROJECTIONS = {
-    oblique: { angle: 25, squash: 1, rise: 1 },
-    dimetric: { angle: 45, squash: 0.5, rise: 0.8 },
-  };
-  let projection = 'dimetric';
-  const proj = { ...PROJECTIONS[projection] }, projFrom = { ...proj };
-  let projStart = -1e9;
-  const TWEEN = matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 600;
-  let COS = 0, SIN = 0, K = 1, V = 1;
-  function setProjection(now) {
-    const target = PROJECTIONS[projection];
-    const t = TWEEN ? Math.min(1, (now - projStart) / TWEEN) : 1, e = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-    for (const key of ['angle', 'squash', 'rise']) proj[key] = projFrom[key] + (target[key] - projFrom[key]) * e;
-    const a = proj.angle * Math.PI / 180;
-    COS = Math.cos(a); SIN = Math.sin(a); K = proj.squash; V = proj.rise;
-  }
-  setProjection(0);
+  // A 2:1 dimetric projection, as in pixel-art maps: the plan turned 45° and halved top to bottom, with verticals at 0.8.
+  const COS = Math.SQRT1_2, SIN = Math.SQRT1_2, K = 0.5, V = 0.8;
   const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const SLIDE = calm ? 0 : 1000;          // the original's tween of the built-in map to the new scale
   const DROP = calm ? 0 : 320;            // how long a tile takes to settle once it has arrived
@@ -188,27 +172,15 @@
   }
 
   // Fit the column the view makes through the levels, with room around it for the larger levels to show.
-  // The scale is the smaller of the two projections' fits, so switching between them keeps the tiles the same size.
-  function bounds() {
+  function fit() {
+    const pad = (scene.width < 500 * dpr ? 10 : 24) * dpr;
     let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    S = 1; ox = 0; oy = 0;
     for (const z of [0, TOP * GAP]) for (const [u, w] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
-      const [x, y] = project(cx + u * W * 0.9, cy + w * H * 0.9, z);
+      const [x, y] = project(cx + u * W * ROOM, cy + w * H * ROOM, z);
       x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
     }
-    return [x0, x1, y0, y1];
-  }
-  function fit() {
-    const pad = (scene.width < 500 * dpr ? 10 : 24) * dpr, live = [COS, SIN, K, V];
-    S = 1; ox = 0; oy = 0;
-    let best = Infinity;
-    for (const { angle, squash, rise } of Object.values(PROJECTIONS)) {
-      COS = Math.cos(angle * Math.PI / 180); SIN = Math.sin(angle * Math.PI / 180); K = squash; V = rise;
-      const [x0, x1, y0, y1] = bounds();
-      best = Math.min(best, (scene.width - pad * 2) / (x1 - x0), (scene.height - pad * 2) / (y1 - y0));
-    }
-    [COS, SIN, K, V] = live;
-    const [x0, x1, y0, y1] = bounds();
-    S = best;
+    S = Math.min((scene.width - pad * 2) / (x1 - x0), (scene.height - pad * 2) / (y1 - y0));
     ox = scene.width / 2 - S * (x0 + x1) / 2;
     oy = scene.height / 2 - S * (y0 + y1) / 2;
   }
@@ -317,7 +289,7 @@
     const [px, py] = project(cx, cy, height(LEVELS[current]), LEVELS[current].scale);
     // The level numbers, beside the column, over everything.
     g.textAlign = 'right'; g.textBaseline = 'middle';
-    // Sized to the gap between levels, which is short in the flatter projection on a small screen.
+    // Sized to the gap between levels, which is short on a small screen.
     const size = Math.max(7 * dpr, Math.min(12 * dpr, S * GAP * V * 0.62));
     LEVELS.forEach(level => {
       const active = level.index === current, [lx, ly] = corners[level.index][3];
@@ -427,14 +399,6 @@
     else return;
     event.preventDefault(); clampView(); touched();
   });
-  const projectionButtons = [...document.querySelectorAll('[data-projection]')];
-  function showProjection() { projectionButtons.forEach(button => button.setAttribute('aria-pressed', button.dataset.projection === projection)); }
-  projectionButtons.forEach(button => button.addEventListener('click', () => {
-    if (button.dataset.projection === projection) return;
-    Object.assign(projFrom, proj); projection = button.dataset.projection; projStart = performance.now();
-    showProjection();
-  }));
-  showProjection();
   inButton.addEventListener('click', () => zoomTo(current + 1));
   outButton.addEventListener('click', () => zoomTo(current - 1));
 
@@ -445,7 +409,7 @@
   function frame(now) {
     const dt = Math.min(100, now - before); before = now;
     step(now, dt);
-    setProjection(now); fit();
+    fit();
     drawStack(now);
     drawView(now);
     requestAnimationFrame(frame);
