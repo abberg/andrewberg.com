@@ -298,15 +298,15 @@
       frames[k] = [cx - w / 2, cy - h / 2, w, h];
     }
 
-    // The view on every level, joined at the corners into a column that narrows as the levels get closer.
+    // The view on every other level, marked by its corners only.
     const corners = frames.map((frame, k) => [[0, 0], [1, 0], [1, 1], [0, 1]].map(([a, b]) => project(frame[0] + a * frame[2], frame[1] + b * frame[3], height(LEVELS[k]), LEVELS[k].scale)));
-    g.setLineDash([3 * dpr, 4 * dpr]);
-    g.strokeStyle = ACCENT; g.lineWidth = line * 1.5;
+    g.strokeStyle = ACCENT; g.lineWidth = line * 2; g.lineJoin = 'miter';
     g.beginPath();
-    for (let k = 0; k < TOP; k++) for (let c = 0; c < 4; c++) { g.moveTo(...corners[k][c]); g.lineTo(...corners[k + 1][c]); }
-    for (let k = 0; k <= TOP; k++) if (k !== current) { g.moveTo(...corners[k][0]); for (let c = 1; c <= 4; c++) g.lineTo(...corners[k][c % 4]); }
+    for (let k = 0; k <= TOP; k++) if (k !== current) for (let c = 0; c < 4; c++) {
+      const [x, y] = corners[k][c], [px, py] = corners[k][(c + 3) % 4], [nx, ny] = corners[k][(c + 1) % 4], arm = 0.16;
+      g.moveTo(x + (px - x) * arm, y + (py - y) * arm); g.lineTo(x, y); g.lineTo(x + (nx - x) * arm, y + (ny - y) * arm);
+    }
     g.stroke();
-    g.setLineDash([]);
     g.strokeStyle = ACCENT; g.lineWidth = line * 3;
     g.beginPath(); g.moveTo(...corners[current][0]); for (let c = 1; c <= 4; c++) g.lineTo(...corners[current][c % 4]); g.stroke();
     const [px, py] = project(cx, cy, height(LEVELS[current]), LEVELS[current].scale);
