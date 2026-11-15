@@ -48,7 +48,7 @@
   const SLIDE = calm ? 0 : 1000;          // the original's tween of the built-in map to the new scale
   const DROP = calm ? 0 : 320;            // how long a tile takes to settle once it has arrived
 
-  let INK = '#16181A', PAPER = '#F5F5F1', MUTE = '#5E635E', ACCENT = '#C9A227';
+  let INK = '#16181A', PAPER = '#F5F5F1', MUTE = '#5E635E', ACCENT = '#946B00';
 
   // ---- Elements
 
