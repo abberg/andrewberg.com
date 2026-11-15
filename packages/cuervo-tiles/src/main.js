@@ -20,6 +20,8 @@
     level.loaded = new Map();       // tile → when it arrived. Tiles stay loaded when the visitor zooms away.
     level.queue = null;             // the load order, sorted the first time the level is shown
     level.cursor = 0;
+    level.grid = index === 0 ? 1 : 0;   // how much of the tile grid shows, eased as the level comes into view
+    level.frost = 0;                    // how much of the frosted fill shows, eased as the view drops below the level
   });
   const TOP = LEVELS.length - 1;
 
@@ -143,6 +145,12 @@
 
   function step(now, dt) {
     const level = LEVELS[current];
+    // Ease the grid and the frosting over about as long as the zoom's slide.
+    const rate = calm ? 1 : Math.min(1, dt / 280);
+    for (const item of LEVELS) {
+      item.grid += ((item.index === current ? 1 : 0) - item.grid) * rate;
+      item.frost += ((item.index < current ? 1 : 0) - item.frost) * rate;
+    }
     if (phase === 'slide' && now - phaseStart >= SLIDE) { phase = 'loading'; budget = 0; show(level); update(); }
     if (phase === 'loading') {
       const delay = delayFor(level);
@@ -251,6 +259,17 @@
       const level = LEVELS[k], z = height(level), active = k === current, above = k < current;
 
       if (!above) { outline(z, 0, 0, W, H, level.scale); g.fillStyle = PAPER; g.fill(); }
+      // The levels above the one in view are frosted sheets, so it shows through them.
+      if (level.frost > 0.005) {
+        g.setTransform(1, 0, 0, 1, 0, 0);
+        outline(z, 0, 0, W, H, level.scale);
+        // Cut out where it lies over the view on the level in view, so the visitor's screen stays clear.
+        const view = LEVELS[current], vw = W / view.scale, vh = H / view.scale, vz = height(view);
+        const hole = [[0, 0], [0, 1], [1, 1], [1, 0]].map(([a, b]) => project(cx - vw / 2 + a * vw, cy - vh / 2 + b * vh, vz, view.scale));
+        g.moveTo(...hole[0]); for (let c = 1; c < 4; c++) g.lineTo(...hole[c]); g.closePath();
+        g.fillStyle = PAPER; g.globalAlpha = 0.13 * level.frost; g.fill('evenodd');
+        g.globalAlpha = 1;
+      }
 
       if (ready && active) {
         g.save();
@@ -287,10 +306,13 @@
       }
 
       g.setTransform(1, 0, 0, 1, 0, 0);
-      g.globalAlpha = active ? 0.35 : above ? 0.25 : 0.4;
-      g.strokeStyle = active ? INK : MUTE; g.lineWidth = active ? line : line * 0.75;
-      grid(level, z);
-      g.globalAlpha = 1;
+      // The tile grid, on the level in view only.
+      if (level.grid > 0.005) {
+        g.globalAlpha = 0.35 * level.grid;
+        g.strokeStyle = INK; g.lineWidth = line;
+        grid(level, z);
+        g.globalAlpha = 1;
+      }
       outline(z, 0, 0, W, H, level.scale);
       g.strokeStyle = active ? INK : MUTE; g.lineWidth = active ? line * 1.6 : line; g.stroke();
 
