@@ -298,11 +298,22 @@
       frames[k] = [cx - w / 2, cy - h / 2, w, h];
     }
 
+    // Whether a point is inside a convex quad, whichever way round its corners go.
+    const inside = ([x, y], quad) => {
+      let sign = 0;
+      for (let i = 0; i < 4; i++) {
+        const [ax, ay] = quad[i], [bx, by] = quad[(i + 1) % 4], cross = (bx - ax) * (y - ay) - (by - ay) * (x - ax);
+        if (cross !== 0) { if (sign && Math.sign(cross) !== sign) return false; sign = Math.sign(cross); }
+      }
+      return true;
+    };
     // The view on every other level, marked by its corners only.
     const corners = frames.map((frame, k) => [[0, 0], [1, 0], [1, 1], [0, 1]].map(([a, b]) => project(frame[0] + a * frame[2], frame[1] + b * frame[3], height(LEVELS[k]), LEVELS[k].scale)));
     g.strokeStyle = ACCENT; g.lineWidth = line * 2; g.lineJoin = 'miter';
     g.beginPath();
     for (let k = 0; k <= TOP; k++) if (k !== current) for (let c = 0; c < 4; c++) {
+      // On a level below the one in view, a corner that falls behind that level's view would show through its map, so it is left out.
+      if (k > current && inside(corners[k][c], corners[current])) continue;
       const [x, y] = corners[k][c], [px, py] = corners[k][(c + 3) % 4], [nx, ny] = corners[k][(c + 1) % 4], arm = 0.16;
       g.moveTo(x + (px - x) * arm, y + (py - y) * arm); g.lineTo(x, y); g.lineTo(x + (nx - x) * arm, y + (ny - y) * arm);
     }
