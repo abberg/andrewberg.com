@@ -253,7 +253,7 @@
         outline(z, 0, 0, W, H, level.scale);
         const [[ax, ay], [bx, by], [qx, qy], [dx, dy]] = [[0, 0], [1, 0], [1, 1], [0, 1]].map(([a, b]) => project(cx - w / 2 + a * w, cy - h / 2 + b * h, z, level.scale));
         g.moveTo(ax, ay); g.lineTo(dx, dy); g.lineTo(qx, qy); g.lineTo(bx, by); g.closePath();
-        g.fillStyle = PAPER; g.globalAlpha = 0.6; g.fill('evenodd');
+        g.fillStyle = PAPER; g.globalAlpha = 0.8; g.fill('evenodd');
         g.globalAlpha = 1;
       }
 
