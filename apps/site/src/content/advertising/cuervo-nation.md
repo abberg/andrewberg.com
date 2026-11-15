@@ -16,9 +16,9 @@ summary: An explorable map of a Caribbean island nation run by Jose Cuervo. Drag
 
 Cuervo Nation was a Flash site for Jose Cuervo, made by The Barbarian Group with Tribal DDB. It presented a Caribbean island as a nation of its own, and the site was its map. Visitors dragged around an aerial photo of the island and zoomed in with a four-step slider, where numbered pins opened sections about life there, and a few hidden extras, a message in a bottle and a party shark among them, waited to be found.
 
-Building the map was the central challenge. The map's job was to make one big photo feel immediate: the island had to be on screen right away, and it had to stay sharp at every zoom.
+Building the map was the central challenge. Its job was to make one big photo feel immediate: the island had to be on screen right away, and it had to stay sharp at every zoom.
 
-The map had four zoom levels. The widest fit the whole island on the 884 × 564 stage, and the closest was four and a half times larger, nearly 4,000 pixels across. Each level was cut into a grid of tiles, 221 × 141 pixels each: 16 at the widest zoom, then 64, 196, and 324 at the closest. Only the widest view was built into the site. Every other tile was a separate JPG, loaded as it was needed.
+There were four zoom levels. The widest fit the whole island on the 884 × 564 stage, and the closest was four and a half times larger, nearly 4,000 pixels across. Each level was cut into a grid of tiles, 221 × 141 pixels each: 16 at the widest zoom, then 64, 196, and 324 at the closest. Only the widest view was built into the site. Every other tile was a separate JPG, loaded as it was needed.
 
 Zooming worked in two passes. First, the low-resolution map built into the site scaled up to the new size while the view slid to its new position, so the change felt instant, if soft. When the slide finished, the tiles for that level began to load over the top, sharpening the picture piece by piece.
 
