@@ -301,7 +301,7 @@
     // The view on every level, joined at the corners into a column that narrows as the levels get closer.
     const corners = frames.map((frame, k) => [[0, 0], [1, 0], [1, 1], [0, 1]].map(([a, b]) => project(frame[0] + a * frame[2], frame[1] + b * frame[3], height(LEVELS[k]), LEVELS[k].scale)));
     g.setLineDash([3 * dpr, 4 * dpr]);
-    g.strokeStyle = MUTE; g.lineWidth = line;
+    g.strokeStyle = ACCENT; g.lineWidth = line * 1.5;
     g.beginPath();
     for (let k = 0; k < TOP; k++) for (let c = 0; c < 4; c++) { g.moveTo(...corners[k][c]); g.lineTo(...corners[k + 1][c]); }
     for (let k = 0; k <= TOP; k++) if (k !== current) { g.moveTo(...corners[k][0]); for (let c = 1; c <= 4; c++) g.lineTo(...corners[k][c % 4]); }
