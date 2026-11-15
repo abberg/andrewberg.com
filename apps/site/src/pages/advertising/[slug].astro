@@ -1,6 +1,6 @@
 ---
 import Base from '../../layouts/Base.astro';
-import { getCollection, render } from 'astro:content';
+import { getCollection } from 'astro:content';
 export async function getStaticPaths() {
   const projects = await getCollection('advertising');
   return projects.map(project => ({ params: { slug: project.id }, props: { project } }));
@@ -9,7 +9,19 @@ const { project } = Astro.props;
 const { data } = project;
 // The dev server can hold entries stored before a schema change, without the newer defaults.
 const images = data.images ?? [];
-const { Content } = await render(project);
+// A write-up places a sketch with <sketch-demo name="..." title="..."></sketch-demo> on a line of its own, between any two paragraphs.
+// The demo runs the full width of the page, so the write-up is split around each one.
+const story = [];
+let rest = project.rendered?.html ?? '';
+const marker = /(?:<p>\s*)?<sketch-demo\s+([^>]*)>\s*<\/sketch-demo>(?:\s*<\/p>)?/;
+for (let found = marker.exec(rest); found; found = marker.exec(rest)) {
+  const attribute = name => found[1].match(new RegExp(`${name}="([^"]*)"`))?.[1];
+  const sketch = attribute('name');
+  if (!sketch || !/^[a-z0-9_-]+$/.test(sketch)) throw new Error(`${project.id}: a sketch-demo needs a name`);
+  story.push({ html: rest.slice(0, found.index), sketch, title: attribute('title') ?? `${data.title}, recreated` });
+  rest = rest.slice(found.index + found[0].length);
+}
+story.push({ html: rest });
 ---
 <Base
   title={`${data.title} — Andrew Berg`}
@@ -45,21 +57,18 @@ const { Content } = await render(project);
       <div><dt class="mono">Role</dt><dd>{data.role}</dd></div>
       <div><dt class="mono">Year</dt><dd>{data.year}</dd></div>
     </dl>
-    <div class="story"><Content /></div>
+    <div class="story" set:html={story[0].html} />
   </section>
 
-  {data.recreation && (
-    <section class="recreation" aria-label="Recreation">
-      <iframe src={`/sketches/${data.recreation}/`} title={`${data.title}, recreated`} loading="lazy" allowfullscreen></iframe>
-      <p class="mono"><a href={`/sketches/${data.recreation}/`}>Open full screen ↗</a></p>
-    </section>
-  )}
-
-  {data.after && (
-    <section class="after">
-      <p>{data.after.text}</p>
-    </section>
-  )}
+  {story.slice(0, -1).map((part, index) => (
+    <>
+      <section class="recreation" aria-label={part.title}>
+        <iframe src={`/sketches/${part.sketch}/`} title={part.title} loading="lazy" allowfullscreen></iframe>
+        <p class="mono"><a href={`/sketches/${part.sketch}/`}>Open full screen ↗</a></p>
+      </section>
+      {story[index + 1].html.trim() && <section class="story continued" set:html={story[index + 1].html} />}
+    </>
+  ))}
 
   {(images.length > 0 || data.video) && (
     <section class="media" aria-label="The original">
@@ -114,9 +123,6 @@ const { Content } = await render(project);
   .recreation iframe { display: block; width: 100%; aspect-ratio: 16 / 9; border: 0; border-radius: 10px; background: var(--edge); }
   .recreation p { margin: 12px 0 0; }
   .recreation a { color: var(--accent); }
-  .after { max-width: 62ch; margin: 40px 0 0 224px; font-size: 17px; line-height: 1.6; }
-  .after p { margin: 0 0 12px; }
-  .after a { color: var(--accent); }
 
   .detail { display: grid; grid-template-columns: 192px minmax(0, 1fr) 300px; gap: 32px; border-top: 1px solid var(--rule); padding-top: 40px; }
   .facts { display: flex; flex-direction: column; gap: 16px; margin: 0; }
@@ -124,6 +130,8 @@ const { Content } = await render(project);
   .facts dd { margin: 0; font-size: 15px; }
   .story { max-width: 62ch; font-size: 17px; line-height: 1.6; }
   .story :global(p) { margin: 0 0 1.1em; }
+  /* The write-up picks up again under a demo, in the same column. */
+  .continued { margin: 40px 0 0 224px; }
   /* Diagrams in a write-up: inline SVG drawn in the page's own colours, so they follow the theme. */
   .story :global(.diagram) { margin: 1.6em 0 2em; display: flex; flex-direction: column; gap: 10px; width: 100%; min-width: 0; }
   .story :global(.diagram svg) { display: block; width: 100%; max-width: 100%; height: auto; }
@@ -163,7 +171,7 @@ const { Content } = await render(project);
   @media (max-width: 1100px) {
     .detail { grid-template-columns: 160px minmax(0, 1fr); }
     .notes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .after { margin-left: 192px; }
+    .continued { margin-left: 192px; }
   }
   @media (max-width: 720px) {
     .detail { display: flex; flex-direction: column; gap: 28px; padding-top: 28px; }
@@ -173,7 +181,7 @@ const { Content } = await render(project);
     .media { display: flex; flex-direction: column; gap: 24px; margin-top: 40px; padding-top: 28px; }
     .lead { margin-bottom: 40px; }
     .recreation { margin-top: 40px; padding-top: 28px; }
-    .after { margin: 28px 0 0; font-size: 15px; }
+    .continued { margin: 28px 0 0; }
     .recreation iframe { aspect-ratio: 4 / 3; }
   }
 </style>
