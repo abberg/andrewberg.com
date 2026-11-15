@@ -141,17 +141,18 @@
     }
   }
 
-  // ---- Projection. A point (u, v) on a level's plan, at height z, lands at
-  // x = S · (u cos θ − v sin θ), y = S · (u sin θ + v cos θ − z), around the centre of the stage.
+  // ---- Projection. Every level is drawn at its true size, so a tile is the same size on all of them, and the
+  // levels line up on the centre of the view. A point (u, v) on the plan of a level of scale s, at height z, lands at
+  // x = S · (a cos θ − b sin θ), y = S · (a sin θ + b cos θ − z), where (a, b) = s · (u − cx, v − cy).
 
   const height = level => (TOP - level.index) * GAP;   // the widest level on top
-  function project(u, v, z) {
-    const x = u - W / 2, y = v - H / 2;
+  function project(u, v, z, s = 1) {
+    const x = (u - cx) * s, y = (v - cy) * s;
     return [ox + S * (x * COS - y * SIN), oy + S * (x * SIN + y * COS - z)];
   }
-  function planTransform(z) {
-    const [e, f] = project(0, 0, z);
-    g.setTransform(S * COS, S * SIN, -S * SIN, S * COS, e, f);
+  function planTransform(z, s = 1) {
+    const [e, f] = project(0, 0, z, s);
+    g.setTransform(S * s * COS, S * s * SIN, -S * s * SIN, S * s * COS, e, f);
   }
 
   function resize() {
@@ -161,8 +162,9 @@
     scene.height = Math.max(1, Math.round(box.height * dpr));
     let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
     S = 1; ox = 0; oy = 0;
-    for (const z of [0, TOP * GAP]) for (const [u, w] of [[0, 0], [W, 0], [0, H], [W, H]]) {
-      const [x, y] = project(u, w, z);
+    // Fit the column the view makes through the levels, with room around it for the larger levels to show.
+    for (const z of [0, TOP * GAP]) for (const [u, w] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+      const [x, y] = project(cx + u * W * 0.9, cy + w * H * 0.9, z);
       x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
     }
     const pad = (box.width < 500 ? 10 : 24) * dpr;
@@ -176,8 +178,8 @@
 
   // ---- Drawing the stack
 
-  function outline(z, x, y, w, h) {
-    const corners = [[x, y], [x + w, y], [x + w, y + h], [x, y + h]].map(([a, b]) => project(a, b, z));
+  function outline(z, x, y, w, h, s = 1) {
+    const corners = [[x, y], [x + w, y], [x + w, y + h], [x, y + h]].map(([a, b]) => project(a, b, z, s));
     g.beginPath();
     corners.forEach(([px, py], i) => (i ? g.lineTo(px, py) : g.moveTo(px, py)));
     g.closePath();
@@ -187,11 +189,11 @@
   function grid(level, z) {
     g.beginPath();
     for (let c = 1; c < level.cols; c++) {
-      const [ax, ay] = project(c * level.tw, 0, z), [bx, by] = project(c * level.tw, H, z);
+      const [ax, ay] = project(c * level.tw, 0, z, level.scale), [bx, by] = project(c * level.tw, H, z, level.scale);
       g.moveTo(ax, ay); g.lineTo(bx, by);
     }
     for (let r = 1; r < level.cols; r++) {
-      const [ax, ay] = project(0, r * level.th, z), [bx, by] = project(W, r * level.th, z);
+      const [ax, ay] = project(0, r * level.th, z, level.scale), [bx, by] = project(W, r * level.th, z, level.scale);
       g.moveTo(ax, ay); g.lineTo(bx, by);
     }
     g.stroke();
@@ -214,16 +216,16 @@
     for (let k = TOP; k >= 0; k--) {
       const level = LEVELS[k], z = height(level), active = k === current, above = k < current;
 
-      if (!above) { outline(z, 0, 0, W, H); g.fillStyle = PAPER; g.fill(); }
+      if (!above) { outline(z, 0, 0, W, H, level.scale); g.fillStyle = PAPER; g.fill(); }
 
       if (ready && active) {
         g.save();
-        outline(z, 0, 0, W, H); g.clip();
-        planTransform(z);
+        outline(z, 0, 0, W, H, level.scale); g.clip();
+        planTransform(z, level.scale);
         if (k > 0) { g.globalAlpha = 0.5; g.drawImage(soft, 0, 0, W, H); }
         if (tilesShowing(level)) for (const [i, at] of level.loaded) {
           const tile = level.tiles[i], x = tile.col * level.tw, y = tile.row * level.th, e = settled(at, now);
-          planTransform(z + (1 - e) * GAP * 0.45);
+          planTransform(z + (1 - e) * GAP * 0.45, level.scale);
           g.globalAlpha = e;
           g.drawImage(image, x, y, level.tw, level.th, x - 0.3, y - 0.3, level.tw + 0.6, level.th + 0.6);
         }
@@ -231,7 +233,7 @@
       } else if (!active && !above && k > 0 && level.loaded.size) {
         // Tiles already loaded on a level below the one in view, kept for when the visitor comes back.
         g.save();
-        planTransform(z);
+        planTransform(z, level.scale);
         g.fillStyle = MUTE; g.globalAlpha = 0.22;
         for (const i of level.loaded.keys()) { const t = level.tiles[i]; g.fillRect(t.col * level.tw, t.row * level.th, level.tw, level.th); }
         g.restore();
@@ -242,20 +244,15 @@
       g.strokeStyle = active ? INK : MUTE; g.lineWidth = active ? line : line * 0.75;
       grid(level, z);
       g.globalAlpha = 1;
-      outline(z, 0, 0, W, H);
+      outline(z, 0, 0, W, H, level.scale);
       g.strokeStyle = active ? INK : MUTE; g.lineWidth = active ? line * 1.6 : line; g.stroke();
-
-      const [lx, ly] = project(0, H, z);
-      g.font = `${active ? 700 : 400} ${Math.round(11 * dpr)}px ui-monospace, Menlo, Consolas, monospace`;
-      g.fillStyle = active ? INK : MUTE; g.textAlign = 'right'; g.textBaseline = 'middle';
-      g.fillText(`${k + 1}`, lx - 10 * dpr, ly);
 
       const w = W / level.scale, h = H / level.scale;
       frames[k] = [cx - w / 2, cy - h / 2, w, h];
     }
 
     // The view on every level, joined at the corners into a column that narrows as the levels get closer.
-    const corners = frames.map((frame, k) => [[0, 0], [1, 0], [1, 1], [0, 1]].map(([a, b]) => project(frame[0] + a * frame[2], frame[1] + b * frame[3], height(LEVELS[k]))));
+    const corners = frames.map((frame, k) => [[0, 0], [1, 0], [1, 1], [0, 1]].map(([a, b]) => project(frame[0] + a * frame[2], frame[1] + b * frame[3], height(LEVELS[k]), LEVELS[k].scale)));
     g.setLineDash([3 * dpr, 4 * dpr]);
     g.strokeStyle = MUTE; g.lineWidth = line;
     g.beginPath();
@@ -265,7 +262,16 @@
     g.setLineDash([]);
     g.strokeStyle = ACCENT; g.lineWidth = line * 3;
     g.beginPath(); g.moveTo(...corners[current][0]); for (let c = 1; c <= 4; c++) g.lineTo(...corners[current][c % 4]); g.stroke();
-    const [px, py] = project(cx, cy, height(LEVELS[current]));
+    const [px, py] = project(cx, cy, height(LEVELS[current]), LEVELS[current].scale);
+    // The level numbers, beside the column, over everything.
+    g.textAlign = 'right'; g.textBaseline = 'middle';
+    LEVELS.forEach(level => {
+      const active = level.index === current, [lx, ly] = corners[level.index][3];
+      g.font = `${active ? 700 : 400} ${Math.round(12 * dpr)}px ui-monospace, Menlo, Consolas, monospace`;
+      const label = `${level.index + 1}`, tw = g.measureText(label).width;
+      g.fillStyle = PAPER; g.fillRect(lx - 16 * dpr - tw, ly - 8 * dpr, tw + 8 * dpr, 16 * dpr);
+      g.fillStyle = active ? INK : MUTE; g.fillText(label, lx - 12 * dpr, ly);
+    });
     g.fillStyle = ACCENT; g.beginPath(); g.arc(px, py, 3.5 * dpr, 0, Math.PI * 2); g.fill();
   }
 
@@ -336,7 +342,7 @@
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
   window.addEventListener('storage', applyTheme);
 
-  // ---- Input. Dragging moves the view across the level in view, as dragging the map did.
+  // ---- Input. Dragging moves the map under the view, as it did on the site.
 
   function touched() { hint.classList.add('gone'); }
   let dragging = false, lastX = 0, lastY = 0;
@@ -346,9 +352,9 @@
   });
   scene.addEventListener('pointermove', event => {
     if (!dragging || phase === 'slide') return;
-    const dx = (event.clientX - lastX) * dpr / S, dy = (event.clientY - lastY) * dpr / S;
+    const s = S * LEVELS[current].scale, dx = (event.clientX - lastX) * dpr / s, dy = (event.clientY - lastY) * dpr / s;
     lastX = event.clientX; lastY = event.clientY;
-    cx += dx * COS + dy * SIN; cy += -dx * SIN + dy * COS;
+    cx -= dx * COS + dy * SIN; cy -= -dx * SIN + dy * COS;
     clampView(); touched();
   });
   function release() { dragging = false; scene.classList.remove('dragging'); }
