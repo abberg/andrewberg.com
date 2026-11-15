@@ -3,7 +3,7 @@ title: Cuervo Nation
 client: Jose Cuervo
 agency: The Barbarian Group
 partners: [Tribal DDB]
-year: 2007
+year: 2005
 role: Flash developer
 hero:
   src: /advertising/cuervo-nation/island-map.jpg
