@@ -7,11 +7,13 @@
   let INK = '#16181A', PAPER = '#F5F5F1';   // set from the page's theme, below
 
   // Back to front. `tiles` sets the ring's length; `loose` is a speed picked by eye, for comparison.
+  // `tops` is the range of roof heights, `base` where the layer's buildings stop behind the next layer.
+  const PALETTE = ['#8fcb6b', '#00a098', '#1d6392', '#3b2b5a'];   // lightest to darkest
   const LAYERS = [
-    { name: 'Sky', tiles: 4, color: '#00b9d5', band: [0, 150], loose: 0.2 },
-    { name: 'Skyline', tiles: 6, color: '#009b92', band: [50, 240], loose: 0.48 },
-    { name: 'Shops', tiles: 9, color: '#307b57', band: [115, 305], loose: 0.72 },
-    { name: 'Street', tiles: 14, color: '#3e5a2b', band: [222, 360], loose: 1 },
+    { name: 'Horizon', tiles: 4, band: [14, 200], tops: [34, 120], base: 200, widths: [34, 74], loose: 0.2 },
+    { name: 'Skyline', tiles: 6, band: [84, 262], tops: [104, 180], base: 262, widths: [46, 96], loose: 0.48 },
+    { name: 'Blocks', tiles: 9, band: [156, 318], tops: [176, 250], base: 318, widths: [70, 140], loose: 0.72 },
+    { name: 'Street', tiles: 14, band: [232, 360], tops: [252, 312], base: 360, widths: [100, 210], loose: 1 },
   ];
   const FRONT = LAYERS[LAYERS.length - 1].tiles;
   const LAP = FRONT * T;
@@ -30,11 +32,10 @@
       return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     };
   }
-  const pick = (r, list) => list[Math.floor(r() * list.length)];
   const between = (r, a, b) => a + r() * (b - a);
 
-  // ---- The artwork. Each layer is a list of flat shapes placed along its ring, drawn in ring coordinates
-  // in the layer's own colour, the same one its ring has in the diagram. `cut` punches a paper-coloured hole.
+  // ---- The artwork. Every layer is a row of plain building silhouettes placed along its ring,
+  // drawn in ring coordinates in the layer's own colour, the same one its ring has in the diagram.
 
   function box(c, x, y, w, h) { c.fillRect(x, y, w, h); }
   function shape(c, points) {
@@ -42,113 +43,34 @@
     points.forEach(([x, y], i) => (i ? c.lineTo(x, y) : c.moveTo(x, y)));
     c.closePath(); c.fill();
   }
-  function disc(c, x, y, radius) { c.beginPath(); c.arc(x, y, radius, 0, Math.PI * 2); c.fill(); }
-  function cut(c, draw) { const paint = c.fillStyle; c.fillStyle = PAPER; draw(); c.fillStyle = paint; }
 
-  function sky(layer) {
-    const r = random(11), items = [];
-    // The landmark at the seam: a blimp.
-    items.push({ x0: -70, x1: 70, draw(c) {
-      c.beginPath(); c.ellipse(0, 60, 52, 22, 0, 0, Math.PI * 2); c.fill();
-      shape(c, [[38, 54], [64, 38], [64, 82], [38, 66]]);
-      box(c, -14, 80, 28, 11);
+  function buildings(layer) {
+    const r = random(11 + layer.index * 13), items = [], [high, low] = layer.tops, base = layer.base;
+    const span = low - high, half = layer.widths[1] * 0.42;
+    // The landmark at the seam: the tallest building in the layer, with a spire.
+    items.push({ x0: -half, x1: half, draw(c) {
+      box(c, -half, high + span * 0.3, half * 2, base - high);
+      box(c, -half * 0.6, high + span * 0.08, half * 1.2, span * 0.3);
+      shape(c, [[-half * 0.28, high + span * 0.08], [0, high - span * 0.22], [half * 0.28, high + span * 0.08]]);
     } });
-    const count = 9;
-    for (let i = 0; i < count; i++) {
-      const x = 140 + (i + r() * 0.6) * (layer.length - 280) / count, y = between(r, 34, 112);
-      const puffs = Array.from({ length: 5 }, (_, n) => [x + (n - 2) * between(r, 15, 21), y - (n % 2) * between(r, 5, 14), between(r, 13, 24)]);
-      items.push({ x0: x - 80, x1: x + 80, draw(c) {
-        for (const [px, py, pr] of puffs) disc(c, px, py, pr);
-        box(c, puffs[0][0], y, puffs[4][0] - puffs[0][0], 16);
-      } });
-    }
-    return items;
-  }
-
-  function skyline(layer) {
-    const r = random(23), items = [], base = 240;
-    // The landmark: a tall tower with a spire.
-    items.push({ x0: -40, x1: 40, draw(c) {
-      box(c, -30, 96, 60, base - 96); box(c, -19, 74, 38, 22);
-      shape(c, [[-9, 74], [0, 50], [9, 74]]);
-    } });
-    let x = 40;
-    while (layer.length - 40 - x > 26) {
-      const w = Math.min(between(r, 42, 96), layer.length - 40 - x), h = between(r, 62, 158), top = base - h, kind = Math.floor(r() * 4), left = x;
-      items.push({ x0: left, x1: left + w, draw(c) {
-        box(c, left + 2, top, w - 4, h);
-        if (kind === 0) shape(c, [[left + w * 0.2, top], [left + w / 2, top - 22], [left + w * 0.8, top]]);
-        if (kind === 1) box(c, left + w * 0.25, top - 14, w * 0.5, 14);
-        if (kind === 2) shape(c, [[left + 2, top], [left + 2, top - 12], [left + w - 2, top - 26], [left + w - 2, top]]);
+    let x = half;
+    while (layer.length - half - x > layer.widths[0] * 0.6) {
+      let w = between(r, layer.widths[0], layer.widths[1]);
+      if (layer.length - half - x - w < layer.widths[0] * 0.6) w = layer.length - half - x;
+      const top = between(r, high + span * 0.25, low), kind = Math.floor(r() * 5), left = x, right = x + w, roof = Math.min(span * 0.28, w * 0.4);
+      items.push({ x0: left, x1: right, draw(c) {
+        box(c, left, top, w + 0.5, base - top);
+        if (kind === 0) shape(c, [[left, top], [left + w / 2, top - roof], [right, top]]);            // a gable
+        if (kind === 1) box(c, left + w * 0.25, top - roof * 0.6, w * 0.5, roof * 0.6 + 1);           // a set-back top
+        if (kind === 2) shape(c, [[left, top], [left, top - roof * 0.5], [right, top - roof], [right, top]]);   // a slanted roof
+        if (kind === 3) box(c, left + w * 0.62, top - roof * 0.8, w * 0.16, roof * 0.8 + 1);          // a chimney
       } });
       x += w;
     }
     return items;
   }
 
-  function shops(layer) {
-    const r = random(37), items = [], base = 305;
-    // The landmark: a clock tower.
-    items.push({ x0: -72, x1: 72, draw(c) {
-      box(c, -62, 150, 124, base - 150);
-      shape(c, [[-72, 150], [0, 120], [72, 150]]);
-      cut(c, () => disc(c, 0, 192, 22));
-      box(c, -1.5, 174, 3, 19); shape(c, [[0, 190], [13, 197], [11, 200], [-1, 193]]);
-    } });
-    let x = 72;
-    while (layer.length - 72 - x > 60) {
-      let w = between(r, 92, 172);
-      if (layer.length - 72 - x - w < 60) w = layer.length - 72 - x;
-      const h = between(r, 78, 150), top = base - h, left = x, columns = Math.max(1, Math.floor((w - 20) / 34)), rows = Math.max(0, Math.floor((h - 62) / 38));
-      items.push({ x0: left, x1: left + w, draw(c) {
-        box(c, left + 3, top, w - 6, h);
-        box(c, left, top - 6, w, 8);
-        const pitch = (w - 20) / columns;
-        cut(c, () => {
-          for (let row = 0; row < rows; row++) for (let col = 0; col < columns; col++) box(c, left + 10 + col * pitch + pitch / 2 - 8, top + 16 + row * 38, 16, 22);
-        });
-      } });
-      x += w;
-    }
-    return items;
-  }
-
-  function street(layer) {
-    const r = random(53), items = [], ground = 292;
-    items.push({ x0: 0, x1: layer.length, draw(c) {
-      box(c, 0, ground, layer.length, H - ground);
-      cut(c, () => { for (let x = 20; x < layer.length; x += 100) box(c, x, 336, 60, 6); });
-    } });
-    // The landmark: a kiosk.
-    items.push({ x0: -70, x1: 70, draw(c) {
-      box(c, -50, 258, 100, 40);
-      shape(c, [[-66, 262], [-40, 232], [40, 232], [66, 262]]);
-      cut(c, () => box(c, -38, 270, 50, 18));
-    } });
-    let x = 110;
-    while (x < layer.length - 110) {
-      const at = x, kind = Math.floor(r() * 5);
-      items.push({ x0: at - 50, x1: at + 60, draw(c) {
-        if (kind === 0) { // a lamp post
-          box(c, at - 2.5, 236, 5, 60); shape(c, [[at - 10, 238], [at + 10, 238], [at + 6, 226], [at - 6, 226]]);
-        } else if (kind === 1) { // bollards
-          for (const dx of [0, 22, 44]) { box(c, at + dx - 3.5, 274, 7, 20); disc(c, at + dx, 274, 5); }
-        } else if (kind === 2) { // a hydrant
-          box(c, at - 6, 276, 12, 18); box(c, at - 10, 281, 20, 5); disc(c, at, 276, 6);
-        } else if (kind === 3) { // a bench
-          box(c, at - 26, 280, 52, 5); box(c, at - 26, 268, 52, 6); box(c, at - 22, 282, 4, 12); box(c, at + 18, 282, 4, 12);
-        } else { // a tree
-          box(c, at - 3, 256, 6, 38);
-          for (const [dx, dy, pr] of [[-12, 250, 16], [12, 248, 17], [0, 236, 18]]) disc(c, at + dx, dy, pr);
-        }
-      } });
-      x += between(r, 110, 230);
-    }
-    return items;
-  }
-
-  const ART = [sky, skyline, shops, street];
-  LAYERS.forEach(layer => { layer.items = ART[layer.index](layer); });
+  LAYERS.forEach(layer => { layer.items = buildings(layer); });
 
   // ---- State
 
@@ -170,8 +92,9 @@
   const legend = document.getElementById('legend');
   const rateCells = [...LAYERS].reverse().map(layer => {
     const row = document.createElement('li');
-    row.innerHTML = `<i style="background:${layer.color}"></i><span>${layer.name}</span><span class="n">${layer.tiles} tiles</span><span class="r"></span>`;
+    row.innerHTML = `<i></i><span>${layer.name}</span><span class="n">${layer.tiles} tiles</span><span class="r"></span>`;
     legend.append(row);
+    layer.swatch = row.firstChild;
     return [layer, row.lastChild];
   });
 
@@ -249,7 +172,7 @@
         const label = String(index + 1), pad = size * 0.45, width = g.measureText(label).width + pad * 2;
         g.fillStyle = layer.color; g.fillRect(px, top, width, size * 1.5);
         g.lineWidth = Math.max(1, dpr * 1.2); g.strokeRect(px, top, width, size * 1.5);
-        g.fillStyle = '#fff'; g.fillText(label, px + pad, top + size * 0.8);
+        g.fillStyle = layer.text; g.fillText(label, px + pad, top + size * 0.8);
       }
     }
   }
@@ -318,8 +241,13 @@
     }
     const style = getComputedStyle(document.documentElement);
     INK = style.getPropertyValue('--ink').trim(); PAPER = style.getPropertyValue('--bg').trim();
+    // The nearest layer gets the colour that stands out most from the page: the darkest on paper, the lightest on the dark page.
     // Tile edges and seams take a shade of their layer's colour: darker on paper, lighter on the dark page.
     for (const layer of LAYERS) {
+      layer.color = PALETTE[dark ? LAYERS.length - 1 - layer.index : layer.index];
+      layer.swatch.style.background = layer.color;
+      const [red, green, blue] = [1, 3, 5].map(at => parseInt(layer.color.slice(at, at + 2), 16));
+      layer.text = red * 0.299 + green * 0.587 + blue * 0.114 > 140 ? '#16181A' : '#fff';
       layer.dark = '#' + [1, 3, 5].map(at => {
         const value = parseInt(layer.color.slice(at, at + 2), 16);
         return Math.round(dark ? value + (255 - value) * 0.6 : value * 0.5).toString(16).padStart(2, '0');
