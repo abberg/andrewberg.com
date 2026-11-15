@@ -11,10 +11,10 @@
   // the layers step from soft at the back to strong at the front against either background.
   // `tops` is the range of roof heights, `base` where the layer's buildings stop behind the next layer.
   const LAYERS = [
-    { name: 'Clouds', tiles: 4, colors: ['#b7a8d8', '#3b2b5a'], band: [0, 150], loose: 0.2 },
+    { name: 'Clouds', tiles: 4, colors: ['#cbbfe4', '#3b2b5a'], band: [0, 150], loose: 0.2 },
     { name: 'Skyline', tiles: 6, colors: ['#5f9ccb', '#1d6392'], band: [84, 262], tops: [104, 180], base: 262, widths: [46, 96], loose: 0.48 },
     { name: 'Blocks', tiles: 9, colors: ['#12897f', '#00a098'], band: [156, 318], tops: [176, 250], base: 318, widths: [70, 140], loose: 0.72 },
-    { name: 'Street', tiles: 14, colors: ['#3f7a26', '#8fcb6b'], band: [232, 360], tops: [252, 312], base: 360, widths: [100, 210], loose: 1 },
+    { name: 'Street', tiles: 14, colors: ['#33661f', '#8fcb6b'], band: [232, 360], tops: [252, 312], base: 360, widths: [100, 210], loose: 1 },
   ];
   const FRONT = LAYERS[LAYERS.length - 1].tiles;
   const LAP = FRONT * T;
