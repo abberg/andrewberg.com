@@ -8,12 +8,11 @@
 
   // Back to front. `tiles` sets the ring's length; `loose` is a speed picked by eye, for comparison.
   // `tops` is the range of roof heights, `base` where the layer's buildings stop behind the next layer.
-  const PALETTE = ['#8fcb6b', '#00a098', '#1d6392', '#3b2b5a'];   // lightest to darkest
   const LAYERS = [
-    { name: 'Horizon', tiles: 4, band: [14, 200], tops: [34, 120], base: 200, widths: [34, 74], loose: 0.2 },
-    { name: 'Skyline', tiles: 6, band: [84, 262], tops: [104, 180], base: 262, widths: [46, 96], loose: 0.48 },
-    { name: 'Blocks', tiles: 9, band: [156, 318], tops: [176, 250], base: 318, widths: [70, 140], loose: 0.72 },
-    { name: 'Street', tiles: 14, band: [232, 360], tops: [252, 312], base: 360, widths: [100, 210], loose: 1 },
+    { name: 'Clouds', tiles: 4, color: '#3b2b5a', band: [0, 150], loose: 0.2 },
+    { name: 'Skyline', tiles: 6, color: '#1d6392', band: [84, 262], tops: [104, 180], base: 262, widths: [46, 96], loose: 0.48 },
+    { name: 'Blocks', tiles: 9, color: '#00a098', band: [156, 318], tops: [176, 250], base: 318, widths: [70, 140], loose: 0.72 },
+    { name: 'Street', tiles: 14, color: '#8fcb6b', band: [232, 360], tops: [252, 312], base: 360, widths: [100, 210], loose: 1 },
   ];
   const FRONT = LAYERS[LAYERS.length - 1].tiles;
   const LAP = FRONT * T;
@@ -34,7 +33,7 @@
   }
   const between = (r, a, b) => a + r() * (b - a);
 
-  // ---- The artwork. Every layer is a row of plain building silhouettes placed along its ring,
+  // ---- The artwork. The back layer is clouds and the rest are rows of plain building silhouettes, placed along each ring,
   // drawn in ring coordinates in the layer's own colour, the same one its ring has in the diagram.
 
   function box(c, x, y, w, h) { c.fillRect(x, y, w, h); }
@@ -42,6 +41,22 @@
     c.beginPath();
     points.forEach(([x, y], i) => (i ? c.lineTo(x, y) : c.moveTo(x, y)));
     c.closePath(); c.fill();
+  }
+
+  function disc(c, x, y, radius) { c.beginPath(); c.arc(x, y, radius, 0, Math.PI * 2); c.fill(); }
+
+  function clouds(layer) {
+    const r = random(11), items = [], count = 9;
+    const cloud = (x, y, size) => {
+      const puffs = Array.from({ length: 5 }, (_, n) => [x + (n - 2) * between(r, 15, 21) * size, y - (n % 2) * between(r, 5, 14) * size, between(r, 13, 24) * size]);
+      items.push({ x0: x - 80 * size, x1: x + 80 * size, draw(c) {
+        for (const [px, py, pr] of puffs) disc(c, px, py, pr);
+        box(c, puffs[0][0], y, puffs[4][0] - puffs[0][0], 16 * size);
+      } });
+    };
+    cloud(0, 62, 1.5);   // the landmark at the seam: the biggest cloud
+    for (let i = 0; i < count; i++) cloud(170 + (i + r() * 0.6) * (layer.length - 340) / count, between(r, 38, 112), 1);
+    return items;
   }
 
   function buildings(layer) {
@@ -70,7 +85,7 @@
     return items;
   }
 
-  LAYERS.forEach(layer => { layer.items = buildings(layer); });
+  LAYERS.forEach(layer => { layer.items = layer.index ? buildings(layer) : clouds(layer); });
 
   // ---- State
 
@@ -241,10 +256,8 @@
     }
     const style = getComputedStyle(document.documentElement);
     INK = style.getPropertyValue('--ink').trim(); PAPER = style.getPropertyValue('--bg').trim();
-    // The nearest layer gets the colour that stands out most from the page: the darkest on paper, the lightest on the dark page.
     // Tile edges and seams take a shade of their layer's colour: darker on paper, lighter on the dark page.
     for (const layer of LAYERS) {
-      layer.color = PALETTE[dark ? LAYERS.length - 1 - layer.index : layer.index];
       layer.swatch.style.background = layer.color;
       const [red, green, blue] = [1, 3, 5].map(at => parseInt(layer.color.slice(at, at + 2), 16));
       layer.text = red * 0.299 + green * 0.587 + blue * 0.114 > 140 ? '#16181A' : '#fff';
