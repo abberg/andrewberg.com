@@ -264,13 +264,26 @@
           g.drawImage(image, x, y, level.tw, level.th, x - 0.3, y - 0.3, level.tw + 0.6, level.th + 0.6);
         }
         g.restore();
-      } else if (!active && !above && k > 0 && level.loaded.size) {
+      }
+
+      if (!active && !above && k > 0 && level.loaded.size) {
         // Tiles already loaded on a level below the one in view, kept for when the visitor comes back.
         g.save();
         planTransform(z, level.scale);
         g.fillStyle = MUTE; g.globalAlpha = 0.22;
         for (const i of level.loaded.keys()) { const t = level.tiles[i]; g.fillRect(t.col * level.tw, t.row * level.th, level.tw, level.th); }
         g.restore();
+      }
+
+      // A wash over everything outside the view, so what is on screen stands out and what is off it still shows loading.
+      if (!above) {
+        const w = W / level.scale, h = H / level.scale;
+        g.setTransform(1, 0, 0, 1, 0, 0);
+        outline(z, 0, 0, W, H, level.scale);
+        const [[ax, ay], [bx, by], [qx, qy], [dx, dy]] = [[0, 0], [1, 0], [1, 1], [0, 1]].map(([a, b]) => project(cx - w / 2 + a * w, cy - h / 2 + b * h, z, level.scale));
+        g.moveTo(ax, ay); g.lineTo(dx, dy); g.lineTo(qx, qy); g.lineTo(bx, by); g.closePath();
+        g.fillStyle = PAPER; g.globalAlpha = 0.6; g.fill('evenodd');
+        g.globalAlpha = 1;
       }
 
       g.setTransform(1, 0, 0, 1, 0, 0);
