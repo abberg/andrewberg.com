@@ -17,9 +17,10 @@ recognition:
   - The Internationalist Awards for Innovation in Media 2013, Winner, Innovative Digital Marketing
 press:
   - { title: Know What You’ll Look Like in 30 Years — Maybe Then You’ll Max Out Your 401(k), source: WIRED, url: "https://www.wired.com/2012/12/retirement-magic-mirror/" }
-  - { title: Digital Tool Ages Your Face To Scare You Into Saving Money, source: Popular Science, url: "https://www.popsci.com/technology/article/2012-12/retirement-tool-ages-faces-encourage-people-save-money/" }
-  - { title: Using scary online photos to motivate saving for retirement, source: Marketplace, url: "https://marketplace.org/2012/12/06/using-scary-online-photos-motivate-saving-retirement" }
-  - { title: "Face It, You’re Getting Old, Merrill Tells Customers", source: American Banker, url: "https://www.americanbanker.com/news/face-it-youre-getting-old-merrill-tells-customers" }
+  - { title: "Merrill Edge: Face Retirement", source: Ad Age, url: "https://adage.com/creativity/work/face-retirement/30135/" }
+  - { title: Your ‘Face’ and Your Retirement at 100, source: CNBC, url: "https://www.cnbc.com/2012/12/19/your-face-and-your-retirement-at-100.html" }
+  - { title: Why Bank Of America Wants You To Look Really Old, source: Forbes, url: "https://www.forbes.com/sites/davidhochman/2012/12/13/why-bank-of-america-wants-you-to-look-really-old/" }
+  - { title: Using scary online photos to motivate saving for retirement, source: Marketplace, url: "https://www.marketplace.org/story/2012/12/06/using-scary-online-photos-motivate-saving-retirement" }
 ---
 
 Face Retirement was a web app for Merrill Edge, Bank of America’s online brokerage, launched in December 2012 by Starcom MediaVest Group. It started from a Stanford study: people find it hard to save for a future self who feels like a stranger, and those shown an aged image of themselves were more willing to put money away.
@@ -30,4 +31,4 @@ I worked at Publicis, Starcom’s sister company in the same building, as a shar
 
 The most involved part was the webcam capture: asking for the camera, helping visitors frame their face, and taking a photo the aging algorithm could work with. It needed no custom image processing, only the camera APIs that were already there, but it was the step every visitor had to get through before they saw anything.
 
-The site was picked up widely, from WIRED to Marketplace. More than 450,000 people tried it in its first months, and around one in ten shared their aged photo on Facebook.
+It was picked up widely, from WIRED and Ad Age to CNBC and NBC’s local stations. More than 450,000 people tried it in its first months, and around one in ten shared their aged photo on Facebook.
