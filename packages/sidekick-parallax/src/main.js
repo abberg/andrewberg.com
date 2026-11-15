@@ -7,12 +7,14 @@
   let INK = '#16181A', PAPER = '#F5F5F1';   // set from the page's theme, below
 
   // Back to front. `tiles` sets the ring's length; `loose` is a speed picked by eye, for comparison.
+  // `colors` is the layer's colour on the light page, then on the dark one: the same four hues, set so that
+  // the layers step from soft at the back to strong at the front against either background.
   // `tops` is the range of roof heights, `base` where the layer's buildings stop behind the next layer.
   const LAYERS = [
-    { name: 'Clouds', tiles: 4, color: '#3b2b5a', band: [0, 150], loose: 0.2 },
-    { name: 'Skyline', tiles: 6, color: '#1d6392', band: [84, 262], tops: [104, 180], base: 262, widths: [46, 96], loose: 0.48 },
-    { name: 'Blocks', tiles: 9, color: '#00a098', band: [156, 318], tops: [176, 250], base: 318, widths: [70, 140], loose: 0.72 },
-    { name: 'Street', tiles: 14, color: '#8fcb6b', band: [232, 360], tops: [252, 312], base: 360, widths: [100, 210], loose: 1 },
+    { name: 'Clouds', tiles: 4, colors: ['#b7a8d8', '#3b2b5a'], band: [0, 150], loose: 0.2 },
+    { name: 'Skyline', tiles: 6, colors: ['#5f9ccb', '#1d6392'], band: [84, 262], tops: [104, 180], base: 262, widths: [46, 96], loose: 0.48 },
+    { name: 'Blocks', tiles: 9, colors: ['#12897f', '#00a098'], band: [156, 318], tops: [176, 250], base: 318, widths: [70, 140], loose: 0.72 },
+    { name: 'Street', tiles: 14, colors: ['#3f7a26', '#8fcb6b'], band: [232, 360], tops: [252, 312], base: 360, widths: [100, 210], loose: 1 },
   ];
   const FRONT = LAYERS[LAYERS.length - 1].tiles;
   const LAP = FRONT * T;
@@ -258,6 +260,7 @@
     INK = style.getPropertyValue('--ink').trim(); PAPER = style.getPropertyValue('--bg').trim();
     // Tile edges and seams take a shade of their layer's colour: darker on paper, lighter on the dark page.
     for (const layer of LAYERS) {
+      layer.color = layer.colors[dark ? 1 : 0];
       layer.swatch.style.background = layer.color;
       const [red, green, blue] = [1, 3, 5].map(at => parseInt(layer.color.slice(at, at + 2), 16));
       layer.text = red * 0.299 + green * 0.587 + blue * 0.114 > 140 ? '#16181A' : '#fff';
