@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Jetta Spin — Andrew Berg</title>
+<link rel="icon" href="data:,">
+<meta name="description" content="The exterior 360 from The New Jetta: thirty-six pictures of the car stacked on a stage, with a drag turning one angle into the next.">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@600&display=swap">
+<style>
+  /* The site's own light and dark colours. main.js sets data-theme to follow the page the demo is embedded in. */
+  :root { --bg: #F5F5F1; --ink: #16181A; --mute: #5E635E; color-scheme: light; }
+  :root[data-theme="dark"] { --bg: #1C1D18; --ink: #ECECE6; --mute: #A3A8A1; color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { background: var(--bg); overflow: hidden; font: 600 12px/1.15 Jost, 'Century Gothic', 'Trebuchet MS', sans-serif; text-transform: lowercase; }
+  img { -webkit-user-drag: none; }
+
+  /* Everything is laid out on the original's 780 pixel wide stage. main.js scales the whole thing to fit the window. */
+  .fit { position: absolute; left: 0; top: 0; width: 780px; height: 380px; transform-origin: 0 0; overflow: hidden; user-select: none; -webkit-user-select: none; }
+
+  /* The stage: the red studio, the stack of pictures and the bubbles. */
+  .stage { position: absolute; left: 0; top: 0; width: 780px; height: 324px; overflow: hidden; background: #6E161B url(./exp_bg.png) 0 0 / 780px 365px no-repeat; touch-action: pan-y; cursor: grab; outline: none; }
+  .stage.dragging { cursor: grabbing; }
+  .stage:focus-visible { outline: 2px solid #F4E9E6; outline-offset: -2px; }
+  /* All thirty-six pictures sit in the same place, one on top of the other. Only one is ever shown. */
+  .stage .picture { position: absolute; left: 97.5px; top: 21px; width: 585px; height: 329px; z-index: 1000; display: none; pointer-events: none; -webkit-mask-image: linear-gradient(to right, transparent, #000 10%, #000 90%, transparent); mask-image: linear-gradient(to right, transparent, #000 10%, #000 90%, transparent); }
+
+  /* A feature bubble. main.js moves and scales it. Its origin is the middle of the circle.
+     The shadow is cast by the circle and its caption as one shape, so the circle casts none onto the caption. */
+  .bubble { position: absolute; left: 0; top: 0; width: 0; height: 0; filter: drop-shadow(0 2px 3px rgba(40, 0, 0, .3)); pointer-events: none; visibility: hidden; opacity: 0; transition: opacity .13s linear, visibility 0s .13s; }
+  .bubble.on { visibility: visible; opacity: 1; transition: opacity .13s linear; }
+  .bubble .caption { position: absolute; left: 0; top: -12px; height: 24px; padding: 0 12px 0 46px; border-radius: 0 12px 12px 0; background: #B73B42; color: #fff; font-size: 12px; line-height: 24px; white-space: nowrap; }
+  .bubble.left .caption { left: auto; right: 0; padding: 0 46px 0 12px; border-radius: 12px 0 0 12px; }
+  .bubble .disc { position: absolute; left: -37px; top: -37px; width: 74px; height: 74px; border-radius: 50%; background: #B73B42; }
+  .bubble .disc img { position: absolute; left: 5.5px; top: 5.5px; width: 63px; height: 63px; border-radius: 50%; object-fit: cover; }
+
+  /* The bar under the stage: the strip of thumbnails, the slider that rides along it and the section tabs.
+     The bar fades to the colour of the tabs. Their labels sit in the bar under the recess, and each tab hangs 5 pixels below its bottom edge.
+     The tab's colour starts 3 pixels inside the bar, so no seam opens between the two when the stage is scaled. */
+  .bar { position: absolute; left: 0; top: 321px; width: 780px; height: 50px; background: linear-gradient(#fff 0, #DADADA 100%); border-top: 3px solid #992D33; color: #77797A; z-index: 2000; }
+  .instruction { position: absolute; left: 20px; top: 9px; margin: 0; font-size: 11.5px; }
+  .track { z-index: 2; position: absolute; left: 213px; top: 6px; width: 361px; height: 28px; border-radius: 6px; background: #fff; box-shadow: inset 0 1px 3px rgba(0, 0, 0, .45); cursor: pointer; touch-action: none; }
+  /* The strip starts 16 pixels into the track. Distances along it are what the slider is measured in. */
+  .strip { position: absolute; left: 16px; top: 3px; width: 329px; height: 22px; }
+  .strip button { position: absolute; top: 0; width: 26px; height: 22px; padding: 0; border: 0; border-radius: 3px; background: #ccc center / cover; cursor: pointer; }
+  .strip button:focus-visible { outline: 2px solid #B73B42; outline-offset: 1px; }
+  .strip .rule { position: absolute; top: 0; width: 1px; height: 22px; background: #C9C9C9; }
+  .knob { position: absolute; left: -23px; top: -17px; width: 46px; height: 54px; cursor: ew-resize; touch-action: none; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .35)); }
+  .knob .lens { position: absolute; left: 4px; top: 12px; width: 38px; height: 38px; border-radius: 50%; overflow: hidden; background: #fff; }
+  .knob .lens .mag { position: absolute; left: 0; top: 1px; height: 36px; }
+  .knob .lens .mag img { position: absolute; top: 0; width: 42px; height: 36px; object-fit: cover; }
+  .knob > svg { position: absolute; left: 0; top: 0; display: block; pointer-events: none; }
+  /* The credit the model's licence asks for, where the original had its send to a friend button. */
+  .credit { position: absolute; right: 16px; top: 10px; margin: 0; text-align: right; text-transform: none; font: 400 8.5px/1.35 system-ui, sans-serif; }
+  .credit a { color: inherit; }
+  .tabs { z-index: 1; position: absolute; left: 229px; top: 35px; height: 17px; }
+  .tabs button { position: absolute; top: 0; height: 17px; padding: 0; border: 0; border-radius: 0 0 5px 5px; background: linear-gradient(to bottom, transparent 9px, #DADADA 9px); color: #77797A; font: inherit; font-size: 12px; line-height: 15px; text-transform: inherit; cursor: pointer; }
+</style>
+</head>
+<body>
+<div class="fit" id="fit">
+  <div class="stage" id="stage" tabindex="0" role="slider" aria-label="Rotate the car" aria-valuemin="0" aria-valuemax="360" aria-valuenow="0"></div>
+  <div class="bar">
+    <p class="instruction">click and drag<br>slider to explore:</p>
+    <div class="track" id="track">
+      <div class="strip" id="strip"></div>
+      <div class="knob" id="knob">
+        <div class="lens"><div class="mag" id="mag"></div></div>
+        <!-- The ring, drawn rather than a picture so it stays sharp at any size: a tab with two arrows on top of a white ring. -->
+        <svg viewBox="0 0 46 54" width="46" height="54" aria-hidden="true">
+          <path d="M14.5 12V6a3 3 0 0 1 3-3h11a3 3 0 0 1 3 3v6z" fill="#fff"/>
+          <circle cx="23" cy="31" r="20" fill="none" stroke="#fff" stroke-width="4"/>
+          <circle cx="23" cy="31" r="18.25" fill="none" stroke="#000" stroke-opacity=".16" stroke-width=".5"/>
+          <path d="M21.25 4.25v5.5L17.5 7z" fill="#D6360C"/>
+          <path d="M24.75 4.25v5.5L28.5 7z" fill="#D6360C"/>
+        </svg>
+      </div>
+    </div>
+    <div class="tabs" id="tabs"></div>
+    <p class="credit">Car model: <a href="https://skfb.ly/pEDnp" target="_blank" rel="noopener">2010 Volkswagen Jetta (A5)</a><br>by BloxBloger, <a href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank" rel="noopener">CC BY-NC 4.0</a></p>
+  </div>
+</div>
+<script src="./main.js"></script>
+</body>
+</html>

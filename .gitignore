@@ -29,3 +29,8 @@ packages/sky-castle-garden/public/*.aiff
 
 # Story Cube: the Blender files are rebuilt by gallery.py.
 packages/hbo-cube/blender/*.blend
+
+# Jetta Spin: the car model is local only, and the Blender file and renders are rebuilt by render_obj.py.
+packages/jetta-spin/blender/model/
+packages/jetta-spin/blender/*.blend
+packages/jetta-spin/renders/
