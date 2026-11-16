@@ -38,7 +38,8 @@
   .bubble .disc img { position: absolute; left: 5.5px; top: 5.5px; width: 63px; height: 63px; border-radius: 50%; object-fit: cover; }
 
   /* The bar under the stage: the strip of thumbnails, the slider that rides along it and the section tabs.
-     The bar fades to the colour of the tabs. Their labels sit in the bar under the recess, and each tab hangs 5 pixels below its bottom edge. */
+     The bar fades to the colour of the tabs. Their labels sit in the bar under the recess, and each tab hangs 5 pixels below its bottom edge.
+     The tab's colour starts 3 pixels inside the bar, so no seam opens between the two when the stage is scaled. */
   .bar { position: absolute; left: 0; top: 321px; width: 780px; height: 50px; background: linear-gradient(#fff 0, #DADADA 100%); border-top: 3px solid #992D33; color: #77797A; z-index: 2000; }
   .instruction { position: absolute; left: 20px; top: 9px; margin: 0; font-size: 11.5px; }
   .track { z-index: 2; position: absolute; left: 213px; top: 6px; width: 361px; height: 28px; border-radius: 6px; background: #fff; box-shadow: inset 0 1px 3px rgba(0, 0, 0, .45); cursor: pointer; touch-action: none; }
@@ -56,7 +57,7 @@
   .credit { position: absolute; right: 16px; top: 10px; margin: 0; text-align: right; text-transform: none; font: 400 8.5px/1.35 system-ui, sans-serif; }
   .credit a { color: inherit; }
   .tabs { z-index: 1; position: absolute; left: 229px; top: 35px; height: 17px; }
-  .tabs button { position: absolute; top: 0; height: 17px; padding: 0; border: 0; border-radius: 0 0 5px 5px; background: linear-gradient(to bottom, transparent 12px, #DADADA 12px); color: #77797A; font: inherit; font-size: 12px; line-height: 15px; text-transform: inherit; cursor: pointer; }
+  .tabs button { position: absolute; top: 0; height: 17px; padding: 0; border: 0; border-radius: 0 0 5px 5px; background: linear-gradient(to bottom, transparent 9px, #DADADA 9px); color: #77797A; font: inherit; font-size: 12px; line-height: 15px; text-transform: inherit; cursor: pointer; }
 </style>
 </head>
 <body>
