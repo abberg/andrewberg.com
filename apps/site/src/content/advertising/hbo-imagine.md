@@ -4,7 +4,7 @@ client: HBO
 agency: The Barbarian Group
 partners: [BBDO New York]
 year: 2009
-role: Technical lead
+role: Technical Lead
 hero:
   src: /advertising/hbo-imagine/original-site.jpg
   width: 1274

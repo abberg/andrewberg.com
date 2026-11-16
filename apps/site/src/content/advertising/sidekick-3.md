@@ -4,7 +4,7 @@ client: T-Mobile
 agency: The Barbarian Group
 partners: [Publicis West]
 year: 2006
-role: Technical lead
+role: Technical Lead
 hero:
   src: /advertising/sidekick-3/newsstand.jpg
   width: 1089

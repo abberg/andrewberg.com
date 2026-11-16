@@ -1,0 +1,7 @@
+{
+  "title": "Tile Pyramid",
+  "description": "How the Cuervo Nation map loaded: four zoom levels cut into tiles, each level filling in from the centre of the view outward.",
+  "category": "Recreation",
+  "order": 45,
+  "listed": false
+}

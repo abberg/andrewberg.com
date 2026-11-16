@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Tile Pyramid — Andrew Berg</title>
+<link rel="icon" href="data:,">
+<meta name="description" content="How the Cuervo Nation map loaded: four zoom levels cut into tiles, each level filling in from the centre of the view outward.">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  /* The site's own light and dark colours. main.js sets data-theme to follow the page the demo is embedded in. */
+  :root { --bg: #F5F5F1; --ink: #16181A; --mute: #5E635E; --accent: #946B00; color-scheme: light; }
+  :root[data-theme="dark"] { --bg: #1C1D18; --ink: #ECECE6; --mute: #A3A8A1; --accent: #E8C14A; color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { background: var(--bg); color: var(--ink); font: 12px/1.35 ui-monospace, 'SF Mono', Menlo, Consolas, monospace; overflow: hidden; }
+  .app { display: grid; grid-template-columns: 250px minmax(0, 1fr); height: 100%; }
+  .panel { display: flex; flex-direction: column; justify-content: center; gap: 16px; min-width: 0; padding: 18px 16px; border-right: 1px solid var(--ink); }
+  .stage { position: relative; min-width: 0; min-height: 0; }
+  .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; outline: none; }
+  .stage canvas.dragging { cursor: grabbing; }
+  .stage canvas:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+  .hint { position: absolute; right: 10px; top: 10px; margin: 0; padding: 4px 8px; background: var(--ink); color: var(--bg); text-transform: uppercase; letter-spacing: .04em; font-size: 11px; pointer-events: none; transition: opacity .4s; }
+  .hint.gone { opacity: 0; }
+  h2 { margin: 0; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
+  .zoom { display: flex; flex-direction: column; gap: 10px; }
+  .track { position: relative; height: 22px; margin: 0 9px; }
+  .track::before { content: ''; position: absolute; left: 0; right: 0; top: 50%; border-top: 1.5px solid var(--ink); }
+  .track button.stop { position: absolute; top: 0; width: 18px; height: 22px; margin-left: -9px; padding: 0; border: 0; background: none; cursor: pointer; }
+  .track button.stop::before { content: ''; position: absolute; left: 8px; top: 4px; bottom: 4px; border-left: 1.5px solid var(--ink); }
+  .knob { position: absolute; top: 1px; width: 10px; height: 20px; margin-left: -5px; border: 1.5px solid var(--ink); background: var(--bg); pointer-events: none; transition: left .35s ease; }
+  .knob::after { content: ''; position: absolute; inset: 3px 2px; background: var(--ink); }
+  .buttons { display: flex; justify-content: space-between; }
+  .buttons button { display: inline-flex; align-items: center; gap: 7px; margin: 0; padding: 7px 10px 7px 7px; border: 1.5px solid var(--ink); border-radius: 0; background: none; color: inherit; font: inherit; line-height: 1; text-transform: uppercase; letter-spacing: .04em; cursor: pointer; }
+  .buttons button b { display: inline-grid; place-items: center; width: 14px; height: 14px; border: 1.5px solid var(--ink); border-radius: 50%; font-size: 12px; line-height: 1; }
+  .buttons button:disabled { opacity: .35; cursor: default; }
+  button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .levels { display: grid; grid-template-columns: auto auto auto; justify-content: start; gap: 3px 14px; margin: 0; padding: 0; list-style: none; font-variant-numeric: tabular-nums; color: var(--mute); }
+  .levels li { display: contents; }
+  .levels li.on span { color: var(--ink); font-weight: 700; }
+  .levels .n { text-align: right; }
+  .meter { display: flex; flex-direction: column; gap: 6px; }
+  .bar { height: 6px; border: 1.5px solid var(--ink); }
+  .bar i { display: block; height: 100%; width: 0; background: var(--ink); }
+  .count { font-variant-numeric: tabular-nums; color: var(--mute); }
+  .visitor { display: flex; flex-direction: column; gap: 6px; }
+  .visitor canvas { display: block; width: 100%; aspect-ratio: 884 / 564; border: 1.5px solid var(--ink); }
+  .status { margin: 0; color: var(--mute); font-family: system-ui, sans-serif; font-size: 13px; line-height: 1.4; min-height: 4.2em; }
+  @media (max-width: 620px) {
+    .app { grid-template-columns: none; grid-template-rows: minmax(0, 1fr) auto; }
+    .panel { order: 2; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px 14px; padding: 8px 10px 10px; border-right: 0; border-top: 1px solid var(--ink); font-size: 10px; }
+    .levels, .status, .visitor, .zoom h2 { display: none; }
+    .zoom { gap: 6px; }
+    .track { height: 18px; }
+    .track button.stop { height: 18px; }
+    .knob { height: 16px; }
+    .meter { justify-content: center; }
+        .zoom { grid-row: 1 / span 2; }
+    .buttons button { padding: 5px 7px 5px 5px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="panel">
+    <div class="zoom">
+      <h2>Zoom</h2>
+      <div class="track" id="track"><span class="knob" id="knob"></span></div>
+      <div class="buttons">
+        <button type="button" id="out"><b>−</b>Out</button>
+        <button type="button" id="in"><b>+</b>In</button>
+      </div>
+    </div>
+    <div class="visitor">
+      <h2>What the visitor sees</h2>
+      <canvas id="view" role="img" aria-label="The visitor's view of the map at the current zoom: the built-in map scaled up, with sharp tiles appearing over it."></canvas>
+    </div>
+    <ul class="levels" id="levels"></ul>
+    <div class="meter">
+      <div class="bar"><i id="bar"></i></div>
+      <span class="count" id="count"></span>
+    </div>
+    <p class="status" id="status" aria-live="polite"></p>
+  </div>
+  <div class="stage">
+    <canvas id="scene" tabindex="0" role="img" aria-label="The four zoom levels of the Cuervo Nation map, stacked one above the other in a dimetric drawing. Each level is cut into a grid of tiles, and a frame on each marks the part of the map in view. Drag to move the view."></canvas>
+    <p class="hint" id="hint">Zoom in, then drag the map</p>
+  </div>
+</div>
+<script src="./main.js"></script>
+</body>
+</html>
