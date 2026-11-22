@@ -716,7 +716,9 @@ function advance(delta: number) {
   paintRings(delta);
   streak(delta, elapsed);
   paintClouds(delta);
-  outline.seed.value = Math.floor(elapsed * outline.boil) * 7.31;
+  // The seed cycles through a few small offsets: a large one costs the
+  // shader's noise its precision, and the line collapses to nothing.
+  outline.seed.value = (Math.floor(elapsed * outline.boil) % 32) * 1.37;
 }
 // Before Play he stands as the walk starts, mid stride, with nothing behind him.
 pose(0);
