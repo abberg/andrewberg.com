@@ -60,7 +60,7 @@ gltf.scene.traverse(object => { if ((object as THREE.SkinnedMesh).isSkinnedMesh)
 // face sideways where the surface faces front or back, and front where it
 // faces sideways, or they would lie flat against it and smear into bands.
 const shade = {
-  edge: { value: 0.14 },     // how far round from the light the dark side starts
+  edge: { value: 0.13 },     // how far round from the light the dark side starts
   spacing: { value: 0.015 }, // from one hatch line to the next, in metres on the figure
   weight: { value: 0.35 },   // how much of that spacing is line
   towards: { value: new THREE.Vector3() },
@@ -96,13 +96,13 @@ skin.material = paint;
 // surface and less in a crease) and the hull is pushed out less there.
 skin.geometry.setAttribute('crease', skin.geometry.attributes.uv1);
 const outline = {
-  thickness: { value: 0.018 },
+  thickness: { value: 0.012 },
   // How uneven the line's weight is: 0 is an even line, 1 swells to double
   // and thins to nothing along its length.
-  rough: { value: 0.61 },
+  rough: { value: 0.43 },
   // Redraws a second. The roughness holds still between them, like animation
   // on twos; at 0 it never changes and just rides on the figure.
-  boil: 0,
+  boil: 6,
   seed: { value: 0 },
 };
 const ink = new THREE.MeshBasicMaterial({ color: 0x111111, side: THREE.BackSide });
@@ -240,9 +240,9 @@ function eddy(at: THREE.Vector3, time: number, to: THREE.Vector3) {
   return to.set(up, -across, 0).multiplyScalar(curl.strength);
 }
 const flow = new THREE.Vector3();
-const atoms: Spray = { rate: 5, life: 5, size: 0.27, speed: 1.35, drag: 0.4, fall: 0, grow: 1.5, opacity: 1, black: 0.6 };
+const atoms: Spray = { rate: 7, life: 5, size: 0.27, speed: 1.45, drag: 0.4, fall: 0, grow: 1.5, opacity: 1, black: 0.6 };
 const rings: Spray = { rate: 4, life: 3, size: 0.15, speed: 1.35, drag: 0.4, fall: 0, grow: 1.5, opacity: 1, black: 0.6 };
-const clouds: Spray = { rate: 60, life: 8, size: 0.6, speed: 0.35, drag: 0.85, fall: 0, grow: 1.9, opacity: 0.9, black: 0.85 };
+const clouds: Spray = { rate: 60, life: 8, size: 0.6, speed: 0.4, drag: 0.85, fall: 0, grow: 1.9, opacity: 0.9, black: 0.9 };
 
 const atomMap = await new THREE.TextureLoader().loadAsync('./atom.png');
 atomMap.colorSpace = THREE.SRGBColorSpace;
@@ -315,7 +315,7 @@ const pulse = {
   level: 0,       // how far through a pulse the smoke is: 1 at the instant of a clap, falling to 0
   amount: 0.1,    // how much bigger a cloud gets at the top of a pulse, as a share of its size
   fade: 0.2,      // seconds for a pulse to die down to about a third
-  share: 0.4,     // how many of the clouds pulse: always the same ones, the rest stay as they are
+  share: 0.2,     // how many of the clouds pulse: always the same ones, the rest stay as they are
 };
 // The claps aren't listened for as the track plays, which proved jumpy and
 // late: blender/claps.py found them all ahead of time, and this just watches
