@@ -1,0 +1,10 @@
+{
+  "title": "Walk",
+  "description": "A hand-modelled art toy figure on a procedural walk cycle in plain three.js, drawn with a rough inverted-hull outline and hatched two-tone shading, while atoms, rings, spray clouds and red streaks paint the air behind him in time with the music.",
+  "category": "NPR Rendering",
+  "order": 47,
+  "thumbnail": {
+    "path": "?thumbnail=1",
+    "readySelector": "html[data-thumbnail-ready=\"true\"]"
+  }
+}
