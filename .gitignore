@@ -34,3 +34,10 @@ packages/hbo-cube/blender/*.blend
 packages/jetta-spin/blender/model/
 packages/jetta-spin/blender/*.blend
 packages/jetta-spin/renders/
+
+# Walk: the Blender file and raw export are rebuilt by character.py, and the
+# reference photos and scan inputs are local only.
+packages/walk/blender/*.blend
+packages/walk/blender/build/
+packages/walk/blender/reference/
+packages/walk/blender/tripo/*.png
